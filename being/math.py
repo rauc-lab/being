@@ -1,34 +1,38 @@
+"""Mathematical helper functions."""
 import math
+from typing import Tuple
 
 
-def clip(value, lower, upper):
-    """Clip `value` to the closed interval [`lower`, `upper`].
+def clip(number: float, lower: float, upper: float) -> float:
+    """Clip `number` to the closed interval [`lower`, `upper`].
+
+    Args:
+        number: Input value.
+        lower: Lower bound.
+        upper: Upper bound.
 
     Returns:
-        float: Clipped value.
-
-    Supplementary Information:
-        https://www.youtube.com/watch?v=2ZUX3j6WLiQ&list=PLBEA362DAD76373B7
+        Clipped value.
     """
     if lower > upper:
         lower, upper = upper, lower
 
-    return max(lower, min(value, upper))
+    return max(lower, min(number, upper))
 
 
-def sign(x):
+def sign(number: float) -> float:
     """Signum function.
 
     Args:
-        x (float): Number.
+        number: Input value.
 
     Returns:
-        float: Sign part of the number.
+        Sign part of the number.
     """
-    return math.copysign(1., x)
+    return math.copysign(1., number)
 
 
-def solve_quadratic_equation(a, b, c):
+def solve_quadratic_equation(a: float, b: float, c: float) -> Tuple[float, float]:
     """Both solutions of the quadratic equation a * x^2 + b * x + c = 0.
 
     x0, x1 = (-b +/- sqrt(b^2 - 4*a*c)) / (2 * a)
@@ -36,8 +40,7 @@ def solve_quadratic_equation(a, b, c):
     Returns:
         tuple: Solutions.
     """
-    discriminant = b**2 - 4*a*c
+    discriminant = b**2 - 4 * a * c
     x0 = (-b + discriminant**.5) / (2 * a)
     x1 = (-b - discriminant**.5) / (2 * a)
     return x0, x1
-

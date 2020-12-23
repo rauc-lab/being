@@ -40,7 +40,7 @@ def sequencable(func):
     return wrapped_func
 
 
-#@sequencable
+@sequencable  # TODO: Remove for production. Handy for plotting sequence of target values
 def kinematic_filter(target: float, dt: float, state: State = State(),
         maxSpeed: float = 1., maxAcc: float = 1., lower: float = -INF,
         upper: float = INF) -> State:
