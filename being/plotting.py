@@ -1,12 +1,14 @@
+"""Plotting util."""
 import numpy as np
 import matplotlib.pyplot as plt
 
-from kinematic.constants import ONE_D
+from being.constants import ONE_D
 
 
 DEFAULT_COLORS = [
     dct['color'] for dct in plt.rcParams['axes.prop_cycle']
 ]
+"""Default matplotlib colors."""
 
 
 def plot_trajectory(t, trajectory, *args, ax=None, labelit=False, **kwargs):

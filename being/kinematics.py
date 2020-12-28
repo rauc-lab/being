@@ -1,24 +1,80 @@
-"""Kinematic trajectory filtering."""
+"""Optimal trajectory and kinematic filtering."""
 import collections
 import functools
 
 import numpy as np
 
 from being.constants import INF
-from being.math import clip, sign, solve_quadratic_equation
+from being.math import sign, clip
 
 
 State = collections.namedtuple('State', 'position velocity acceleration', defaults=(0., 0., 0.))
 
 
-def step(state: State, dt: float) -> State:
-    """Evolve state for some time interval."""
-    x0, v0, a0 = state
-    return State(
-        x0 + v0 * dt + .5 * a0 * dt**2,
-        v0 + a0 * dt,
-        a0,
-    )
+def optimal_trajectory(xEnd: float, vEnd: float = 0., state: State = State(),
+        maxSpeed: float = 1., maxAcc: float = 1.) -> list:
+    """Calculate acceleration bang profiles for optimal trajectory from initial
+    `state` to target position / velocity. Respecting the kinematic limits. Bang
+    profiles are given by their duration and the acceleration value.
+
+    Args:
+        xEnd: Target position.
+
+    Kwargs:
+        vEnd: Target velocity.
+        state: Initial state.
+        maxSpeed: Maximum speed.
+        maxAcc: Maximum acceleration (and deceleration).
+
+    Returns:
+        List of bang speed profiles.
+
+    Usage:
+        >>> optimal_trajectory(xEnd=1., maxSpeed=.5, maxAcc=1.)
+        [(0.5, 1.0), (1.5, 0.0), (0.5, -1.0)]
+
+    Resources:
+      - Francisco Ramos, Mohanarajah Gajamohan, Nico Huebel and Raffaello
+        D’Andrea: Time-Optimal Online Trajectory Generator for Robotic
+        Manipulators.
+        http://webarchiv.ethz.ch/roboearth/wp-content/uploads/2013/02/OMG.pdf
+    """
+    x0, v0, _ = state
+    dx = xEnd - x0
+    dv = vEnd - v0
+    if dx == dv == 0:
+        return [(0., 0.)]
+
+    # Determine critical profile
+    sv = sign(dv)
+    tCritical = sv * dv / maxAcc
+    dxCritical = .5 * (vEnd + v0) * tCritical
+    if dxCritical == dx:
+        return [(tCritical, sv * maxAcc)]
+
+    # Reachable peek speed, in relation with maximum speed, determines shape of
+    # speed profile. Either triangular or trapezoidal.
+    s = sign(dx - dxCritical)  # Direction
+    peekSpeed = (.5 * (vEnd**2 + v0**2) + s * dx * maxAcc)**.5
+    if peekSpeed <= maxSpeed:
+        # Triangular speed profile
+        accDuration = (s * peekSpeed - v0) / (s * maxAcc)
+        decDuration = (vEnd - s * peekSpeed) / (-s * maxAcc)
+        return [
+            (accDuration, s * maxAcc),
+            (decDuration, -s * maxAcc),
+        ]
+
+    # Trapezoidal speed profile
+    accDuration = (s * maxSpeed - v0) / (s * maxAcc)
+    t2 = ((vEnd**2 + v0**2 - 2 * s * maxSpeed * v0) / (2 * maxAcc) + s * dx) / maxSpeed
+    cruiseDuration = t2 - accDuration
+    decDuration = (vEnd - s * maxSpeed) / (-s * maxAcc)
+    return [
+        (accDuration, s * maxAcc),
+        (cruiseDuration, 0.),
+        (decDuration, -s * maxAcc),
+    ]
 
 
 def sequencable(func):
@@ -40,17 +96,31 @@ def sequencable(func):
     return wrapped_func
 
 
-@sequencable  # TODO: Remove for production. Handy for plotting sequence of target values
-def kinematic_filter(target: float, dt: float, state: State = State(),
-        maxSpeed: float = 1., maxAcc: float = 1., lower: float = -INF,
-        upper: float = INF) -> State:
-    """Filter position trajectory with respect to the kinematic limits (maximum
-    speed and maximum acceleration / deceleration).
+def step(state: State, dt: float) -> State:
+    """Evolve state for some time interval."""
+    x0, v0, a0 = state
+    return State(
+        x0 + v0 * dt + .5 * a0 * dt**2,
+        v0 + a0 * dt,
+        a0,
+    )
+
+
+@sequencable
+def kinematic_filter(targetPosition: float, dt: float, state: State = State(),
+        targetVelocity: float = 0., maxSpeed: float = 1., maxAcc: float = 1.,
+        lower: float = -INF, upper: float = INF) -> State:
+    """Filter target position with respect to the kinematic limits (maximum
+    speed and maximum acceleration / deceleration). Online optimal trajectory.
 
     Args:
-        target: Target position value.
-        state: Initial / current state.
+        targetPosition: Target position value.
         dt: Time interval.
+
+    Kwargs:
+        state: Initial / current state.
+        targetVelocity: Target velocity value. Use with care! Steady sate with
+            non-zero targetVelocity leads to oscillation.
         maxSpeed: Maximum speed value.
         maxAcc: Maximum acceleration (and deceleration) value.
         lower: Lower clipping value for target value.
@@ -58,122 +128,22 @@ def kinematic_filter(target: float, dt: float, state: State = State(),
 
     Returns:
         The next state.
-
-    Explanation:
-        We ask ourselves how can we reach the target value from the current
-        state with a triangular / trapezoidal S-speed profile? Such a profile
-        consists of three possible segments:
-          - Segment 0 Accelerating
-          - Segment 1 Cruising with maxSpeed
-          - Segment 2 Decelerating
-
-        This is essentially a piecewise polynomial quadratic spline.
-
-        We use the following nomenclature / variable names:
-          - x, v and a: Position, velocity and acceleration at the start of the
-            segment.
-          - h: Segment duration.
-          - d: Position displacement of the segment
-
-        | x0 | x1 | x2 |
-        | v0 | v1 | v2 |
-        | a0 | a2 | a2 |
-
-          h0   h1   h2
-
-        --------------->
-              Time
-
-        x0 and v0 correspond to the initial state / condition (we are in control
-        of the acceleration therefore it is not used).
-
-        Depending on the error and the initial state one or two of these
-        segments can have zero width. E.g. Already at maxSpeed -> h0 = 0, not
-        enough time to accelerate to maxSpeed -> h1 = 0, already breaking -> h0
-        = h1 = 0. Etc.
-
-        This function performs essentially the following steps:
-          1) Determine thrust direction
-          2) How much acceleration headroom do we have?
-          3) When do we need to start breaking so to reach the target without
-             overshooting and ending up in steady state (vEnd = 0)?
-          4) When would we reach maxSpeed?
-          5) Calculate and evaluate necessary spline coefficients.
     """
-    # Validation
-    target = clip(target, lower, upper)
-    maxSpeed = abs(maxSpeed)
-    maxAcc = abs(maxAcc)
-    assert maxSpeed > 0
-    assert maxAcc > 0
-    x0, v0, _ = state
-    v0 = clip(v0, -maxSpeed, maxSpeed)
+    bangProfiles = optimal_trajectory(
+        clip(targetPosition, lower, upper),
+        targetVelocity,
+        state,
+        maxSpeed,
+        maxAcc,
+    )
 
-    # Thrust direction and early exit
-    err = target - x0
-    if err == 0:
-        if v0 == 0:
-            return State(position=target, velocity=0., acceleration=0.)
+    # Effectively spline evaluation. Go through all segments and see where we
+    # are at `dt`. Update state for intermediate steps.
+    for duration, acc in bangProfiles:
+        if dt <= duration:
+            return step((state.position, state.velocity, acc), dt)
 
-        direction = -sign(v0)  # Already at target overshooting. Row back
-    else:
-        direction = sign(err)
+        state = step((state.position, state.velocity, acc), duration)
+        dt -= duration
 
-    # Acceleration headroom / intensity. If target within reach undercut maxAcc.
-    # This reduces ringing / oscillation when close to steady state.
-    headroom = abs((err - v0 * dt) / (.5 * dt**2))
-    accValue = min(headroom, maxAcc)
-    a0 = direction * accValue
-    a2 = -direction * accValue
-
-    # Time until we have to break in order to reach target. Solve the following
-    # quadratic equation for h0. This gives us two time candidates for h0: t0
-    # and t1.
-    #
-    #   err - dBreak(h0) = v0 * h0 + .5 * a0 * h0^2
-    #
-    # where dBreak(h0) = -v1^2 / (2 * a2) =  -(v0 + a0 * h0)^2 / (2 * a2).
-    # We take the larger solution.
-    # TODO: How to handle complex solutions? Under which circumstances can they
-    # occure and what do they mean?
-    t0, t1 = solve_quadratic_equation(a0, 2 * v0, -(err + v0**2 / (2 * a2)))
-    timeUntilBreak = max(t0, t1)
-    if timeUntilBreak <= 0:
-        # Already overshooting. We need to break right now.
-        return step((x0, v0, a2), dt)
-
-    # How long until we reach maxSpeed?
-    # Solve direction * maxSpeed = v0 + a0 * t for t
-    timeUntilMaxSpeed = (direction * maxSpeed - v0) / a0
-
-    # Segment 0 (accelerating)
-    h0 = min(timeUntilMaxSpeed, timeUntilBreak)
-    d0 = v0 * h0 + .5 * a0 * h0**2
-
-    # Segment 2 (decelerating) kinematics have to be computed before segment 1
-    # (cruising).
-    v1 = v2 = v0 + a0 * h0  # Constant speed while cruising
-    h2 = -v2 / a2
-    d2 = v2 * h2 + .5 * a2 * h2**2
-
-    # Segment 1 (cruising). Segment duration h1 can be zero (triangular speed
-    # profile)
-    d1 = err - d0 - d2
-    h1 = max(0., d1 / v1)  # TODO: Zero division?
-
-    # Go through the three segments and exit at the appropriate moment. h0 -> h1
-    # -> h2. In which segment are we in at dt? Kind of manual evaluation of
-    # piecewise quadratic spline
-    if dt <= h0:
-        # Accelerating
-        return step((x0, v0, a0), dt)
-
-    remaining = dt - h0
-    if remaining <= h1:
-        # Cruising
-        return step((x0 + d0, v1, 0.), dt=remaining)
-
-    remaining -= h1
-
-    # Decelerating
-    return step((x0 + d0 + d1, v2, a2), dt=remaining)
+    return state._replace(acceleration=0.)
