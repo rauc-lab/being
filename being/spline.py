@@ -103,6 +103,27 @@ def smoothing_spline(x: Sequence, y: Sequence, degree: int = 3,
     return ppoly
 
 
+def optimal_trajectory_spline(xEnd: float, vEnd: float = 0., x0: float = 0.,
+        v0: float = 0., maxSpeed: float = 1., maxAcc: float = 1.) -> PPoly:
+    """Build spline following the optimal trajectory.
+
+    Kwargs:
+        xEnd: Target position.
+        vEnd: Target velocity.
+        x0: Initial position.
+        v0: Initial velocity.
+        maxSpeed: Maximum speed value.
+        maxAcc: Maximum acceleration value.
+
+    Returns:
+        Optimal trajectory spline.
+    """
+    profiles = optimal_trajectory(xEnd, vEnd, state=(x0, v0, 0.), maxSpeed=maxSpeed, maxAcc=maxAcc)
+    durations, accelerations = zip(*profiles)
+    knots = np.r_[0., np.cumsum(durations)]
+    return build_spline(accelerations, knots, x0=x0, v0=v0)
+
+
 def smoothing_spline_demo():
     """Demo of smoothing splines with multivariate and periodic data."""
     import matplotlib.pyplot as plt
@@ -153,24 +174,3 @@ def smoothing_spline_demo():
 
 if __name__ == '__main__':
     smoothing_spline_demo()
-
-
-def optimal_trajectory_spline(xEnd: float, vEnd: float = 0., x0: float = 0.,
-        v0: float = 0., maxSpeed: float = 1., maxAcc: float = 1.) -> PPoly:
-    """Build spline following the optimal trajectory.
-
-    Kwargs:
-        xEnd: Target position.
-        vEnd: Target velocity.
-        x0: Initial position.
-        v0: Initial velocity.
-        maxSpeed: Maximum speed value.
-        maxAcc: Maximum acceleration value.
-
-    Returns:
-        Optimal trajectory spline.
-    """
-    profiles = optimal_trajectory(xEnd, vEnd, state=(x0, v0, 0.), maxSpeed=maxSpeed, maxAcc=maxAcc)
-    durations, accelerations = zip(*profiles)
-    knots = np.r_[0., np.cumsum(durations)]
-    return build_spline(accelerations, knots, x0=x0, v0=v0)
