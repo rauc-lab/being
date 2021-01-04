@@ -41,10 +41,11 @@ def remove_back_edges(graph: Graph) -> Graph:
     if not backEdges:
         return graph
 
-    noBackEdges = list(graph.edges)
+    edges = list(graph.edges)
     for backEdge in backEdges:
-        noBackEdges.remove(backEdge)
+        edges.remove(backEdge)
 
+    noBackEdges = edges
     return Graph(graph.vertices, edges=noBackEdges)
 
 
@@ -55,11 +56,7 @@ def topological_sort(graph: Graph) -> List[Vertex]:
 
     def vertex_is_ready(vertex: Vertex) -> bool:
         """Check if vertex is ready for insertion into topological order."""
-        for pred in dag.predecessors[vertex]:
-            if pred not in order:
-                return False
-
-        return True
+        return all(p in order for p in dag.predecessors[vertex])
 
     queue = collections.deque(dag.vertices)
     while queue:
@@ -67,11 +64,12 @@ def topological_sort(graph: Graph) -> List[Vertex]:
         if vertex in order:
             continue
 
+        successors = reversed(dag.successors[vertex])
         if vertex_is_ready(vertex):
             order.append(vertex)
-            queue.extendleft(reversed(dag.successors[vertex]))
+            queue.extendleft(successors)
         else:
-            queue.extend(dag.successors[vertex])
+            queue.extend(successors)
 
     return order
 
@@ -90,6 +88,8 @@ class Graph(collections.namedtuple('Graph', ['vertices', 'edges', 'successors', 
         successors: Source -> destinations relationships.
         predecessors: Destination -> sources relationships.
     """
+
+    # __slots__ = ()  # ...consenting adults
 
     def __new__(cls, vertices: Optional[Iterable] = None,
             edges: Sequence[Edge] = None):
