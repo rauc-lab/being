@@ -22,3 +22,6 @@ MONO: int = 1
 
 STEREO: int = 2
 """Stereo audio signal."""
+
+EOT = chr(4)
+"""End of transmission character."""
