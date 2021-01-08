@@ -3,11 +3,16 @@
 # dct -> JSON dict / object
 import json
 import collections
+from typing import Generator, Optional, Any
 
+import numpy as np
 from scipy.interpolate import PPoly
+
+from being.constants import EOT
 
 
 def being_object_hook(dct):
+    """Being object hook for custom JSON deserialization."""
     if dct.get('type') == 'PPoly':  # Or Spline?
         c = np.array(dct['coefficients'])
         x = np.array(dct['knots'])
@@ -16,28 +21,61 @@ def being_object_hook(dct):
     return dct
 
 
-def dumps(obj, *args, **kwargs):
-    """Dumps being object to string."""
-    return json.dumps(obj, cls=BeingEncoder, *args, **kwargs)
-
-
-def loads(string):
-    """Loads being object from string."""
-    return json.loads(string, object_hook=being_object_hook)
-
-
 class BeingEncoder(json.JSONEncoder):
+
+    """Being JSONEncoder object hook for custom JSON deserialization."""
+
     def default(self, obj):
         # OrderedDict to control key ordering for Python versions before 3.6
         if isinstance(obj, PPoly):
             return collections.OrderedDict([
-                ('type', 'Spline'),
+                ('type', 'PPoly'),
                 ('knots', obj.x.tolist()),
                 ('coefficients', obj.c.tolist()),
             ])
 
         return json.JSONEncoder.default(self, obj)
 
+
+def dumps(obj, *args, **kwargs):
+    """Serialize being object to JSON string."""
+    return json.dumps(obj, cls=BeingEncoder, *args, **kwargs)
+
+
+def loads(string):
+    """Deserialize being object from JSON string."""
+    return json.loads(string, object_hook=being_object_hook)
+
+
+class FlyByDecoder:
+
+    """Continuously decode objects from partial messages.
+
+    Usage:
+        >>> snippets = ['"Hello, World!"\x041.23', '4\x04[1, 2, 3, 4]\x04{"a":', ' 1, "b": 2}\x04']
+        ... dec = FlyByDecoder()
+        ... for snippet in snippets:
+        ...     for obj in dec.decode_more(snippet):
+        ...         print(obj)
+        Hello, World!
+        1.234
+        [1, 2, 3, 4]
+        {'a': 1, 'b': 2}
+    """
+
+    def __init__(self, term: str = EOT):
+        """Kwargs:
+            term: Termination character.
+        """
+        self.term = term
+        self.incomplete = ''
+
+    def decode_more(self, new: str) -> Generator:
+        """Try to decode more objects."""
+        self.incomplete += new
+        while self.term in self.incomplete:
+            complete, self.incomplete = self.incomplete.split(self.term, maxsplit=1)
+            yield loads(complete)
 
 
 def demo():
@@ -48,6 +86,12 @@ def demo():
     s = dumps(spline)
 
     other = loads(s)
+
+    snippets = ['"Hello, World!"\x041.23', '4\x04[1, 2, 3, 4]\x04{"a":', ' 1, "b": 2}\x04']
+    dec = FlyByDecoder()
+    for snippet in snippets:
+        for obj in dec.decode_more(snippet):
+            print(obj)
 
 
 if __name__ == '__name__':
