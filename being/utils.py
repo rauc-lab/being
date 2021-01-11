@@ -26,7 +26,7 @@ class SingleInstanceCache:
 
     @classmethod
     def clear(cls):
-        cls.INSTANCES.pop(cls, None)
+        cls.INSTANCES.clear()
 
     @classmethod
     def default(cls, *args, **kwargs):
