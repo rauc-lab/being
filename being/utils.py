@@ -25,6 +25,10 @@ class SingleInstanceCache:
         return cls in cls.INSTANCES
 
     @classmethod
+    def clear(cls):
+        cls.INSTANCES.pop(cls, None)
+
+    @classmethod
     def default(cls, *args, **kwargs):
         """Get cached single instance or setdefault it from dache."""
         ref = cls.INSTANCES.get(cls, lambda: None)
