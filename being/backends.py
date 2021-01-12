@@ -1,13 +1,8 @@
 """Backend resources."""
-import sys
 import contextlib
 
-import canopen
 import pyaudio
-if sys.platform == 'darwin':
-    from being.pcan_darwin_patch import patch_pcan_on_darwin
-    patch_pcan_on_darwin()
-
+import canopen
 from being.utils import SingleInstanceCache
 
 
@@ -23,6 +18,7 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
 
     def __enter__(self):
         self.connect(bitrate=self.bitrate, bustype=self.bustype, channel=self.channel)
+        self.check()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -56,3 +52,6 @@ class AudioBackend(SingleInstanceCache, contextlib.AbstractContextManager):
         self.stream.stop_stream()
         self.stream.close()
         self.pa.terminate()
+
+
+# TODO: VideoBackend
