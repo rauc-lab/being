@@ -3,7 +3,7 @@ import sys
 
 # PCAN on darwin patch
 if sys.platform == 'darwin':
-    from being.pcan_darwin_patch import patch_pcan_on_darwin
+    from being.can.pcan_darwin_patch import patch_pcan_on_darwin
     patch_pcan_on_darwin()
 
 

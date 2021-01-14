@@ -33,3 +33,8 @@ def register_resource(resource: ContextManager, duplicates=False):
 def manage_resources():
     """Manage all acquired resources in EXIT_STACK."""
     return EXIT_STACK
+
+
+
+def add_callback(callback, /, *args, **kwargs):
+    EXIT_STACK.callback(callback, *args, **kwargs)
