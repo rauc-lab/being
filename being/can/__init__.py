@@ -11,17 +11,11 @@ from canopen.objectdictionary.eds import import_eds
 from being.can.definitions import FunctionCode, DEVICE_TYPE, STORE_EDS
 
 
-def _load_eds_file(filename: str) -> io.StringIO:
-    """Load EDS file from disk / pgk resources."""
-    fp = os.path.join('eds_files', filename)
-    data = pkgutil.get_data(__name__, fp)
-    return io.StringIO(data.decode())
-
-
 SUPPORTED_DEVICE_TYPES = {
-    b'\x92\x01\x42\x00': _load_eds_file('MCLM3002P-CO.eds'),
+    b'\x92\x01\x42\x00': 'eds_files/MCLM3002P-CO.eds',
     # TODO: Add more EDS files
 }
+"""Device type: bytes -> local EDS file."""
 
 
 @contextlib.contextmanager
@@ -57,27 +51,48 @@ def sdo_client(network: Network, nodeId: int, od=None):
         network.unsubscribe(txCob)
 
 
-def load_object_dictionary(network, nodeId):
+def _load_local_eds(deviceType: bytes) -> io.StringIO:
+    """Given deviceType try to load local EDS file.
+
+    Args:
+        deviceType: Raw device type from node.
+
+    Returns:
+        EDS file content wrapped in StringIO buffer.
+    """
+    fp = SUPPORTED_DEVICE_TYPES[deviceType]
+    data = pkgutil.get_data(__name__, fp)
+    return io.StringIO(data.decode())
+
+
+def load_object_dictionary(network, nodeId: int) -> ObjectDictionary:
     """Get object dictionary for node. Ping node, try to download EDS from it,
     see if we have a fallback. RuntimeError otherwise.
+
+    Args:
+        network (Network / CanBackend): Connected CAN network.
+        nodeId: Node ID to load object dictionary for.
+
+    Returns:
+        Object dictionary for node.
     """
     with sdo_client(network, nodeId) as client:
         # Ping node
         try:
             deviceType = client.open(DEVICE_TYPE).read()
         except SdoCommunicationError as err:
-            raise RuntimeError(f'CANopen node {nodeId} is not reachable!')
+            raise RuntimeError(f'CANopen node {nodeId} is not reachable!') from err
 
         # Try to download object dictionary from node
         try:
             edsFp = client.open(STORE_EDS, mode='rt')
             return import_eds(edsFp, nodeId)
-        except SdoAbortedError as err:
+        except SdoAbortedError:
             pass
 
         # Check if we know the node
         if deviceType in SUPPORTED_DEVICE_TYPES:
-            fp = SUPPORTED_DEVICE_TYPES[deviceType]
-            return import_eds(fp, nodeId)
+            filelike = _load_local_eds(deviceType)
+            return import_eds(filelike, nodeId)
 
     raise RuntimeError(f'Unknown CANopen node {nodeId}. Could not load object dictionary!')
