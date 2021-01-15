@@ -1,13 +1,14 @@
 """CiA 402 CANopen node.
 
-Alternative to canopen.BaseNode402. Simpler. Statusword & controlword always via
-SDO, rest via PDO. Proper support for CYCLIC_SYNCHRONOUS_POSITION.
+Trimmed down version of canopen.BaseNode402. Statusword & controlword always via
+SDO, rest via PDO. Support for CYCLIC_SYNCHRONOUS_POSITION.
 """
 from enum import auto, IntEnum, Enum
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Tuple
 from collections import deque, defaultdict
 
 from canopen import RemoteNode
+
 from being.bitmagic import check_bit
 from being.can.definitions import (
     CONTROLWORD, OPERATION_MODE, OPERATION_MODE_DISPLAY, STATUSWORD,
@@ -44,7 +45,26 @@ class Command(IntEnum):
     FAULT_RESET = 0b10000000
 
 
-TRANSITIONS = {
+class OperationMode(IntEnum):
+
+    """Modes of Operation (0x6060 / 0x6061)."""
+
+    NO_MODE = 0
+    PROFILED_POSITION = 1
+    VELOCITY = 2
+    PROFILED_VELOCITY = 3
+    PROFILED_TORQUE = 4
+    HOMING = 6
+    INTERPOLATED_POSITION = 7
+    CYCLIC_SYNCHRONOUS_POSITION = 8
+    CYCLIC_SYNCHRONOUS_VELOCITY = 9
+    CYCLIC_SYNCHRONOUS_TORQUE = 10
+    OPEN_LOOP_SCALAR_MODE = -1
+    OPEN_LOOP_VECTOR_MODE = -2
+
+
+Edge = Tuple[State, State]
+TRANSITIONS: Dict[Edge, Command] = {
     # Shut down: 2, 6, 8
     (State.SWITCH_ON_DISABLED, State.READY_TO_SWITCH_ON):     Command.SHUT_DOWN,
     (State.SWITCHED_ON, State.READY_TO_SWITCH_ON):            Command.SHUT_DOWN,
@@ -72,40 +92,22 @@ TRANSITIONS = {
     (State.NOT_READY_TO_SWITCH_ON, State.SWITCH_ON_DISABLED): 0x0,
     (State.FAULT_REACTION_ACTIVE, State.FAULT):               0x0,
 }
-"""Possible state transitions and the corresponding controlword command."""
+"""Possible state transitions and the corresponding controlword command. State
+edge -> command.
+"""
 
 
 POSSIBLE_TRANSITIONS: Dict[State, Set[State]] = defaultdict(set)
-for edge in TRANSITIONS:
-    src, dst = edge
-    POSSIBLE_TRANSITIONS[src].add(dst)
+for _src, _dst in TRANSITIONS:
+    POSSIBLE_TRANSITIONS[_src].add(_dst)
 """Reachable states for a given state."""
 
-
-class OperationMode(IntEnum):
-
-    """Modes of Operation (0x6060 / 0x6061)."""
-
-    NO_MODE = 0
-    PROFILED_POSITION = 1
-    VELOCITY = 2
-    PROFILED_VELOCITY = 3
-    PROFILED_TORQUE = 4
-    HOMING = 6
-    INTERPOLATED_POSITION = 7
-    CYCLIC_SYNCHRONOUS_POSITION = 8
-    CYCLIC_SYNCHRONOUS_VELOCITY = 9
-    CYCLIC_SYNCHRONOUS_TORQUE = 10
-    OPEN_LOOP_SCALAR_MODE = -1
-    OPEN_LOOP_VECTOR_MODE = -2
-
-
-VALID_OP_MODE_CHANGE_STATES = {
+VALID_OP_MODE_CHANGE_STATES: Set[State] = {
     State.SWITCH_ON_DISABLED,
     State.READY_TO_SWITCH_ON,
     State.SWITCHED_ON,
 }
-"""set: Not every state support switching of operation mode."""
+"""Not every state support switching of operation mode."""
 
 
 def which_state(statusword: int) -> State:
@@ -128,15 +130,22 @@ def which_state(statusword: int) -> State:
 
 
 def supported_operation_modes(supportedDriveModes: int) -> List[OperationMode]:
-    """Determine supported operation modes for value of SUPPORTED_DRIVE_MODES
-    0x6502.
+    """Which operation modes are supported? Extract information from value of
+    SUPPORTED_DRIVE_MODES (0x6502).
+
+    Args:
+        supportedDriveModes: Received value from 0x6502.
+
+    Returns:
+        List of supported drive modes for the node.
     """
     stuff = [
         (0, OperationMode.PROFILED_POSITION),
         (2, OperationMode.PROFILED_VELOCITY),
         (5, OperationMode.HOMING),
         (7, OperationMode.CYCLIC_SYNCHRONOUS_POSITION),
-        # TODO: Add additional modes for different manufacturer
+        # TODO: From the Faulhaber manual. Add additional modes for different
+        # manufacturer. Which bits do they us?
     ]
     supported = []
     for bit, op in stuff:
@@ -149,8 +158,16 @@ def supported_operation_modes(supportedDriveModes: int) -> List[OperationMode]:
 def find_shortest_state_path(start: State, end: State) -> List[State]:
     """Find shortest path from start to end state. Start node is also included
     in returned path.
+
+    Args:
+        start: Start state.
+        end: Target end state.
+
+    Returns:
+        Path from start -> end. Empty list if the does not exist a path from
+        start -> end.
     """
-    # BFS
+    # Breadth-first search
     queue = deque([[start]])
     paths = []
     while queue:
@@ -171,12 +188,6 @@ class CiA402Node(RemoteNode):
 
     """Alternative / simplified implementation of canopen.BaseNode402."""
 
-    def __init__(self, node_id, object_dictionary):
-        super().__init__(node_id, object_dictionary)
-
-        #self.tpdo_values = dict() # { index: TPDO_value }
-        #self.rpdo_pointers = dict() # { index: RPDO_pointer }
-
     def get_state(self) -> State:
         """Get current node state."""
         sw = self.sdo[STATUSWORD].raw
@@ -194,7 +205,6 @@ class CiA402Node(RemoteNode):
 
         edge = (current, target)
         cmd = TRANSITIONS[edge]
-        print('  Controlword:', cmd, int(cmd))
         self.sdo[CONTROLWORD].raw = int(cmd)
 
     def change_state(self, target: State):
