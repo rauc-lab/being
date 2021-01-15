@@ -46,6 +46,9 @@ setup(
     long_description=longDescription,
     #long_description_content_type='text/rst',  # TODO: Does not work
     name='being',
+    package_data={
+        'being.can': ['eds_files/*.eds'],
+    },
     packages=find_packages(),
     test_suite='tests',
     version=being.__version__,

@@ -9,7 +9,10 @@ from collections import deque, defaultdict
 
 from canopen import RemoteNode
 from being.bitmagic import check_bit
-from being.can.definitions import CONTROLWORD, STATUSWORD, OPERATION_MODE, OPERATION_MODE_DISPLAY, SUPPORTED_DRIVE_MODES
+from being.can.definitions import (
+    CONTROLWORD, OPERATION_MODE, OPERATION_MODE_DISPLAY, STATUSWORD,
+    SUPPORTED_DRIVE_MODES,
+)
 
 
 class State(Enum):
@@ -39,7 +42,6 @@ class Command(IntEnum):
     DISABLE_OPERATION = 0b0111
     ENABLE_OPERATION = 0b1111
     FAULT_RESET = 0b10000000
-
 
 
 TRANSITIONS = {
@@ -224,11 +226,3 @@ class CiA402Node(RemoteNode):
             raise RuntimeError(msg)
 
         self.sdo[OPERATION_MODE].raw = op
-
-    """
-    def enable(self):
-        pass
-
-    def engage(self):
-        pass
-    """

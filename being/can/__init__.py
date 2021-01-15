@@ -1,5 +1,8 @@
 """CAN / CANopen related stuff."""
+import pkgutil
 import contextlib
+import io
+import os
 
 from canopen import Network, ObjectDictionary
 from canopen.sdo import SdoClient, SdoCommunicationError, SdoAbortedError
@@ -8,8 +11,16 @@ from canopen.objectdictionary.eds import import_eds
 from being.can.definitions import FunctionCode, DEVICE_TYPE, STORE_EDS
 
 
+def _load_eds_file(filename: str) -> io.StringIO:
+    """Load EDS file from disk / pgk resources."""
+    fp = os.path.join('eds_files', filename)
+    data = pkgutil.get_data(__name__, fp)
+    return io.StringIO(data.decode())
+
+
 SUPPORTED_DEVICE_TYPES = {
-    b'\x92\x01\x42\x00': 'resources/MCLM3002P-CO.eds',
+    b'\x92\x01\x42\x00': _load_eds_file('MCLM3002P-CO.eds'),
+    # TODO: Add more EDS files
 }
 
 
