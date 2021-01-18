@@ -3,17 +3,23 @@
 Trimmed down version of canopen.BaseNode402. Statusword & controlword always via
 SDO, rest via PDO. Support for CYCLIC_SYNCHRONOUS_POSITION.
 """
+import contextlib
+import logging
 from enum import auto, IntEnum, Enum
-from typing import List, Dict, Set, Tuple
+from typing import List, Dict, Set, Tuple, ForwardRef, Generator
 from collections import deque, defaultdict
 
 from canopen import RemoteNode
 
 from being.bitmagic import check_bit
 from being.can.definitions import (
-    CONTROLWORD, OPERATION_MODE, OPERATION_MODE_DISPLAY, STATUSWORD,
+    CONTROLWORD, MODES_OF_OPERATION, MODES_OF_OPERATION_DISPLAY, STATUSWORD,
     SUPPORTED_DRIVE_MODES,
 )
+
+
+State = ForwardRef('State')
+Edge = Tuple[State, State]
 
 
 class State(Enum):
@@ -32,17 +38,34 @@ class State(Enum):
     HALT = auto()
 
 
+class CW(IntEnum):
+
+    """Controlword bits."""
+
+    SWITCH_ON = (1 << 0)
+    ENABLE_VOLTAGE = (1 << 1)
+    QUICK_STOP = (1 << 2)
+    ENABLE_OPERATION = (1 << 3)
+    NEW_SET_POINT = (1 << 4)
+    START_HOMING_OPERATION = NEW_SET_POINT  # Alias
+    ENABLE_IP_MODE = NEW_SET_POINT  # Alias
+    CHANGE_SET_IMMEDIATELY = (1 << 5)
+    ABS_REL = (1 << 6)
+    FAULT_RESET = (1 << 7)
+    HALT = (1 << 8)
+
+
 class Command(IntEnum):
 
     """CANopen CiA 402 controlword commands for state transitions."""
 
-    SHUT_DOWN = 0b0110
-    SWITCH_ON = 0b0111
-    DISABLE_VOLTAGE = 0b0000
-    QUICK_STOP = 0b0010
-    DISABLE_OPERATION = 0b0111
-    ENABLE_OPERATION = 0b1111
-    FAULT_RESET = 0b10000000
+    SHUT_DOWN = CW.ENABLE_VOLTAGE | CW.QUICK_STOP
+    SWITCH_ON = CW.SWITCH_ON | CW.ENABLE_VOLTAGE | CW.QUICK_STOP
+    DISABLE_VOLTAGE = 0
+    QUICK_STOP = CW.ENABLE_VOLTAGE
+    DISABLE_OPERATION = CW.ENABLE_VOLTAGE | CW.QUICK_STOP | CW.ENABLE_OPERATION
+    ENABLE_OPERATION = CW.SWITCH_ON | CW.ENABLE_VOLTAGE | CW.QUICK_STOP | CW.ENABLE_OPERATION
+    FAULT_RESET = CW.FAULT_RESET
 
 
 class OperationMode(IntEnum):
@@ -63,7 +86,6 @@ class OperationMode(IntEnum):
     OPEN_LOOP_VECTOR_MODE = -2
 
 
-Edge = Tuple[State, State]
 TRANSITIONS: Dict[Edge, Command] = {
     # Shut down: 2, 6, 8
     (State.SWITCH_ON_DISABLED, State.READY_TO_SWITCH_ON):     Command.SHUT_DOWN,
@@ -96,7 +118,6 @@ TRANSITIONS: Dict[Edge, Command] = {
 edge -> command.
 """
 
-
 POSSIBLE_TRANSITIONS: Dict[State, Set[State]] = defaultdict(set)
 for _src, _dst in TRANSITIONS:
     POSSIBLE_TRANSITIONS[_src].add(_dst)
@@ -112,7 +133,7 @@ VALID_OP_MODE_CHANGE_STATES: Set[State] = {
 
 def which_state(statusword: int) -> State:
     """Extract state from statusword."""
-    stuff = [
+    considerations = [
         (0b1001111, 0b0000000, State.NOT_READY_TO_SWITCH_ON),
         (0b1001111, 0b1000000, State.SWITCH_ON_DISABLED),
         (0b1101111, 0b0100001, State.READY_TO_SWITCH_ON),
@@ -122,22 +143,22 @@ def which_state(statusword: int) -> State:
         (0b1001111, 0b0001111, State.FAULT_REACTION_ACTIVE),
         (0b1001111, 0b0001000, State.FAULT),
     ]
-    for mask, value, state in stuff:
+    for mask, value, state in considerations:
         if (statusword & mask) == value:
             return state
 
     raise ValueError('Unknown state for statusword {statusword}!')
 
 
-def supported_operation_modes(supportedDriveModes: int) -> List[OperationMode]:
+def supported_operation_modes(supportedDriveModes: int) -> Generator[OperationMode, None, None]:
     """Which operation modes are supported? Extract information from value of
     SUPPORTED_DRIVE_MODES (0x6502).
 
     Args:
         supportedDriveModes: Received value from 0x6502.
 
-    Returns:
-        List of supported drive modes for the node.
+    Yields:
+        Supported drive operation modes for the node.
     """
     stuff = [
         (0, OperationMode.PROFILED_POSITION),
@@ -147,12 +168,9 @@ def supported_operation_modes(supportedDriveModes: int) -> List[OperationMode]:
         # TODO: From the Faulhaber manual. Add additional modes for different
         # manufacturer. Which bits do they us?
     ]
-    supported = []
     for bit, op in stuff:
         if check_bit(supportedDriveModes, bit):
-            supported.append(op)
-
-    return supported
+            yield op
 
 
 def find_shortest_state_path(start: State, end: State) -> List[State]:
@@ -188,28 +206,41 @@ class CiA402Node(RemoteNode):
 
     """Alternative / simplified implementation of canopen.BaseNode402."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.logger = logging.getLogger(str(self))
+
     def get_state(self) -> State:
         """Get current node state."""
         sw = self.sdo[STATUSWORD].raw
         return which_state(sw)
 
     def set_state(self, target: State):
-        """Set node state."""
+        """Set node state. This method only works for possible transitions from
+        current state (single step). For arbirtatry transitions use
+        CiA402Node.change_state.
+
+        Args:
+            target: New target state.
+        """
+        self.logger.info('Switching to state %r', target)
         current = self.get_state()
         if target is current:
             return
 
         if not target in POSSIBLE_TRANSITIONS[current]:
-            msg = f'Invalid state transition from {current!r} to {target!r}!'
-            raise RuntimeError(msg)
+            raise RuntimeError(f'Invalid state transition from {current!r} to {target!r}!')
 
         edge = (current, target)
-        cmd = TRANSITIONS[edge]
-        self.sdo[CONTROLWORD].raw = int(cmd)
+        cw = TRANSITIONS[edge]
+        self.sdo[CONTROLWORD].raw = cw
 
     def change_state(self, target: State):
         """Change to a specific state. Will traverse all necessary states in
         between to get there.
+
+        Args:
+            target: New target state.
         """
         current = self.get_state()
         if target is current:
@@ -221,18 +252,41 @@ class CiA402Node(RemoteNode):
 
     def get_operation_mode(self) -> OperationMode:
         """Get current operation mode."""
-        return OperationMode(self.sdo[OPERATION_MODE_DISPLAY].raw)
+        return OperationMode(self.sdo[MODES_OF_OPERATION_DISPLAY].raw)
 
     def set_operation_mode(self, op: OperationMode):
-        """Set operation mode."""
+        """Set operation mode.
+
+        Args:
+            op: New target mode of operation.
+        """
+        self.logger.info('Switching to operation mode %r', op)
         state = self.get_state()
         if state not in VALID_OP_MODE_CHANGE_STATES:
-            msg = f'Can not change operation mode when in {state!r}'
-            raise RuntimeError(msg)
+            raise RuntimeError(f'Can not change to {op!r} when in {state!r}')
 
         sdm = self.sdo[SUPPORTED_DRIVE_MODES].raw
         if op not in supported_operation_modes(sdm):
-            msg = f'This drive does not support {op!r}!'
-            raise RuntimeError(msg)
+            raise RuntimeError(f'This drive does not support {op!r}!')
 
-        self.sdo[OPERATION_MODE].raw = op
+        self.sdo[MODES_OF_OPERATION].raw = op
+
+    @contextlib.contextmanager
+    def restore_states_and_operation_mode(self):
+        """Restore NMT state, CiA 402 state and operation mode. Implemented as
+        context manager.
+
+        Usage:
+            >>> with node.restore_states_and_operation_mode():
+            ...     # Do something fancy with the states
+            ...     pass
+        """
+        nmt = self.nmt.state
+        op = self.get_operation_mode()
+        state = self.get_state()
+
+        yield self
+
+        self.change_state(state)
+        self.set_operation_mode(op)
+        self.nmt.state = nmt
