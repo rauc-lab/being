@@ -16,10 +16,12 @@ from being.can.definitions import (
     CONTROLWORD,
     MODES_OF_OPERATION,
     MODES_OF_OPERATION_DISPLAY,
+    POSITION_ACTUAL_VALUE,
     STATUSWORD,
     SUPPORTED_DRIVE_MODES,
 )
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
+from being.config import SI_2_FAULHABER
 
 
 State = ForwardRef('State')
@@ -213,6 +215,11 @@ class CiA402Node(RemoteNode):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger(str(self))
+
+    @property
+    def position(self):
+        """Current actual position value."""
+        return self.sdo[POSITION_ACTUAL_VALUE].raw / SI_2_FAULHABER
 
     def enable(self):
         """Enable drive."""

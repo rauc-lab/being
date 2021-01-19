@@ -7,6 +7,7 @@ from being.block import Block
 from being.can.homing import home_drives
 from being.connectables import ValueInput, ValueOutput
 from being.constants import TAU
+from being.kinematics import State
 from being.motor import Motor, INTERVAL
 
 
@@ -63,6 +64,8 @@ if __name__ == '__main__':
             network.home_drives()
             network.enable_drives()
             execOrder = [sine, trafo, mot]
+
+            mot.state = State(mot.node.position, 0, 0)
 
             try:
                 print('Start running')

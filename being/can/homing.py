@@ -10,12 +10,10 @@ from being.can.definitions import (
     SOFTWARE_POSITION_LIMIT,
     TARGET_VELOCITY,
 )
+from being.config import SI_2_FAULHABER
 from being.constants import INF
 from being.math import sign
 
-
-SI_2_FAULHABER = 1e6
-"""Unit conversion for Lineare DC-Servomotoren Serie LM 0830 ... 01."""
 
 
 def _move(node, speed: int):
@@ -24,7 +22,7 @@ def _move(node, speed: int):
     node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
 
 
-def _home_drive(node, rodLength=None, speed: int = 150):
+def _home_drive(node, rodLength=None, speed: int = 100):
     """Crude homing procedure. Move with PROFILED_VELOCITY operation mode
     upwards and downwards until reaching limits (position not increasing or
     decreasing anymore). Implemented as Generator so that we can home multiple

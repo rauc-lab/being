@@ -4,20 +4,15 @@ from typing import Optional
 from being.backends import CanBackend
 from being.block import Block
 from being.can import load_object_dictionary
-from being.can.cia_402 import CiA402Node, OperationMode, Command
+from being.can.cia_402 import CiA402Node, OperationMode
 from being.can.cia_402 import State as State402
 from being.can.definitions import TransmissionType
-from being.can.homing import SI_2_FAULHABER
+from being.config import SI_2_FAULHABER, INTERVAL
 from being.can.nmt import PRE_OPERATIONAL
 from being.connectables import ValueInput, ValueOutput
-from being.constants import TAU
 from being.kinematics import kinematic_filter
 from being.kinematics import State as KinematicState
-from being.math import sign
 from being.resources import register_resource
-
-
-INTERVAL = .01
 
 
 def create_node(network, nodeId):
@@ -28,17 +23,27 @@ def create_node(network, nodeId):
 
 
 class Motor(Block):
+
+    """Motor blocks which takes set-point values through its inputs and outputs
+    the current actual position value through its output. The input position
+    values are filtered with a kinematic filter. Encapsulates a and setups a
+    CiA402Node. Currently only tested with Faulhaber linear drive (0.04 m).
+
+    Attributes:
+        network (CanBackend): Associsated network:
+        node (CiA402Node): Drive node.
+        state (State): Kinematic state.
+    """
     def __init__(self, nodeId: int,
-            #length: Optional[float] = None,
-            #direction: float = 1,
-            network: CanBackend = None,
-            node: CiA402Node = None):
+            # TODO: Which args? Rod length, direction, maxSpeed, maxAcc, ...?
+            network: Optional[CanBackend] = None,
+            node: Optional[CiA402Node] = None):
         """Args:
             nodeId: CANopen node id.
 
         Kwargs:
-            length: Rod length.
-            direction: Movement direction.
+            network: External network (dependency injection).
+            node: Drive node (dependency injection).
         """
         super().__init__()
         if network is None:
@@ -55,7 +60,8 @@ class Motor(Block):
 
         self.targetPosition, = self.inputs = [ValueInput(owner=self)]
         self.actualPosition, = self.outputs = [ValueOutput(owner=self)]
-        self.state = KinematicState()
+
+        self.state = KinematicState(position=node.position)
         self.node = node
 
         self.setup_pdos()
@@ -117,8 +123,7 @@ class Motor(Block):
         )
 
         # Set target position
-        soll = SI_2_FAULHABER * self.input.value
-        #self.node.pdo['Controlword'].raw = Command.ENABLE_OPERATION
+        soll = SI_2_FAULHABER * self.state.position
         self.node.pdo['Target Position'].raw = soll
         self.node.rpdo[2].transmit()
 
