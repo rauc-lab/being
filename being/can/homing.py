@@ -14,7 +14,8 @@ from being.constants import INF
 from being.math import sign
 
 
-SI_2_FAULHABER = 10e6
+SI_2_FAULHABER = 1e6
+"""Unit conversion for Lineare DC-Servomotoren Serie LM 0830 ... 01."""
 
 
 def _move(node, speed: int):
@@ -23,7 +24,7 @@ def _move(node, speed: int):
     node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
 
 
-def _home_drive(node, rodLength=0.004, speed: int = 100):
+def _home_drive(node, rodLength=None, speed: int = 150):
     """Crude homing procedure. Move with PROFILED_VELOCITY operation mode
     upwards and downwards until reaching limits (position not increasing or
     decreasing anymore). Implemented as Generator so that we can home multiple
@@ -66,9 +67,10 @@ def _home_drive(node, rodLength=0.004, speed: int = 100):
             pos = node.sdo[POSITION_ACTUAL_VALUE].raw
 
         width = upper - lower
-        dx = .5 * (width - rodLength * SI_2_FAULHABER)
-        if dx > 0:
-            lower, upper = lower + dx, upper - dx
+        if rodLength:
+            dx = .5 * (width - rodLength * SI_2_FAULHABER)
+            if dx > 0:
+                lower, upper = lower + dx, upper - dx
 
         node.change_state(State.READY_TO_SWITCH_ON)
         node.sdo[HOMING_OFFSET].raw = lower

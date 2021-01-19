@@ -13,9 +13,13 @@ from canopen import RemoteNode
 
 from being.bitmagic import check_bit
 from being.can.definitions import (
-    CONTROLWORD, MODES_OF_OPERATION, MODES_OF_OPERATION_DISPLAY, STATUSWORD,
+    CONTROLWORD,
+    MODES_OF_OPERATION,
+    MODES_OF_OPERATION_DISPLAY,
+    STATUSWORD,
     SUPPORTED_DRIVE_MODES,
 )
+from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 
 
 State = ForwardRef('State')
@@ -210,6 +214,16 @@ class CiA402Node(RemoteNode):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger(str(self))
 
+    def enable(self):
+        """Enable drive."""
+        self.nmt.state = OPERATIONAL
+        self.change_state(State.OPERATION_ENABLE)
+
+    def disable(self):
+        """Disable drive."""
+        self.nmt.state = PRE_OPERATIONAL
+        self.change_state(State.READY_TO_SWITCH_ON)
+
     def get_state(self) -> State:
         """Get current node state."""
         sw = self.sdo[STATUSWORD].raw
@@ -290,3 +304,6 @@ class CiA402Node(RemoteNode):
         self.change_state(state)
         self.set_operation_mode(op)
         self.nmt.state = nmt
+
+    def __str__(self):
+        return f'{type(self).__name__}(id={self.id})'

@@ -1,9 +1,14 @@
 """Backend resources."""
 import contextlib
+from typing import List, ForwardRef
 
 import pyaudio
 import canopen
 from being.utils import SingleInstanceCache
+from being.can.homing import home_drives
+
+
+CiA402Node = ForwardRef('CiA402Node')
 
 
 class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContextManager):
@@ -16,12 +21,40 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         self.bustype = bustype
         self.channel = channel
 
+    @property
+    def drives(self) -> List[CiA402Node]:
+        """Get list of all drive nodes."""
+        from being.can.cia_402 import CiA402Node  # Circular import for comforts
+        return [
+            node for node in self.values()
+            if isinstance(node, CiA402Node)
+        ]
+
+    def enable_drives(self):
+        """Enable all drives."""
+        for drive in self.drives:
+            drive.enable()
+
+    def disable_drives(self):
+        """Disable all drives."""
+        for drive in self.drives:
+            drive.disable()
+
+    def home_drives(self, **kwargs):
+        """Home all connected drives."""
+        home_drives(*self.drives, **kwargs)
+
+    def send_sync(self):
+        """Send out sync message."""
+        self.send_message(0x80, [])
+
     def __enter__(self):
         self.connect(bitrate=self.bitrate, bustype=self.bustype, channel=self.channel)
         self.check()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        self.disable_drives()
         self.disconnect()
 
 
