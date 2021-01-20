@@ -1,5 +1,6 @@
 """Backend resources."""
 import contextlib
+import sys
 from typing import List, ForwardRef
 
 import pyaudio
@@ -11,11 +12,20 @@ from being.can.homing import home_drives
 CiA402Node = ForwardRef('CiA402Node')
 
 
+# Default CAN args
+if sys.platform == 'darwin':
+    _BUS_TYPE = 'pcan'
+    _CHANNEL = 'PCAN_USBBUS1'
+else:
+    _BUS_TYPE = 'socketcan'
+    _CHANNEL = 'can0'
+
+
 class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContextManager):
 
     """CANopen network wrapper. Automatic connect during __enter__."""
 
-    def __init__(self, bitrate=1000000, bustype='pcan', channel='PCAN_USBBUS1'):
+    def __init__(self, bitrate=1000000, bustype=_BUS_TYPE, channel=_CHANNEL):
         super().__init__(bus=None)
         self.bitrate = bitrate
         self.bustype = bustype
