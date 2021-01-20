@@ -1,25 +1,59 @@
 """Motor block."""
+import logging
+import time
+
 from typing import Optional
 
 from being.backends import CanBackend
 from being.block import Block
 from being.can import load_object_dictionary
-from being.can.cia_402 import CiA402Node, OperationMode
+from being.can.cia_402 import CiA402Node, OperationMode, Command, CW, State
 from being.can.cia_402 import State as State402
-from being.can.definitions import TransmissionType
+from being.can.definitions import (
+    CONTROLWORD,
+    HOMING_OFFSET,
+    POSITION_ACTUAL_VALUE,
+    SOFTWARE_POSITION_LIMIT,
+    TARGET_VELOCITY,
+    TransmissionType,
+)
 from being.config import SI_2_FAULHABER, INTERVAL
 from being.can.nmt import PRE_OPERATIONAL
 from being.connectables import ValueInput, ValueOutput
+from being.constants import INF
 from being.kinematics import kinematic_filter
 from being.kinematics import State as KinematicState
+from being.math import sign
 from being.resources import register_resource
 
 
 def create_node(network, nodeId):
+    """CiA402Node factory."""
+    # TODO: Support for different motors / different CiA402Node subclasses?
     od = load_object_dictionary(network, nodeId)
     node = CiA402Node(nodeId, od)
     network.add_node(node, object_dictionary=od)
     return node
+
+
+def _move(node, speed: int):
+    """Move motor with constant speed."""
+    node.sdo[TARGET_VELOCITY].raw = speed
+    node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
+
+
+def home_motors(motors, interval=.01, timeout=4., **kwargs):
+    """Home multiple drives in parallel."""
+    homings = [mot.home(**kwargs) for mot in motors]
+    starTime = time.perf_counter()
+    while any(map(next, homings)):
+        passed = time.perf_counter() - starTime
+        if passed > timeout:
+            raise RuntimeError('Could not home all motors before timeout')
+
+        time.sleep(interval)
+
+    return True
 
 
 class Motor(Block):
@@ -57,6 +91,7 @@ class Motor(Block):
         #self.length = length
         #self.direction = sign(direction)
         self.network = network
+        self.logger = logging.getLogger(str(self))
 
         self.targetPosition, = self.inputs = [ValueInput(owner=self)]
         self.actualPosition, = self.outputs = [ValueOutput(owner=self)]
@@ -108,6 +143,71 @@ class Motor(Block):
                 rx.enabled = False
 
             rx.save()
+
+    def home(self, rodLength=None, speed: int = 100):
+        """Crude homing procedure. Move with PROFILED_VELOCITY operation mode
+        upwards and downwards until reaching limits (position not increasing or
+        decreasing anymore). Implemented as Generator so that we can home multiple
+        motors in parallel (quasi pseudo coroutine).
+
+        Args:
+            node (CiA402Node): Drive to home.
+
+        Kwargs:
+            speed: Homing speed.
+        """
+        direction = sign(speed)
+        speed = abs(speed)
+        node = self.node
+        logger = self.logger
+        logger.info('Starting homing for %s', node)
+        with node.restore_states_and_operation_mode():
+            node.nmt.state = 'PRE-OPERATIONAL'
+            node.change_state(State.READY_TO_SWITCH_ON)
+            node.sdo[HOMING_OFFSET].raw = 0
+            #TODO: Do we need to set NMT to 'OPERATIONAL'?
+            node.set_operation_mode(OperationMode.PROFILED_VELOCITY)
+            node.change_state(State.OPERATION_ENABLE)
+
+            logger.info('Moving upwards')
+            pos = node.sdo[POSITION_ACTUAL_VALUE].raw
+            upper = -INF
+            _move(node, direction * speed)
+            while pos > upper:
+                upper = pos
+                yield True
+                pos = node.sdo[POSITION_ACTUAL_VALUE].raw
+
+            logger.info('Moving downwards')
+            lower = INF
+            _move(node, -direction * speed)
+            while pos < lower:
+                lower = pos
+                yield True
+                pos = node.sdo[POSITION_ACTUAL_VALUE].raw
+
+            width = upper - lower
+            if rodLength:
+                dx = .5 * (width - rodLength * SI_2_FAULHABER)
+                if dx > 0:
+                    lower, upper = lower + dx, upper - dx
+
+            node.change_state(State.READY_TO_SWITCH_ON)
+            node.sdo[HOMING_OFFSET].raw = lower
+            node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
+            node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = upper - lower
+
+            logger.info('Homed')
+            logger.debug('HOMING_OFFSET:              %s', lower)
+            logger.debug('SOFTWARE_POSITION_LIMIT[1]: %s', 0)
+            logger.debug('SOFTWARE_POSITION_LIMIT[2]: %s', upper - lower)
+
+        self.state = KinematicState(
+            position=node.position,
+        )
+
+        while True:
+            yield False
 
     def update(self):
         # Fetch actual position

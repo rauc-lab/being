@@ -6,7 +6,6 @@ from typing import List, ForwardRef
 import pyaudio
 import canopen
 from being.utils import SingleInstanceCache
-from being.can.homing import home_drives
 
 
 CiA402Node = ForwardRef('CiA402Node')
@@ -49,10 +48,6 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         """Disable all drives."""
         for drive in self.drives:
             drive.disable()
-
-    def home_drives(self, **kwargs):
-        """Home all connected drives."""
-        home_drives(*self.drives, **kwargs)
 
     def send_sync(self):
         """Send out sync message."""
