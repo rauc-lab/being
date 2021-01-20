@@ -6,12 +6,12 @@ from being.resources import manage_resources
 
 
 ROD_LENGTH = 0.04
+"""Rod length of Faulhaber linear drive in meter."""
 
 
-if __name__ == '__main__':
-    with manage_resources():
-        motor = Motor(nodeId=8)
-        sine = Sine(frequency=.1)
-        trafo = Trafo(scale=.5 * ROD_LENGTH, offset=.5 * ROD_LENGTH)
-        sine | trafo | motor
-        awake(motor)
+with manage_resources():
+    motor = Motor(nodeId=8)
+    sine = Sine(frequency=.1)
+    trafo = Trafo(scale=.5 * ROD_LENGTH, offset=.5 * ROD_LENGTH)
+    sine | trafo | motor
+    awake(motor)
