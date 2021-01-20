@@ -4,7 +4,7 @@ import json
 
 import aiohttp
 from aiohttp import web
-
+import asyncio
 
 API_PREFIX = '/api'
 """API route prefix."""
@@ -199,11 +199,22 @@ async def run_web_server(app: aiohttp.web.Application):
     LOGGER.info(f'Starting site at:\n{site.name}')
     await site.start()
 
+    while True:
+        await asyncio.sleep(3600)  # sleep forever
+
 
 def run_standalone_server():
     app = init_web_server()
     web.run_app(app)
 
 
+def run_async_server():
+    app = init_web_server()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(run_web_server(app))
+    loop.close()
+
+
 if __name__ == '__main__':
-    run_standalone_server()
+    # run_standalone_server()
+    run_async_server()
