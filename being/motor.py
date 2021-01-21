@@ -68,27 +68,30 @@ class Motor(Block):
         node (CiA402Node): Drive node.
         state (State): Kinematic state.
     """
+
     def __init__(self, nodeId: int,
-            # TODO: Which args? Rod length, direction, maxSpeed, maxAcc, ...?
+            length: Optional[float] = None,
+            # TODO: Which args? direction, maxSpeed, maxAcc, ...?
             network: Optional[CanBackend] = None,
             node: Optional[CiA402Node] = None):
         """Args:
             nodeId: CANopen node id.
 
         Kwargs:
+            length: Rod length (used for homing).
             network: External network (dependency injection).
             node: Drive node (dependency injection).
         """
         super().__init__()
         if network is None:
-            network = CanBackend.default()
+            network = CanBackend.single_instance_setdefault()
             register_resource(network, duplicates=False)
 
         if node is None:
             node = create_node(network, nodeId)
 
         self.nodeId = nodeId
-        #self.length = length
+        self.length = length
         #self.direction = sign(direction)
         self.network = network
         self.logger = logging.getLogger(str(self))
@@ -144,7 +147,7 @@ class Motor(Block):
 
             rx.save()
 
-    def home(self, rodLength=None, speed: int = 100):
+    def home(self, speed: int = 100):
         """Crude homing procedure. Move with PROFILED_VELOCITY operation mode
         upwards and downwards until reaching limits (position not increasing or
         decreasing anymore). Implemented as Generator so that we can home multiple
@@ -187,8 +190,8 @@ class Motor(Block):
                 pos = node.sdo[POSITION_ACTUAL_VALUE].raw
 
             width = upper - lower
-            if rodLength:
-                dx = .5 * (width - rodLength * SI_2_FAULHABER)
+            if self.length:
+                dx = .5 * (width - self.length * SI_2_FAULHABER)
                 if dx > 0:
                     lower, upper = lower + dx, upper - dx
 
@@ -202,10 +205,7 @@ class Motor(Block):
             logger.debug('SOFTWARE_POSITION_LIMIT[1]: %s', 0)
             logger.debug('SOFTWARE_POSITION_LIMIT[2]: %s', upper - lower)
 
-        self.state = KinematicState(
-            position=node.position,
-        )
-
+        self.state = KinematicState(position=node.position)
         while True:
             yield False
 

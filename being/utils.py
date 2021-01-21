@@ -1,5 +1,13 @@
 import weakref
-from typing import Dict
+from typing import Dict, List
+
+
+def filter_by_type(sequence, type_) -> List:
+    """Filter sequence by type."""
+    return [
+        ele for ele in sequence
+        if isinstance(ele, type_)
+    ]
 
 
 class SingleInstanceCache:
@@ -21,20 +29,32 @@ class SingleInstanceCache:
     INSTANCES: Dict[type, weakref.ref] = {}
 
     @classmethod
-    def initialized(cls):
+    def single_instance_initialized(cls):
+        """Check if cached instance of cls."""
         return cls in cls.INSTANCES
 
     @classmethod
-    def clear(cls):
+    def single_instance_clear(cls):
+        """Clear cached instance of cls."""
         cls.INSTANCES.clear()
 
     @classmethod
-    def default(cls, *args, **kwargs):
-        """Get cached single instance or setdefault it from dache."""
-        ref = cls.INSTANCES.get(cls, lambda: None)
-        if ref() is not None:
-            return ref()
+    def single_instance_get(cls):
+        """Get cached single instance (if any). None otherwise."""
+        ref = cls.INSTANCES.get(cls)
+        if ref is None:
+            return
 
-        self = cls(*args, **kwargs)
-        cls.INSTANCES[cls] = weakref.ref(self)
+        return ref()
+
+    @classmethod
+    def single_instance_setdefault(cls, *args, **kwargs):
+        """Get cached single instance or create a new one (and add it to the
+        cache).
+        """
+        self = cls.single_instance_get()
+        if self is None:
+            self = cls(*args, **kwargs)
+            cls.INSTANCES[cls] = weakref.ref(self)
+
         return self

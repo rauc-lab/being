@@ -4,7 +4,6 @@ import math
 
 from being.block import Block
 from being.config import INTERVAL
-from being.connectables import ValueInput, ValueOutput
 from being.constants import TAU
 
 

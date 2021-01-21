@@ -10,7 +10,7 @@ ROD_LENGTH = 0.04
 
 
 with manage_resources():
-    motor = Motor(nodeId=8)
+    motor = Motor(nodeId=8, length=ROD_LENGTH)
     sine = Sine(frequency=.1)
     trafo = Trafo(scale=.5 * ROD_LENGTH, offset=.5 * ROD_LENGTH)
     sine | trafo | motor
