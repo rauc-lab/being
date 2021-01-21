@@ -4,7 +4,15 @@ Some block related helpers."""
 import functools
 from typing import List, ForwardRef, Generator, Union
 
-from being.connectables import Connection, OutputBase, InputBase
+from being.connectables import (
+    Connection,
+    OutputBase,
+    ValueOutput,
+    MessageOutput,
+    InputBase,
+    ValueInput,
+    MessageInput,
+)
 
 
 Block = ForwardRef('Block')
@@ -13,6 +21,8 @@ Outputable = Union[Block, OutputBase]
 Connections = Generator[Connection, None, None]
 
 
+# TODO: Move input_connections(), output_connections(), input_neighbors() and
+# output_neighbors() to Block methods?
 def input_connections(block: Block) -> Connections:
     """Iterate over all incoming connections.
 
@@ -128,7 +138,16 @@ class Block:
 
     """Block base class.
 
-    Child classes have to override the update() method.
+    Child classes have to override the update() method. We leave it as a normal
+    method (and not a abstract method) in order for testing. New connections can
+    be added with the helper methods:
+      - add_value_input()
+      - add_message_input()
+      - add_value_output()
+      - add_message_output()
+
+    These methods also take an additional `name` argument which can be used to
+    store the newly created connection as an attribute.
 
     Attributes:
         inputs: Input connections.
@@ -164,6 +183,50 @@ class Block:
             raise AttributeError('%s has no outputs!' % self)
 
         return self.outputs[0]
+
+    def add_value_input(self, name=None):
+        """Add new value input to block.
+
+        Kwargs:
+            name: Attribute name.
+        """
+        input_ = ValueInput(owner=self)
+        self.inputs.append(input_)
+        if name:
+            setattr(self, name, input_)
+
+    def add_message_input(self, name=None):
+        """Add new message input to block.
+
+        Kwargs:
+            name: Attribute name.
+        """
+        input_ = MessageInput(owner=self)
+        self.inputs.append(input_)
+        if name:
+            setattr(self, name, input_)
+
+    def add_value_output(self, name=None):
+        """Add new value output to block.
+
+        Kwargs:
+            name: Attribute name.
+        """
+        output = ValueOutput(owner=self)
+        self.outputs.append(output)
+        if name:
+            setattr(self, name, output)
+
+    def add_message_output(self, name=None):
+        """Add new message output to block.
+
+        Kwargs:
+            name: Attribute name.
+        """
+        output = MessageOutput(owner=self)
+        self.outputs.append(output)
+        if name:
+            setattr(self, name, output)
 
     def update(self):
         """Block's update / run / tick method."""
