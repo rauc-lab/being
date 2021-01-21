@@ -19,14 +19,17 @@ class Sine(Block):
         """
         super().__init__()
         self.phase = startPhase
-        self.frequency, = self.inputs = [ValueInput(owner=self)]
-        self.outputs = [ValueOutput(owner=self)]
+        self.add_value_input('frequency')
+        self.add_value_output()
         self.frequency.value = frequency
 
     def update(self):
         self.output.value = math.sin(self.phase)
         self.phase += TAU * self.frequency.value * INTERVAL
         self.phase %= TAU
+
+    def __str__(self):
+        return f'{type(self).__name__}(frequency={self.frequency.value:.1f} Hz)'
 
 
 class Trafo(Block):
@@ -41,8 +44,11 @@ class Trafo(Block):
         super().__init__()
         self.scale = scale
         self.offset = offset
-        self.inputs = [ValueInput(owner=self)]
-        self.outputs = [ValueOutput(owner=self)]
+        self.add_value_input()
+        self.add_value_output()
 
     def update(self):
         self.output.value = self.scale * self.input.value + self.offset
+
+    def __str__(self):
+        return f'{type(self).__name__}(scale={self.scale:.3f}, offset={self.offset:.3f})'
