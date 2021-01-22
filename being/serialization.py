@@ -40,12 +40,12 @@ def ppoly_from_dict(dct: Dict) -> PPoly:
 def ndarray_to_dict(arr: ndarray) -> Dict:
     """Convert numpy array to serializable dict representation."""
     raw = base64.b64encode(arr.data)
-    return {
-        'type': 'ndarray',
-        'dtype': str(arr.dtype),
-        'shape': arr.shape,
-        'data': raw.decode(),
-    }
+    return collections.OrderedDict([
+        ('type', 'ndarray'),
+        ('dtype', str(arr.dtype)),
+        ('shape', arr.shape),
+        ('data', raw.decode()),
+    ])
 
 
 def ndarray_from_dict(dct: Dict) -> ndarray:
