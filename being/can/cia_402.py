@@ -127,7 +127,7 @@ edge -> command.
 POSSIBLE_TRANSITIONS: Dict[State, Set[State]] = defaultdict(set)
 for _src, _dst in TRANSITIONS:
     POSSIBLE_TRANSITIONS[_src].add(_dst)
-"""Reachable states for a given state."""
+"""Reachable states from a given state."""
 
 VALID_OP_MODE_CHANGE_STATES: Set[State] = {
     State.SWITCH_ON_DISABLED,

@@ -28,7 +28,7 @@ class Sine(Block):
         self.phase %= TAU
 
     def __str__(self):
-        return f'{type(self).__name__}(frequency={self.frequency.value:.1f} Hz)'
+        return '%s()' % type(self).__name__
 
 
 class Trafo(Block):
