@@ -24,9 +24,23 @@ class SingleInstanceCache:
 
     Resources:
         https://softwareengineering.stackexchange.com/questions/40373/so-singletons-are-bad-then-what
+
+    Usage:
+        >>> class Foo(SingleInstanceCache):
+        ...     pass
+        ... print('Instance of Foo exists?', Foo.single_instance_initialized())
+        Instance of Foo exists? False
+
+        >>> Foo()
+        ... print('Get single instance of Foo:', Foo.single_instance_get())
+        Get single instance of Foo: None
+
+        >>> foo = Foo.single_instance_setdefault()
+        ... print('Same ref:', foo is Foo.single_instance_setdefault())
     """
 
     INSTANCES: Dict[type, weakref.ref] = {}
+    """Instances cache."""
 
     @classmethod
     def single_instance_initialized(cls):
