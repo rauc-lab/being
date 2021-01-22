@@ -1,10 +1,13 @@
 """Web server backend."""
 import logging
 import json
+import asyncio
 
 import aiohttp
 from aiohttp import web
-import asyncio
+
+from being.serialization import dumps, loads
+
 
 API_PREFIX = '/api'
 """API route prefix."""
@@ -13,41 +16,65 @@ LOGGER = logging.getLogger(__name__)
 
 
 def file_response_handler(filepath):
-    """Create file response handler function."""
-    def handle_request(request):
-        return web.FileResponse(filepath)
-
-    return handle_request
+    """Create anonymous file response handler for a file."""
+    return lambda request: web.FileResponse(filepath)
 
 
 def json_response_handler(data):
-    """Create JSON response handler function."""
-    def handle_request(request):
-        return web.json_response(data)
-
-    return handle_request
+    """Create anonymous JSON response handler function for some data."""
+    return lambda request: web.json_response(data, dumps=dumps)
 
 
-async def handle_web_socket(request):
-    """Web socket connection handler."""
-    ws = web.WebSocketResponse()
-    await ws.prepare(request)
-    print('New web socket connection')
+def content_routes(content):
+    """Build Rest API routes for content. Wrap content instance in API."""
+    routes = web.RouteTableDef()
 
-    await ws.send_json('Hello')
-    async for msg in ws:
-        print('Received', msg)
-        if msg.type == aiohttp.WSMsgType.TEXT:
-            if msg.data == 'close':
-                await ws.close()
-            else:
-                await ws.send_str(msg.data + '/answer')
+    @routes.get('/motions')
+    async def get_motions(request):
+        motions = content.list_motions()
+        return web.json_response(motions)
 
-        elif msg.type == aiohttp.WSMsgType.ERROR:
-            print('ws connection closed with exception %s' % ws.exception())
+    @routes.get('/motions/{name}')
+    async def get_motion_by_name(request):
+        name = request.match_info['name']
+        spline = content.load_motion(name)
+        return web.json_response(spline, dumps=dumps)
 
-    print('websocket connection closed')
-    return ws
+    @routes.post('/motions/{name}')
+    async def create_motion(request):
+        name = request.match_info['name']
+        try:
+            spline = await request.json(loads=loads)
+        except json.JSONDecodeError as err:
+            return web.Response(
+                status=INTERNAL_SERVER_ERROR,
+                text='Failed deserializing JSON spline!',
+            )
+
+        content.save_motion(spline, name)
+        return web.Response()
+
+    @routes.put('/motions/{name}')
+    async def update_motion(request):
+        name = request.match_info['name']
+        if not content.motion_exists(name):
+            return web.Response(
+                status=INTERNAL_SERVER_ERROR,
+                text='This motion does not exist!',
+            )
+
+        try:
+            spline = await request.json(loads=loads)
+        except json.JSONDecodeError as err:
+            return web.Response(
+                status=INTERNAL_SERVER_ERROR,
+                text='Failed deserializing JSON spline!',
+            )
+
+        content.save_motion(spline, name)
+        return web.Response()
+
+    return routes
 
 
 def init_api() -> aiohttp.web.Application:
@@ -61,7 +88,7 @@ def init_api() -> aiohttp.web.Application:
                 f"Hello {request.query['name']}"
             )
         else:
-            return web.json_response("Hello world")
+            return web.json_response('Hello world')
 
     @routes.get('/graph')
     async def get_graph(request: web.Request):
@@ -104,22 +131,22 @@ def init_api() -> aiohttp.web.Application:
             # TODO : set states
             if reqState == 'RUN':
                 try:
-                    print(f"set new state to {reqState}")
-                    return web.json_response("RUNNING")
+                    print(f'set new state to {reqState}')
+                    return web.json_response('RUNNING')
                 except Exception as e:
                     return aiohttp.web.HTTPInternalServerError(reson=e)
 
             elif reqState == 'PAUSE':
                 try:
-                    print(f"set new state to {reqState}")
-                    return web.json_response("PAUSED")
+                    print(f'set new state to {reqState}')
+                    return web.json_response('PAUSED')
                 except Exception as e:
                     return aiohttp.web.HTTPInternalServerError(reson=e)
 
             elif reqState == 'STOP':
                 try:
-                    print(f"set new state to {reqState}")
-                    return web.json_response("STOPPED")
+                    print(f'set new state to {reqState}')
+                    return web.json_response('STOPPED')
                 except Exception as e:
                     return aiohttp.web.HTTPInternalServerError(reson=e)
 
@@ -128,40 +155,6 @@ def init_api() -> aiohttp.web.Application:
 
         except json.decoder.JSONDecodeError:
             raise aiohttp.web.HTTPBadRequest()
-
-    @routes.get('/motions')
-    async def get_motions(request: web.Request):
-        return web.json_response(
-            {
-                "demo.json": "",
-                "demo2.json": "Test",
-            },
-        )
-
-    @routes.post('/motions')
-    async def post_motion(request: web.Request):
-        try:
-            data = await request.post()
-            filename = list(data.keys())[0]
-            if filename:
-                # TODO: create new motion object & sanity check
-                return web.json_response(data)
-            else:
-                return aiohttp.web.HTTPBadRequest()
-        except Exception as e:
-            return aiohttp.web.HTTPInternalServerError(reson=e)
-
-    @routes.get('/motions/{name}')
-    async def get_motion(request: web.Request):
-        raise aiohttp.web.HTTPNotImplemented()
-
-    @routes.put('/motions/{name}')
-    async def put_motion(request: web.Request):
-        raise aiohttp.web.HTTPNotImplemented()
-
-    @routes.delete('/motions/{name}')
-    async def delete_motion(request: web.Request):
-        raise aiohttp.web.HTTPNotImplemented()
 
     @routes.get('/block-network/state')
     async def get_block_network_state(request: web.Request):
@@ -172,7 +165,7 @@ def init_api() -> aiohttp.web.Application:
     return api
 
 
-def init_web_server() -> aiohttp.web.Application:
+def init_web_server(being) -> aiohttp.web.Application:
     """Initialize aiohttp web server application and setup some routes.
 
     Returns:
@@ -181,8 +174,13 @@ def init_web_server() -> aiohttp.web.Application:
     app = aiohttp.web.Application()
     app.router.add_get('/', file_response_handler('static/index.html'))
     app.router.add_static(prefix='/static', path='./static', show_index=True)
+
+    api = init_api()
+
+    #api.add_routes(content_routes(content))
+
     app.add_subapp(API_PREFIX, init_api())
-    app.router.add_get('/data-stream', handle_web_socket)
+    #app.router.add_get('/data-stream', handle_web_socket)
     return app
 
 
@@ -204,12 +202,12 @@ async def run_web_server(app: aiohttp.web.Application):
 
 
 def run_standalone_server():
-    app = init_web_server()
+    app = init_web_server(being=None)
     web.run_app(app)
 
 
 def run_async_server():
-    app = init_web_server()
+    app = init_web_server(being=None)
     loop = asyncio.get_event_loop()
     loop.run_until_complete(run_web_server(app))
     loop.close()
