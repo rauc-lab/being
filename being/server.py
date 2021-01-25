@@ -16,6 +16,18 @@ API_PREFIX = '/api'
 LOGGER = logging.getLogger(__name__)
 
 
+def respond_ok():
+    """Return with status ok."""
+    return web.Response()
+
+
+def json_response(thing):
+    """aiohttp web.json_response but with our custom JSON serialization /
+    dumps.
+    """
+    return web.json_response(thing, dumps=dumps)
+
+
 def file_response_handler(filepath):
     """Create anonymous file response handler for a file."""
     return lambda request: web.FileResponse(filepath)
@@ -23,17 +35,7 @@ def file_response_handler(filepath):
 
 def json_response_handler(data):
     """Create anonymous JSON response handler function for some data."""
-    return lambda request: web.json_response(data, dumps=dumps)
-
-
-def respond_ok():
-    """Return with status ok."""
-    return web.Response()
-
-
-def respond_500(text=''):
-    """Respond with internal server error."""
-    return web.Response(status=500, text=text)
+    return lambda request: json_response(data)
 
 
 def content_controller(content: Content) -> web.RouteTableDef:
@@ -49,52 +51,52 @@ def content_controller(content: Content) -> web.RouteTableDef:
     routes = web.RouteTableDef()
 
     @routes.get('/motions')
-    async def get_motions(request):
-        motions = content.list_motions()
-        return web.json_response(motions)
+    async def get_all_motions(request):
+        motions = content.dict_motions()
+        return json_response(motions)
 
     @routes.get('/motions/{name}')
     async def get_motion_by_name(request):
         name = request.match_info['name']
         if not content.motion_exists(name):
-            return respond_500(f'Motion {name!r} does not exist!')
+            return web.HTTPNotFound(f'Motion {name!r} does not exist!')
 
         spline = content.load_motion(name)
-        return web.json_response(spline, dumps=dumps)
+        return json_response(spline)
 
     @routes.post('/motions/{name}')
     async def create_motion(request):
         name = request.match_info['name']
         if content.motion_exists(name):
-            return respond_500(f'Motion {name!r} does already exist!')
+            return web.HTTPConflict(f'Motion {name!r} does already exist!')
 
         try:
             spline = await request.json(loads=loads)
         except json.JSONDecodeError as err:
-            return respond_500('Failed deserializing JSON spline!')
+            return web.HTTPNotAcceptable('Failed deserializing JSON spline!')
 
         content.save_motion(spline, name)
-        return respond_ok()
+        return json_response(spline)
 
     @routes.put('/motions/{name}')
     async def update_motion(request):
         name = request.match_info['name']
         if not content.motion_exists(name):
-            return respond_500('This motion does not exist!')
+            return web.HTTPNotFound('This motion does not exist!')
 
         try:
             spline = await request.json(loads=loads)
         except json.JSONDecodeError as err:
-            return respond_500('Failed deserializing JSON spline!')
+            return web.HTTPNotAcceptable('Failed deserializing JSON spline!')
 
         content.save_motion(spline, name)
-        return respond_ok()
+        return json_response(spline)
 
     @routes.delete('/motions/{name}')
-    async def update_motion(request):
+    async def delete_motion(request):
         name = request.match_info['name']
         if not content.motion_exists(name):
-            return respond_500(f'Motion {name!r} does not exist!')
+            return web.HTTPNotFound(f'Motion {name!r} does not exist!')
 
         content.delete_motion(name)
         return respond_ok()
