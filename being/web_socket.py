@@ -5,6 +5,7 @@ import enum
 from aiohttp import web
 
 from being.serialization import dumps
+from being.pubsub import PubSub
 
 
 class Event(enum.Enum):
@@ -17,25 +18,20 @@ class Event(enum.Enum):
     CLOSE = enum.auto()
 
 
-class WebSocket:
+class WebSocket(PubSub):
 
     """WebSocket connections. Interfaces with aiohttp web socket requests. Can
     hold multiple open web socket connections simultaneously.
 
     Attributes:
+        address: Web socket URL.
         sockets: Active web socket connections
-        callbacks: Registered on-message-receive callback functions.
     """
 
     def __init__(self, address):
+        super().__init__(events=[Event.OPEN, Event.MESSAGE, Event.ERROR, Event.CLOSE])
         self.address = address
         self.sockets = []
-        self.callbacks = {
-            Event.OPEN: set(),
-            Event.MESSAGE: set(),
-            Event.ERROR: set(),
-            Event.CLOSE: set(),
-        }
         self.logger = logging.getLogger(str(self))
 
     @property
@@ -43,37 +39,24 @@ class WebSocket:
         """Number of open websocket connections."""
         return len(self.sockets)
 
-    def add_callback(self, callback, event=Event.MESSAGE):
-        """Register on message receive callback."""
-        self.callbacks[event].add(callback)
-
-    def remove_callback(self, callback, event=Event.MESSAGE):
-        """Remove on message receive callback."""
-        self.callbacks.remove(callback)
-
     async def handle_web_socket(self, request):
         """Websocket handler."""
         ws = web.WebSocketResponse()
         await ws.prepare(request)
         self.logger.info('Opening connection')
         self.sockets.append(ws)
-        for callback in self.callbacks[Event.OPEN]:
-            callback()
-
+        self.publish(Event.OPEN)
         self.logger.debug('%d open connections', self.nConnections)
         try:
             async for msg in ws:
                 # TODO: Do weed error checking here? It seems that closing the
                 # web socket is already handled by aiohttp in the background.
-                for callback in self.callbacks[Event.MESSAGE]:
-                    callback(msg)
+                self.publish(Event.MESSAGE, msg)
 
         finally:
             self.logger.info('Closing connection')
             self.sockets.remove(ws)
-            for callback in self.callbacks[Event.CLOSE]:
-                callback()
-
+            self.publish(Event.CLOSE)
             self.logger.debug('%d open connections', self.nConnections)
 
         return ws
