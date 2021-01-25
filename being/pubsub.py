@@ -1,27 +1,16 @@
 """Publish / subscribe."""
-import collections
 
 
 class PubSub:
 
     """Publish / subscribe."""
 
-    def __init__(self, events=None, final=True):
+    def __init__(self, events):
         """Args:
             events: Supported events.
         """
-        if events is None:
-            events = []
-
-        if final:
-            subscribers = dict()
-        else:
-            subscribers = collections.defaultdict(set)
-
-        for evt in events:
-            subscribers[evt] = set()
-
-        self.subscribers = subscribers
+        # TODO: Final args? defaultdict?
+        self.subscribers = {evt: set() for evt in events}
 
     def subscribe(self, event, callback):
         self.subscribers[event].add(callback)
