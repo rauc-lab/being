@@ -238,7 +238,7 @@ class CiA402Node(RemoteNode):
 
     def set_state(self, target: State):
         """Set node state. This method only works for possible transitions from
-        current state (single step). For arbirtatry transitions use
+        current state (single step). For arbitrary transitions use
         CiA402Node.change_state.
 
         Args:
