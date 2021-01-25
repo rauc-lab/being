@@ -1,4 +1,5 @@
 import weakref
+import os
 from typing import Dict, List
 
 
@@ -8,6 +9,13 @@ def filter_by_type(sequence, type_) -> List:
         ele for ele in sequence
         if isinstance(ele, type_)
     ]
+
+
+def rootname(p: str) -> str:
+    """Get 'root' part of path (filename without ext)."""
+    filename = os.path.basename(p)
+    root, ext = os.path.splitext(filename)
+    return root
 
 
 class SingleInstanceCache:

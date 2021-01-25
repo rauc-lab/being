@@ -36,12 +36,6 @@ def respond_500(text=''):
     return web.Response(status=500, text=text)
 
 
-def respond_json_message(msgType, **kwargs):
-    msg = {'type': str(msgType)}
-    msg.update(**kwargs)
-    return web.json_response(msg, dumps=dumps)
-
-
 def content_controller(content: Content) -> web.RouteTableDef:
     """Controller for content model. Build Rest API routes. Wrap content
     instance in API.
@@ -50,7 +44,7 @@ def content_controller(content: Content) -> web.RouteTableDef:
         content: Content model.
 
     Returns:
-        Routes
+        Routes table.
     """
     routes = web.RouteTableDef()
 
@@ -62,12 +56,18 @@ def content_controller(content: Content) -> web.RouteTableDef:
     @routes.get('/motions/{name}')
     async def get_motion_by_name(request):
         name = request.match_info['name']
+        if not content.motion_exists(name):
+            return respond_500(f'Motion {name!r} does not exist!')
+
         spline = content.load_motion(name)
         return web.json_response(spline, dumps=dumps)
 
     @routes.post('/motions/{name}')
     async def create_motion(request):
         name = request.match_info['name']
+        if content.motion_exists(name):
+            return respond_500(f'Motion {name!r} does already exist!')
+
         try:
             spline = await request.json(loads=loads)
         except json.JSONDecodeError as err:
@@ -94,7 +94,7 @@ def content_controller(content: Content) -> web.RouteTableDef:
     async def update_motion(request):
         name = request.match_info['name']
         if not content.motion_exists(name):
-            return respond_500('This motion does not exist!')
+            return respond_500(f'Motion {name!r} does not exist!')
 
         content.delete_motion(name)
         return respond_ok()
@@ -242,16 +242,10 @@ async def run_web_server(app: web.Application):
 
 
 def run_standalone_server():
-    content = Content()
+    """Run standalone server for developing purposes."""
+    content = Content.single_instance_setdefault()
     app = init_web_server(content=content)
     web.run_app(app)
-
-
-def run_async_server():
-    app = init_web_server(being=None)
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_web_server(app))
-    loop.close()
 
 
 if __name__ == '__main__':
