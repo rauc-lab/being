@@ -31,24 +31,32 @@ class Content(SingleInstanceCache):
         self.logger = logging.getLogger(str(self))
         os.makedirs(self.directory, exist_ok=True)
 
+    def _fullpath(self, name):
+        return os.path.join(self.directory, name + '.json')
+
+    def motion_exists(self, name):
+        fp = _fullpath(name)
+        return os.path.exists(fp)
+
     def load_motion(self, name):
         self.logger.debug('Loading motion %r', name)
-        fp = os.path.join(self.directory, name + '.json')
+        fp = self._fullpath(name)
         with open(fp) as f:
             return loads(f.read())
 
     def save_motion(self, spline, name):
         self.logger.debug('Saving motion %r', name)
-        fp = os.path.join(self.directory, name + '.json')
+        fp = _fullpath(name)
         with open(fp, 'w') as f:
             f.write(dumps(spline))
 
+    def delete_motion(self, name):
+        self.logger.debug('Deleting motion %r', name)
+        fp = self._fullpath(name)
+        os.remove(fp)
+
     def list_motions(self):
         return [get_name(fp) for fp in glob.glob(self.directory + '/*.json')]
-
-    def motion_exists(self, name):
-        fp = os.path.join(self.directory, name + '.json')
-        return os.path.exists(fp)
 
     def __str__(self):
         return '%s(directory=%r)' % (type(self).__name__, self.directory)
