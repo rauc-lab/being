@@ -1,2 +1,12 @@
+[BASIC]
+# Naming style matching correct argument names
+argument-naming-style=camelCase
+
+# Naming style matching correct variable names
+variable-naming-style=camelCase
+
+# Naming style matching correct attribute names
+attr-naming-style=camelCase
+
 # Good variable names which should always be accepted, separated by a comma
-good-names=input_,
+good-names=type_,input_,
