@@ -1,10 +1,25 @@
 import unittest
+import enum
+from typing import NamedTuple
 
 import numpy as np
 from numpy.testing import assert_equal
 from scipy.interpolate import PPoly, CubicSpline
 
-from being.serialization import dumps, loads, FlyByDecoder, EOT
+from being.serialization import (
+    EOT,
+    FlyByDecoder,
+    NAMED_TUPLE_LOOKUP,
+    dumps,
+    loads,
+    named_tuple_as_dict,
+    named_tuple_from_dict,
+    register_named_tuple,
+    register_enum,
+    enum_to_dict,
+    enum_from_dict,
+    ENUM_LOOKUP,
+)
 
 
 class TestSerialization(unittest.TestCase):
@@ -33,6 +48,51 @@ class TestSerialization(unittest.TestCase):
             arrCpy = loads(dumps(arr))
             assert_equal(arrCpy, arr)
 
+    def test_with_new_named_tuple(self):
+        Foo = NamedTuple('Foo', name=str, id=int)
+        foo = Foo('Calimero', 42)
+        dct = named_tuple_as_dict(foo)
+
+        self.assertEqual(dct, {
+            'type': 'Foo',
+            'name': 'Calimero',
+            'id': 42,
+        })
+
+        with self.assertRaises(RuntimeError):
+            named_tuple_from_dict(dct)
+
+        register_named_tuple(Foo)
+
+
+        foo2 = named_tuple_from_dict(dct)
+
+        self.assertEqual(foo, foo2)
+        self.assertEqual(foo, loads(dumps(foo)))
+
+        NAMED_TUPLE_LOOKUP.pop('Foo')
+
+    def test_with_enum(self):
+        Foo = enum.Enum('Foo', 'FIRST SECOND THIRD')
+        foo = Foo.SECOND
+        dct = enum_to_dict(foo)
+
+        self.assertEqual(dct, {
+            'type': Foo.__name__,
+            'value': foo.value,
+        })
+
+        with self.assertRaises(RuntimeError):
+            enum_from_dict(dct)
+
+        register_enum(Foo)
+
+        foo2 = enum_from_dict(dct)
+
+        self.assertEqual(foo, foo2)
+        self.assertEqual(foo, loads(dumps(foo)))
+
+        ENUM_LOOKUP.pop('Foo')
 
 class TestFlyByDecoder(unittest.TestCase):
     def test_doc_example(self):
