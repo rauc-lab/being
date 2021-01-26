@@ -1,5 +1,8 @@
 """Serialization of being objects.
 
+Supports dynamic named tuples and enums but these types have to be registered
+with register_named_tuple() and register_enum().
+
 Notation:
   - obj -> Python object
   - dct -> JSON dict / object
@@ -24,19 +27,27 @@ ENUM_LOOKUP: Dict[str, type] = {}
 
 
 def register_named_tuple(namedTupleType: type):
-    """Register namedtuple type for serialization / deserialization."""
+    """Register named tuple type for serialization / deserialization."""
+    name = namedTupleType.__name__
     if 'type' in namedTupleType._fields:
         raise ValueError((
-            "'type' can not be used as field. Already used as JSON message"
-            " type. Pick something else!"
+            "'type' can not be used as field name. Already used as JSON message"
+            f" type. Pick something else for named tuple {name!r}!"
         ))
 
-    NAMED_TUPLE_LOOKUP[namedTupleType.__name__] = namedTupleType
+    if name in NAMED_TUPLE_LOOKUP:
+        raise RuntimeError(f'Named tuple {name!r} is already registered!')
+
+    NAMED_TUPLE_LOOKUP[name] = namedTupleType
 
 
 def register_enum(enum: type):
     """Register enum for serialization / deserialization."""
-    ENUM_LOOKUP[enum.__name__] = enum
+    name = enum.__name__
+    if name in ENUM_LOOKUP:
+        raise RuntimeError(f'Enum {name!r} is already registered!')
+
+    ENUM_LOOKUP[name] = enum
 
 
 def ppoly_to_dict(spline: PPoly) -> OrderedDict:
@@ -107,7 +118,7 @@ def named_tuple_as_dict(obj) -> OrderedDict:
 
 
 def named_tuple_from_dict(dct: dict):
-    """Resolve namedtuple from dict representation."""
+    """Resolve named tuple from dict representation."""
     dct = dct.copy()
     msgType = dct.pop('type')
     if msgType not in NAMED_TUPLE_LOOKUP:
