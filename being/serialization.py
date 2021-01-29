@@ -6,6 +6,9 @@ with register_named_tuple() and register_enum().
 Notation:
   - obj -> Python object
   - dct -> JSON dict / object
+
+Notes:
+  - We use OrderedDict to control key ordering for Python versions before 3.6.
 """
 import base64
 import json
@@ -14,8 +17,9 @@ from typing import Generator, Dict
 
 import numpy as np
 from numpy import ndarray
-from scipy.interpolate import PPoly
+from scipy.interpolate import PPoly, BPoly, CubicSpline
 
+from being.typing import Spline
 from being.constants import EOT
 
 
@@ -24,6 +28,20 @@ NAMED_TUPLE_LOOKUP: Dict[str, type] = {}
 
 ENUM_LOOKUP: Dict[str, type] = {}
 """Enum type lookup."""
+
+
+SPLINE_TYPES: Dict[type, type] = {
+    CubicSpline: PPoly,
+    PPoly: PPoly,
+    BPoly: BPoly,
+}
+"""Supported spline types. CubicSplines get mapped to PPoly."""
+
+SPLINE_LOOKUP: Dict[str, type] = {
+    'PPoly': PPoly,
+    'BPoly': BPoly,
+}
+"""Spline type lookup."""
 
 
 def register_named_tuple(namedTupleType: type):
@@ -50,11 +68,14 @@ def register_enum(enum: type):
     ENUM_LOOKUP[name] = enum
 
 
-def ppoly_to_dict(spline: PPoly) -> OrderedDict:
+def spline_to_dict(spline: Spline) -> OrderedDict:
     """Convert spline to serializable dict representation."""
-    # OrderedDict to control key ordering for Python versions before 3.6
+    cls = type(spline)
+    if cls not in SPLINE_TYPES:
+        raise ValueError(f'Spline type {cls.__name__} not supported!')
+
     return OrderedDict([
-        ('type', 'PPoly'),
+        ('type', SPLINE_TYPES[cls].__name__),
         ('extrapolate', spline.extrapolate),
         ('axis', spline.axis),
         ('knots', spline.x.tolist()),
@@ -62,13 +83,19 @@ def ppoly_to_dict(spline: PPoly) -> OrderedDict:
     ])
 
 
-def ppoly_from_dict(dct: dict) -> PPoly:
+def spline_from_dict(dct: dict) -> Spline:
     """Reconstruct spline from dict representation."""
-    c = np.array(dct['coefficients'])
-    x = np.array(dct['knots'])
-    extrapolate = dct['extrapolate']
-    axis = dct['axis']
-    return PPoly(c=c, x=x, extrapolate=extrapolate, axis=axis)
+    typeName = dct['type']
+    if typeName not in SPLINE_LOOKUP:
+        raise ValueError(f'Spline type {typeName} not supported!')
+
+    cls = SPLINE_LOOKUP[dct['type']]
+    return cls(
+        c=dct['coefficients'],
+        x=dct['knots'],
+        extrapolate=dct['extrapolate'],
+        axis=dct['axis'],
+    )
 
 
 def ndarray_to_dict(arr: ndarray) -> OrderedDict:
@@ -135,7 +162,7 @@ def being_object_hook(dct):
     """Being object hook for custom JSON deserialization."""
     msgType = dct.get('type')
     if msgType == 'PPoly':
-        return ppoly_from_dict(dct)
+        return spline_from_dict(dct)
 
     if msgType == 'ndarray':
         return ndarray_from_dict(dct)
@@ -162,7 +189,7 @@ class BeingEncoder(json.JSONEncoder):
 
     def default(self, o):
         if isinstance(o, PPoly):
-            return ppoly_to_dict(o)
+            return spline_to_dict(o)
 
         if isinstance(o, ndarray):
             return ndarray_to_dict(o)
