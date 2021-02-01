@@ -4,21 +4,12 @@ from typing import NamedTuple
 
 import numpy as np
 from numpy.testing import assert_equal
-from scipy.interpolate import PPoly, CubicSpline
+from scipy.interpolate import PPoly, CubicSpline, BPoly
 
 from being.serialization import (
-    EOT,
-    FlyByDecoder,
-    NAMED_TUPLE_LOOKUP,
-    dumps,
-    loads,
-    named_tuple_as_dict,
-    named_tuple_from_dict,
-    register_named_tuple,
-    register_enum,
-    enum_to_dict,
-    enum_from_dict,
-    ENUM_LOOKUP,
+    ENUM_LOOKUP, EOT, NAMED_TUPLE_LOOKUP, FlyByDecoder, dumps, enum_from_dict,
+    enum_to_dict, loads, named_tuple_as_dict, named_tuple_from_dict,
+    register_enum, register_named_tuple,
 )
 
 
@@ -34,6 +25,15 @@ class TestSerialization(unittest.TestCase):
         splineCpy = loads(dumps(spline))
 
         self.assert_splines_equal(spline, splineCpy)
+
+    def test_that_we_end_up_with_the_correct_spline_types(self):
+        spline = CubicSpline([0, 1, 3, 6], [0, 1, 0, -1])
+        ppoly = PPoly(spline.c, spline.x)
+        bpoly = BPoly.from_power_basis(spline)
+
+        self.assert_splines_equal(loads(dumps(spline)), ppoly)
+        self.assert_splines_equal(loads(dumps(ppoly)), ppoly)
+        self.assert_splines_equal(loads(dumps(bpoly)), bpoly)
 
     def test_numpy_array(self):
         arrays = [
@@ -93,6 +93,7 @@ class TestSerialization(unittest.TestCase):
         self.assertEqual(foo, loads(dumps(foo)))
 
         ENUM_LOOKUP.pop('Foo')
+
 
 class TestFlyByDecoder(unittest.TestCase):
     def test_doc_example(self):

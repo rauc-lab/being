@@ -13,6 +13,7 @@ Notes:
 import base64
 import json
 from collections import OrderedDict
+from enum import EnumMeta
 from typing import Generator, Dict
 
 import numpy as np
@@ -29,7 +30,6 @@ NAMED_TUPLE_LOOKUP: Dict[str, type] = {}
 ENUM_LOOKUP: Dict[str, type] = {}
 """Enum type lookup."""
 
-
 SPLINE_TYPES: Dict[type, type] = {
     CubicSpline: PPoly,
     PPoly: PPoly,
@@ -38,8 +38,8 @@ SPLINE_TYPES: Dict[type, type] = {
 """Supported spline types. CubicSplines get mapped to PPoly."""
 
 SPLINE_LOOKUP: Dict[str, type] = {
-    'PPoly': PPoly,
-    'BPoly': BPoly,
+    cls.__name__: cls
+    for cls in SPLINE_TYPES.values()
 }
 """Spline type lookup."""
 
@@ -48,10 +48,10 @@ def register_named_tuple(namedTupleType: type):
     """Register named tuple type for serialization / deserialization."""
     name = namedTupleType.__name__
     if 'type' in namedTupleType._fields:
-        raise ValueError((
+        raise ValueError(
             "'type' can not be used as field name. Already used as JSON message"
             f" type. Pick something else for named tuple {name!r}!"
-        ))
+        )
 
     if name in NAMED_TUPLE_LOOKUP:
         raise RuntimeError(f'Named tuple {name!r} is already registered!')
@@ -59,7 +59,7 @@ def register_named_tuple(namedTupleType: type):
     NAMED_TUPLE_LOOKUP[name] = namedTupleType
 
 
-def register_enum(enum: type):
+def register_enum(enum: EnumMeta):
     """Register enum for serialization / deserialization."""
     name = enum.__name__
     if name in ENUM_LOOKUP:
@@ -149,8 +149,7 @@ def named_tuple_from_dict(dct: dict):
     dct = dct.copy()
     msgType = dct.pop('type')
     if msgType not in NAMED_TUPLE_LOOKUP:
-        msg = f'Do not know type of named tuple {msgType!r}!'
-        raise RuntimeError(msg)
+        raise RuntimeError(f'Do not know type of named tuple {msgType!r}!')
 
     type_ = NAMED_TUPLE_LOOKUP[msgType]
     kwargs = type_._field_defaults.copy()
@@ -161,7 +160,7 @@ def named_tuple_from_dict(dct: dict):
 def being_object_hook(dct):
     """Being object hook for custom JSON deserialization."""
     msgType = dct.get('type')
-    if msgType == 'PPoly':
+    if msgType in SPLINE_LOOKUP:
         return spline_from_dict(dct)
 
     if msgType == 'ndarray':
@@ -188,7 +187,7 @@ class BeingEncoder(json.JSONEncoder):
         yield from super().iterencode(o, _one_shot)
 
     def default(self, o):
-        if isinstance(o, PPoly):
+        if isinstance(o, tuple(SPLINE_TYPES)):
             return spline_to_dict(o)
 
         if isinstance(o, ndarray):
