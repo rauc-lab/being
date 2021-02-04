@@ -1,6 +1,11 @@
-import weakref
+import fnmatch
+import glob
 import os
-from typing import Dict, List
+import weakref
+from typing import Dict, List, Generator
+
+
+Filepath = str
 
 
 def filter_by_type(sequence, type_) -> List:
@@ -16,6 +21,33 @@ def rootname(p: str) -> str:
     filename = os.path.basename(p)
     root, ext = os.path.splitext(filename)
     return root
+
+
+def collect_files(directory, pattern='*') -> Generator[Filepath, None, None]:
+    """Recursively walk over all files in directory. With file extension
+    filter."""
+    # Give full context
+    # pylint: disable=unused-variable
+    for dirpath, dirnames, filenames in os.walk(directory):
+        for fn in fnmatch.filter(filenames, pattern):
+            yield os.path.join(dirpath, fn)
+
+
+def listdir(directory, fullpath=True) -> List[Filepath]:
+    """List directory content. Not recursive. No hidden files. Lexicographically
+    sorted.
+
+    Args:
+        directory: Directory to traverse.
+    """
+    filepaths = sorted(glob.iglob(os.path.join(directory, '*')) )
+    if fullpath:
+        return filepaths
+
+    return [
+        fp.split(directory + '/', maxsplit=1)[1]
+        for fp in filepaths
+    ]
 
 
 class SingleInstanceCache:
