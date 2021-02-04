@@ -221,15 +221,25 @@ class CiA402Node(RemoteNode):
         """Current actual position value."""
         return self.sdo[POSITION_ACTUAL_VALUE].raw / SI_2_FAULHABER
 
-    def enable(self):
-        """Enable drive."""
-        self.nmt.state = OPERATIONAL
-        self.change_state(State.OPERATION_ENABLE)
+    # TODO: Wording. Any English speakers in the house?
 
-    def disable(self):
-        """Disable drive."""
+    def disengage(self):
         self.nmt.state = PRE_OPERATIONAL
         self.change_state(State.READY_TO_SWITCH_ON)
+
+    def disable(self):
+        self.disengage()
+
+    def engage(self):
+        self.nmt.state = OPERATIONAL
+        self.change_state(State.SWITCHED_ON)
+
+    def disenable(self):
+        self.engage()
+
+    def enable(self):
+        self.nmt.state = OPERATIONAL
+        self.change_state(State.OPERATION_ENABLE)
 
     def get_state(self) -> State:
         """Get current node state."""

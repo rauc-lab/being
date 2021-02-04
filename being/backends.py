@@ -5,7 +5,7 @@ from typing import List, ForwardRef
 
 import pyaudio
 import canopen
-from being.utils import SingleInstanceCache
+from being.utils import SingleInstanceCache, filter_by_type
 
 
 CiA402Node = ForwardRef('CiA402Node')
@@ -34,20 +34,27 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
     def drives(self) -> List[CiA402Node]:
         """Get list of all drive nodes."""
         from being.can.cia_402 import CiA402Node  # Circular import for comforts
-        return [
-            node for node in self.values()
-            if isinstance(node, CiA402Node)
-        ]
+        return filter_by_type(self.values(), CiA402Node)
 
-    def enable_drives(self):
-        """Enable all drives."""
+    def disengage_drives(self):
         for drive in self.drives:
-            drive.enable()
+            drive.disengage()
 
     def disable_drives(self):
-        """Disable all drives."""
         for drive in self.drives:
             drive.disable()
+
+    def engage_drives(self):
+        for drive in self.drives:
+            drive.engage()
+
+    def disenable_drives(self):
+        for drive in self.drives:
+            drive.disenable()
+
+    def enable_drives(self):
+        for drive in self.drives:
+            drive.enable()
 
     def send_sync(self):
         """Send out sync message."""
