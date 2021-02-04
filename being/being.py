@@ -1,61 +1,29 @@
 """Awaking a being to live. Main start execution entry point."""
-import collections
+import asyncio
 import time
-
-from typing import Iterable, List
+from typing import List
 
 from being.backends import CanBackend
-from being.block import Block, output_neighbors, input_neighbors
-from being.graph import Graph, topological_sort
-from being.motor import home_motors, Motor
 from being.config import INTERVAL
+from being.execution import ExecOrder, execute
+from being.motor import home_motors, Motor
 from being.resources import add_callback
+from being.server import init_web_server, run_web_server
+from being.utils import filter_by_type
+from being.graph import topological_sort
+from being.execution import block_network_graph
 
 
-def block_network_graph(blocks: Iterable[Block]) -> Graph:
-    """Traverse block network and build block network graph.
+WEB_SOCKET_ADDRESS = '/stream'
+
+
+def find_all_motors(execOrder: ExecOrder) -> List[Motor]:
+    """Find all motor blocks in execOrder.
 
     Args:
-        blocks (iterable): Starting blocks for graph traversal.
-
-    Returns:
-        Block network graph.
+        execOrder: Execution order to execute.
     """
-    vertices = []
-    edges = set()
-    queue = collections.deque(blocks)
-    while queue:
-        block = queue.popleft()
-        if block not in vertices:
-            vertices.append(block)
-            for successor in output_neighbors(block):
-                edges.add((block, successor))
-                queue.append(successor)
-
-            for predecessor in input_neighbors(block):
-                edges.add((predecessor, block))
-                queue.append(predecessor)
-
-    return Graph(vertices=vertices, edges=edges)
-
-
-def find_all_motors(execOrder) -> List[Motor]:
-    """Find all motor blocks in execOrder."""
-    return [
-        b for b in execOrder
-        if isinstance(b, Motor)
-    ]
-
-
-def awake(*blocks, web=False):
-    """Run being."""
-    being = Being(blocks)
-    if not web:
-        being.run()
-
-    else:
-        # TODO: Init web server
-        pass
+    return filter_by_type(execOrder, Motor)
 
 
 class Being:
@@ -63,30 +31,56 @@ class Being:
     """Being core."""
 
     def __init__(self, blocks):
-        graph = block_network_graph(blocks)
-        self.execOrder = topological_sort(graph)
-        # TODO: Validate execOrder
-        self.network = None
-        if CanBackend.initialized():
-            self.network = CanBackend.default()
-
+        """Args:
+            blocks: Blocks to execute.
+        """
+        self.graph = block_network_graph(blocks)
+        self.execOrder = topological_sort(self.graph)
+        self.network = CanBackend.single_instance_get()
         motors = find_all_motors(self.execOrder)
         if motors:
             home_motors(motors)
             self.network.enable_drives()
             add_callback(self.network.disable_drives)
 
+    def single_cycle(self):
+        """Execute single cycle of block networks."""
+        execute(self.execOrder)
+        if self.network is not None:
+            self.network.send_sync()
+
     def run(self):
+        """Run being standalone."""
         while True:
-            t0 = time.perf_counter()
-            for block in self.execOrder:
-                block.update()
+            now = time.perf_counter()
+            self.single_cycle()
+            then = time.perf_counter()
+            time.sleep(max(0, INTERVAL - (then - now)))
 
-            if self.network is not None:
-                self.network.send_sync()
+    async def run_async(self):
+        """Run being async."""
+        time_func = asyncio.get_running_loop().time
+        while True:
+            now = time_func()
+            self.single_cycle()
+            then = time_func()
+            await asyncio.sleep(max(0, INTERVAL - (then - now)))
 
-            t1 = time.perf_counter()
-            time.sleep(max(0, INTERVAL - (t1 - t0)))
 
-    async def async_run(self):
-        pass
+def awake(*blocks, web=True):
+    """Run being."""
+    being = Being(blocks)
+    if not web:
+        return being.run()
+
+    asyncio.run( _awake_web(being) )
+
+
+async def _awake_web(being):
+    """Run being with web server."""
+    #ws = WebSocket()
+    app = init_web_server(being)
+    await asyncio.gather(
+        being.run_async(),
+        run_web_server(app),
+    )
