@@ -21,7 +21,14 @@ from being.kinematics import optimal_trajectory
 from being.typing import Spline
 
 
-Degree = IntEnum('Degree', 'CONSTANT LINEAR QUADRATIC CUBIC')
+class Degree(IntEnum):
+
+    """Spline / polynomial degree. degree = order - 1."""
+
+    CONSTANT = 0
+    LINEAR = 1
+    QUADRATIC = 2
+    CUBIC = 3
 
 
 def build_spline(accelerations: Sequence, knots: Sequence, x0: float = 0.,
@@ -67,7 +74,7 @@ def spline_duration(spline: Spline) -> float:
     return knots[-1] - knots[0]
 
 
-def shitf_spline(spline: Spline, offset=0.) -> PPoly:
+def shitf_spline(spline: Spline, offset=0.) -> Spline:
     """Shift spline by some offset in time."""
     return type(spline).construct_fast(
         c=spline.c,
@@ -79,10 +86,10 @@ def shitf_spline(spline: Spline, offset=0.) -> PPoly:
 
 def remove_duplicates(spline: Spline) -> Spline:
     """Remove duplicates knots from spline."""
-    _, idx = np.unique(spline.x, return_index=True)
+    _, uniqueIdx = np.unique(spline.x, return_index=True)
     return type(spline).construct_fast(
-        c=spline.c[:, idx[:-1]],
-        x=spline.x[idx],
+        c=spline.c[:, uniqueIdx[:-1]],
+        x=spline.x[uniqueIdx],
         extrapolate=spline.extrapolate,
         axis=spline.axis,
     )
