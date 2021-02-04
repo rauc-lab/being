@@ -2,9 +2,11 @@
 # TODO: Renaming this module? Almost name conflict with block.py?
 import math
 
+from being.backends import AudioBackend
 from being.block import Block
 from being.config import INTERVAL
 from being.constants import TAU
+from being.resources import register_resource
 
 
 class Sine(Block):
@@ -46,8 +48,26 @@ class Trafo(Block):
         self.add_value_input()
         self.add_value_output()
 
+    @classmethod
+    def from_ranges(cls, inRange=(0., 1.), outRange=(0., 1.)):
+        # TODO: Make me! Calculate scale, offset from (xMin, xMax) and (yMin,
+        # yMax).
+        pass
+
     def update(self):
         self.output.value = self.scale * self.input.value + self.offset
 
     def __str__(self):
         return f'{type(self).__name__}(scale={self.scale:.3f}, offset={self.offset:.3f})'
+
+
+class Mic(Block):
+
+    # TODO: Make me!
+
+    def __init__(self, audioBackend=None):
+        if not audioBackend:
+            audioBackend = AudioBackend.single_instance_setdefault()
+            register_resource(audioBackend, duplicates=False)
+
+        self.audioBackend = audioBackend
