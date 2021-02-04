@@ -47,7 +47,17 @@ class Content(SingleInstanceCache):
         os.remove(fp)
 
     def list_motions(self):
-        return [rootname(fp) for fp in glob.glob(self.directory + '/*.json')]
+        return [
+            rootname(fp)
+            for fp in glob.glob(self.directory + '/*.json')
+        ]
+
+    def dict_motions(self):
+        names = map(rootname, glob.glob(self.directory + '/*.json'))
+        return {
+            name: self.load_motion(name)
+            for name in names
+        }
 
     def __str__(self):
         return '%s(directory=%r)' % (type(self).__name__, self.directory)
