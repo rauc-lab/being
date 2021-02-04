@@ -6,15 +6,11 @@ from typing import List
 from being.backends import CanBackend
 from being.config import INTERVAL
 from being.execution import ExecOrder, execute
+from being.execution import block_network_graph
+from being.graph import topological_sort
 from being.motor import home_motors, Motor
-from being.resources import add_callback
 from being.server import init_web_server, run_web_server
 from being.utils import filter_by_type
-from being.graph import topological_sort
-from being.execution import block_network_graph
-
-
-WEB_SOCKET_ADDRESS = '/stream'
 
 
 def find_all_motors(execOrder: ExecOrder) -> List[Motor]:
@@ -41,7 +37,6 @@ class Being:
         if motors:
             home_motors(motors)
             self.network.enable_drives()
-            add_callback(self.network.disable_drives)
 
     def single_cycle(self):
         """Execute single cycle of block networks."""
@@ -78,7 +73,6 @@ def awake(*blocks, web=True):
 
 async def _awake_web(being):
     """Run being with web server."""
-    #ws = WebSocket()
     app = init_web_server(being)
     await asyncio.gather(
         being.run_async(),

@@ -8,10 +8,15 @@ from aiohttp import web
 
 from being.content import Content
 from being.serialization import dumps, loads
+from being.web_socket import WebSocket
 
 
 API_PREFIX = '/api'
 """API route prefix."""
+
+WEB_SOCKET_ADDRESS = '/stream'
+"""Web socket URL."""
+
 
 LOGGER = logging.getLogger(__name__)
 """Server module logger."""
@@ -121,6 +126,9 @@ def init_web_server(being=None, content=None) -> web.Application:
     app.router.add_get('/', file_response_handler('static/index.html'))
     app.router.add_get('/spline-editor', file_response_handler('static/spline-editor.html'))
     app.router.add_get('/live-plotter', file_response_handler('static/live-plotter.html'))
+
+    ws = WebSocket(WEB_SOCKET_ADDRESS)
+    app.router.add_get(WEB_SOCKET_ADDRESS, ws.handle_web_socket)
 
     # Rest API
     api = web.Application()
