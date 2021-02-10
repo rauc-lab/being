@@ -4,7 +4,7 @@
 /**
  * Two dimensional bounding box.
  */
-class BBox {
+export class BBox {
     constructor(ll=[Infinity, Infinity], ur=[-Infinity, -Infinity]) {
         this.ll = ll;
         this.ur = ur;
