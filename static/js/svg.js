@@ -1,24 +1,41 @@
 "use strict";
+
+
+/**
+ * SVG name space string.
+ * @constant
+ * @type {string}
+ */
 const SVG_XML_NS = "http://www.w3.org/2000/svg";
 
 
 /**
  * Create SVG element.
  */
-function create_element(tag) {
+export function create_element(tag) {
     return document.createElementNS(SVG_XML_NS, tag);
 }
 
 
-function setattr(ele, name, value) {
+/**
+ * Set attribute of SVG element.
+ */
+export function setattr(ele, name, value) {
     ele.setAttributeNS(null, name, value);
 }
 
 
 /**
  * SVG path d attribute string from array of 2d control points.
+ * 
+ * @param {Array} cps - Bézier control points for one segment. Number of control points defines the curve degree.
+ * @returns {string} SVG path d attribute string.
+ *
+ * Usage:
+ *     >>> path_d([[0, 1], [2, 3], [4, 5], [6, 7]])
+ *     M0 1 C2 3 4 5 6 7
  */
-function path_d(cps) {
+export function path_d(cps) {
     const order = cps.length;
     if (order == 4) {
         return "M" + cps[0] + "C" + cps.slice(1).flat();
@@ -32,18 +49,23 @@ function path_d(cps) {
 }
 
 
-function draw_path(svg, cps, strokeWidth=1, color='black') {
+/**
+ * Draw path from control points onto SVG.
+ */
+export function draw_path(svg, cps, strokeWidth=1, color='black') {
     const path = create_element('path');
     setattr(path, "d", path_d(cps));
     setattr(path, "stroke", color);
     setattr(path, "stroke-width", strokeWidth);
     setattr(path, "fill", "transparent");
     svg.appendChild(path);
-    return;
 }
 
 
-function draw_circle(svg, center, radius=1, color='red') {
+/**
+ * Draw circle onto SVG.
+ */
+export function draw_circle(svg, center, radius=1, color='red') {
     const [cx, cy] = center;
     const circle = create_element('circle');
     setattr(circle, "cx", cx);
@@ -54,7 +76,10 @@ function draw_circle(svg, center, radius=1, color='red') {
 }
 
 
-function draw_line(svg, start, end, strokeWidth=1, color='black') {
+/**
+ * Draw line onto SVG.
+ */
+export function draw_line(svg, start, end, strokeWidth=1, color='black') {
     const [x1, y1] = start;
     const [x2, y2] = end;
     const line = create_element("line");
@@ -66,6 +91,3 @@ function draw_line(svg, start, end, strokeWidth=1, color='black') {
     setattr(line, "stroke", color);
     svg.appendChild(line);
 }
-
-
-export {create_element, path_d, draw_path, draw_circle, draw_line};

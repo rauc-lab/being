@@ -1,20 +1,29 @@
 "use strict";
 /**
- * Wait until DOM ready (from http://youmightnotneedjquery.com).
+ * All kinds of util. Lots from http://youmightnotneedjquery.com.
  */
-function ready(fn) {
-    if (document.readyState != 'loading'){
+
+
+/**
+ * Wait until DOM ready (from http://youmightnotneedjquery.com).
+ * 
+ * @param {function} fn - Callback.
+ */
+export function ready(fn) {
+    if (document.readyState != "loading"){
         fn();
     } else {
-        document.addEventListener('DOMContentLoaded', fn);
+        document.addEventListener("DOMContentLoaded", fn);
     }
 }
 
 
 /**
  * Fetch JSON data from url.
+ * 
+ * @param {string} url - URL to get JSON data from.
  */
-async function fetch_json(url) {
+export async function fetch_json(url) {
     const response = await fetch(url);
     return await response.json();
 }
@@ -22,12 +31,11 @@ async function fetch_json(url) {
 
 /**
  * Remove all children from HTML element (from http://youmightnotneedjquery.com).
+ * 
+ * @param {HTMLElement} el - HTML element to remove all children from.
  */
-function remove_all_children(el) {
+export function remove_all_children(el) {
     while (el.firstChild) {
         el.removeChild(el.lastChild);
     }
 }
-
-
-export {ready, fetch_json, remove_all_children};
