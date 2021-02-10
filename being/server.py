@@ -127,13 +127,11 @@ def init_web_server(being=None, content=None) -> web.Application:
     app.router.add_get('/spline-editor', file_response_handler('static/spline-editor.html'))
     app.router.add_get('/live-plotter', file_response_handler('static/live-plotter.html'))
 
-    ws = WebSocket(WEB_SOCKET_ADDRESS)
-    app.router.add_get(WEB_SOCKET_ADDRESS, ws.handle_web_socket)
-
     # Rest API
     api = web.Application()
-    # TODO: Being API
     if being:
+        # TODO: Being API
+        #being.subscribe(being.Event.SINGLE_CYCLE, ws.send_json)
         pass
 
     if content:
@@ -161,7 +159,20 @@ async def run_web_server(app: web.Application):
         await asyncio.sleep(3600)  # sleep forever
 
 
+def _create_dummy_being():
+    from being.block import Block
+    from being.being import Being
+
+    block = Block()
+    block.add_value_input()
+    block.add_message_input()
+    block.add_value_output()
+    block.add_message_output()
+    return Being([block])
+
 if __name__ == '__main__':
+    # Run server with dummy being
+    being = _create_dummy_being()
     content = Content.single_instance_setdefault()
-    app = init_web_server(content=content)
+    app = init_web_server(being=being, content=content)
     web.run_app(app)

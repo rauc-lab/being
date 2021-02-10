@@ -8,12 +8,12 @@ from typing import Dict, List, Generator
 Filepath = str
 
 
-def filter_by_type(sequence, type_) -> List:
+def filter_by_type(sequence, type_) -> Generator:
     """Filter sequence by type."""
-    return [
+    return (
         ele for ele in sequence
         if isinstance(ele, type_)
-    ]
+    )
 
 
 def rootname(p: str) -> str:

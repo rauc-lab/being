@@ -62,7 +62,7 @@ class WebSocket(PubSub):
         return ws
 
     async def send_json(self, data):
-        """Send data as JSON to all connected websockets."""
+        """Send data as JSON to all connected web sockets."""
         for ws in self.sockets:
             await ws.send_json(data, dumps=dumps)
 

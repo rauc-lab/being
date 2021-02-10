@@ -153,9 +153,6 @@ class Motor(Block):
         decreasing anymore). Implemented as Generator so that we can home multiple
         motors in parallel (quasi pseudo coroutine).
 
-        Args:
-            node (CiA402Node): Drive to home.
-
         Kwargs:
             speed: Homing speed.
         """
