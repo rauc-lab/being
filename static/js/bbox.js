@@ -1,5 +1,8 @@
+"use strict";
+
+
 /**
- * Bounding box
+ * Two dimensional bounding box.
  */
 class BBox {
     constructor(ll=[Infinity, Infinity], ur=[-Infinity, -Infinity]) {
@@ -11,7 +14,10 @@ class BBox {
      * Bounding box size.
      */
     get size() {
-        return subtract_arrays(this.ur, this.ll);
+        return [
+            this.ur[0] - this.ll[0],
+            this.ur[1] - this.ll[1],
+        ];
     }
 
     /**
@@ -33,7 +39,11 @@ class BBox {
      * TODO: Needed? Kill it?
      */
     get center() {
-        return multiply_scalar(.5, add_arrays(this.ll, this.ur));
+        const [width, height] = this.size;
+        return [
+            this.ll[0] + .5 * width,
+            this.ll[1] + .5 * height,
+        ];
     }
 
     /**

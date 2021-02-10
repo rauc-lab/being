@@ -3,7 +3,7 @@
 /**
  * Clip value to [lower, upper] boundaries.
  */
-function clip(value, lower=0, upper=1) {
+export function clip(value, lower=0, upper=1) {
     return Math.max(lower, Math.min(upper, value));
 }
 
@@ -11,7 +11,7 @@ function clip(value, lower=0, upper=1) {
 /**
  * Round number to given decimal places.
  */
-function round(number, ndigits=0) {
+export function round(number, ndigits=0) {
     const shift = Math.pow(10, ndigits)
     return Math.round(number * shift) / shift;
 }
@@ -23,7 +23,7 @@ function round(number, ndigits=0) {
  * Resources:
  *     https://en.wikipedia.org/wiki/Box–Muller_transform
  */
-function normal(mean=0, std=1.) {
+export function normal(mean=0, std=1.) {
     const u0 = Math.random();
     const u1 = Math.random();
     const z0 = Math.sqrt(-2.0 * Math.log(u0)) * Math.cos(TAU * u1);
@@ -38,7 +38,7 @@ function normal(mean=0, std=1.) {
 export function zeros(dimensions) {
     let array = [];
     for (let i = 0; i < dimensions[0]; i++) {
-        array.push(dimensions.length == 1 ? 0 : zeros(dimensions.slice(1)));
+        array.push(dimensions.length === 1 ? 0 : zeros(dimensions.slice(1)));
     }
 
     return array;
@@ -66,7 +66,7 @@ export function linspace(start=0., stop=1., num=50) {
 /**
  * Element wise add two arrays together.
  */
-function add_arrays(augend, addend) {
+export function add_arrays(augend, addend) {
     return augend.map((aug, i) => aug + addend[i]);
 }
 
@@ -74,7 +74,7 @@ function add_arrays(augend, addend) {
 /**
  * Element wise multiply two arrays together.
  */
-function multiply_scalar(factor, array) {
+export function multiply_scalar(factor, array) {
     return array.map(e => factor * e);
 }
 
@@ -82,7 +82,7 @@ function multiply_scalar(factor, array) {
 /**
  * Element wise divide two arrays.
  */
-function divide_arrays(dividend, divisor) {
+export function divide_arrays(dividend, divisor) {
     return dividend.map((div, i) => div / divisor[i]);
 }
 
@@ -90,7 +90,7 @@ function divide_arrays(dividend, divisor) {
 /**
  * Element wise subtract two array from each other.
  */
-function subtract_arrays(minuend, subtrahend) {
+export function subtract_arrays(minuend, subtrahend) {
     return minuend.map((min, i) => min - subtrahend[i]);
 }
 
@@ -98,6 +98,6 @@ function subtract_arrays(minuend, subtrahend) {
 /**
  * Transpose array (untested.)
  */
-function transpose_array(arr) {
+export function transpose_array(arr) {
     return arr[0].map((_, colIndex) => arr.map(row => row[colIndex]));
 }
