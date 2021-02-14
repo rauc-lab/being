@@ -39,3 +39,35 @@ export function remove_all_children(el) {
         el.removeChild(el.lastChild);
     }
 }
+
+
+/**
+ * Clear array in place.
+ */
+export function clear_array(arr) {
+    arr.length = 0;
+}
+
+
+/**
+ * Get last element of array.
+ */
+export function last_element(arr) {
+    return arr[arr.length - 1];
+}
+
+
+/**
+ * Cycle through sequence iterator.
+ */
+export function cycle(sequence) {
+    let idx = 0;
+    return {
+        next: function() {
+            const pick = sequence[idx % sequence.length];
+            idx++;
+            idx %= sequence.length;
+            return pick;
+        }
+    }
+}

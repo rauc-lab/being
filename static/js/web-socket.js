@@ -1,9 +1,5 @@
 "use strict";
-import {Flasher} from "/static/js/flasher.js";
 import {MS} from "/static/js/constants.js";
-
-
-const FLASHER = new Flasher();
 
 
 /**
@@ -18,7 +14,6 @@ export function receive_from_websocket(url, callbacks, reconnectTimeout=1.) {
     const sock = new WebSocket(url);
     sock.onopen = function(evt) {
         console.log("Open socket connection", url);
-        FLASHER.reset();
     };
     sock.onmessage = function(evt) {
         let obj = JSON.parse(evt.data);
@@ -27,8 +22,7 @@ export function receive_from_websocket(url, callbacks, reconnectTimeout=1.) {
         });
     };
     sock.onerror = function(evt) {
-        //console.log("Socket error", evt);
-        FLASHER.flash(evt);
+        console.log("Socket error", evt);
         sock.close();
     };
     sock.onclose = function(evt) {

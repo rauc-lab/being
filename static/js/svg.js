@@ -10,6 +10,16 @@ const SVG_XML_NS = "http://www.w3.org/2000/svg";
 
 
 /**
+ * Spline orders.
+ */
+const Order = Object.freeze({
+    "CUBIC": 4,
+    "QUADRATIC": 3,
+    "LINEAR": 2,
+});
+
+
+/**
  * Create SVG element.
  */
 export function create_element(tag) {
@@ -37,15 +47,71 @@ export function setattr(ele, name, value) {
  */
 export function path_d(cps) {
     const order = cps.length;
-    if (order == 4) {
+    if (order == Order.CUBIC) {
         return "M" + cps[0] + "C" + cps.slice(1).flat();
-    } else if (order == 3) {
+    } else if (order == Order.QUADRATIC) {
         return "M" + cps[0] + "Q" + cps.slice(1).flat();
-    } else if (order == 2) {
+    } else if (order == Order.LINEAR) {
         return "M" + cps[0] + "L" + cps[1];
     } else {
         throw "Order " + order + " not supported!";
     }
+}
+
+
+export function _draw_path(path, cps) {
+    setattr(path, "d", path_d(cps));
+}
+
+
+export function create_path(cps, strokeWidth=1, color="black") {
+    const path = create_element("path");
+    setattr(path, "stroke", color);
+    setattr(path, "stroke-width", strokeWidth);
+    setattr(path, "fill", "transparent");
+    path.draw = function() {
+        _draw_path(path, cps);
+    }
+    path.draw();
+    return path;
+}
+
+
+export function _draw_circle(circle, center) {
+    setattr(circle, "cx", center[0]);
+    setattr(circle, "cy", center[1]);
+}
+
+
+export function create_circle(center, radius=1, color="red") {
+    const circle = create_element("circle");
+    setattr(circle, "r", radius);
+    setattr(circle, "fill", color);
+    circle.draw = function() {
+        _draw_circle(circle, center);
+    }
+    circle.draw();
+    return circle;
+}
+
+
+export function _draw_line(line, start, end) {
+    setattr(line, "x1", start[0]);
+    setattr(line, "y1", start[1]);
+    setattr(line, "x2", end[0]);
+    setattr(line, "y2", end[1]);
+}
+
+
+export function create_line(start, end, strokeWidth=1, color='black') {
+    const line = create_element("line");
+    setattr(line, "stroke-width", strokeWidth);
+    setattr(line, "stroke", color);
+    line.draw = function() {
+        _draw_line(line, start, end);
+    }
+    line.draw();
+    return line;
 }
 
 
@@ -59,6 +125,7 @@ export function draw_path(svg, cps, strokeWidth=1, color='black') {
     setattr(path, "stroke-width", strokeWidth);
     setattr(path, "fill", "transparent");
     svg.appendChild(path);
+    return path;
 }
 
 
@@ -73,6 +140,7 @@ export function draw_circle(svg, center, radius=1, color='red') {
     setattr(circle, "r", radius);
     setattr(circle, "fill", color);
     svg.appendChild(circle);
+    return circle;
 }
 
 
@@ -90,4 +158,5 @@ export function draw_line(svg, start, end, strokeWidth=1, color='black') {
     setattr(line, "stroke-width", strokeWidth);
     setattr(line, "stroke", color);
     svg.appendChild(line);
+    return line;
 }

@@ -34,25 +34,43 @@ export class BBox {
         return this.ur[1] - this.ll[1];
     }
 
-    /**
-     * Bound box center.
-     * TODO: Needed? Kill it?
-     */
-    get center() {
-        const [width, height] = this.size;
-        return [
-            this.ll[0] + .5 * width,
-            this.ll[1] + .5 * height,
-        ];
+
+    reset() {
+        this.ll = [Infinity, Infinity];
+        this.ur = [-Infinity, -Infinity];
     }
 
     /**
      * Expand bounding box region.
      */
-    expand(pt) {
+    expand_by_point(pt) {
         this.ll[0] = Math.min(this.ll[0], pt[0]);
         this.ll[1] = Math.min(this.ll[1], pt[1]);
         this.ur[0] = Math.max(this.ur[0], pt[0]);
         this.ur[1] = Math.max(this.ur[1], pt[1]);
     }
+
+
+    expand_by_points(pts) {
+        pts.forEach(pt => this.expand_by_point(pt));
+    }
+
+    expand_by_bbox(bbox) {
+        this.expand_by_point(bbox.ll);
+        this.expand_by_point(bbox.ur);
+    }
 }
+
+
+/**
+ * Fit bounding box from array of 2D points.
+ */
+export function fit_bbox(pts) {
+    let bbox = new BBox();
+    bbox.expand_by_points(pts);
+    return bbox;
+}
+
+
+
+let bbox

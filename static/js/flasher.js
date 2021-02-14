@@ -15,9 +15,9 @@ export function Flasher(print_func=console.log) {
      * @param {string} msg - Message to flash.
      */
     this.flash = function(msg) {
-        if (alreadyFlashed.has(msg)) {
+        if (alreadyFlashed.has(msg))
             return;
-        }
+
         print_func(msg);
         alreadyFlashed.add(msg);
     };

@@ -111,6 +111,7 @@ async def _awake_web(being):
             being.single_cycle()
             await ws.send_json({
                 'type': 'output-values',
+                'timestamp': now,
                 'values': being.capture_value_outputs()
             })
             then = time_func()

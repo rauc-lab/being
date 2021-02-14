@@ -19,4 +19,4 @@ export const MS = 1000;
  * @constant
  * @type {float}
  */
-export const TAU = 2.0 * MATH.PI;
+export const TAU = 2.0 * Math.PI;

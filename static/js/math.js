@@ -32,6 +32,51 @@ export function normal(mean=0, std=1.) {
 }
 
 
+/* Numpy style array helpers */
+
+
+/**
+ * Shape of array.
+ */
+export function array_shape(arr) {
+    let shape = [];
+    while (arr instanceof Array) {
+        shape.push(arr.length);
+        arr = arr[0];
+    }
+
+    return shape;
+}
+
+
+/**
+ * Number of dimensions of array.
+ */
+export function array_ndims(arr) {
+    return array_shape(arr).length;
+}
+
+
+/**
+ * Array minimum value.
+ * @param arr - Flat input array.
+ * @returns Minimum value.
+ */
+export function array_min(arr) {
+    return Math.min.apply(Math, arr);
+}
+
+
+/**
+ * Array maximum value.
+ * @param arr - Flat input array.
+ * @returns Maximum value.
+ */
+export function array_max(arr) {
+    return Math.max.apply(Math, arr);
+}
+
+
 /**
  * Create zeros array in arbitrary dimensions.
  */

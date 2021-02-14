@@ -127,6 +127,7 @@ def init_web_server(being=None, content=None) -> web.Application:
     app.router.add_get('/spline-editor', file_response_handler('static/spline-editor.html'))
     app.router.add_get('/live-plotter', file_response_handler('static/live-plotter.html'))
     app.router.add_get('/curver', file_response_handler('static/curver.html'))
+    app.router.add_get('/test', file_response_handler('static/test.html'))
 
     # Rest API
     api = web.Application()
@@ -160,21 +161,24 @@ async def run_web_server(app: web.Application):
         await asyncio.sleep(3600)  # sleep forever
 
 
-def _create_dummy_being():
-    from being.block import Block
-    from being.being import Being
-
-    block = Block()
-    block.add_value_input()
-    block.add_message_input()
-    block.add_value_output()
-    block.add_message_output()
-    return Being([block])
-
-
 if __name__ == '__main__':
     # Run server with dummy being
-    being = _create_dummy_being()
-    content = Content.single_instance_setdefault()
-    app = init_web_server(being=being, content=content)
-    web.run_app(app)
+    import time
+    import math
+
+    from being.being import awake
+    from being.block import Block
+    from being.constants import TAU
+
+
+    class SineGenerator(Block):
+        def __init__(self, frequency=1.):
+            super().__init__()
+            self.frequency = frequency
+            self.add_value_output()
+
+        def update(self):
+            now = time.perf_counter()
+            self.output.value = math.sin(TAU * self.frequency * now)
+
+    awake(SineGenerator(.1), SineGenerator(.2), SineGenerator(.4), web=True)
