@@ -52,6 +52,8 @@ const COLORS = [
     '#17becf',
 ];
 
+const MARGIN = 50;
+
 
 /**
  * Line artist. Contains data ring buffer and knows how to draw itself.
@@ -135,7 +137,7 @@ class Line {
         let prev = Infinity;
         this.data.forEach(pt => {
             if (pt[0] < prev)
-                ctx.moveTo(...pt)
+                ctx.moveTo(...pt);
             else
                 ctx.lineTo(...pt);
 
@@ -151,25 +153,24 @@ class Line {
 }
 
 
+
+
+
 /**
  * Curver base class for Plotter and Editor.
  */
 class CurverBase extends HTMLElement {
-    constructor() {
+    constructor(auto=true) {
         console.log("CurverBase.constructor");
         super();
+        this.auto = auto;
         this.width = 1;
         this.height = 1;
+        this.bbox = new BBox([0, 0], [1, 1]);
+        this.trafo = new DOMMatrix();
         this.lines = [];
-        this.init_elements();
         this.colorPicker = cycle(COLORS);
-    }
-
-    /**
-     * Current plotter size.
-     */
-    get size() {
-        return [this.width, this.height];
+        this.init_elements();
     }
 
     /**
@@ -196,12 +197,34 @@ class CurverBase extends HTMLElement {
         // SVG
         const svg = create_element("svg");
         svg.g = svg.appendChild(create_element("g"))
-        svg.g.spline = svg.g.appendChild(create_element("g"))
+        //svg.g.spline = svg.g.appendChild(create_element("g"))
         this.svg = svg;
-        this.shadowRoot.append(this.svg);
 
         this.shadowRoot.append(link, this.canvas, this.svg, this.toolbar);
     }
+
+    update_bbox() {
+        this.bbox.reset();
+        this.lines.forEach(line => {
+            this.bbox.expand_by_bbox(line.calc_bbox());
+        });
+    }
+
+    update_trafo() {
+        const [sx, sy] = divide_arrays([this.width - 2 * MARGIN, this.height - 2 * MARGIN], this.bbox.size);
+        if (!isFinite(sx) || !isFinite(sy) || sx === 0 || sy === 0)
+            return
+
+        this.trafo = DOMMatrix.fromMatrix({
+            a: sx,
+            d: -sy,
+            e: -sx * this.bbox.ll[0] + MARGIN,
+            f: sy * (this.bbox.ll[1] + this.bbox.height) + MARGIN,
+        });
+        this.ctx.setTransform(this.trafo);
+        //this.svg.g.setAttribute("transform", this.trafo.toString());
+    }
+
 
     /**
      * Resize elements. Mainly because of canvas because of lacking support for
@@ -218,6 +241,7 @@ class CurverBase extends HTMLElement {
         //this.ctx.setTransform(...mtrx);
 
         //this.draw();
+        this.update_trafo();
     }
 
     connectedCallback() {
@@ -241,40 +265,22 @@ class CurverBase extends HTMLElement {
         });
     }
 
-    /**
-     * Calculate data bounding box.
-     */
-    calc_bbox() {
-        let bbox = new BBox();
-        this.lines.forEach((line, nr) => {
-            if (nr !== 0)
-                bbox.expand_by_bbox(line.calc_bbox());
-        });
-        return bbox;
-    }
-
-    compute_tranform_matrix(bbox, margin=50) {
-        const [sx, sy] = divide_arrays([this.width-2*margin, this.height-2*margin], bbox.size);
-        return DOMMatrix.fromMatrix({
-            m11: sx,
-            m22: -sy,
-            m41: -sx * bbox.ll[0] + margin,
-            m42: sy * (bbox.ll[1] + bbox.height) + margin,
-        });
-    }
 
     /**
      * Clear canvas.
      */
-    clear() {
+    clear_canvas() {
+        this.ctx.save();
         this.ctx.resetTransform();
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.restore();
     }
+
 
     /**
      * Draw axis and tick labels.
      */
-    draw_axis_and_tick_labels(bbox, mtrx, color="darkgray") {
+    draw_axis_and_tick_labels(color="gainsboro") {
         const ctx = this.ctx;
         ctx.fillStyle = color;
         ctx.strokeStyle = color;
@@ -283,7 +289,7 @@ class CurverBase extends HTMLElement {
         ctx.save();
         ctx.resetTransform();
         ctx.beginPath();
-        const origin = (new DOMPoint()).matrixTransform(mtrx);
+        const origin = (new DOMPoint()).matrixTransform(this.trafo);
 
         // Round for crispr lines
         origin.x = Math.round(origin.x);
@@ -300,14 +306,14 @@ class CurverBase extends HTMLElement {
         ctx.font = ".8em Helvetica";
         ctx.textAlign = "center";
         ctx.textBaseline = "top";   // top, middle, bottom
-        tick_space(bbox.ll[0], bbox.ur[0]).forEach(x => {
-            const pt = (new DOMPoint(x, 0)).matrixTransform(mtrx);
+        tick_space(this.bbox.ll[0], this.bbox.ur[0]).forEach(x => {
+            const pt = (new DOMPoint(x, 0)).matrixTransform(this.trafo);
             ctx.fillText(x, pt.x, origin.y + offset);
         });
         ctx.textAlign = "right";
         ctx.textBaseline = "middle";   // top, middle, bottom
-        tick_space(bbox.ll[1], bbox.ur[1]).forEach(y => {
-            const pt = (new DOMPoint(0, y)).matrixTransform(mtrx);
+        tick_space(this.bbox.ll[1], this.bbox.ur[1]).forEach(y => {
+            const pt = (new DOMPoint(0, y)).matrixTransform(this.trafo);
             ctx.fillText(y, origin.x - offset, pt.y);
         });
 
@@ -318,11 +324,13 @@ class CurverBase extends HTMLElement {
      * Draw single frame.
      */
     draw() {
-        const bbox = this.calc_bbox();
-        const mtrx = this.compute_tranform_matrix(bbox);
-        this.clear();
-        this.ctx.setTransform(mtrx);
-        this.draw_axis_and_tick_labels(bbox, mtrx);
+        if (this.auto) {
+            this.update_bbox();
+            this.update_trafo();
+        }
+
+        this.clear_canvas();
+        this.draw_axis_and_tick_labels();
         this.lines.forEach(line => {
             line.draw();
         });
@@ -370,65 +378,53 @@ customElements.define('being-plotter', Plotter);
 class Editor extends CurverBase {
     constructor() {
         console.log("BeingCurver.constructor");
-        super();
-        this.updateBbox = true;
-        this.history = new History();
+        const auto = false;
+        super(auto);
+        //this.history = new History();
     }
 
-
-        /*
-    resize() {
-        console.log("Plotter.resize");
-        this.canvas.width = this.width = this.clientWidth;
-        this.canvas.height = this.height = this.clientHeight;
-
-        // Flip y-axis
-        const mtrx = [1, 0, 0, -1, 0, this.height];
-        this.ctx.setTransform(...mtrx);
-        this.svg.g.setAttribute("transform", "matrix(" + mtrx.join(" ") + ")");
-    }
-    */
-
-
-    new_data(msg) {
-        while (this.lines.length < msg.values.length) {
-            const color = this.colorPicker.next();
-            this.lines.push(new Line(this.ctx, color));
-        }
-
-        msg.values.forEach((value, nr) => {
-            this.lines[nr].append_data([msg.timestamp % 9, value]);
+    transform_points(pts) {
+        const trafo = this.trafo;
+        return pts.map(pt => {
+            const ptHat = (new DOMPoint(...pt)).matrixTransform(trafo);
+            return [ptHat.x, ptHat.y];
         });
     }
+
 
     load_spline(spline) {
         console.log("load_spline");
         const cps = bpoly_to_bezier(spline);
-        this.history.capture(cps);
-        this.draw_spline();
-    }
+        //this.history.capture(cps);
+        //this.draw_spline();
+        this.bbox = fit_bbox(cps.flat(1));
+        this.update_trafo();
 
+        const trafo = this.trafo;
 
-    draw_spline(lw=2, cw=6) {
-        console.log('draw_spline()');
-        if (!this.history.length) {
-            return;
+        function transform(pts) {
+            return pts.map(pt => {
+                const a = (new DOMPoint(...pt)).matrixTransform(trafo);
+                return [a.x, a.y];
+            });
         }
 
-        const cps = this.history.retrieve();
-        const bbox = fit_bbox(cps.flat(1));
-        const trafo = this.transformation_matrix(bbox);
 
-        const area = this.svg.g.spline;
-        remove_all_children(area)
-        //spline_it(cps, area, trafo);
+        const area = this.svg.g;
+        const lw = 1;
+        const cw = 6;
 
+        remove_all_children(area);
+        
+
+        const this_ = this;
         cps.forEach(function(pts, i) {
             const color = "black";
-            pts = transform(pts, trafo);
+            pts = this_.transform_points(pts);
+
 
             // Path
-            draw_path(area, pts, lw, color);
+            draw_path(area, pts, 2*lw, color);
 
             // Knots
             draw_circle(area, pts[0], cw, color);
@@ -450,6 +446,10 @@ class Editor extends CurverBase {
                 draw_circle(area, pts[2], cw, 'red');
             }
         });
+
+        let stuff = this.transform_points(last_element(cps));
+        let pt = last_element(stuff);
+        console.log(pt);
     }
 }
 
