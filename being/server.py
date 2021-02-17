@@ -124,10 +124,7 @@ def init_web_server(being=None, content=None) -> web.Application:
 
     # Pages
     app.router.add_get('/', file_response_handler('static/index.html'))
-    app.router.add_get('/spline-editor', file_response_handler('static/spline-editor.html'))
-    app.router.add_get('/live-plotter', file_response_handler('static/live-plotter.html'))
     app.router.add_get('/curver', file_response_handler('static/curver.html'))
-    app.router.add_get('/test', file_response_handler('static/test.html'))
 
     # Rest API
     api = web.Application()
