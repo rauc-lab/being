@@ -1,36 +1,35 @@
 :host {
-    display: inline-block;
-    position: relative;
-    width: 300px;
-    height: 150px;
+  display: inline-block;
+  position: relative;
+  width: 300px;
+  height: 150px;
 }
 
-
-canvas, svg {
-    width: 100%;
-    height: 100%; 
+canvas,
+svg {
+  width: 100%;
+  height: 100%;
 }
 
 svg {
-    position: absolute;
-    left: 0;
-    top: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
 }
 
 div.toolbar {
-    position: absolute;
-    left: 0;
-    top: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
 }
 
 button {
-  border: none;
-  color: white;
   overflow: hidden;
-  margin: 1rem;
-  padding: 0;
-  width: 150px;
-  height: 40px;
-  background-color: white;
-  
+  margin: 0.5rem;
+  padding: 0.5rem;
+  background-color: transparent;
+}
+.btn-black {
+  border: 2px solid black;
+  color: black;
 }

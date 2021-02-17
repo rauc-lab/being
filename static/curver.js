@@ -360,6 +360,7 @@ class Plotter extends CurverBase {
     constructor() {
         super();
         const rec = document.createElement("button");
+        rec.classList.add("btn-black")
         rec.innerHTML = "Rec";
         this.toolbar.appendChild(rec);
     }
