@@ -186,6 +186,10 @@ class CurverBase extends HTMLElement {
         link.setAttribute("rel", "stylesheet");
         link.setAttribute("href", "static/curver.css");
 
+        const materialCss = document.createElement("link");
+        materialCss.setAttribute("rel", "stylesheet");
+        materialCss.setAttribute("href", "https://fonts.googleapis.com/icon?family=Material+Icons");
+
         // Toolbar
         this.toolbar = document.createElement("div");
         this.toolbar.classList.add("toolbar");
@@ -200,7 +204,7 @@ class CurverBase extends HTMLElement {
         const svg = create_element("svg");
         this.svg = svg;
 
-        this.shadowRoot.append(link, this.canvas, this.svg, this.toolbar);
+        this.shadowRoot.append(link, materialCss, this.canvas, this.svg, this.toolbar);
     }
 
     update_bbox() {
