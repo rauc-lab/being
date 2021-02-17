@@ -376,18 +376,6 @@ class Plotter extends CurverBase {
 customElements.define('being-plotter', Plotter);
 
 
-function create_path_like(data, strokeWidth=1, color="black") {
-    const path = create_element('path');
-    setattr(path, "stroke", color);
-    setattr(path, "stroke-width", strokeWidth);
-    setattr(path, "fill", "transparent");
-    path.draw = function() {
-        setattr(path, "d", path_d(data));
-    }
-    return path
-}
-
-
 /**
  * Spline editor.
  *
@@ -410,11 +398,22 @@ class Editor extends CurverBase {
 
     load_spline(spline) {
         const cps = bpoly_to_bezier(spline);
-        this.init_spline_elements(cps);
+        this.init_spline(cps);
     }
-    
 
-    init_spline_elements(cps) {
+    create_path(data, strokeWidth=1, color="black") {
+        const path = create_element('path');
+        setattr(path, "stroke", color);
+        setattr(path, "stroke-width", strokeWidth);
+        setattr(path, "fill", "transparent");
+        path.draw = () => {
+            setattr(path, "d", path_d(this.transform_points(data)));
+        };
+
+        return path
+    }
+
+    init_spline(cps) {
         this.bbox = fit_bbox(cps.flat(1));
         this.update_trafo();
 
@@ -422,8 +421,7 @@ class Editor extends CurverBase {
         remove_all_children(svg);
 
         cps.forEach((pts, i) => {
-            pts = this.transform_points(pts);
-            let path = create_path_like(pts);
+            let path = this.create_path(pts);
             svg.appendChild(path);
         });
 
