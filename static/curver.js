@@ -18,6 +18,7 @@ import {
 import {
     create_circle,
     create_element,
+    setattr,
     create_line,
     create_path,
     draw_circle,
@@ -168,6 +169,7 @@ class CurverBase extends HTMLElement {
         this.height = 1;
         this.bbox = new BBox([0, 0], [1, 1]);
         this.trafo = new DOMMatrix();
+        this.trafoInv = new DOMMatrix();
         this.lines = [];
         this.colorPicker = cycle(COLORS);
         this.init_elements();
@@ -221,10 +223,10 @@ class CurverBase extends HTMLElement {
             e: -sx * this.bbox.ll[0] + MARGIN,
             f: sy * (this.bbox.ll[1] + this.bbox.height) + MARGIN,
         });
+        this.trafoInv = this.trafo.inverse();
         this.ctx.setTransform(this.trafo);
         //this.svg.g.setAttribute("transform", this.trafo.toString());
     }
-
 
     /**
      * Resize elements. Mainly because of canvas because of lacking support for
@@ -247,7 +249,12 @@ class CurverBase extends HTMLElement {
     connectedCallback() {
         addEventListener("resize", evt => this.resize());
         this.resize();
+        //this.run();
         //setTimeout(() => this.resize(), 1);
+        setTimeout(() => {
+            this.resize();
+            this.run();
+        },100);
     }
 
 
@@ -265,7 +272,6 @@ class CurverBase extends HTMLElement {
         });
     }
 
-
     /**
      * Clear canvas.
      */
@@ -276,11 +282,10 @@ class CurverBase extends HTMLElement {
         this.ctx.restore();
     }
 
-
     /**
      * Draw axis and tick labels.
      */
-    draw_axis_and_tick_labels(color="gainsboro") {
+    draw_axis_and_tick_labels(color="silver") {
         const ctx = this.ctx;
         ctx.fillStyle = color;
         ctx.strokeStyle = color;
@@ -323,7 +328,7 @@ class CurverBase extends HTMLElement {
     /**
      * Draw single frame.
      */
-    draw() {
+    draw_lines() {
         if (this.auto) {
             this.update_bbox();
             this.update_trafo();
@@ -340,7 +345,7 @@ class CurverBase extends HTMLElement {
      * Render continuous frames.
      */
     render(now) {
-        this.draw();
+        this.draw_lines();
         window.requestAnimationFrame(now => this.render(now));
     }
 
@@ -370,6 +375,18 @@ class Plotter extends CurverBase {
 customElements.define('being-plotter', Plotter);
 
 
+function create_path_like(data, strokeWidth=1, color="black") {
+    const path = create_element('path');
+    setattr(path, "stroke", color);
+    setattr(path, "stroke-width", strokeWidth);
+    setattr(path, "fill", "transparent");
+    path.draw = function() {
+        setattr(path, "d", path_d(data));
+    }
+    return path
+}
+
+
 /**
  * Spline editor.
  *
@@ -384,72 +401,37 @@ class Editor extends CurverBase {
     }
 
     transform_points(pts) {
-        const trafo = this.trafo;
         return pts.map(pt => {
-            const ptHat = (new DOMPoint(...pt)).matrixTransform(trafo);
+            const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
             return [ptHat.x, ptHat.y];
         });
     }
 
-
     load_spline(spline) {
-        console.log("load_spline");
         const cps = bpoly_to_bezier(spline);
-        //this.history.capture(cps);
-        //this.draw_spline();
+        this.init_spline_elements(cps);
+    }
+    
+
+    init_spline_elements(cps) {
         this.bbox = fit_bbox(cps.flat(1));
         this.update_trafo();
 
-        const trafo = this.trafo;
+        const svg = this.svg;
+        remove_all_children(svg);
 
-        function transform(pts) {
-            return pts.map(pt => {
-                const a = (new DOMPoint(...pt)).matrixTransform(trafo);
-                return [a.x, a.y];
-            });
-        }
-
-
-        const area = this.svg.g;
-        const lw = 1;
-        const cw = 6;
-
-        remove_all_children(area);
-        
-
-        const this_ = this;
-        cps.forEach(function(pts, i) {
-            const color = "black";
-            pts = this_.transform_points(pts);
-
-
-            // Path
-            draw_path(area, pts, 2*lw, color);
-
-            // Knots
-            draw_circle(area, pts[0], cw, color);
-            if (i === cps.length - 1) {
-                draw_circle(area, last_element(pts), cw, color);
-            }
-
-            // Control points and helper lines
-            const order = pts.length;
-            const degree = order - 1
-            if (degree == Degree.QUADRATIC) {
-                draw_line(area, pts[0], pts[1], lw, 'black');
-                draw_circle(area, pts[1], cw, 'red');
-
-            } else if (degree == Degree.CUBIC) {
-                draw_line(area, pts[0], pts[1], lw, 'black');
-                draw_line(area, pts[2], pts[3], lw, 'black');
-                draw_circle(area, pts[1], cw, 'red');
-                draw_circle(area, pts[2], cw, 'red');
-            }
+        cps.forEach((pts, i) => {
+            pts = this.transform_points(pts);
+            let path = create_path_like(pts);
+            svg.appendChild(path);
         });
 
-        let stuff = this.transform_points(last_element(cps));
-        let pt = last_element(stuff);
-        console.log(pt);
+        this.draw_spline();
+    }
+
+    draw_spline() {
+        for (let ele of this.svg.children)
+            ele.draw();
     }
 }
 

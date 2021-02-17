@@ -25,7 +25,8 @@ class Urgency(Enum):
 class MotionCommand(NamedTuple):
     name: str
     #urgency: str = Urgency.NEXT
-    loop = False
+    loop: bool = False
+    playbackSpeed: float = 1.
 
 
 def sample_spline(spline: PPoly, t, loop: bool = False):

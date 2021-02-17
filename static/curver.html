@@ -71,8 +71,6 @@
             const editor = document.getElementById("editor");
             const host = window.location.host;
             const streamUrl = 'ws://' + host + '/stream';
-            plotter.run();
-            editor.run();
 
             receive_from_websocket(streamUrl, {
                 "output-values": [
