@@ -19,9 +19,22 @@ svg {
 
 div.toolbar {
   position: absolute;
+}
+
+div.toolbar,
+div.toolbar div {
+  display: flex;
   left: 0;
   top: 0;
   border: 2px solid black;
+  width: inherit;
+  width: -moz-available;
+}
+
+div.toolbar div {
+  margin: 0 0.5rem 0 0.5rem;
+  left: 0;
+  top: 0;
   width: inherit;
   width: -moz-available;
 }
@@ -32,31 +45,30 @@ div.toolbar:empty {
 
 button {
   margin: 0 0.5rem 0 0.5rem;
-  padding: 0.5rem;
+  /* padding: 0.5rem; */
   background-color: transparent;
   border-top: 0;
   border-bottom: 0;
+  flex: content;
 }
 
 button:hover {
   background-color: whitesmoke;
 }
 
-button:first-of-type {
+div.toolbar button:first-of-type {
   margin-left: 0;
   border-left: 0;
 }
 
-button:last-of-type {
+div.toolbar button:last-of-type {
   margin-right: 0;
   border-right: 0;
 }
 
-button:only-of-type {
-  margin-left: 0;
-  border-left: 0;
-  margin-right: 0.5rem;
+div.toolbar button:only-of-type {
   border-right: inherit;
+  flex : initial;
 }
 
 .material-icons.recording {

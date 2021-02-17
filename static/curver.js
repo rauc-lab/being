@@ -409,7 +409,91 @@ class Editor extends CurverBase {
         console.log("BeingCurver.constructor");
         const auto = false;
         super(auto);
+        var self = this;
         //this.history = new History();
+        const save = document.createElement("button");
+        save.classList.add("btn-black")
+        save.classList.add("mdc-icon-button")
+        save.classList.add("material-icons")
+        save.id = "btn-save"
+        save.innerHTML = "save";
+        save.title = "Save spline"
+        save.addEventListener("click", e => self.save_spline(save))
+        this.toolbar.appendChild(save);
+
+        const selMot = document.createElement("button");
+        selMot.classList.add("btn-black")
+        selMot.id = "btn-save"
+        selMot.innerHTML = "Select Motor";
+        selMot.addEventListener("click", e => self.select_motor(selMot))
+        this.toolbar.appendChild(selMot);
+
+        // TODO : Toggle button start / stop
+        const play = document.createElement("button")
+        play.classList.add("btn-black")
+        play.classList.add("mdc-icon-button")
+        play.classList.add("material-icons")
+        play.title = "Play spline on motor"
+        play.innerHTML = "play_circle"
+        this.toolbar.appendChild(play)
+
+        const stop = document.createElement("button")
+        stop.classList.add("btn-black")
+        stop.classList.add("mdc-icon-button")
+        stop.classList.add("material-icons")
+        stop.title = "Stop playback"
+        stop.innerHTML = "stop"
+        // div_behavior.appendChild(stop)
+        this.toolbar.appendChild(stop)
+
+        const zoomIn = document.createElement("button")
+        zoomIn.classList.add("btn-black")
+        zoomIn.classList.add("mdc-icon-button")
+        zoomIn.classList.add("material-icons")
+        zoomIn.innerHTML = "zoom_in"
+        zoomIn.title = "Zoom in "
+        this.toolbar.appendChild(zoomIn);
+
+        const zoomOut = document.createElement("button")
+        zoomOut.classList.add("btn-black")
+        zoomOut.classList.add("mdc-icon-button")
+        zoomOut.classList.add("material-icons")
+        zoomOut.innerHTML = "zoom_out"
+        zoomOut.title = "Zoom out"
+        this.toolbar.appendChild(zoomOut);
+
+        const zoomReset = document.createElement("button")
+        zoomReset.classList.add("btn-black")
+        zoomReset.classList.add("mdc-icon-button")
+        zoomReset.classList.add("material-icons")
+        zoomReset.innerHTML = "zoom_out_map"
+        zoomReset.title = "Reset zoom"
+        this.toolbar.appendChild(zoomReset);
+
+        const undo = document.createElement("button")
+        undo.classList.add("btn-black")
+        undo.classList.add("mdc-icon-button")
+        undo.classList.add("material-icons")
+        undo.innerHTML = "undo"
+        undo.title = "Undo"
+        this.toolbar.appendChild(undo);
+
+        const redo = document.createElement("button")
+        redo.classList.add("btn-black")
+        redo.classList.add("mdc-icon-button")
+        redo.classList.add("material-icons")
+        redo.innerHTML = "redo"
+        redo.title = "Redo"
+        this.toolbar.appendChild(redo);
+
+    }
+
+    save_spline(el) {
+
+    }
+
+    select_motor(el) {
+
     }
 
     resize() {
