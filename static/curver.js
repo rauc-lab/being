@@ -60,7 +60,7 @@ const MARGIN = 50;
  * Line artist. Contains data ring buffer and knows how to draw itself.
  */
 class Line {
-    constructor(ctx, color=COLORS[0], maxlen=1000, lineWidth=2) {
+    constructor(ctx, color = COLORS[0], maxlen = 1000, lineWidth = 2) {
         this.ctx = ctx;
         this._maxlen = maxlen;
         this.data = [];
@@ -161,7 +161,7 @@ class Line {
  * Curver base class for Plotter and Editor.
  */
 class CurverBase extends HTMLElement {
-    constructor(auto=true) {
+    constructor(auto = true) {
         console.log("CurverBase.constructor");
         super();
         this.auto = auto;
@@ -179,7 +179,7 @@ class CurverBase extends HTMLElement {
      * Initialize DOM elements with shadow root.
      */
     init_elements() {
-        this.attachShadow({mode: "open"});
+        this.attachShadow({ mode: "open" });
 
         // Apply external styles to the shadow dom
         const link = document.createElement("link");
@@ -256,7 +256,7 @@ class CurverBase extends HTMLElement {
         setTimeout(() => {
             this.resize();
             this.run();
-        },100);
+        }, 100);
     }
 
 
@@ -287,7 +287,7 @@ class CurverBase extends HTMLElement {
     /**
      * Draw axis and tick labels.
      */
-    draw_axis_and_tick_labels(color="silver") {
+    draw_axis_and_tick_labels(color = "silver") {
         const ctx = this.ctx;
         ctx.fillStyle = color;
         ctx.strokeStyle = color;
@@ -366,14 +366,33 @@ class CurverBase extends HTMLElement {
 class Plotter extends CurverBase {
     constructor() {
         super();
+        this.isRecording = false;
         const rec = document.createElement("button");
         rec.classList.add("btn-black")
         rec.classList.add("mdc-icon-button")
         rec.classList.add("material-icons")
+        rec.id = "btn-rec"
         rec.innerHTML = "circle";
+        rec.title = "Record Signal"
+        var self = this;
+        rec.addEventListener("click", e => self.record_signal(rec))
         this.toolbar.appendChild(rec);
     }
 
+    /**
+     * Record selected signal 
+     */
+    record_signal(el) {
+        this.isRecording = !this.isRecording
+        if (this.isRecording) {
+            el.classList.add("recording")
+            // TODO: Start recorder
+        }
+        else {
+            el.classList.remove("recording")
+            //TOOD: Remove recorder
+        }
+    }
 }
 
 
@@ -410,7 +429,7 @@ class Editor extends CurverBase {
         this.init_spline(cps);
     }
 
-    create_path(data, strokeWidth=1, color="black") {
+    create_path(data, strokeWidth = 1, color = "black") {
         const path = create_element('path');
         setattr(path, "stroke", color);
         setattr(path, "stroke-width", strokeWidth);
