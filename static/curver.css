@@ -22,3 +22,15 @@ div.toolbar {
     left: 0;
     top: 0;
 }
+
+button {
+  border: none;
+  color: white;
+  overflow: hidden;
+  margin: 1rem;
+  padding: 0;
+  width: 150px;
+  height: 40px;
+  background-color: white;
+  
+}
