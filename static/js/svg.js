@@ -64,12 +64,12 @@ export function _draw_path(path, cps) {
 }
 
 
-export function create_path(cps, strokeWidth=1, color="black") {
+export function create_path(cps, strokeWidth = 1, color = "black") {
     const path = create_element("path");
     setattr(path, "stroke", color);
     setattr(path, "stroke-width", strokeWidth);
     setattr(path, "fill", "transparent");
-    path.draw = function() {
+    path.draw = function () {
         _draw_path(path, cps);
     }
     path.draw();
@@ -83,11 +83,11 @@ export function _draw_circle(circle, center) {
 }
 
 
-export function create_circle(center, radius=1, color="red") {
+export function create_circle(center, radius = 1, color = "red") {
     const circle = create_element("circle");
     setattr(circle, "r", radius);
     setattr(circle, "fill", color);
-    circle.draw = function() {
+    circle.draw = function () {
         _draw_circle(circle, center);
     }
     circle.draw();
@@ -103,11 +103,11 @@ export function _draw_line(line, start, end) {
 }
 
 
-export function create_line(start, end, strokeWidth=1, color='black') {
+export function create_line(start, end, strokeWidth = 1, color = 'black') {
     const line = create_element("line");
     setattr(line, "stroke-width", strokeWidth);
     setattr(line, "stroke", color);
-    line.draw = function() {
+    line.draw = function () {
         _draw_line(line, start, end);
     }
     line.draw();
@@ -118,7 +118,7 @@ export function create_line(start, end, strokeWidth=1, color='black') {
 /**
  * Draw path from control points onto SVG.
  */
-export function draw_path(svg, cps, strokeWidth=1, color='black') {
+export function draw_path(svg, cps, strokeWidth = 1, color = 'black') {
     const path = create_element('path');
     setattr(path, "d", path_d(cps));
     setattr(path, "stroke", color);
@@ -132,7 +132,7 @@ export function draw_path(svg, cps, strokeWidth=1, color='black') {
 /**
  * Draw circle onto SVG.
  */
-export function draw_circle(svg, center, radius=1, color='red') {
+export function draw_circle(svg, center, radius = 1, color = 'red') {
     const [cx, cy] = center;
     const circle = create_element('circle');
     setattr(circle, "cx", cx);
@@ -147,7 +147,7 @@ export function draw_circle(svg, center, radius=1, color='red') {
 /**
  * Draw line onto SVG.
  */
-export function draw_line(svg, start, end, strokeWidth=1, color='black') {
+export function draw_line(svg, start, end, strokeWidth = 1, color = 'black') {
     const [x1, y1] = start;
     const [x2, y2] = end;
     const line = create_element("line");

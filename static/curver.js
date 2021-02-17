@@ -364,7 +364,9 @@ class Plotter extends CurverBase {
         super();
         const rec = document.createElement("button");
         rec.classList.add("btn-black")
-        rec.innerHTML = "Rec";
+        rec.classList.add("mdc-icon-button")
+        rec.classList.add("material-icons")
+        rec.innerHTML = "circle";
         this.toolbar.appendChild(rec);
     }
 
