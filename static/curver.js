@@ -198,8 +198,6 @@ class CurverBase extends HTMLElement {
 
         // SVG
         const svg = create_element("svg");
-        svg.g = svg.appendChild(create_element("g"))
-        //svg.g.spline = svg.g.appendChild(create_element("g"))
         this.svg = svg;
 
         this.shadowRoot.append(link, this.canvas, this.svg, this.toolbar);
@@ -234,7 +232,7 @@ class CurverBase extends HTMLElement {
      * `this.resize.bind(this)`.
      */
     resize() {
-        console.log("CurverBase.resize");
+        //console.log("CurverBase.resize");
         this.canvas.width = this.width = this.clientWidth;
         this.canvas.height = this.height = this.clientHeight;
 
@@ -389,6 +387,11 @@ class Editor extends CurverBase {
         //this.history = new History();
     }
 
+    resize() {
+        super.resize();
+        this.draw_spline();
+    }
+
     transform_points(pts) {
         return pts.map(pt => {
             const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
@@ -416,21 +419,19 @@ class Editor extends CurverBase {
     init_spline(cps) {
         this.bbox = fit_bbox(cps.flat(1));
         this.update_trafo();
-
-        const svg = this.svg;
-        remove_all_children(svg);
-
+        remove_all_children(this.svg);
         cps.forEach((pts, i) => {
             let path = this.create_path(pts);
-            svg.appendChild(path);
+            this.svg.appendChild(path);
         });
 
         this.draw_spline();
     }
 
     draw_spline() {
-        for (let ele of this.svg.children)
+        for (let ele of this.svg.children) {
             ele.draw();
+        }
     }
 }
 
