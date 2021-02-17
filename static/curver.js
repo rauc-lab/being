@@ -374,6 +374,19 @@ class Plotter extends CurverBase {
 customElements.define('being-plotter', Plotter);
 
 
+
+
+function shift(data, offset) {
+    return data.map(pt => {
+        return [pt[0] + offset[0], pt[1] + offset[1]];
+    })
+}
+
+
+
+
+
+
 /**
  * Spline editor.
  *
@@ -392,6 +405,11 @@ class Editor extends CurverBase {
         this.draw_spline();
     }
 
+    transform_point(pt) {
+        const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
+        return [ptHat.x, ptHat.y];
+    }
+    
     transform_points(pts) {
         return pts.map(pt => {
             const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
@@ -399,30 +417,111 @@ class Editor extends CurverBase {
         });
     }
 
+
+    /**
+     * Make SVG element draggable
+     */
+    make_draggable(ele) {
+        /**
+         * Transform mouse event into SVG space.
+         */
+        const pt = this.svg.createSVGPoint();
+        const coords = evt => {
+            pt.x = evt.clientX;
+            pt.y = evt.clientY;
+            let a = pt.matrixTransform(this.svg.getScreenCTM().inverse());
+            let b = (new DOMPoint(a.x, a.y)).matrixTransform(this.trafoInv);
+            return [b.x, b.y];
+        };
+
+
+        /** Start position of drag motion. */
+        let start = null;
+        let orig = [];
+
+
+        /**
+         * Start drag.
+         */
+        const start_drag = evt => {
+            const pt = coords(evt);
+            start = pt;
+            orig = ele.data.slice();
+
+            console.log("start_drag", start);
+
+            addEventListener("mousemove", drag);
+            addEventListener("mouseup", end_drag);
+            addEventListener("mouseleave", end_drag);
+        }
+
+        ele.addEventListener("mousedown", start_drag);
+
+
+        /**
+         * Drag element.
+         */
+        const drag = evt => {
+            const pt = coords(evt);
+            const delta = subtract_arrays(pt, start);
+
+            console.log("drag", delta);
+            ele.data = shift(orig, delta);
+            this.draw_spline();
+        }
+
+        /**
+         * End dragging of element.
+         */
+        const end_drag = evt => {
+            const pt = coords(evt);
+            const delta = subtract_arrays(pt, start);
+
+            console.log("end_drag", pt);
+
+            removeEventListener("mousemove", drag);
+            removeEventListener("mouseup", end_drag);
+            removeEventListener("mouseleave", end_drag);
+        }
+    }
+
     load_spline(spline) {
         const cps = bpoly_to_bezier(spline);
         this.init_spline(cps);
     }
 
-    create_path(data, strokeWidth=1, color="black") {
-        const path = create_element('path');
-        setattr(path, "stroke", color);
-        setattr(path, "stroke-width", strokeWidth);
-        setattr(path, "fill", "transparent");
+    init_path(pts, strokeWidth=1, color="black") {
+        const path = draw_path(this.svg, pts, strokeWidth, color);
+        path.data = pts;
         path.draw = () => {
-            setattr(path, "d", path_d(this.transform_points(data)));
+            setattr(path, "d", path_d(this.transform_points(path.data)));
         };
-
         return path
     }
 
-    init_spline(cps) {
+    init_circle(pt, radius=1, color="black") {
+        const circle = draw_circle(this.svg, pt, radius, color);
+        circle.data = [pt];
+        circle.draw = () => {
+            const ptHat = (new DOMPoint(...circle.data[0])).matrixTransform(this.trafo);
+            setattr(circle, "cx", ptHat.x);
+            setattr(circle, "cy", ptHat.y);
+        }
+        return circle;
+    }
+
+    init_spline(cps, lw=2) {
         this.bbox = fit_bbox(cps.flat(1));
         this.update_trafo();
         remove_all_children(this.svg);
         cps.forEach((pts, i) => {
-            let path = this.create_path(pts);
-            this.svg.appendChild(path);
+            let path = this.init_path(pts, lw);
+            let knot = this.init_circle(pts[0], 3*lw);
+            this.make_draggable(knot);
+            const isLast = (i === cps.length - 1);
+            if (isLast) {
+                let knot = this.init_circle(last_element(pts), 3*lw);
+            }
         });
 
         this.draw_spline();
