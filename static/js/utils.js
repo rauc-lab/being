@@ -58,9 +58,18 @@ export function last_element(arr) {
 
 
 /**
+ * Deep copy JS array / object.
+ */
+export function deep_copy(obj) {
+    return JSON.parse(JSON.stringify(obj));
+}
+
+
+/**
  * Cycle through sequence iterator.
  */
 export function cycle(sequence) {
+    // TODO: Use proper JS generators / iterator / what ever it is called
     let idx = 0;
     return {
         next: function() {
