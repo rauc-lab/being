@@ -1,5 +1,6 @@
 "use strict";
-import {clear_array, last_element} from '/static/js/utils.js';
+import {Deque} from "/static/js/deque.js";
+
 
 
 /**
@@ -7,52 +8,41 @@ import {clear_array, last_element} from '/static/js/utils.js';
  */
 export class History {
     constructor(maxlen=20) {
-        this.tail = [];
-        this.head = [];
-        this.maxlen = maxlen;
+        this.past = new Deque([], maxlen);
+        this.future = new Deque([], maxlen);
     }
 
     get length() {
-        return this.tail.length + this.head.length;
+        return this.past.length + this.future.length;
     }
 
     /**
      * History can be undone.
      */
     get undoable() {
-        return this.tail.length > 1;
+        return this.past.length > 1;
     }
 
     /**
      * History can be restored.
      */
     get redoable() {
-        return this.head.length > 0;
-    }
-
-    /**
-     * Limit history length to maxlen.
-     */
-    _limit() {
-        while (this.tail.length > this.maxlen) {
-            this.tail.shift();
-        }
+        return this.future.length > 0;
     }
 
     /**
      * Capture a new state and add it to the history. Will clear off head.
      */
     capture(state) {
-        clear_array(this.head);
-        this.tail.push(state);
-        this._limit();
+        this.future.clear();
+        this.past.push(state);
     }
 
     /**
      * Retrieve current state.
      */
     retrieve() {
-        return last_element(this.tail);
+        return last_element(this.past);
     }
 
     /**
@@ -62,8 +52,8 @@ export class History {
         if (!this.undoable)
             throw "Nothing to undo!";
 
-        const current = this.tail.pop();
-        this.head.unshift(current);
+        const current = this.past.pop();
+        this.future.appendleft(current);
         return this.retrieve();
     }
 
@@ -74,9 +64,8 @@ export class History {
         if (!this.redoable)
             throw "Nothing to redo!";
 
-        const previous = this.head.shift();
-        this.tail.push(previous);
-        this._limit();
+        const previous = this.future.popleft();
+        this.past.push(previous);
         return this.retrieve();
     }
 }
