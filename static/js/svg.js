@@ -1,4 +1,5 @@
 "use strict";
+import {Order} from "/static/js/constants.js";
 
 
 /**
@@ -7,16 +8,6 @@
  * @type {string}
  */
 const SVG_XML_NS = "http://www.w3.org/2000/svg";
-
-
-/**
- * Spline orders.
- */
-const Order = Object.freeze({
-    "CUBIC": 4,
-    "QUADRATIC": 3,
-    "LINEAR": 2,
-});
 
 
 /**
@@ -38,7 +29,8 @@ export function setattr(ele, name, value) {
 /**
  * SVG path d attribute string from array of 2d control points.
  * 
- * @param {Array} cps - Bézier control points for one segment. Number of control points defines the curve degree.
+ * @param {Array} cps - Bézier control points for one segment. Number of
+ * control points defines the curve degree.
  * @returns {string} SVG path d attribute string.
  *
  * Usage:
@@ -47,14 +39,15 @@ export function setattr(ele, name, value) {
  */
 export function path_d(cps) {
     const order = cps.length;
-    if (order == Order.CUBIC) {
-        return "M" + cps[0] + "C" + cps.slice(1).flat();
-    } else if (order == Order.QUADRATIC) {
-        return "M" + cps[0] + "Q" + cps.slice(1).flat();
-    } else if (order == Order.LINEAR) {
-        return "M" + cps[0] + "L" + cps[1];
-    } else {
-        throw "Order " + order + " not supported!";
+    switch (order) {
+        case Order.CUBIC:
+            return "M" + cps[0] + "C" + cps.slice(1).flat();
+        case Order.QUADRATIC:
+            return "M" + cps[0] + "Q" + cps.slice(1).flat();
+        case Order.LINEAR:
+            return "M" + cps[0] + "L" + cps[1];
+        default:
+            throw "Order " + order + " not supported!";
     }
 }
 
