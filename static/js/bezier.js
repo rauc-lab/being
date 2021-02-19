@@ -4,6 +4,9 @@ import {array_shape} from "/static/js/math.js";
 // c? Same as like within Python / Scipy?
 
 
+/**
+ * Get unique elements in array.
+ */
 function unique_indices(arr) {
     let indices = [];
     let seen = [];
@@ -18,6 +21,9 @@ function unique_indices(arr) {
 }
 
 
+/**
+ * Remove duplicate knots / coefficients from spline.
+ */
 function remove_duplicates(spline) {
     let cpy = {};
     Object.assign(cpy, spline);
@@ -46,8 +52,9 @@ export function bpoly_to_bezier(spline) {
     }
 
     let order = shape[0];
-    if (order < 2)
+    if (order < 2) {
         throw "Order not supported!";
+    }
 
     let nSegments = shape[1];
     let cps = [];

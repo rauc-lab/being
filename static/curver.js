@@ -11,33 +11,39 @@ import {
     array_max,
     array_min,
     divide_arrays,
+    mod,
     multiply_scalar,
     round,
     subtract_arrays,
+    distance,
+    cartesian_to_polar,
+    polar_to_cartesian,
+    clip,
 } from "/static/js/math.js";
 import {
-    create_circle,
     create_element,
-    setattr,
-    create_line,
-    create_path,
     draw_circle,
     draw_line,
     draw_path,
     path_d,
+    setattr,
 } from "/static/js/svg.js";
-import { clear_array, cycle, last_element, remove_all_children, } from "/static/js/utils.js";
+import {
+    clear_array,
+    cycle,
+    deep_copy,
+    last_element,
+    remove_all_children,
+} from "/static/js/utils.js";
+import {Deque} from "/static/js/deque.js";
+import {
+    Degree,
+    MS,
+    Order,
+    TAU,
+    PI,
+} from "/static/js/constants.js";
 
-
-/** Degree enum-ish */
-const Degree = Object.freeze({
-    "CUBIC": 3,
-    "QUADRATIC": 2,
-    "LINEAR": 1,
-});
-
-/** Milliseconds to seconds factor */
-const MS = 1000;
 
 /** Default line colors */
 const COLORS = [
@@ -54,6 +60,8 @@ const COLORS = [
 ];
 
 const MARGIN = 50;
+const INTERVAL = 0.010 * 1.2;
+const PT = create_element("svg").createSVGPoint();
 
 
 /**
@@ -63,7 +71,7 @@ class Line {
     constructor(ctx, color=COLORS[0], maxlen=1000, lineWidth=2) {
         this.ctx = ctx;
         this._maxlen = maxlen;
-        this.data = [];
+        this.data = new Deque(0, maxlen);
         this.color = color;
         this.lineWidth = lineWidth;
     }
@@ -72,15 +80,14 @@ class Line {
      * Get maxlen of buffer.
      */
     get maxlen() {
-        return this._maxlen;
+        return this.data.maxlen;
     }
 
     /**
      * Set maxlen of buffer and discard excess values.
      */
     set maxlen(value) {
-        this._maxlen = value;
-        this.purge();
+        this.data.maxlen = value;
     }
 
     /**
@@ -110,20 +117,10 @@ class Line {
     }
 
     /**
-     * Roll data to appropriate length.
-     */
-    purge() {
-        while (this.data.length > this.maxlen) {
-            this.data.shift();
-        }
-    }
-
-    /**
      * Append new data point to data buffer.
      */
     append_data(pt) {
-        this.data.push(pt);
-        this.purge();
+        this.data.append(pt);
     }
 
     /**
@@ -151,10 +148,11 @@ class Line {
         ctx.stroke();
         ctx.restore();
     }
+
+    clear() {
+        this.data.clear();
+    }
 }
-
-
-
 
 
 /**
@@ -255,21 +253,6 @@ class CurverBase extends HTMLElement {
         },100);
     }
 
-
-    /**
-     * Process new data message from backend.
-     */
-    new_data(msg) {
-        while (this.lines.length < msg.values.length) {
-            const color = this.colorPicker.next();
-            this.lines.push(new Line(this.ctx, color));
-        }
-
-        msg.values.forEach((value, nr) => {
-            this.lines[nr].append_data([msg.timestamp, value]);
-        });
-    }
-
     /**
      * Clear canvas.
      */
@@ -368,23 +351,91 @@ class Plotter extends CurverBase {
         this.toolbar.appendChild(rec);
     }
 
+
+    /**
+     * Process new data message from backend.
+     */
+    new_data(msg) {
+        while (this.lines.length < msg.values.length) {
+            const color = this.colorPicker.next();
+            this.lines.push(new Line(this.ctx, color));
+        }
+
+        msg.values.forEach((value, nr) => {
+            this.lines[nr].append_data([msg.timestamp, value]);
+        });
+    }
 }
 
 
 customElements.define('being-plotter', Plotter);
 
 
-
-
-function shift(data, offset) {
-    return data.map(pt => {
-        return [pt[0] + offset[0], pt[1] + offset[1]];
-    })
+function dst_add(a, b, dst) {
+    for (let i=0; i<a.length; i++)
+        dst[i] = a[i] + b[i];
 }
 
 
+/**
+ * Knot mover. Moves knot and associates around.
+ */
+class KnotMover {
+    constructor(knot, associates=[], range=[-Infinity, Infinity]) {
+        this.pts = [knot].concat(associates);
+        this.originals = deep_copy(this.pts);
+    }
+
+    move(offset) {
+        for (let i=0; i<this.pts.length; i++) {
+            dst_add(this.originals[i], offset, this.pts[i]);
+        }
+    }
+}
 
 
+function designate(pt, dst) {
+    for (let i=0; i<pt.length; i++)
+        dst[i] = pt[i];
+}
+
+
+/**
+ * Control point mover. Moves control point and associated control point
+ * around.
+ */
+class CpMover {
+    constructor(cp, knot, mirror=null, side='right') {
+        this.cp = cp;
+        this.cpOrig = deep_copy(cp);
+        this.knot = knot;
+        this.mirror = mirror;
+        this.side = side;
+    }
+
+    move(offset) {
+        let target = add_arrays(this.cpOrig, offset);
+        let [radius, angle] = cartesian_to_polar(subtract_arrays(target, this.knot));
+        if (this.side == "right") {
+            angle = clip(angle, -TAU/4, TAU/4);
+        } else {
+            angle = mod(angle, TAU);
+            angle -= TAU/2;
+            angle = clip(angle, -TAU/4, TAU/4);
+            angle += TAU/2;
+        }
+
+        let constrainedTarget = add_arrays(polar_to_cartesian([radius, angle]), this.knot);
+        designate(constrainedTarget, this.cp);
+        if (this.mirror instanceof Array) {
+            const mirrorRadius = distance(this.knot, this.mirror);
+            designate(
+                add_arrays(this.knot, polar_to_cartesian([mirrorRadius, angle + PI])),
+                this.mirror,
+            );
+        }
+    }
+}
 
 
 /**
@@ -397,19 +448,24 @@ class Editor extends CurverBase {
         console.log("BeingCurver.constructor");
         const auto = false;
         super(auto);
-        //this.history = new History();
+        this.history = new History();
+        this.duration = 1;
+        this.maxlen = 1;
     }
+
 
     resize() {
         super.resize();
         this.draw_spline();
     }
 
+
     transform_point(pt) {
         const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
         return [ptHat.x, ptHat.y];
     }
     
+
     transform_points(pts) {
         return pts.map(pt => {
             const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
@@ -418,38 +474,68 @@ class Editor extends CurverBase {
     }
 
 
-    /**
-     * Make SVG element draggable
-     */
-    make_draggable(ele) {
+    grow_bbox(pt) {
+        // TODO: Last update, limit grow rate
+        this.bbox.expand_by_point(pt);
+        this.update_trafo();
+    }
+
+
+    init_path(pts, strokeWidth=1, color="black") {
+        const path = draw_path(this.svg, pts, strokeWidth, color);
+        path.draw = () => {
+            setattr(path, "d", path_d(this.transform_points(pts)));
+        };
+        return path
+    }
+
+
+    init_circle(pt, radius=1, color="black") {
+        const circle = draw_circle(this.svg, pt, radius, color);
+        circle.draw = () => {
+            const a = this.transform_point(pt);
+            setattr(circle, "cx", a[0]);
+            setattr(circle, "cy", a[1]);
+        }
+        return circle;
+    }
+
+
+    init_line(start, end, strokeWidth=1, color="black") {
+        const line = draw_line(this.svg, start, end, strokeWidth, color);
+        line.draw = () => {
+            const a = this.transform_point(start);
+            const b = this.transform_point(end);
+            setattr(line, "x1", a[0]);
+            setattr(line, "y1", a[1]);
+            setattr(line, "x2", b[0]);
+            setattr(line, "y2", b[1]);
+        };
+        return line;
+    }
+
+
+    make_draggable(ele, mover) {
+        /** Start position of drag motion. */
+        let start = null;
+
         /**
-         * Transform mouse event into SVG space.
+         * Coordinates of mouse event inside canvas / SVG data space.
          */
-        const pt = this.svg.createSVGPoint();
         const coords = evt => {
-            pt.x = evt.clientX;
-            pt.y = evt.clientY;
-            let a = pt.matrixTransform(this.svg.getScreenCTM().inverse());
+            PT.x = evt.clientX;
+            PT.y = evt.clientY;
+            let a = PT.matrixTransform(this.svg.getScreenCTM().inverse());
             let b = (new DOMPoint(a.x, a.y)).matrixTransform(this.trafoInv);
             return [b.x, b.y];
         };
-
-
-        /** Start position of drag motion. */
-        let start = null;
-        let orig = [];
-
 
         /**
          * Start drag.
          */
         const start_drag = evt => {
-            const pt = coords(evt);
-            start = pt;
-            orig = ele.data.slice();
-
-            console.log("start_drag", start);
-
+            start = coords(evt);
+            this.history.capture(deep_copy(this.cps));
             addEventListener("mousemove", drag);
             addEventListener("mouseup", end_drag);
             addEventListener("mouseleave", end_drag);
@@ -457,16 +543,12 @@ class Editor extends CurverBase {
 
         ele.addEventListener("mousedown", start_drag);
 
-
         /**
          * Drag element.
          */
         const drag = evt => {
-            const pt = coords(evt);
-            const delta = subtract_arrays(pt, start);
-
-            console.log("drag", delta);
-            ele.data = shift(orig, delta);
+            const delta = subtract_arrays(coords(evt), start);
+            mover.move(delta);
             this.draw_spline();
         }
 
@@ -474,10 +556,11 @@ class Editor extends CurverBase {
          * End dragging of element.
          */
         const end_drag = evt => {
-            const pt = coords(evt);
-            const delta = subtract_arrays(pt, start);
+            const delta = subtract_arrays(coords(evt), start);
+            mover.move(delta);
 
-            console.log("end_drag", pt);
+            // TODO: Commit to action. Append to history
+            this.init_spline(this.cps);
 
             removeEventListener("mousemove", drag);
             removeEventListener("mouseup", end_drag);
@@ -485,52 +568,111 @@ class Editor extends CurverBase {
         }
     }
 
+
     load_spline(spline) {
         const cps = bpoly_to_bezier(spline);
         this.init_spline(cps);
     }
 
-    init_path(pts, strokeWidth=1, color="black") {
-        const path = draw_path(this.svg, pts, strokeWidth, color);
-        path.data = pts;
-        path.draw = () => {
-            setattr(path, "d", path_d(this.transform_points(path.data)));
-        };
-        return path
+
+    set_duration(duration) {
+        console.log("duration:", duration);
+        this.duration = duration;
+        this.lines.forEach(line => {
+            line.maxlen = this.duration / INTERVAL
+        });
     }
 
-    init_circle(pt, radius=1, color="black") {
-        const circle = draw_circle(this.svg, pt, radius, color);
-        circle.data = [pt];
-        circle.draw = () => {
-            const ptHat = (new DOMPoint(...circle.data[0])).matrixTransform(this.trafo);
-            setattr(circle, "cx", ptHat.x);
-            setattr(circle, "cy", ptHat.y);
-        }
-        return circle;
-    }
 
+    /**
+     * Initialize spline elements.
+     * @param cps - Control point tensor.
+     */
     init_spline(cps, lw=2) {
+        this.cps = cps;
         this.bbox = fit_bbox(cps.flat(1));
         this.update_trafo();
+        this.lines.forEach(line => line.clear());
+        const duration = last_element(last_element(cps))[0];
+        this.set_duration(duration)
         remove_all_children(this.svg);
-        cps.forEach((pts, i) => {
-            let path = this.init_path(pts, lw);
-            let knot = this.init_circle(pts[0], 3*lw);
-            this.make_draggable(knot);
-            const isLast = (i === cps.length - 1);
-            if (isLast) {
-                let knot = this.init_circle(last_element(pts), 3*lw);
-            }
-        });
+        const order = cps[0].length;
+        switch (order) {
+            case Order.CUBIC:
+                return this.init_cubic_spline(cps, lw);
+            case Order.QUADRATIC:
+                throw "Quadratic splines are not supported!";
+            case Order.LINEAR:
+                // TODO: Make me!
+                // return this.init_linear_spline(cps, lw);
+            default:
+                throw "Order " + order + " not implemented!";
+        }
+    }
 
+
+    init_cubic_spline(cps, lw=2) {
+        cps.forEach((pts, seg) => {
+            let path = this.init_path(pts, lw);
+            this.init_line(pts[0], pts[1]);
+            this.init_line(pts[2], pts[3]);
+
+            const isFirst = (seg === 0);
+            const isLast = (seg === cps.length - 1);
+
+            // Knot
+            this.make_draggable(
+                this.init_circle(pts[0], 3*lw, "black"),
+                new KnotMover(pts[0], isFirst ? [pts[1]] : [pts[1], cps[seg - 1][3], cps[seg - 1][2]]),
+            )
+
+            if (isLast) {
+                this.make_draggable(
+                    this.init_circle(pts[3], 3*lw, "black"),
+                    new KnotMover(pts[3], [pts[2]]),
+                )
+            }
+
+            this.make_draggable(
+                this.init_circle(pts[1], 3*lw, "red"),
+                new CpMover(pts[1], pts[0], isFirst ? null : cps[seg-1][2], "right"),
+            )
+
+            this.make_draggable(
+                this.init_circle(pts[2], 3*lw, "red"),
+                new CpMover(pts[2], pts[3], isLast ? null : cps[seg+1][1], "left"),
+            )
+
+        });
         this.draw_spline();
     }
+
+
+    init_linear_spline(data, lw=2) {
+        // TODO: Make me!
+    }
+
 
     draw_spline() {
         for (let ele of this.svg.children) {
             ele.draw();
         }
+    }
+
+
+    /**
+     * Process new data message from backend.
+     */
+    new_data(msg) {
+        while (this.lines.length < msg.values.length) {
+            const color = this.colorPicker.next();
+            const maxlen = this.duration / INTERVAL;
+            this.lines.push(new Line(this.ctx, color, maxlen));
+        }
+
+        msg.values.forEach((value, nr) => {
+            this.lines[nr].append_data([msg.timestamp % this.duration, value]);
+        });
     }
 }
 

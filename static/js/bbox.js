@@ -66,6 +66,13 @@ export class BBox {
         this.expand_by_point(bbox.ll);
         this.expand_by_point(bbox.ur);
     }
+
+
+
+    l1_distance(pt) {
+        // TODO
+        const [x, y] = pt;
+    }
 }
 
 

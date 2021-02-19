@@ -80,3 +80,20 @@ export function cycle(sequence) {
         }
     }
 }
+
+
+
+export function arrays_equal(a, b) {
+    if (a instanceof Array && b instanceof Array) {
+        if (a.length != b.length)
+            return false;
+
+        for (let i=0; i<a.length; i++)
+            if (!arrays_equal(a[i], b[i]))
+                return false;
+
+        return true;
+    } else {
+        return a == b;
+    }
+}
