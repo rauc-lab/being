@@ -68,4 +68,10 @@ export class History {
         this.past.push(previous);
         return this.retrieve();
     }
+
+
+    clear() {
+        this.past.clear();
+        this.future.clear();
+    }
 }

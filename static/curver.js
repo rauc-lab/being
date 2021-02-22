@@ -278,7 +278,7 @@ class CurverBase extends HTMLElement {
         ctx.beginPath();
         const origin = (new DOMPoint()).matrixTransform(this.trafo);
 
-        // Round for crispr lines
+        // Round for crisper lines
         origin.x = Math.round(origin.x);
         origin.y = Math.round(origin.y);
 
@@ -378,12 +378,19 @@ function dst_add(a, b, dst) {
 }
 
 
+function filter_undefined(arr) {
+    return arr.filter(ele => ele !== undefined);
+}
+
+
+
+
 /**
  * Knot mover. Moves knot and associates around.
  */
 class KnotMover {
     constructor(knot, associates=[], range=[-Infinity, Infinity]) {
-        this.pts = [knot].concat(associates);
+        this.pts = filter_undefined([knot].concat(associates));
         this.originals = deep_copy(this.pts);
     }
 
@@ -398,6 +405,21 @@ class KnotMover {
 function designate(pt, dst) {
     for (let i=0; i<pt.length; i++)
         dst[i] = pt[i];
+}
+
+
+function point_mirror(pt, focal) {
+    return [
+        2 * focal[0] - pt[0],
+        2 * focal[1] - pt[1],
+    ]
+}
+
+
+function rotate_point_mirror(pt, focal, other) {
+    const [_, angle] = cartesian_to_polar(subtract_arrays(focal, pt));
+    const radius = distance(other, focal);
+    return add_arrays(focal, polar_to_cartesian([radius, angle + PI]));
 }
 
 
@@ -435,6 +457,15 @@ class CpMover {
                 this.mirror,
             );
         }
+    }
+}
+
+
+class Knot {
+    constructor(editor, pts) {
+        this.editor = editor;
+        this.data = data;
+        this.i = i;
     }
 }
 
@@ -516,27 +547,28 @@ class Editor extends CurverBase {
     }
 
 
+    /**
+     * Coordinates of mouse event inside canvas / SVG data space.
+     */
+    mouse_coordinates(evt) {
+        PT.x = evt.clientX;
+        PT.y = evt.clientY;
+        let a = PT.matrixTransform(this.svg.getScreenCTM().inverse());  // Pre-compute reverse
+        let b = (new DOMPoint(a.x, a.y)).matrixTransform(this.trafoInv);
+        return [b.x, b.y];
+    }
+
+
     make_draggable(ele, mover) {
         /** Start position of drag motion. */
         let start = null;
 
         /**
-         * Coordinates of mouse event inside canvas / SVG data space.
-         */
-        const coords = evt => {
-            PT.x = evt.clientX;
-            PT.y = evt.clientY;
-            let a = PT.matrixTransform(this.svg.getScreenCTM().inverse());
-            let b = (new DOMPoint(a.x, a.y)).matrixTransform(this.trafoInv);
-            return [b.x, b.y];
-        };
-
-        /**
          * Start drag.
          */
         const start_drag = evt => {
-            start = coords(evt);
-            this.history.capture(deep_copy(this.cps));
+            start = this.mouse_coordinates(evt);
+            //this.history.capture(deep_copy(this.cps));
             addEventListener("mousemove", drag);
             addEventListener("mouseup", end_drag);
             addEventListener("mouseleave", end_drag);
@@ -548,7 +580,7 @@ class Editor extends CurverBase {
          * Drag element.
          */
         const drag = evt => {
-            const delta = subtract_arrays(coords(evt), start);
+            const delta = subtract_arrays(this.mouse_coordinates(evt), start);
             mover.move(delta);
             this.draw_spline();
         }
@@ -557,7 +589,7 @@ class Editor extends CurverBase {
          * End dragging of element.
          */
         const end_drag = evt => {
-            const end = coords(evt);
+            const end = this.mouse_coordinates(evt);
             if (arrays_equal(start, end))
                 return;
 
@@ -575,8 +607,12 @@ class Editor extends CurverBase {
 
 
     load_spline(spline) {
+        this.degree = spline.coefficients[0].length;
+        this.order = this.degree + 1;
+        this.history.clear();
         const cps = bpoly_to_bezier(spline);
-        this.init_spline(cps);
+        this.workingCopy = cps;
+        this.init_spline();
     }
 
 
@@ -593,18 +629,18 @@ class Editor extends CurverBase {
      * Initialize spline elements.
      * @param cps - Control point tensor.
      */
-    init_spline(cps, lw=2) {
-        this.cps = cps;
-        this.bbox = fit_bbox(cps.flat(1));
+    init_spline(lw=2) {
+        const pts = this.workingCopy;
+        this.bbox = fit_bbox(pts);
         this.update_trafo();
         this.lines.forEach(line => line.clear());
-        const duration = last_element(last_element(cps))[0];
+        const duration = last_element(last_element(pts)[0]);
         this.set_duration(duration)
         remove_all_children(this.svg);
-        const order = cps[0].length;
-        switch (order) {
+
+        switch (this.order) {
             case Order.CUBIC:
-                return this.init_cubic_spline(cps, lw);
+                return this.init_cubic_spline(lw);
             case Order.QUADRATIC:
                 throw "Quadratic splines are not supported!";
             case Order.LINEAR:
@@ -616,38 +652,40 @@ class Editor extends CurverBase {
     }
 
 
-    init_cubic_spline(cps, lw=2) {
-        cps.forEach((pts, seg) => {
-            let path = this.init_path(pts, lw);
-            this.init_line(pts[0], pts[1]);
-            this.init_line(pts[2], pts[3]);
-
-            const isFirst = (seg === 0);
-            const isLast = (seg === cps.length - 1);
-
-            // Knot
-            this.make_draggable(
-                this.init_circle(pts[0], 3*lw, "black"),
-                new KnotMover(pts[0], isFirst ? [pts[1]] : [pts[1], cps[seg - 1][3], cps[seg - 1][2]]),
-            )
-
-            if (isLast) {
-                this.make_draggable(
-                    this.init_circle(pts[3], 3*lw, "black"),
-                    new KnotMover(pts[3], [pts[2]]),
-                )
+    init_cubic_spline(lw=2) {
+        const pts = this.workingCopy;
+        pts.forEach((pt, i) => {
+            const isLast = (i == pts.length - 1);
+            switch (i % this.degree) {
+                case 0:
+                    console.log("Knot");
+                    if (!isLast) {
+                        let sel = [pts[i], pts[i+1], pts[i+2], pts[i+3]]
+                        let path = this.init_path(sel, lw);
+                        this.init_line(sel[0], sel[1]);
+                        this.init_line(sel[2], sel[3]);
+                    }
+                    this.make_draggable(
+                        this.init_circle(pt, 3*lw, "black"),
+                        // constructor(knot, associates=[], range=[-Infinity, Infinity]) {
+                        new KnotMover(pt, [pts[i-1], pts[i+1]]),
+                    )
+                    break;
+                case 1:
+                    console.log("CP0");
+                    this.make_draggable(
+                        this.init_circle(pt, 3*lw, "red"),
+                        new CpMover(pt, pts[i-1], pts[i-2], "right"),
+                    );
+                    break;
+                case 2:
+                    console.log("CP1");
+                    this.make_draggable(
+                        this.init_circle(pt, 3*lw, "red"),
+                        new CpMover(pt, pts[i+1], pts[i+2], "left"),
+                    );
+                    break;
             }
-
-            this.make_draggable(
-                this.init_circle(pts[1], 3*lw, "red"),
-                new CpMover(pts[1], pts[0], isFirst ? null : cps[seg-1][2], "right"),
-            )
-
-            this.make_draggable(
-                this.init_circle(pts[2], 3*lw, "red"),
-                new CpMover(pts[2], pts[3], isLast ? null : cps[seg+1][1], "left"),
-            )
-
         });
         this.draw_spline();
     }

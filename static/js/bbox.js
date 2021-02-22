@@ -1,4 +1,5 @@
 "use strict";
+import {clip} from "/static/js/math.js";
 
 
 /**
@@ -67,11 +68,22 @@ export class BBox {
         this.expand_by_point(bbox.ur);
     }
 
-
-
+    /*
     l1_distance(pt) {
         // TODO
         const [x, y] = pt;
+    }
+    */
+
+
+    /**
+     * Clip point inside bounding box.
+     */
+    clip_point(pt) {
+        return [
+            clip(pt[0], this.ll[0], this.ur[0]),
+            clip(pt[1], this.ll[1], this.ur[1]),
+        ]
     }
 }
 
