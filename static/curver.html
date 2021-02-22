@@ -63,7 +63,7 @@
     <script type="module">
         import {ready} from "/static/js/utils.js";
         import {receive_from_websocket} from "/static/js/web-socket.js";
-
+        import {bpoly_to_bezier} from "/static/js/bezier.js";
         const bpoly = {
             "type": "BPoly",
             "extrapolate": true,
@@ -80,6 +80,7 @@
         /*
         import {bpoly_to_bezier} from "/static/js/bezier.js";
         cps = bpoly_to_bezier(bpoly);
+        let cps = bpoly_to_bezier(bpoly);
         let knots = cps.map(row => row[0]);
         knots.push(cps[0][3]);
         */
