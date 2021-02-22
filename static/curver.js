@@ -29,6 +29,7 @@ import {
     setattr,
 } from "/static/js/svg.js";
 import {
+    arrays_equal,
     clear_array,
     cycle,
     deep_copy,
@@ -556,7 +557,11 @@ class Editor extends CurverBase {
          * End dragging of element.
          */
         const end_drag = evt => {
-            const delta = subtract_arrays(coords(evt), start);
+            const end = coords(evt);
+            if (arrays_equal(start, end))
+                return;
+
+            const delta = subtract_arrays(end, start);
             mover.move(delta);
 
             // TODO: Commit to action. Append to history

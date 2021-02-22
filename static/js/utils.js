@@ -73,16 +73,19 @@ export function cycle(sequence) {
     let idx = 0;
     return {
         next: function() {
-            const pick = sequence[idx % sequence.length];
-            idx++;
+            //return sequence[idx++ % sequence.length];
             idx %= sequence.length;
+            const pick = sequence[idx];
+            idx += 1;
             return pick;
         }
     }
 }
 
 
-
+/**
+ * Check if two arrays are equal (deep comparison).
+ */
 export function arrays_equal(a, b) {
     if (a instanceof Array && b instanceof Array) {
         if (a.length != b.length)
