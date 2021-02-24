@@ -242,7 +242,8 @@ class CurverBase extends HTMLElement {
     resize() {
         //console.log("CurverBase.resize");
         this.canvas.width = this.width = this.clientWidth;
-        this.canvas.height = this.height = this.clientHeight;
+        this.canvas.height = this.height = this.clientHeight -this.toolbar.offsetHeight;
+        this.graphs.style.height = this.height + "px"
 
         // Flip y-axis
         //const mtrx = [1, 0, 0, -1, 0, this.height];
