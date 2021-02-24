@@ -204,7 +204,7 @@ class CurverBase extends HTMLElement {
         const svg = create_element("svg");
         this.svg = svg;
 
-        this.shadowRoot.append(link, materialCss, this.canvas, this.svg, this.toolbar);
+        this.shadowRoot.append(link, materialCss, this.toolbar, this.canvas, this.svg);
     }
 
     update_bbox() {

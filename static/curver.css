@@ -18,25 +18,9 @@ svg {
 }
 
 div.toolbar {
-  position: absolute;
-}
-
-div.toolbar,
-div.toolbar div {
   display: flex;
-  left: 0;
-  top: 0;
+  flex-wrap: wrap;
   border: 2px solid black;
-  width: inherit;
-  width: -moz-available;
-}
-
-div.toolbar div {
-  margin: 0 0.5rem 0 0.5rem;
-  left: 0;
-  top: 0;
-  width: inherit;
-  width: -moz-available;
 }
 
 div.toolbar:empty {
@@ -68,7 +52,7 @@ div.toolbar button:last-of-type {
 
 div.toolbar button:only-of-type {
   border-right: inherit;
-  flex : initial;
+  flex: initial;
 }
 
 .material-icons.recording {
