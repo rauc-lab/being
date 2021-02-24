@@ -174,6 +174,7 @@ class CurverBase extends HTMLElement {
         this.init_elements();
     }
 
+
     /**
      * Initialize DOM elements with shadow root.
      */
@@ -202,12 +203,14 @@ class CurverBase extends HTMLElement {
         this.shadowRoot.append(link, this.canvas, this.svg, this.toolbar);
     }
 
+
     update_bbox() {
         this.bbox.reset();
         this.lines.forEach(line => {
             this.bbox.expand_by_bbox(line.calc_bbox());
         });
     }
+
 
     update_trafo() {
         const [sx, sy] = divide_arrays([this.width - 2 * MARGIN, this.height - 2 * MARGIN], this.bbox.size);
@@ -225,6 +228,7 @@ class CurverBase extends HTMLElement {
         //this.svg.g.setAttribute("transform", this.trafo.toString());
     }
 
+
     /**
      * Resize elements. Mainly because of canvas because of lacking support for
      * relative sizes. Can be used as event handler with
@@ -238,10 +242,12 @@ class CurverBase extends HTMLElement {
         // Flip y-axis
         //const mtrx = [1, 0, 0, -1, 0, this.height];
         //this.ctx.setTransform(...mtrx);
+        this.ctmInv = this.svg.getScreenCTM().inverse();
 
         //this.draw();
         this.update_trafo();
     }
+
 
     connectedCallback() {
         addEventListener("resize", evt => this.resize());
@@ -254,6 +260,7 @@ class CurverBase extends HTMLElement {
         },100);
     }
 
+
     /**
      * Clear canvas.
      */
@@ -263,6 +270,7 @@ class CurverBase extends HTMLElement {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.restore();
     }
+
 
     /**
      * Draw axis and tick labels.
@@ -307,6 +315,7 @@ class CurverBase extends HTMLElement {
         ctx.restore();
     }
 
+
     /**
      * Draw single frame.
      */
@@ -323,6 +332,7 @@ class CurverBase extends HTMLElement {
         });
     }
 
+
     /**
      * Render continuous frames.
      */
@@ -330,6 +340,7 @@ class CurverBase extends HTMLElement {
         this.draw_lines();
         window.requestAnimationFrame(now => this.render(now));
     }
+
 
     /**
      * Start rendering.
@@ -378,27 +389,16 @@ function dst_add(a, b, dst) {
 }
 
 
-function filter_undefined(arr) {
-    return arr.filter(ele => ele !== undefined);
+function dst_shift(pts, delta, dst) {
+    for (let i=0; i<pts.length; i++) {
+        dst[i][0] = pts[i][0] + delta[0];
+        dst[i][1] = pts[i][1] + delta[1];
+    }
 }
 
 
-
-
-/**
- * Knot mover. Moves knot and associates around.
- */
-class KnotMover {
-    constructor(knot, associates=[], range=[-Infinity, Infinity]) {
-        this.pts = filter_undefined([knot].concat(associates));
-        this.originals = deep_copy(this.pts);
-    }
-
-    move(offset) {
-        for (let i=0; i<this.pts.length; i++) {
-            dst_add(this.originals[i], offset, this.pts[i]);
-        }
-    }
+function filter_undefined(arr) {
+    return arr.filter(ele => ele !== undefined);
 }
 
 
@@ -419,54 +419,90 @@ function point_mirror(pt, focal) {
 function rotate_point_mirror(pt, focal, other) {
     const [_, angle] = cartesian_to_polar(subtract_arrays(focal, pt));
     const radius = distance(other, focal);
-    return add_arrays(focal, polar_to_cartesian([radius, angle + PI]));
+    return add_arrays(focal, polar_to_cartesian([radius, angle]));
+}
+
+
+function assert(condition, message="") {
+    if (!condition)
+        throw ("AssertionError " + message).trim();
 }
 
 
 /**
- * Control point mover. Moves control point and associated control point
- * around.
+ * Check if array index corresponds to a knot data point in the data array.
  */
-class CpMover {
-    constructor(cp, knot, mirror=null, side='right') {
-        this.cp = cp;
-        this.cpOrig = deep_copy(cp);
-        this.knot = knot;
-        this.mirror = mirror;
-        this.side = side;
-    }
-
-    move(offset) {
-        let target = add_arrays(this.cpOrig, offset);
-        let [radius, angle] = cartesian_to_polar(subtract_arrays(target, this.knot));
-        if (this.side == "right") {
-            angle = clip(angle, -TAU/4, TAU/4);
-        } else {
-            angle = mod(angle, TAU);
-            angle -= TAU/2;
-            angle = clip(angle, -TAU/4, TAU/4);
-            angle += TAU/2;
-        }
-
-        let constrainedTarget = add_arrays(polar_to_cartesian([radius, angle]), this.knot);
-        designate(constrainedTarget, this.cp);
-        if (this.mirror instanceof Array) {
-            const mirrorRadius = distance(this.knot, this.mirror);
-            designate(
-                add_arrays(this.knot, polar_to_cartesian([mirrorRadius, angle + PI])),
-                this.mirror,
-            );
-        }
-    }
+function is_knot(idx, degree) {
+    return (idx % degree == 0);
 }
 
 
-class Knot {
-    constructor(editor, pts) {
-        this.editor = editor;
-        this.data = data;
-        this.i = i;
+/**
+ * Get min / max editing boundary for cubic knot.
+ * @param pts - Control points array
+ * @param i - Knot index.
+ */
+function cubic_knot_boundaries(pts, i) {
+    //const isKnot = (i % Degree.CUBIC == 0);
+    const isKnot = is_knot(i, Degree.CUBIC);
+    assert(isKnot, "Index " + i + " is not a cubic knot!");
+
+
+    // Left boundary
+    let xmin = -Infinity;
+    if (i > 0) {
+        const leftHeadroom = Math.min(
+            pts[i][0] - pts[i-2][0],
+            pts[i-1][0] - pts[i-3][0],
+        )
+        xmin = pts[i][0] - leftHeadroom;
     }
+
+
+    // Right boundary
+    let xmax = Infinity;
+    if (i < pts.length - Degree.CUBIC) {
+        const rightHeadroom = Math.min(
+            pts[i+2][0] - pts[i][0],
+            pts[i+3][0] - pts[i+1][0],
+        )
+        xmax = pts[i][0] + rightHeadroom;
+    }
+
+    return [xmin, xmax];
+}
+
+
+function cubic_control_point_boundaries(pts, i) {
+    const isKnot = (i % Degree.CUBIC == 0);
+    assert(!isKnot, "Index " + i + " is not a cubic control point!");
+    const leftKnot = pts[Math.floor(i / Degree.CUBIC) * Degree.CUBIC];
+    const rightKnot = pts[Math.ceil(i / Degree.CUBIC) * Degree.CUBIC];
+    return [leftKnot[0], rightKnot[0]];
+}
+
+
+/**
+ * Get [xmin, xmax] boundaries for a given curve point.
+ */
+function point_boundaries(pts, i, degree) {
+    let xmin = -Infinity;
+    let xmax = Infinity;
+
+    if (0 <= i && i < pts.length) {
+        switch (degree) {
+            //case Degree.CONSTANT:
+            //    break;
+            case Degree.LINEAR:
+                break;
+            case Degree.CUBIC:
+                break;
+            default:
+                throw "point_boundaries() does not support degree " + degree + "!";
+        }
+    }
+
+    return [xmin, xmax];
 }
 
 
@@ -496,7 +532,7 @@ class Editor extends CurverBase {
         const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
         return [ptHat.x, ptHat.y];
     }
-    
+
 
     transform_points(pts) {
         return pts.map(pt => {
@@ -553,56 +589,9 @@ class Editor extends CurverBase {
     mouse_coordinates(evt) {
         PT.x = evt.clientX;
         PT.y = evt.clientY;
-        let a = PT.matrixTransform(this.svg.getScreenCTM().inverse());  // Pre-compute reverse
+        let a = PT.matrixTransform(this.ctmInv);
         let b = (new DOMPoint(a.x, a.y)).matrixTransform(this.trafoInv);
         return [b.x, b.y];
-    }
-
-
-    make_draggable(ele, mover) {
-        /** Start position of drag motion. */
-        let start = null;
-
-        /**
-         * Start drag.
-         */
-        const start_drag = evt => {
-            start = this.mouse_coordinates(evt);
-            //this.history.capture(deep_copy(this.cps));
-            addEventListener("mousemove", drag);
-            addEventListener("mouseup", end_drag);
-            addEventListener("mouseleave", end_drag);
-        }
-
-        ele.addEventListener("mousedown", start_drag);
-
-        /**
-         * Drag element.
-         */
-        const drag = evt => {
-            const delta = subtract_arrays(this.mouse_coordinates(evt), start);
-            mover.move(delta);
-            this.draw_spline();
-        }
-
-        /**
-         * End dragging of element.
-         */
-        const end_drag = evt => {
-            const end = this.mouse_coordinates(evt);
-            if (arrays_equal(start, end))
-                return;
-
-            const delta = subtract_arrays(end, start);
-            mover.move(delta);
-
-            // TODO: Commit to action. Append to history
-            this.init_spline(this.cps);
-
-            removeEventListener("mousemove", drag);
-            removeEventListener("mouseup", end_drag);
-            removeEventListener("mouseleave", end_drag);
-        }
     }
 
 
@@ -625,6 +614,49 @@ class Editor extends CurverBase {
     }
 
 
+    make_draggable(ele, drag, end_drag, xmin=-Infinity, xmax=Infinity) {
+        /** Start position of drag motion. */
+        let start = null;
+
+        /**
+         * Start drag.
+         */
+        const _start_drag = evt => {
+            start = this.mouse_coordinates(evt);
+            addEventListener("mousemove", _drag);
+            addEventListener("mouseup", _end_drag);
+            addEventListener("mouseleave", _end_drag);
+        }
+
+        ele.addEventListener("mousedown", _start_drag);
+
+        /**
+         * Drag element.
+         */
+        const _drag = evt => {
+            const pt = this.mouse_coordinates(evt);
+            const end = [clip(pt[0], xmin, xmax), pt[1]];
+            const delta = subtract_arrays(end, start);
+            drag(delta);
+        }
+
+        /**
+         * End dragging of element.
+         */
+        const _end_drag = evt => {
+            const end = this.mouse_coordinates(evt);
+            if (arrays_equal(start, end))
+                return;
+
+            removeEventListener("mousemove", _drag);
+            removeEventListener("mouseup", _end_drag);
+            removeEventListener("mouseleave", _end_drag);
+
+            end_drag(end);
+        }
+    }
+
+
     /**
      * Initialize spline elements.
      * @param cps - Control point tensor.
@@ -634,7 +666,7 @@ class Editor extends CurverBase {
         this.bbox = fit_bbox(pts);
         this.update_trafo();
         this.lines.forEach(line => line.clear());
-        const duration = last_element(last_element(pts)[0]);
+        const duration = last_element(pts)[0] - pts[0][0];
         this.set_duration(duration)
         remove_all_children(this.svg);
 
@@ -655,36 +687,67 @@ class Editor extends CurverBase {
     init_cubic_spline(lw=2) {
         const pts = this.workingCopy;
         pts.forEach((pt, i) => {
+            //const isFirst = (i == 0);
             const isLast = (i == pts.length - 1);
-            switch (i % this.degree) {
-                case 0:
-                    console.log("Knot");
-                    if (!isLast) {
-                        let sel = [pts[i], pts[i+1], pts[i+2], pts[i+3]]
-                        let path = this.init_path(sel, lw);
-                        this.init_line(sel[0], sel[1]);
-                        this.init_line(sel[2], sel[3]);
-                    }
-                    this.make_draggable(
-                        this.init_circle(pt, 3*lw, "black"),
-                        // constructor(knot, associates=[], range=[-Infinity, Infinity]) {
-                        new KnotMover(pt, [pts[i-1], pts[i+1]]),
-                    )
-                    break;
-                case 1:
-                    console.log("CP0");
-                    this.make_draggable(
-                        this.init_circle(pt, 3*lw, "red"),
-                        new CpMover(pt, pts[i-1], pts[i-2], "right"),
-                    );
-                    break;
-                case 2:
-                    console.log("CP1");
-                    this.make_draggable(
-                        this.init_circle(pt, 3*lw, "red"),
-                        new CpMover(pt, pts[i+1], pts[i+2], "left"),
-                    );
-                    break;
+            if (is_knot(i, this.degree)) {
+                if (!isLast) {
+                    // Draw non draggable elements
+                    let sel = [pts[i], pts[i+1], pts[i+2], pts[i+3]]
+                    let path = this.init_path(sel, lw);
+                    this.init_line(sel[0], sel[1]);
+                    this.init_line(sel[2], sel[3]);
+                }
+
+                let data = filter_undefined([pts[i-1], pts[i], pts[i+1]]);
+                let orig = deep_copy(data);
+                let [xmin, xmax] = cubic_knot_boundaries(pts, i);
+                this.make_draggable(
+                    this.init_circle(pt, 3*lw, "black"),
+                    delta => {
+                        dst_shift(orig, delta, data);
+                        this.draw_spline();
+                    },
+                    end => {this.init_spline() },
+                    xmin,
+                    xmax,
+                );
+            } else {
+                let other = null;
+                let knot = null;
+                let dist = 0;
+                if (i % this.degree == 1) {
+                    knot = pts[i-1];
+                    other = pts[i-2];
+                } else {
+                    knot = pts[i+1];
+                    other = pts[i+2];
+                }
+
+                let [xmin, xmax] = cubic_control_point_boundaries(pts, i);
+                const orig = deep_copy(pt);
+                this.make_draggable(
+                    this.init_circle(pt, 3*lw, "red"),
+                    delta => {
+                        dst_shift([orig], delta, [pt]);
+                        if (other instanceof Array) {
+                            designate(
+                                rotate_point_mirror(pt, knot, other),
+                                other
+                            )
+                            // TODO: Limit xmin / xmax of mirror point
+                            /*
+                            const [_, angle] = cartesian_to_polar(subtract_arrays(knot, pt));
+                            dist = distance(knot, other);
+                            designate(add_arrays(knot, polar_to_cartesian([dist, angle])), other);
+                            */
+                            //designate(point_mirror(pt, knot), other);
+                        }
+                        this.draw_spline();
+                    },
+                    end => {this.init_spline() },
+                    xmin,
+                    xmax,
+                );
             }
         });
         this.draw_spline();
