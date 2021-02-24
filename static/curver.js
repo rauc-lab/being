@@ -154,9 +154,6 @@ class Line {
 }
 
 
-
-
-
 /**
  * Curver base class for Plotter and Editor.
  */
@@ -194,6 +191,8 @@ class CurverBase extends HTMLElement {
         this.toolbar = document.createElement("div");
         this.toolbar.classList.add("toolbar");
 
+        
+        
         // Canvas
         this.canvas = document.createElement("canvas");
         this.ctx = this.canvas.getContext("2d");
@@ -204,7 +203,12 @@ class CurverBase extends HTMLElement {
         const svg = create_element("svg");
         this.svg = svg;
 
-        this.shadowRoot.append(link, materialCss, this.toolbar, this.canvas, this.svg);
+        this.graphs = document.createElement("div")
+        this.graphs.classList.add("graphDiv")
+        this.graphs.appendChild(this.canvas)
+        this.graphs.appendChild(this.svg)
+
+        this.shadowRoot.append(link, materialCss,this.toolbar, this.graphs );
     }
 
     update_bbox() {
@@ -367,6 +371,7 @@ class Plotter extends CurverBase {
     constructor() {
         super();
         this.isRecording = false;
+
         const rec = document.createElement("button");
         rec.classList.add("btn-black")
         rec.classList.add("mdc-icon-button")
@@ -489,10 +494,12 @@ class Editor extends CurverBase {
     }
 
     save_spline(el) {
+        // TODO: 
 
     }
 
     select_motor(el) {
+        // TODO: 
 
     }
 
@@ -543,6 +550,5 @@ class Editor extends CurverBase {
         }
     }
 }
-
 
 customElements.define('being-editor', Editor);
