@@ -1,5 +1,5 @@
 "use strict";
-import {Order} from "/static/js/constants.js";
+import {Order} from "/static/js/spline.js";
 
 
 /**

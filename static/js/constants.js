@@ -12,19 +12,3 @@ export const PI = Math.PI;
 
 /** Two PI */
 export const TAU = 2.0 * PI;
-
-/** Spline orders */
-export const Order = Object.freeze({
-    "CUBIC": 4,
-    "QUADRATIC": 3,
-    "LINEAR": 2,
-    "CONSTANT": 1,
-});
-
-/** Spline degree */
-export const Degree = Object.freeze({
-    "CUBIC": 3,
-    "QUADRATIC": 2,
-    "LINEAR": 1,
-    "CONSTANT": 0,
-});

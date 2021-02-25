@@ -100,3 +100,12 @@ export function arrays_equal(a, b) {
         return a == b;
     }
 }
+
+
+/**
+ * Assert something and throw an error if condition does not hold up.
+ */
+export function assert(condition, message="") {
+    if (!condition)
+        throw ("AssertionError " + message).trim();
+}

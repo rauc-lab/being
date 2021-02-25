@@ -17,6 +17,7 @@
         </style>
     </head>
     <body>
+        <!--
         <h1>This Is Heading One</h1>
 
         <p>
@@ -34,6 +35,7 @@
 
         <being-plotter id="plotter"></being-plotter>
         
+        -->
         <p>
             Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
             nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam
@@ -48,6 +50,8 @@
 
         <being-editor id="editor"></being-editor>
 
+        <!--
+        
         <p>
             Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
             nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam
@@ -59,12 +63,14 @@
             eos et accusam et justo duo dolores et ea rebum. Stet clita kasd
             gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
         </p>
+        -->
     </body>
     <script type="module">
         import {ready} from "/static/js/utils.js";
         import {receive_from_websocket} from "/static/js/web-socket.js";
-        import {bpoly_to_bezier} from "/static/js/bezier.js";
-        const bpoly = {
+        import {BPoly} from "/static/curver.js";
+
+        const data = {
             "type": "BPoly",
             "extrapolate": true,
             "axis": 0,
@@ -77,10 +83,12 @@
             ]
         };
 
+        const spline = BPoly.from_object(data);
+
         /*
         import {bpoly_to_bezier} from "/static/js/bezier.js";
-        cps = bpoly_to_bezier(bpoly);
-        let cps = bpoly_to_bezier(bpoly);
+        cps = bpoly_to_bezier(spline);
+        let cps = bpoly_to_bezier(spline);
         let knots = cps.map(row => row[0]);
         knots.push(cps[0][3]);
         */
@@ -92,11 +100,11 @@
             const streamUrl = 'ws://' + host + '/stream';
             receive_from_websocket(streamUrl, {
                 "output-values": [
-                    msg => plotter.new_data(msg),
+                    //msg => plotter.new_data(msg),
                     msg => editor.new_data(msg),
                 ],
             });
-            editor.load_spline(bpoly);
+            editor.load_spline(spline);
         });
     </script>
 </html>
