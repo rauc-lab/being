@@ -4,7 +4,8 @@
         <meta charset="utf-8"/>
         <title>Curver</title>
         <link rel="stylesheet" type="text/css" href="static/reset.css">
-        <script type="module" src="static/curver.js"></script>
+        <script type="module" src="static/curver/live_plotter.js"></script>
+        <script type="module" src="static/curver/spline_editor.js"></script>
         <style>
             #plotter {
                 width: 100%;
@@ -17,7 +18,6 @@
         </style>
     </head>
     <body>
-        <!--
         <h1>This Is Heading One</h1>
 
         <p>
@@ -35,7 +35,6 @@
 
         <being-plotter id="plotter"></being-plotter>
         
-        -->
         <p>
             Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
             nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam
@@ -50,8 +49,6 @@
 
         <being-editor id="editor"></being-editor>
 
-        <!--
-        
         <p>
             Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
             nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam
@@ -63,7 +60,6 @@
             eos et accusam et justo duo dolores et ea rebum. Stet clita kasd
             gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
         </p>
-        -->
     </body>
     <script type="module">
         import {ready} from "/static/js/utils.js";
@@ -100,7 +96,7 @@
             const streamUrl = 'ws://' + host + '/stream';
             receive_from_websocket(streamUrl, {
                 "output-values": [
-                    //msg => plotter.new_data(msg),
+                    msg => plotter.new_data(msg),
                     msg => editor.new_data(msg),
                 ],
             });

@@ -37,8 +37,9 @@ export function normal(mean=0, std=1.) {
  */
 export function mod(dividend, divisor) {
     let remainder = dividend % divisor;
-    if (remainder < 0)
+    if (remainder < 0) {
         remainder += divisor;
+    }
 
     return remainder;
 }

@@ -73,7 +73,7 @@ export function cycle(sequence) {
     let idx = 0;
     return {
         next: function() {
-            //return sequence[idx++ % sequence.length];
+            //return sequence[idx++ % sequence.length];  // Actually no. idx unbounded.
             idx %= sequence.length;
             const pick = sequence[idx];
             idx += 1;
@@ -88,12 +88,15 @@ export function cycle(sequence) {
  */
 export function arrays_equal(a, b) {
     if (a instanceof Array && b instanceof Array) {
-        if (a.length != b.length)
+        if (a.length != b.length) {
             return false;
+        }
 
-        for (let i=0; i<a.length; i++)
-            if (!arrays_equal(a[i], b[i]))
+        for (let i=0; i<a.length; i++) {
+            if (!arrays_equal(a[i], b[i])) {
                 return false;
+            }
+        }
 
         return true;
     } else {
@@ -106,6 +109,7 @@ export function arrays_equal(a, b) {
  * Assert something and throw an error if condition does not hold up.
  */
 export function assert(condition, message="") {
-    if (!condition)
+    if (!condition) {
         throw ("AssertionError " + message).trim();
+    }
 }
