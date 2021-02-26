@@ -388,80 +388,19 @@ class Plotter extends CurverBase {
 customElements.define('being-plotter', Plotter);
 
 
-export class BPoly {
-    constructor(c, x, extrapolate=null, axis=0) {
-        this.c = c;
-        this.x = x;
-        this.extrapolate = extrapolate;
-        this.axis = axis;
-
-        this.order = c.length;
-        this.degree = c.length - 1;
-    }
-
-    static from_object(dct) {
-        return new BPoly(dct.coefficients, dct.knots, dct.extrapolate, dct.axis)
-    }
-
-    get start() {
-        return this.x[0];
-    }
-
-    get end() {
-        return last_element(this.x);
-    }
-
-    get n_segments() {
-        return this.x.length - 1;
-    }
-
-    get duration() {
-        return this.end - this.start;
-    }
-
-    get min() {
-        return array_min(this.c.flat());
-    }
-
-    get max() {
-        return array_max(this.c.flat());
-    }
-
-    bbox() {
-        return new BBox([this.start, this.min], [this.end, this.max]);
-    }
-
-    _dx(seg) {
-        if (this.degree == Degree.CONSTANT) {
-            return (this.x[seg+1] - this.x[seg]);
-        }
-
-        return (this.x[seg+1] - this.x[seg]) / this.degree;
-    }
-
-    _x(seg, nr=0) {
-        const alpha = nr / this.degree;
-        return (1 - alpha) * this.x[seg] + alpha * this.x[seg+1];
-    }
-
-    point(seg, nr=0) {
-        if (seg == this.x.length - 1) {
-            return [this.end, last_element(this.c[this.degree])];
-        }
-
-        return [this._x(seg, nr), this.c[nr][seg]];
-    }
-
-    copy() {
-        return new BPoly(deep_copy(this.c), deep_copy(this.x), this.extrapolate, this.axis);
-    }
-}
-
 
 const EPS = .1;
 const KNOT = 0;
 const FIRST_CP = 1;
 const SECOND_CP = 2;
+
+
+/**
+ * Spline mover.
+ *
+ * Manages spline dragging and editing. Keeps a backup copy of the original
+ * spline as `orig` so that we can do delta manipulations.
+ */
 class Mover {
     constructor(spline) {
         assert(spline.degree == Degree.CUBIC, "Only cubic splines supported for now!");
@@ -480,13 +419,16 @@ class Mover {
         const xmin = (nr > 0) ? this.orig.x[nr-1] + EPS : -Infinity;
         const xmax = (nr < this.orig.n_segments) ? this.orig.x[nr+1] - EPS : Infinity;
 
-        // Move knot horizontally and vertically
+        // Move knot horizontally
         this.x[nr] = clip(this.orig.x[nr] + delta[0], xmin, xmax);
-        if (nr < this.spline.n_segments) {
-            this.c[KNOT][nr] = this.orig.c[KNOT][nr] + delta[1];
-        }
         if (nr > 0) {
+            // Move knot vertically on the left
             this.c[this.degree][nr-1] = this.orig.c[this.degree][nr-1] + delta[1];
+        }
+
+        if (nr < this.spline.n_segments) {
+            // Move knot vertically on the right
+            this.c[KNOT][nr] = this.orig.c[KNOT][nr] + delta[1];
         }
 
         // Move control points
@@ -502,10 +444,10 @@ class Mover {
 
 
     /**
-     * X axis spacing ratio between segment and the next.
+     * X axis spacing ratio between two consecutive segments
      */
     _ratio(seg) {
-        return this.spline._dx(seg+1) / this.spline._dx(seg);
+        return this.spline._dx(seg + 1) / this.spline._dx(seg);
     }
 
 
@@ -515,12 +457,21 @@ class Mover {
     move_control_point(seg, nr, delta, c1=true) {
         // Move control point vertically
         this.c[nr][seg] = this.orig.c[nr][seg] + delta[1];
+
+        // TODO: This is messy. Any better way?
+        const leftMost = (seg === 0) && (nr === FIRST_CP);
+        const rightMost = (seg === this.spline.n_segments - 1) && (nr === SECOND_CP);
+        if (leftMost || rightMost) {
+            return;
+        }
+
+        // Move adjacent control point vertically
         if (c1 && this.degree == Degree.CUBIC) {
             if (nr == FIRST_CP) {
                 const y = this.c[KNOT][seg];
                 const q = this._ratio(seg-1);
                 const dy = this.c[FIRST_CP][seg] - y;
-                this.c[SECOND_CP][seg-1] = y - 1.0 / q * dy;
+                this.c[SECOND_CP][seg-1] = y - dy / q;
             } else if (nr == SECOND_CP) {
                 const y = this.c[KNOT][seg+1];
                 const q = this._ratio(seg);
@@ -547,18 +498,27 @@ class Editor extends CurverBase {
     }
 
 
+    /**
+     * Trigger viewport resize and redraw.
+     */
     resize() {
         super.resize();
         this.draw_spline();
     }
 
 
+    /**
+     * Transform a data point -> view space.
+     */
     transform_point(pt) {
         const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
         return [ptHat.x, ptHat.y];
     }
 
 
+    /**
+     * Transform multiple data point into view space.
+     */
     transform_points(pts) {
         return pts.map(pt => {
             const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
@@ -651,14 +611,19 @@ class Editor extends CurverBase {
     }
 
 
+    /**
+     * Load spline into spline editor.
+     */
     load_spline(spline) {
         this.spline = spline;
         this.init_spline();
     }
 
 
+    /**
+     * Set current duration of spline editor.
+     */
     set_duration(duration) {
-        console.log("duration:", duration);
         this.duration = duration;
         this.lines.forEach(line => {
             line.maxlen = this.duration / INTERVAL
@@ -673,9 +638,7 @@ class Editor extends CurverBase {
     init_spline(lw=2) {
         console.log("init_spline()");
         this.set_duration(this.spline.duration);
-        console.log(this.spline.c);
         this.bbox = this.spline.bbox();
-        console.log("bbox.size:", this.bbox.size);
         this.update_trafo();
         this.lines.forEach(line => line.clear());
         remove_all_children(this.svg);
@@ -696,6 +659,10 @@ class Editor extends CurverBase {
     }
 
 
+    /**
+     * Initialize an SVG path element and adds it to the SVG parent element.
+     * data_source callback needs to deliver the 2-4 Bézier control points.
+     */
     init_path(data_source, strokeWidth=1, color="black") {
         const path = create_element('path');
         setattr(path, "stroke", color);
@@ -709,6 +676,11 @@ class Editor extends CurverBase {
         return path
     }
 
+
+    /**
+     * Initialize an SVG circle element and adds it to the SVG parent element.
+     * data_source callback needs to deliver the center point of the circle.
+     */
     init_circle(data_source, radius=1, color="black") {
         const circle = create_element('circle');
         setattr(circle, "r", radius);
@@ -724,6 +696,11 @@ class Editor extends CurverBase {
     }
    
 
+    /**
+     * Initialize an SVG line element and adds it to the SVG parent element.
+     * data_source callback needs to deliver the start end and point of the
+     * line.
+     */
     init_line(data_source, strokeWidth=1, color="black") {
         const line = create_element("line");
         setattr(line, "stroke-width", strokeWidth);
@@ -743,6 +720,10 @@ class Editor extends CurverBase {
     }
 
 
+    /**
+     * Initialize all SVG elements for a cubic spline. Hooks up the draggable
+     * callbacks.
+     */
     init_cubic_spline(lw=2) {
         const spline = this.spline;
         const mover = new Mover(spline);
@@ -793,6 +774,10 @@ class Editor extends CurverBase {
     }
 
 
+    /**
+     * Draw the current spline / update all the SVG elements. They will fetch
+     * the current state from the spline via the data_source callbacks.
+     */
     draw_spline() {
         for (let ele of this.svg.children) {
             ele.draw();
