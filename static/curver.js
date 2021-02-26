@@ -35,6 +35,7 @@ import {
     deep_copy,
     last_element,
     remove_all_children,
+    assert,
 } from "/static/js/utils.js";
 import {Deque} from "/static/js/deque.js";
 import {
@@ -463,6 +464,7 @@ const FIRST_CP = 1;
 const SECOND_CP = 2;
 class Mover {
     constructor(spline) {
+        assert(spline.degree == Degree.CUBIC, "Only cubic splines supported for now!");
         this.spline = spline;
         this.x = spline.x;
         this.c = spline.c;
@@ -470,33 +472,58 @@ class Mover {
         this.orig = spline.copy();
     }
 
-    move_knot(seg, delta, c1=true) {
-        const xmin = (seg > 0) ? this.orig.x[seg-1] + EPS : -Infinity;
-        const xmax = (seg < this.orig.n_segments) ? this.orig.x[seg+1] - EPS : Infinity;
-        this.x[seg] = clip(this.orig.x[seg] + delta[0], xmin, xmax);
-        this.c[0][seg] = this.orig.c[0][seg] + delta[1];
-        this.c[this.degree][seg-1] = this.orig.c[this.degree][seg-1] + delta[1];
+
+    /**
+     * Move knot around for some delta.
+     */
+    move_knot(nr, delta, c1=true) {
+        const xmin = (nr > 0) ? this.orig.x[nr-1] + EPS : -Infinity;
+        const xmax = (nr < this.orig.n_segments) ? this.orig.x[nr+1] - EPS : Infinity;
+
+        // Move knot horizontally and vertically
+        this.x[nr] = clip(this.orig.x[nr] + delta[0], xmin, xmax);
+        if (nr < this.spline.n_segments) {
+            this.c[KNOT][nr] = this.orig.c[KNOT][nr] + delta[1];
+        }
+        if (nr > 0) {
+            this.c[this.degree][nr-1] = this.orig.c[this.degree][nr-1] + delta[1];
+        }
+
+        // Move control points
+        if (nr == this.spline.n_segments) {
+            this.move_control_point(nr-1, SECOND_CP, delta, false);
+        } else if (c1) {
+            this.move_control_point(nr, FIRST_CP, delta);
+        } else {
+            this.move_control_point(nr, FIRST_CP, delta, false);
+            this.move_control_point(nr-1, SECOND_CP, delta, false);
+        }
     }
+
 
     /**
      * X axis spacing ratio between segment and the next.
      */
     _ratio(seg) {
-        return this.spline._dx(seg) / this.spline._dx(seg+1);
+        return this.spline._dx(seg+1) / this.spline._dx(seg);
     }
 
 
+    /**
+     * Move control point around by some delta.
+     */
     move_control_point(seg, nr, delta, c1=true) {
+        // Move control point vertically
         this.c[nr][seg] = this.orig.c[nr][seg] + delta[1];
         if (c1 && this.degree == Degree.CUBIC) {
             if (nr == FIRST_CP) {
-                const q = this._ratio(seg-1);
                 const y = this.c[KNOT][seg];
+                const q = this._ratio(seg-1);
                 const dy = this.c[FIRST_CP][seg] - y;
-                this.c[SECOND_CP][seg-1] = y - q * dy;
+                this.c[SECOND_CP][seg-1] = y - 1.0 / q * dy;
             } else if (nr == SECOND_CP) {
-                const q = 1. / this._ratio(seg);
                 const y = this.c[KNOT][seg+1];
+                const q = this._ratio(seg);
                 const dy = this.c[SECOND_CP][seg] - y;
                 this.c[FIRST_CP][seg+1] = y - q * dy;
             }
@@ -645,11 +672,10 @@ class Editor extends CurverBase {
      */
     init_spline(lw=2) {
         console.log("init_spline()");
-        console.log(this.spline.x);
-        console.log(this.spline.c.flat());
         this.set_duration(this.spline.duration);
+        console.log(this.spline.c);
         this.bbox = this.spline.bbox();
-        console.log("bbox:", this.bbox.size);
+        console.log("bbox.size:", this.bbox.size);
         this.update_trafo();
         this.lines.forEach(line => line.clear());
         remove_all_children(this.svg);
