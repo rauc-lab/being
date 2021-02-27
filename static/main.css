@@ -1,0 +1,38 @@
+nav {
+  border-bottom: 2px solid black;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  float: right;
+  width: 100%;
+}
+
+nav a:hover {
+  font-weight: bold;
+}
+
+nav a:active {
+  background-color: gainsboro;
+}
+
+nav a {
+  color: black;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+nav ul{
+    float: right;
+}
+
+
+nav li {
+  display: inline;
+  padding: 0 20px 0 20px;
+}
+
+section {
+    margin: 25px;
+    display: inline;
+}
+
+
