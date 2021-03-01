@@ -4,8 +4,9 @@
         <meta charset="utf-8"/>
         <title>Curver</title>
         <link rel="stylesheet" type="text/css" href="static/reset.css">
-        <script type="module" src="static/curver.js"></script>
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+        <script type="module" src="static/curver/live_plotter.js"></script>
+        <script type="module" src="static/curver/spline_editor.js"></script>
         <style>
             #plotter {
                 width: 100%;
@@ -25,41 +26,45 @@
         <being-editor id="editor"></being-editor>
 
     </body>
-
     <script type="module">
         import {ready} from "/static/js/utils.js";
-        import {bpoly_to_bezier} from "/static/js/bezier.js";
-        import {BBox, fit_bbox} from "/static/js/bbox.js";
         import {receive_from_websocket} from "/static/js/web-socket.js";
+        import {BPoly} from "/static/js/spline.js";
 
+        const data = {
+            "type": "BPoly",
+            "extrapolate": true,
+            "axis": 0,
+            "knots": [ 0.0, 1.0, 3.0, 6.0 ],
+            "coefficients": [
+                [ 0.0, 1.0, 0.0 ],
+                [ 0.5888888888888889, 1.2148148148148148, -0.9666666666666666 ],
+                [ 0.8925925925925928, 0.6444444444444444, -2.1 ],
+                [ 1.0, 0.0, -0.9999999999999996 ]
+            ]
+        };
+
+        const spline = BPoly.from_object(data);
+
+        /*
+        import {bpoly_to_bezier} from "/static/js/bezier.js";
+        cps = bpoly_to_bezier(spline);
+        let cps = bpoly_to_bezier(spline);
+        let knots = cps.map(row => row[0]);
+        knots.push(cps[0][3]);
+        */
 
         ready(function() {
             const plotter = document.getElementById("plotter");
             const editor = document.getElementById("editor");
             const host = window.location.host;
             const streamUrl = 'ws://' + host + '/stream';
-
             receive_from_websocket(streamUrl, {
                 "output-values": [
                     msg => plotter.new_data(msg),
                     msg => editor.new_data(msg),
                 ],
             });
-
-
-            let spline = {
-                "type": "BPoly",
-                "extrapolate": true,
-                "axis": 0,
-                "knots": [ 0.0, 1.0, 3.0, 6.0 ],
-                "coefficients": [
-                    [ 0.0, 1.0, 0.0 ],
-                    [ 0.5888888888888889, 1.2148148148148148, -0.9666666666666666 ],
-                    [ 0.8925925925925928, 0.6444444444444444, -2.1 ],
-                    [ 1.0, 0.0, -0.9999999999999996 ]
-                ]
-            };
-
             editor.load_spline(spline);
         });
     </script>

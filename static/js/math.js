@@ -32,6 +32,43 @@ export function normal(mean=0, std=1.) {
 }
 
 
+/**
+ * Positive numbers only modulo operation.
+ */
+export function mod(dividend, divisor) {
+    let remainder = dividend % divisor;
+    if (remainder < 0) {
+        remainder += divisor;
+    }
+
+    return remainder;
+}
+
+
+/**
+ * Euclidean distance between two vectors.
+ */
+export function distance(a, b) {
+    return Math.hypot(...subtract_arrays(b, a));
+}
+
+
+export function cartesian_to_polar(pt) {
+    return [
+        Math.hypot(pt[0], pt[1]),
+        Math.atan2(pt[1], pt[0]),  // Yes, x and y are flipped!
+    ]
+}
+
+
+export function polar_to_cartesian(pt) {
+    return [
+        pt[0] * Math.cos(pt[1]),
+        pt[0] * Math.sin(pt[1]),
+    ]
+}
+
+
 /* Numpy style array helpers */
 
 

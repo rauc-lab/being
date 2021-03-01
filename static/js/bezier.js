@@ -1,9 +1,13 @@
 "use strict";
 import {array_shape} from "/static/js/math.js";
+import {last_element} from "/static/js/utils.js";
 // TODO: Should we change serialization of splines? knots -> x, coefficients ->
 // c? Same as like within Python / Scipy?
 
 
+/**
+ * Get unique elements in array.
+ */
 function unique_indices(arr) {
     let indices = [];
     let seen = [];
@@ -18,6 +22,9 @@ function unique_indices(arr) {
 }
 
 
+/**
+ * Remove duplicate knots / coefficients from spline.
+ */
 function remove_duplicates(spline) {
     let cpy = {};
     Object.assign(cpy, spline);
@@ -39,29 +46,30 @@ export function bpoly_to_bezier(spline) {
     spline = remove_duplicates(spline);
     let c = spline.coefficients;
     let x = spline.knots;
-    let shape = array_shape(c);
-    let ndim = shape.length;
+    const shape = array_shape(c);
+    const ndim = shape.length;
     if (ndim !== 2) {
         throw "Only one dimensional splines supported at the moment!";
     }
 
-    let order = shape[0];
-    if (order < 2)
+    const order = shape[0];
+    if (order < 2) {
         throw "Order not supported!";
+    }
 
-    let nSegments = shape[1];
-    let cps = [];
+    const degree = order - 1;
+    const nSegments = shape[1];
+    const cps = [];
     for (let seg=0; seg<nSegments; seg++) {
         let x0 = spline.knots[seg];
         let x1 = spline.knots[seg + 1];
         let dx = (x1 - x0) / (order - 1)
-        let pts = [];
-        for (let n=0; n<order; n++) {
-            pts.push([x0 + n * dx, c[n][seg]])
+        for (let n=0; n<degree; n++) {
+            cps.push([x0 + n * dx, c[n][seg]])
         }
-        cps.push(pts);
     }
 
+    cps.push([last_element(x), c[degree][nSegments-1]]);
     return cps;
 }
 

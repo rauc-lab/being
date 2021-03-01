@@ -1,22 +1,14 @@
 "use strict";
 /**
- * Constants
+ * All kind of constants.
  */
 
 
- /**
-  * Milliseconds constants.
-  * 
-  * @constant
-  * @type {int}
-  */
+/** Milliseconds constants */
 export const MS = 1000;
 
+/** One PI */
+export const PI = Math.PI;
 
-/**
- * Two PI 
- * 
- * @constant
- * @type {float}
- */
-export const TAU = 2.0 * Math.PI;
+/** Two PI */
+export const TAU = 2.0 * PI;
