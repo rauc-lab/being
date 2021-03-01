@@ -7,11 +7,11 @@ nav {
 }
 
 nav a:hover {
-  font-weight: bold;
+  background-color: whitesmoke;
 }
 
-nav a:active {
-  background-color: gainsboro;
+nav a:where {
+  font-weight: bold;
 }
 
 nav a {
