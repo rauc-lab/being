@@ -48,11 +48,11 @@ const SECOND_CP = 2;
 class Mover {
     constructor(spline) {
         assert(spline.degree == Degree.CUBIC, "Only cubic splines supported for now!");
-        this.spline = spline;
-        this.x = spline.x;
-        this.c = spline.c;
-        this.degree = spline.degree;
-        this.orig = spline.copy();
+        this.orig = spline
+        this.spline = spline.copy();
+        this.x = this.spline.x;
+        this.c = this.spline.c;
+        this.degree = this.spline.degree;
     }
 
 
@@ -148,29 +148,30 @@ class Editor extends CurverBase {
         super(auto);
 
         /** Editing history of splines. */
-        //this.history = new History();
+        this.history = new History();
+        this.mover = null;
 
         /** Current working copy */
-        this.spline = null;
         this.duration = 1;
         this.maxlen = 1;
 
-        const undo = create_material_button();
-        undo.innerHTML = "undo"
-        undo.title = "Undo"
-        this.toolbar.appendChild(undo);
-        undo.addEventListener("click", evt => {
-            console.log("Undo");
+        this.undoBtn = create_material_button();
+        this.undoBtn.innerHTML = "undo"
+        this.undoBtn.title = "Undo"
+        this.toolbar.appendChild(this.undoBtn);
+        this.undoBtn.addEventListener("click", evt => {
+            this.history.undo();
+            this.init_spline();
         });
 
-        const redo = create_material_button();
-        redo.innerHTML = "redo"
-        redo.title = "Redo"
-        this.toolbar.appendChild(redo);
-        redo.addEventListener("click", evt => {
-            console.log("Redo", evt.target);
+        this.redoBtn = create_material_button();
+        this.redoBtn.innerHTML = "redo"
+        this.redoBtn.title = "Redo"
+        this.toolbar.appendChild(this.redoBtn);
+        this.redoBtn.addEventListener("click", evt => {
+            this.history.redo();
+            this.init_spline();
         });
-
 
         const save = create_material_button();
         save.id = "btn-save"
@@ -212,7 +213,6 @@ class Editor extends CurverBase {
         zoomReset.innerHTML = "zoom_out_map"
         zoomReset.title = "Reset zoom"
         this.toolbar.appendChild(zoomReset);
-
     }
 
 
@@ -314,9 +314,12 @@ class Editor extends CurverBase {
         const end_drag = evt => {
             disable_drag_listeners();
             const end = this.mouse_coordinates(evt);
-            if (!arrays_equal(start, end)) {
-                this.init_spline();
+            if (arrays_equal(start, end)) {
+                return;
             }
+
+            this.history.capture(this.mover.spline);
+            this.init_spline();
         }
     }
 
@@ -324,10 +327,10 @@ class Editor extends CurverBase {
      * Load spline into spline editor.
      */
     load_spline(spline) {
-        this.spline = spline;
+        this.history.clear();
+        this.history.capture(spline);
         this.init_spline();
     }
-
 
 
     save_spline(el) {
@@ -356,12 +359,13 @@ class Editor extends CurverBase {
      */
     init_spline(lw=2) {
         console.log("init_spline()");
-        this.set_duration(this.spline.duration);
-        this.bbox = this.spline.bbox();
+        const spline = this.history.retrieve();
+        this.set_duration(spline.duration);
+        this.bbox = spline.bbox();
         this.update_trafo();
         this.lines.forEach(line => line.clear());
         remove_all_children(this.svg);
-        switch (this.spline.order) {
+        switch (spline.order) {
             case Order.CUBIC:
                 this.init_cubic_spline(lw);
                 break;
@@ -444,8 +448,9 @@ class Editor extends CurverBase {
      * callbacks.
      */
     init_cubic_spline(lw=2) {
-        const spline = this.spline;
-        const mover = new Mover(spline);
+        const current = this.history.retrieve();
+        this.mover = new Mover(current);
+        const spline = this.mover.spline;
         for (let seg=0; seg<spline.n_segments; seg++) {
             this.init_path(() => {
                 return [
@@ -468,7 +473,7 @@ class Editor extends CurverBase {
                         return spline.point(seg, cpNr);
                     }, 3*lw, "red"),
                     (delta) => {
-                        mover.move_control_point(seg, cpNr, delta);
+                        this.mover.move_control_point(seg, cpNr, delta);
                     },
                 );
             }
@@ -480,7 +485,7 @@ class Editor extends CurverBase {
                     return spline.point(knotNr);
                 }, 3*lw),
                 (delta) => {
-                    mover.move_knot(knotNr, delta);
+                    this.mover.move_knot(knotNr, delta);
                 },
             );
         }
@@ -499,6 +504,8 @@ class Editor extends CurverBase {
      * the current state from the spline via the data_source callbacks.
      */
     draw_spline() {
+        this.undoBtn.disabled = !this.history.undoable;
+        this.redoBtn.disabled = !this.history.redoable;
         for (let ele of this.svg.children) {
             ele.draw();
         }
