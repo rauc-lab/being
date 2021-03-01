@@ -80,3 +80,7 @@ div.toolbar button:only-of-type {
   border-color: black;
   color: black;
 }
+
+svg circle {
+    cursor: pointer;
+}

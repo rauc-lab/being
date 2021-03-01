@@ -37,6 +37,7 @@ const EPS = .1;
 const KNOT = 0;
 const FIRST_CP = 1;
 const SECOND_CP = 2;
+const LEFT_MOUSE_BUTTON = 1;
 
 
 /**
@@ -300,6 +301,10 @@ class Editor extends CurverBase {
          * Start drag movement.
          */
         const start_drag = evt => {
+            if (evt.which !== LEFT_MOUSE_BUTTON) {
+                return;
+            }
+
             disable_drag_listeners();  // TODO: Do we need this?
             enable_drag_listeners();
             start = this.mouse_coordinates(evt);
