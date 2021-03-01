@@ -86,6 +86,9 @@ export class CurverBase extends HTMLElement {
     }
 
 
+    /**
+     * Update viewport bounding box.
+     */
     update_bbox() {
         this.bbox.reset();
         this.lines.forEach(line => {
@@ -94,6 +97,9 @@ export class CurverBase extends HTMLElement {
     }
 
 
+    /**
+     * Update viewport transformation.
+     */
     update_trafo() {
         const [sx, sy] = divide_arrays([this.width - 2 * MARGIN, this.height - 2 * MARGIN], this.bbox.size);
         if (!isFinite(sx) || !isFinite(sy) || sx === 0 || sy === 0)
@@ -140,6 +146,26 @@ export class CurverBase extends HTMLElement {
             this.resize();
             this.run();
         }, 100);
+    }
+
+
+    /**
+     * Transform a data point -> view space.
+     */
+    transform_point(pt) {
+        const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
+        return [ptHat.x, ptHat.y];
+    }
+
+
+    /**
+     * Transform multiple data point into view space.
+     */
+    transform_points(pts) {
+        return pts.map(pt => {
+            const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
+            return [ptHat.x, ptHat.y];
+        });
     }
 
 

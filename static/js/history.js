@@ -1,5 +1,6 @@
 "use strict";
 import {Deque} from "/static/js/deque.js";
+import {last_element} from "/static/js/utils.js";
 
 
 
@@ -12,9 +13,14 @@ export class History {
         this.future = new Deque([], maxlen);
     }
 
+
+    /**
+     * History length. Past and future.
+     */
     get length() {
         return this.past.length + this.future.length;
     }
+
 
     /**
      * History can be undone.
@@ -23,12 +29,14 @@ export class History {
         return this.past.length > 1;
     }
 
+
     /**
      * History can be restored.
      */
     get redoable() {
         return this.future.length > 0;
     }
+
 
     /**
      * Capture a new state and add it to the history. Will clear off head.
@@ -38,12 +46,14 @@ export class History {
         this.past.push(state);
     }
 
+
     /**
      * Retrieve current state.
      */
     retrieve() {
         return last_element(this.past);
     }
+
 
     /**
      * Wind back one state.
@@ -56,6 +66,7 @@ export class History {
         this.future.appendleft(current);
         return this.retrieve();
     }
+
 
     /**
      * Rewind one state.
@@ -70,6 +81,9 @@ export class History {
     }
 
 
+    /**
+     * Clear complete history.
+     */
     clear() {
         this.past.clear();
         this.future.clear();

@@ -82,5 +82,10 @@ div.toolbar button:only-of-type {
 }
 
 svg circle {
-    cursor: pointer;
+  cursor: pointer;
+}
+
+
+button.material-icons:disabled {
+  color: silver;
 }

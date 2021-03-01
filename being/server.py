@@ -124,7 +124,6 @@ def init_web_server(being=None, content=None) -> web.Application:
 
     # Pages
     app.router.add_get('/', file_response_handler('static/index.html'))
-    app.router.add_get('/curver', file_response_handler('static/curver.html'))
 
     # Rest API
     api = web.Application()

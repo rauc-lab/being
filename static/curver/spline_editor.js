@@ -37,7 +37,6 @@ const EPS = .1;
 const KNOT = 0;
 const FIRST_CP = 1;
 const SECOND_CP = 2;
-const LEFT_MOUSE_BUTTON = 1;
 
 
 /**
@@ -128,6 +127,15 @@ class Mover {
 }
 
 
+function create_material_button() {
+    const btn = document.createElement("button");
+    btn.classList.add("mdc-icon-button")
+    btn.classList.add("material-icons")
+    btn.classList.add("btn-black")
+    return btn;
+}
+
+
 /**
  * Spline editor.
  *
@@ -138,91 +146,74 @@ class Editor extends CurverBase {
         console.log("BeingCurver.constructor");
         const auto = false;
         super(auto);
+
+        /** Editing history of splines. */
+        //this.history = new History();
+
+        /** Current working copy */
+        this.spline = null;
         this.duration = 1;
         this.maxlen = 1;
 
-        var self = this;
-        //this.history = new History();
-        const save = document.createElement("button");
-        save.classList.add("btn-black")
-        save.classList.add("mdc-icon-button")
-        save.classList.add("material-icons")
+        const undo = create_material_button();
+        undo.innerHTML = "undo"
+        undo.title = "Undo"
+        this.toolbar.appendChild(undo);
+        undo.addEventListener("click", evt => {
+            console.log("Undo");
+        });
+
+        const redo = create_material_button();
+        redo.innerHTML = "redo"
+        redo.title = "Redo"
+        this.toolbar.appendChild(redo);
+        redo.addEventListener("click", evt => {
+            console.log("Redo", evt.target);
+        });
+
+
+        const save = create_material_button();
         save.id = "btn-save"
         save.innerHTML = "save";
         save.title = "Save spline"
-        save.addEventListener("click", e => self.save_spline(save))
+        save.addEventListener("click", e => this.save_spline(save))
         this.toolbar.appendChild(save);
 
         const selMot = document.createElement("button");
         selMot.classList.add("btn-black")
         selMot.id = "btn-save"
         selMot.innerHTML = "Select Motor";
-        selMot.addEventListener("click", e => self.select_motor(selMot))
+        selMot.addEventListener("click", e => this.select_motor(selMot))
         this.toolbar.appendChild(selMot);
 
         // TODO : Toggle button start / stop
-        const play = document.createElement("button")
-        play.classList.add("btn-black")
-        play.classList.add("mdc-icon-button")
-        play.classList.add("material-icons")
+        const play = create_material_button();
         play.title = "Play spline on motor"
         play.innerHTML = "play_circle"
         this.toolbar.appendChild(play)
 
-        const stop = document.createElement("button")
-        stop.classList.add("btn-black")
-        stop.classList.add("mdc-icon-button")
-        stop.classList.add("material-icons")
+        const stop = create_material_button();
         stop.title = "Stop playback"
         stop.innerHTML = "stop"
         // div_behavior.appendChild(stop)
         this.toolbar.appendChild(stop)
 
-        const zoomIn = document.createElement("button")
-        zoomIn.classList.add("btn-black")
-        zoomIn.classList.add("mdc-icon-button")
-        zoomIn.classList.add("material-icons")
+        const zoomIn = create_material_button();
         zoomIn.innerHTML = "zoom_in"
         zoomIn.title = "Zoom in "
         this.toolbar.appendChild(zoomIn);
 
-        const zoomOut = document.createElement("button")
-        zoomOut.classList.add("btn-black")
-        zoomOut.classList.add("mdc-icon-button")
-        zoomOut.classList.add("material-icons")
+        const zoomOut = create_material_button();
         zoomOut.innerHTML = "zoom_out"
         zoomOut.title = "Zoom out"
         this.toolbar.appendChild(zoomOut);
 
-        const zoomReset = document.createElement("button")
-        zoomReset.classList.add("btn-black")
-        zoomReset.classList.add("mdc-icon-button")
-        zoomReset.classList.add("material-icons")
+        const zoomReset = create_material_button();
         zoomReset.innerHTML = "zoom_out_map"
         zoomReset.title = "Reset zoom"
         this.toolbar.appendChild(zoomReset);
 
-        const undo = document.createElement("button")
-        undo.classList.add("btn-black")
-        undo.classList.add("mdc-icon-button")
-        undo.classList.add("material-icons")
-        undo.innerHTML = "undo"
-        undo.title = "Undo"
-        this.toolbar.appendChild(undo);
-
-        const redo = document.createElement("button")
-        redo.classList.add("btn-black")
-        redo.classList.add("mdc-icon-button")
-        redo.classList.add("material-icons")
-        redo.innerHTML = "redo"
-        redo.title = "Redo"
-        this.toolbar.appendChild(redo);
     }
-
-
-    save_spline(el) {}
-
-    select_motor(el) {}
 
 
     /**
@@ -231,26 +222,6 @@ class Editor extends CurverBase {
     resize() {
         super.resize();
         this.draw_spline();
-    }
-
-
-    /**
-     * Transform a data point -> view space.
-     */
-    transform_point(pt) {
-        const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
-        return [ptHat.x, ptHat.y];
-    }
-
-
-    /**
-     * Transform multiple data point into view space.
-     */
-    transform_points(pts) {
-        return pts.map(pt => {
-            const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
-            return [ptHat.x, ptHat.y];
-        });
     }
 
 
@@ -301,11 +272,12 @@ class Editor extends CurverBase {
          * Start drag movement.
          */
         const start_drag = evt => {
-            if (evt.which !== LEFT_MOUSE_BUTTON) {
+            const leftMouseButton = 1;
+            if (evt.which !== leftMouseButton) {
                 return;
             }
 
-            disable_drag_listeners();  // TODO: Do we need this?
+            //disable_drag_listeners();  // TODO: Do we need this?
             enable_drag_listeners();
             start = this.mouse_coordinates(evt);
         };
@@ -317,6 +289,7 @@ class Editor extends CurverBase {
          * Drag element.
          */
         const drag = evt => {
+            evt.preventDefault();
             const end = this.mouse_coordinates(evt);
             const delta = subtract_arrays(end, start);
             on_drag(delta);
@@ -330,7 +303,7 @@ class Editor extends CurverBase {
         function escape_drag(evt) {
             const escKeyCode = 27;
             if (evt.keyCode == escKeyCode) {
-                end_drag();
+                end_drag(evt);
             }
         }
 
@@ -347,7 +320,6 @@ class Editor extends CurverBase {
         }
     }
 
-
     /**
      * Load spline into spline editor.
      */
@@ -356,6 +328,16 @@ class Editor extends CurverBase {
         this.init_spline();
     }
 
+
+
+    save_spline(el) {
+        console.log("save_spline()");
+    }
+
+
+    select_motor(el) {
+        console.log("select_motor()");
+    }
 
     /**
      * Set current duration of spline editor.
