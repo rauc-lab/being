@@ -134,7 +134,7 @@ export class CurverBase extends HTMLElement {
         setTimeout(() => {
             this.resize();
             this.run();
-        },100);
+        }, 100);
     }
 
 

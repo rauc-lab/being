@@ -5,8 +5,8 @@
 import { BBox } from "/static/js/bbox.js";
 import { History, } from "/static/js/history.js";
 import {
-    array_max,
     array_min,
+    array_max,
 } from "/static/js/math.js";
 import {Deque} from "/static/js/deque.js";
 import {CurverBase} from "/static/curver/curver.js";
