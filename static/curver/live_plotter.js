@@ -8,15 +8,15 @@ import {
     array_min,
     array_max,
 } from "/static/js/math.js";
-import {Deque} from "/static/js/deque.js";
-import {CurverBase} from "/static/curver/curver.js";
+import { Deque } from "/static/js/deque.js";
+import { CurverBase } from "/static/curver/curver.js";
 
 
 /**
  * Line artist. Contains data ring buffer and knows how to draw itself.
  */
 class Line {
-    constructor(ctx, color=COLORS[0], maxlen=1000, lineWidth=2) {
+    constructor(ctx, color = COLORS[0], maxlen = 1000, lineWidth = 2) {
         this.ctx = ctx;
         this._maxlen = maxlen;
         this.data = new Deque(0, maxlen);
@@ -122,9 +122,17 @@ class Line {
 class Plotter extends CurverBase {
     constructor() {
         super();
+
+        this.isRecording = false;
+
         const rec = document.createElement("button");
         rec.classList.add("btn-black")
-        rec.innerHTML = "Rec";
+        rec.classList.add("mdc-icon-button")
+        rec.classList.add("material-icons")
+        rec.id = "btn-rec"
+        rec.innerHTML = "circle";
+        rec.title = "Record Signal"
+        rec.addEventListener("click", e => this.record_signal(rec))
         this.toolbar.appendChild(rec);
     }
 
@@ -141,6 +149,21 @@ class Plotter extends CurverBase {
         msg.values.forEach((value, nr) => {
             this.lines[nr].append_data([msg.timestamp, value]);
         });
+    }
+
+    /**
+     * Record selected signal 
+     */
+    record_signal(el) {
+        this.isRecording = !this.isRecording
+        if (this.isRecording) {
+            el.classList.add("recording")
+            // TODO: Start recorder
+        }
+        else {
+            el.classList.remove("recording")
+            //TOOD: Remove recorder
+        }
     }
 }
 

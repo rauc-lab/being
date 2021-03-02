@@ -64,10 +64,6 @@ export class CurverBase extends HTMLElement {
         link.setAttribute("rel", "stylesheet");
         link.setAttribute("href", "static/curver/curver.css");
 
-        const materialCss = document.createElement("link");
-        materialCss.setAttribute("rel", "stylesheet");
-        materialCss.setAttribute("href", "https://fonts.googleapis.com/icon?family=Material+Icons");
-
         // Toolbar
         this.toolbar = document.createElement("div");
         this.toolbar.classList.add("toolbar");
@@ -81,8 +77,13 @@ export class CurverBase extends HTMLElement {
         // SVG
         const svg = create_element("svg");
         this.svg = svg;
+ 
+        this.graphs = document.createElement("div")
+        this.graphs.classList.add("graphDiv")
+        this.graphs.appendChild(this.canvas)
+        this.graphs.appendChild(this.svg)
 
-        this.shadowRoot.append(link, materialCss, this.canvas, this.svg, this.toolbar);
+        this.shadowRoot.append(link, this.toolbar, this.graphs);
     }
 
 
@@ -125,7 +126,8 @@ export class CurverBase extends HTMLElement {
     resize() {
         //console.log("CurverBase.resize");
         this.canvas.width = this.width = this.clientWidth;
-        this.canvas.height = this.height = this.clientHeight;
+        this.canvas.height = this.height = this.clientHeight - this.toolbar.offsetHeight;
+        this.graphs.style.height = this.height + "px"
 
         // Flip y-axis
         //const mtrx = [1, 0, 0, -1, 0, this.height];

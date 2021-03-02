@@ -22,8 +22,8 @@ import {
     Degree,
     Order,
 } from "/static/js/spline.js";
-import {CurverBase} from "/static/curver/curver.js";
-import {BPoly} from "/static/js/spline.js";
+import { CurverBase } from "/static/curver/curver.js";
+import { BPoly } from "/static/js/spline.js";
 
 
 /** Main loop interval of being block network. */
@@ -62,16 +62,16 @@ class Mover {
      * @param delta - Delta 2d offset vector. Data space.
      * @param c1 - C1 continuity.
      */
-    move_knot(nr, delta, c1=true) {
-        const xmin = (nr > 0) ? this.orig.x[nr-1] + EPS : -Infinity;
-        const xmax = (nr < this.orig.n_segments) ? this.orig.x[nr+1] - EPS : Infinity;
+    move_knot(nr, delta, c1 = true) {
+        const xmin = (nr > 0) ? this.orig.x[nr - 1] + EPS : -Infinity;
+        const xmax = (nr < this.orig.n_segments) ? this.orig.x[nr + 1] - EPS : Infinity;
 
         // Move knot horizontally
         this.spline.x[nr] = clip(this.orig.x[nr] + delta[0], xmin, xmax);
         if (nr > 0) {
             // Move knot vertically on the left
             const degree = this.spline.degree;
-            this.spline.c[degree][nr-1] = this.orig.c[degree][nr-1] + delta[1];
+            this.spline.c[degree][nr - 1] = this.orig.c[degree][nr - 1] + delta[1];
         }
 
         if (nr < this.spline.n_segments) {
@@ -81,12 +81,12 @@ class Mover {
 
         // Move control points
         if (nr == this.spline.n_segments) {
-            this.move_control_point(nr-1, SECOND_CP, delta, false);
+            this.move_control_point(nr - 1, SECOND_CP, delta, false);
         } else if (c1) {
             this.move_control_point(nr, FIRST_CP, delta);
         } else {
             this.move_control_point(nr, FIRST_CP, delta, false);
-            this.move_control_point(nr-1, SECOND_CP, delta, false);
+            this.move_control_point(nr - 1, SECOND_CP, delta, false);
         }
     }
 
@@ -102,7 +102,7 @@ class Mover {
     /**
      * Move control point around by some delta.
      */
-    move_control_point(seg, nr, delta, c1=true) {
+    move_control_point(seg, nr, delta, c1 = true) {
         // Move control point vertically
         this.spline.c[nr][seg] = this.orig.c[nr][seg] + delta[1];
 
@@ -117,14 +117,14 @@ class Mover {
         if (c1 && this.spline.degree == Degree.CUBIC) {
             if (nr == FIRST_CP) {
                 const y = this.spline.c[KNOT][seg];
-                const q = this._ratio(seg-1);
+                const q = this._ratio(seg - 1);
                 const dy = this.spline.c[FIRST_CP][seg] - y;
-                this.spline.c[SECOND_CP][seg-1] = y - dy / q;
+                this.spline.c[SECOND_CP][seg - 1] = y - dy / q;
             } else if (nr == SECOND_CP) {
-                const y = this.spline.c[KNOT][seg+1];
+                const y = this.spline.c[KNOT][seg + 1];
                 const q = this._ratio(seg);
                 const dy = this.spline.c[SECOND_CP][seg] - y;
-                this.spline.c[FIRST_CP][seg+1] = y - q * dy;
+                this.spline.c[FIRST_CP][seg + 1] = y - q * dy;
             }
         }
     }
@@ -195,23 +195,24 @@ class Editor extends CurverBase {
         save.title = "Save spline"
         this.toolbar.appendChild(save);
 
-        const selMot = document.createElement("button");
-        selMot.classList.add("btn-black")
-        selMot.id = "btn-save"
-        selMot.innerHTML = "Select Motor";
-        this.toolbar.appendChild(selMot);
+        /** Play choreo on motor */
+        this.isPlaying = false;
 
-        // TODO : Toggle button start / stop
-        const play = create_material_button();
-        play.title = "Play spline on motor"
-        play.innerHTML = "play_circle"
-        this.toolbar.appendChild(play)
+        const selMotDiv = document.createElement("div")
+        selMotDiv.classList.add("btn-black")
+        this.selMot = document.createElement("select");
+        this.selMot.id = "select-motor"
+        const label = document.createElement("label")
+        label.innerHTML = "Motion Player: "
+        label.for = "select-motor"
+        selMotDiv.appendChild(label)
+        selMotDiv.appendChild(this.selMot)
+        this.toolbar.appendChild(selMotDiv);
 
-        const stop = create_material_button();
-        stop.title = "Stop playback"
-        stop.innerHTML = "stop"
-        // div_behavior.appendChild(stop)
-        this.toolbar.appendChild(stop)
+        this.play = create_material_button();
+        this.play.title = "Play spline on motor"
+        this.play.innerHTML = "play_circle"
+        this.toolbar.appendChild(this.play)
 
         const zoomIn = create_material_button();
         zoomIn.innerHTML = "zoom_in"
@@ -241,8 +242,9 @@ class Editor extends CurverBase {
             this.history.redo();
             this.init_spline_elements();
         });
+        this.selMot.addEventListener("click", e => this.select_motor(this.selMot))
+        this.play.addEventListener("click", e => this.play_motion(this.play))
         save.addEventListener("click", e => this.save_spline(save))
-        selMot.addEventListener("click", e => this.select_motor(selMot))
         this.svg.addEventListener("dblclick", evt => {
             console.log("svg.dblclick");
             this.insert_new_knot(evt);
@@ -410,7 +412,27 @@ class Editor extends CurverBase {
 
 
     select_motor(el) {
-        console.log("select_motor()");
+        console.log("select_motor() :" + el.value);
+    }
+
+    /**
+     * Play back spline on motors
+     * @param {*} el 
+     */
+    play_motion(el) {
+        this.isPlaying = !this.isPlaying
+        if (this.isPlaying) {
+            // TODO: Call API
+            el.innerHTML = "stop"
+            el.style.color = "red"
+            el.title = "Stop playback"
+
+        }
+        else {
+            el.title = "Play spline on motor"
+            el.style.color = "black"
+            el.innerHTML = "play_circle"
+        }
     }
 
     /**
@@ -428,7 +450,7 @@ class Editor extends CurverBase {
      * Initialize spline elements.
      * @param lw - Base line width.
      */
-    init_spline_elements(lw=2) {
+    init_spline_elements(lw = 2) {
         if (this.history.length === 0) {
             return;
         }
@@ -449,8 +471,8 @@ class Editor extends CurverBase {
             case Order.QUADRATIC:
                 throw "Quadratic splines are not supported!";
             case Order.LINEAR:
-                // TODO: Make me!
-                // return this.init_linear_spline(cps, lw);
+            // TODO: Make me!
+            // return this.init_linear_spline(cps, lw);
             default:
                 throw "Order " + order + " not implemented!";
         }
@@ -463,7 +485,7 @@ class Editor extends CurverBase {
      * Initialize an SVG path element and adds it to the SVG parent element.
      * data_source callback needs to deliver the 2-4 Bézier control points.
      */
-    init_path(data_source, strokeWidth=1, color="black") {
+    init_path(data_source, strokeWidth = 1, color = "black") {
         const path = create_element('path');
         setattr(path, "stroke", color);
         setattr(path, "stroke-width", strokeWidth);
@@ -481,7 +503,7 @@ class Editor extends CurverBase {
      * Initialize an SVG circle element and adds it to the SVG parent element.
      * data_source callback needs to deliver the center point of the circle.
      */
-    init_circle(data_source, radius=1, color="black") {
+    init_circle(data_source, radius = 1, color = "black") {
         const circle = create_element('circle');
         setattr(circle, "r", radius);
         setattr(circle, "fill", color);
@@ -494,14 +516,14 @@ class Editor extends CurverBase {
 
         return circle;
     }
-   
+
 
     /**
      * Initialize an SVG line element and adds it to the SVG parent element.
      * data_source callback needs to deliver the start end and point of the
      * line.
      */
-    init_line(data_source, strokeWidth=1, color="black") {
+    init_line(data_source, strokeWidth = 1, color = "black") {
         const line = create_element("line");
         setattr(line, "stroke-width", strokeWidth);
         setattr(line, "stroke", color);
@@ -525,17 +547,17 @@ class Editor extends CurverBase {
      * callbacks. We create a copy of the current spline (working copy) on
      * which the drag handlers will be placed.
      */
-    init_cubic_spline_elements(lw=2) {
+    init_cubic_spline_elements(lw = 2) {
         const currentSpline = this.history.retrieve();
         this.mover = new Mover(currentSpline);
         const spline = this.mover.spline;  // Working copy
-        for (let seg=0; seg<spline.n_segments; seg++) {
+        for (let seg = 0; seg < spline.n_segments; seg++) {
             this.init_path(() => {
                 return [
                     spline.point(seg, 0),
                     spline.point(seg, 1),
                     spline.point(seg, 2),
-                    spline.point(seg+1, 0),
+                    spline.point(seg + 1, 0),
                 ];
             }, lw);
             this.init_line(() => {
@@ -545,11 +567,11 @@ class Editor extends CurverBase {
                 return [spline.point(seg, 2), spline.point(seg + 1, 0)];
             });
 
-            for (let cpNr=1; cpNr<spline.degree; cpNr++) {
+            for (let cpNr = 1; cpNr < spline.degree; cpNr++) {
                 this.make_draggable(
                     this.init_circle(() => {
                         return spline.point(seg, cpNr);
-                    }, 3*lw, "red"),
+                    }, 3 * lw, "red"),
                     (delta) => {
                         this.mover.move_control_point(seg, cpNr, delta);
                     },
@@ -557,10 +579,10 @@ class Editor extends CurverBase {
             }
         }
 
-        for (let knotNr=0; knotNr<=spline.n_segments; knotNr++) {
+        for (let knotNr = 0; knotNr <= spline.n_segments; knotNr++) {
             const circle = this.init_circle(() => {
                 return spline.point(knotNr);
-            }, 3*lw);
+            }, 3 * lw);
             this.make_draggable(
                 circle,
                 (delta) => {
@@ -585,7 +607,7 @@ class Editor extends CurverBase {
     }
 
 
-    init_linear_spline(data, lw=2) {
+    init_linear_spline(data, lw = 2) {
         // TODO: Make me!
     }
 
