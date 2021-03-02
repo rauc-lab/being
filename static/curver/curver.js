@@ -211,13 +211,13 @@ export class CurverBase extends HTMLElement {
         ctx.textBaseline = "top";   // top, middle, bottom
         tick_space(this.bbox.ll[0], this.bbox.ur[0]).forEach(x => {
             const pt = (new DOMPoint(x, 0)).matrixTransform(this.trafo);
-            ctx.fillText(x, pt.x, origin.y + offset);
+            ctx.fillText(x.toPrecision(1), pt.x, origin.y + offset);
         });
         ctx.textAlign = "right";
         ctx.textBaseline = "middle";   // top, middle, bottom
         tick_space(this.bbox.ll[1], this.bbox.ur[1]).forEach(y => {
             const pt = (new DOMPoint(0, y)).matrixTransform(this.trafo);
-            ctx.fillText(y, origin.x - offset, pt.y);
+            ctx.fillText(y.toPrecision(1), origin.x - offset, pt.y);
         });
 
         ctx.restore();
