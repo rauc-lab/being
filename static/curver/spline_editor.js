@@ -50,29 +50,30 @@ class Mover {
         assert(spline.degree == Degree.CUBIC, "Only cubic splines supported for now!");
         this.orig = spline
         this.spline = spline.copy();
-        this.x = this.spline.x;
-        this.c = this.spline.c;
-        this.degree = this.spline.degree;
     }
 
 
     /**
      * Move knot around for some delta.
+     * @param nr - Knot number to move.
+     * @param delta - Delta 2d offset vector. Data space.
+     * @param c1 - C1 continuity.
      */
     move_knot(nr, delta, c1=true) {
         const xmin = (nr > 0) ? this.orig.x[nr-1] + EPS : -Infinity;
         const xmax = (nr < this.orig.n_segments) ? this.orig.x[nr+1] - EPS : Infinity;
 
         // Move knot horizontally
-        this.x[nr] = clip(this.orig.x[nr] + delta[0], xmin, xmax);
+        this.spline.x[nr] = clip(this.orig.x[nr] + delta[0], xmin, xmax);
         if (nr > 0) {
             // Move knot vertically on the left
-            this.c[this.degree][nr-1] = this.orig.c[this.degree][nr-1] + delta[1];
+            const degree = this.spline.degree;
+            this.spline.c[degree][nr-1] = this.orig.c[degree][nr-1] + delta[1];
         }
 
         if (nr < this.spline.n_segments) {
             // Move knot vertically on the right
-            this.c[KNOT][nr] = this.orig.c[KNOT][nr] + delta[1];
+            this.spline.c[KNOT][nr] = this.orig.c[KNOT][nr] + delta[1];
         }
 
         // Move control points
@@ -100,7 +101,7 @@ class Mover {
      */
     move_control_point(seg, nr, delta, c1=true) {
         // Move control point vertically
-        this.c[nr][seg] = this.orig.c[nr][seg] + delta[1];
+        this.spline.c[nr][seg] = this.orig.c[nr][seg] + delta[1];
 
         // TODO: This is messy. Any better way?
         const leftMost = (seg === 0) && (nr === FIRST_CP);
@@ -110,17 +111,17 @@ class Mover {
         }
 
         // Move adjacent control point vertically
-        if (c1 && this.degree == Degree.CUBIC) {
+        if (c1 && this.spline.degree == Degree.CUBIC) {
             if (nr == FIRST_CP) {
-                const y = this.c[KNOT][seg];
+                const y = this.spline.c[KNOT][seg];
                 const q = this._ratio(seg-1);
-                const dy = this.c[FIRST_CP][seg] - y;
-                this.c[SECOND_CP][seg-1] = y - dy / q;
+                const dy = this.spline.c[FIRST_CP][seg] - y;
+                this.spline.c[SECOND_CP][seg-1] = y - dy / q;
             } else if (nr == SECOND_CP) {
-                const y = this.c[KNOT][seg+1];
+                const y = this.spline.c[KNOT][seg+1];
                 const q = this._ratio(seg);
-                const dy = this.c[SECOND_CP][seg] - y;
-                this.c[FIRST_CP][seg+1] = y - q * dy;
+                const dy = this.spline.c[SECOND_CP][seg] - y;
+                this.spline.c[FIRST_CP][seg+1] = y - q * dy;
             }
         }
     }
@@ -158,19 +159,21 @@ class Editor extends CurverBase {
         this.undoBtn = create_material_button();
         this.undoBtn.innerHTML = "undo"
         this.undoBtn.title = "Undo"
+        this.undoBtn.disabled = true;
         this.toolbar.appendChild(this.undoBtn);
         this.undoBtn.addEventListener("click", evt => {
             this.history.undo();
-            this.init_spline();
+            this.init_spline_elements();
         });
 
         this.redoBtn = create_material_button();
         this.redoBtn.innerHTML = "redo"
         this.redoBtn.title = "Redo"
+        this.redoBtn.disabled = true;
         this.toolbar.appendChild(this.redoBtn);
         this.redoBtn.addEventListener("click", evt => {
             this.history.redo();
-            this.init_spline();
+            this.init_spline_elements();
         });
 
         const save = create_material_button();
@@ -319,7 +322,7 @@ class Editor extends CurverBase {
             }
 
             this.history.capture(this.mover.spline);
-            this.init_spline();
+            this.init_spline_elements();
         }
     }
 
@@ -329,7 +332,7 @@ class Editor extends CurverBase {
     load_spline(spline) {
         this.history.clear();
         this.history.capture(spline);
-        this.init_spline();
+        this.init_spline_elements();
     }
 
 
@@ -357,17 +360,19 @@ class Editor extends CurverBase {
      * Initialize spline elements.
      * @param lw - Base line width.
      */
-    init_spline(lw=2) {
+    init_spline_elements(lw=2) {
         console.log("init_spline()");
         const spline = this.history.retrieve();
         this.set_duration(spline.duration);
         this.bbox = spline.bbox();
         this.update_trafo();
         this.lines.forEach(line => line.clear());
+        this.undoBtn.disabled = !this.history.undoable;
+        this.redoBtn.disabled = !this.history.redoable;
         remove_all_children(this.svg);
         switch (spline.order) {
             case Order.CUBIC:
-                this.init_cubic_spline(lw);
+                this.init_cubic_spline_elements(lw);
                 break;
             case Order.QUADRATIC:
                 throw "Quadratic splines are not supported!";
@@ -445,12 +450,13 @@ class Editor extends CurverBase {
 
     /**
      * Initialize all SVG elements for a cubic spline. Hooks up the draggable
-     * callbacks.
+     * callbacks. We create a copy of the current spline (working copy) on
+     * which the drag handlers will be placed.
      */
-    init_cubic_spline(lw=2) {
-        const current = this.history.retrieve();
-        this.mover = new Mover(current);
-        const spline = this.mover.spline;
+    init_cubic_spline_elements(lw=2) {
+        const currentSpline = this.history.retrieve();
+        this.mover = new Mover(currentSpline);
+        const spline = this.mover.spline;  // Working copy
         for (let seg=0; seg<spline.n_segments; seg++) {
             this.init_path(() => {
                 return [
@@ -504,8 +510,6 @@ class Editor extends CurverBase {
      * the current state from the spline via the data_source callbacks.
      */
     draw_spline() {
-        this.undoBtn.disabled = !this.history.undoable;
-        this.redoBtn.disabled = !this.history.redoable;
         for (let ele of this.svg.children) {
             ele.draw();
         }
