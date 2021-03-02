@@ -244,6 +244,7 @@ class Editor extends CurverBase {
         save.addEventListener("click", e => this.save_spline(save))
         selMot.addEventListener("click", e => this.select_motor(selMot))
         this.svg.addEventListener("dblclick", evt => {
+            console.log("svg.dblclick");
             this.insert_new_knot(evt);
         });
 
@@ -557,14 +558,27 @@ class Editor extends CurverBase {
         }
 
         for (let knotNr=0; knotNr<=spline.n_segments; knotNr++) {
+            const circle = this.init_circle(() => {
+                return spline.point(knotNr);
+            }, 3*lw);
             this.make_draggable(
-                this.init_circle(() => {
-                    return spline.point(knotNr);
-                }, 3*lw),
+                circle,
                 (delta) => {
                     this.mover.move_knot(knotNr, delta);
                 },
             );
+            circle.addEventListener("dblclick", evt => {
+                evt.stopPropagation();
+                const currentSpline = this.history.retrieve();
+                const newSpline = currentSpline.copy();
+                const index = clip(knotNr, 0, currentSpline.n_segments);
+                newSpline.x.splice(index, 1);
+                newSpline.c.forEach(row => {
+                    row.splice(index, 1);
+                })
+                this.history.capture(newSpline);
+                this.init_spline_elements();
+            });
         }
 
         this.draw_spline()
