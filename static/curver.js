@@ -191,8 +191,8 @@ class CurverBase extends HTMLElement {
         this.toolbar = document.createElement("div");
         this.toolbar.classList.add("toolbar");
 
-        
-        
+
+
         // Canvas
         this.canvas = document.createElement("canvas");
         this.ctx = this.canvas.getContext("2d");
@@ -208,7 +208,7 @@ class CurverBase extends HTMLElement {
         this.graphs.appendChild(this.canvas)
         this.graphs.appendChild(this.svg)
 
-        this.shadowRoot.append(link, materialCss,this.toolbar, this.graphs );
+        this.shadowRoot.append(link, materialCss, this.toolbar, this.graphs);
     }
 
     update_bbox() {
@@ -242,7 +242,7 @@ class CurverBase extends HTMLElement {
     resize() {
         //console.log("CurverBase.resize");
         this.canvas.width = this.width = this.clientWidth;
-        this.canvas.height = this.height = this.clientHeight -this.toolbar.offsetHeight;
+        this.canvas.height = this.height = this.clientHeight - this.toolbar.offsetHeight;
         this.graphs.style.height = this.height + "px"
 
         // Flip y-axis
@@ -415,6 +415,7 @@ class Editor extends CurverBase {
         console.log("BeingCurver.constructor");
         const auto = false;
         super(auto);
+        this.isPlaying = false;
         var self = this;
         //this.history = new History();
         const save = document.createElement("button");
@@ -427,12 +428,17 @@ class Editor extends CurverBase {
         save.addEventListener("click", e => self.save_spline(save))
         this.toolbar.appendChild(save);
 
-        const selMot = document.createElement("button");
-        selMot.classList.add("btn-black")
-        selMot.id = "btn-save"
-        selMot.innerHTML = "Select Motor";
+        const selMotDiv = document.createElement("div")
+        selMotDiv.classList.add("btn-black")
+        const selMot = document.createElement("select");
+        selMot.id = "select-motor"
+        const label = document.createElement("label")
+        label.innerHTML = "Motion Player: "
+        label.for = "select-motor"
         selMot.addEventListener("click", e => self.select_motor(selMot))
-        this.toolbar.appendChild(selMot);
+        selMotDiv.appendChild(label)
+        selMotDiv.appendChild(selMot)
+        this.toolbar.appendChild(selMotDiv);
 
         // TODO : Toggle button start / stop
         const play = document.createElement("button")
@@ -441,16 +447,8 @@ class Editor extends CurverBase {
         play.classList.add("material-icons")
         play.title = "Play spline on motor"
         play.innerHTML = "play_circle"
+        play.addEventListener("click", e => self.play_motion(play))
         this.toolbar.appendChild(play)
-
-        const stop = document.createElement("button")
-        stop.classList.add("btn-black")
-        stop.classList.add("mdc-icon-button")
-        stop.classList.add("material-icons")
-        stop.title = "Stop playback"
-        stop.innerHTML = "stop"
-        // div_behavior.appendChild(stop)
-        this.toolbar.appendChild(stop)
 
         const zoomIn = document.createElement("button")
         zoomIn.classList.add("btn-black")
@@ -502,6 +500,22 @@ class Editor extends CurverBase {
     select_motor(el) {
         // TODO: 
 
+    }
+
+    play_motion(el) {
+        this.isPlaying = !this.isPlaying
+        if (this.isPlaying) {
+            // TODO: Call API
+            el.innerHTML = "stop"
+            el.style.color = "red"
+            el.title = "Stop playback"
+
+        }
+        else {
+            el.title = "Play spline on motor"
+            el.style.color = "black"
+            el.innerHTML = "play_circle"
+        }
     }
 
     resize() {

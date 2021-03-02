@@ -48,19 +48,26 @@ div.toolbar button:only-of-type {
   border-width: 1px;
   border-color: black;
   color: black;
-    /* margin: 0 0.5rem 0 0.5rem; */
+  /* margin: 0 0.5rem 0 0.5rem; */
   background-color: transparent;
   border-top: 0;
   border-bottom: 0;
   flex: content;
 }
 
-.btn-black:hover  {
+button.btn-black:hover {
   /* font-weight: bold; */
+  cursor: pointer;
   background-color: whitesmoke;
 }
 
 .graphDiv {
   position: relative;
   width: inherit;
+}
+
+div.btn-black {
+  justify-content: center;
+  display: flex;
+  align-items: baseline;
 }

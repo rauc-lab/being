@@ -10,7 +10,7 @@ nav a:hover {
   background-color: whitesmoke;
 }
 
-nav a:where {
+nav a:active {
   font-weight: bold;
 }
 
