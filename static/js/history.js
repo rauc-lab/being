@@ -9,8 +9,8 @@ import {last_element} from "/static/js/utils.js";
  */
 export class History {
     constructor(maxlen=20) {
-        this.past = new Deque([], maxlen);
-        this.future = new Deque([], maxlen);
+        this.past = new Deque(0, maxlen);
+        this.future = new Deque(0, maxlen);
     }
 
 

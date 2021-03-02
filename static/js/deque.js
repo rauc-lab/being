@@ -6,15 +6,7 @@
  * TODO: Better constructor signature? Empty length vs. iterable vs. single item?
  */
 export class Deque extends Array {
-    constructor(iterable=null, maxlen=Infinity) {
-        if (iterable === null) {
-            if (maxlen === Infinity) {
-                iterable = 0;
-            } else {
-                iterable = maxlen;
-            }
-        }
-
+    constructor(iterable=0, maxlen=Infinity) {
         super(iterable);
         this._maxlen = maxlen;
         this._purge_left();

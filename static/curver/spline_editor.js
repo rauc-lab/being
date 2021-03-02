@@ -23,6 +23,7 @@ import {
     Order,
 } from "/static/js/spline.js";
 import {CurverBase} from "/static/curver/curver.js";
+import {BPoly} from "/static/js/spline.js";
 
 
 /** Main loop interval of being block network. */
@@ -38,6 +39,7 @@ const EPS = .1;
 const KNOT = 0;
 const FIRST_CP = 1;
 const SECOND_CP = 2;
+const ZERO_SPLINE = new BPoly([[0.], [0.], [0.], [0.]], [0., 1.]);
 
 
 /**
@@ -141,12 +143,11 @@ function searchsorted(arr, val) {
         if (arr[mid] < val)
             lower = mid + 1;
         else
-            upper = mid
+            upper = mid;
     }
 
     return lower;
 }
-
 
 
 function create_material_button() {
@@ -171,6 +172,7 @@ class Editor extends CurverBase {
 
         /** Editing history of splines. */
         this.history = new History();
+        this.history.capture(ZERO_SPLINE);
         this.mover = null;
 
         /** Current working copy */
@@ -180,13 +182,11 @@ class Editor extends CurverBase {
         this.undoBtn = create_material_button();
         this.undoBtn.innerHTML = "undo"
         this.undoBtn.title = "Undo"
-        this.undoBtn.disabled = true;
         this.toolbar.appendChild(this.undoBtn);
 
         this.redoBtn = create_material_button();
         this.redoBtn.innerHTML = "redo"
         this.redoBtn.title = "Redo"
-        this.redoBtn.disabled = true;
         this.toolbar.appendChild(this.redoBtn);
 
         const save = create_material_button();
@@ -229,6 +229,9 @@ class Editor extends CurverBase {
         this.toolbar.appendChild(zoomReset);
 
 
+        this.update_history_buttons()
+
+
         // Event handlers
         this.undoBtn.addEventListener("click", evt => {
             this.history.undo();
@@ -243,6 +246,18 @@ class Editor extends CurverBase {
         this.svg.addEventListener("dblclick", evt => {
             this.insert_new_knot(evt);
         });
+
+        this.init_spline_elements();
+    }
+
+
+
+    /**
+     * Update disabled state of undo / redo buttons according to history.
+     */
+    update_history_buttons() {
+        this.undoBtn.disabled = !this.history.undoable;
+        this.redoBtn.disabled = !this.history.redoable;
     }
 
 
@@ -284,6 +299,7 @@ class Editor extends CurverBase {
         newSpline.c.forEach(row => {
             row.splice(index, 0, pos[1]);
         });
+
         // TODO: Do some coefficients cleanup. Wrap around and maybe take the
         // direction of the previous knots as the new default coefficients...
         this.history.capture(newSpline);
@@ -412,16 +428,20 @@ class Editor extends CurverBase {
      * @param lw - Base line width.
      */
     init_spline_elements(lw=2) {
-        console.log("init_spline()");
-        const spline = this.history.retrieve();
-        this.set_duration(spline.duration);
-        this.bbox = spline.bbox();
+        if (this.history.length === 0) {
+            return;
+        }
+
+        const currentSpline = this.history.retrieve();
+        this.set_duration(currentSpline.duration);
+        this.bbox = currentSpline.bbox();
+        this.bbox.expand_by_point([0, -EPS]);
+        this.bbox.expand_by_point([1, EPS]);
         this.update_trafo();
         this.lines.forEach(line => line.clear());
-        this.undoBtn.disabled = !this.history.undoable;
-        this.redoBtn.disabled = !this.history.redoable;
+        this.update_history_buttons();
         remove_all_children(this.svg);
-        switch (spline.order) {
+        switch (currentSpline.order) {
             case Order.CUBIC:
                 this.init_cubic_spline_elements(lw);
                 break;

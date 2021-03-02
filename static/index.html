@@ -32,6 +32,7 @@
         import {receive_from_websocket} from "/static/js/web-socket.js";
         import {BPoly} from "/static/js/spline.js";
 
+
         const data = {
             "type": "BPoly",
             "extrapolate": true,
@@ -66,7 +67,7 @@
                     msg => editor.new_data(msg),
                 ],
             });
-            editor.load_spline(spline);
+            //editor.load_spline(spline);
         });
     </script>
 </html>
