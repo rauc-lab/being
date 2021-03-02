@@ -183,9 +183,10 @@ class CurverBase extends HTMLElement {
         link.setAttribute("rel", "stylesheet");
         link.setAttribute("href", "static/curver.css");
 
-        const materialCss = document.createElement("link");
-        materialCss.setAttribute("rel", "stylesheet");
-        materialCss.setAttribute("href", "https://fonts.googleapis.com/icon?family=Material+Icons");
+        // const materialCss = document.createElement("link");
+        // materialCss.setAttribute("type", "font/ttf");
+        // // materialCss.setAttribute("href", "https://fonts.googleapis.com/icon?family=Material+Icons");
+        // materialCss.setAttribute("href", "static/font/MaterialIcons-Regular.ttf");
 
         // Toolbar
         this.toolbar = document.createElement("div");
@@ -208,7 +209,7 @@ class CurverBase extends HTMLElement {
         this.graphs.appendChild(this.canvas)
         this.graphs.appendChild(this.svg)
 
-        this.shadowRoot.append(link, materialCss, this.toolbar, this.graphs);
+        this.shadowRoot.append(link, this.toolbar, this.graphs);
     }
 
     update_bbox() {
