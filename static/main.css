@@ -1,0 +1,70 @@
+nav {
+  border-bottom: 2px solid black;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  float: right;
+  width: 100%;
+}
+
+nav a:hover {
+  background-color: whitesmoke;
+}
+
+nav a:active {
+  font-weight: bold;
+}
+
+nav a {
+  color: black;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+nav ul{
+    float: right;
+}
+
+
+nav li {
+  display: inline;
+  padding: 0 20px 0 20px;
+}
+
+section {
+    margin: 25px;
+    display: inline;
+}
+
+@font-face {
+  font-family: "Material Icons";
+  font-style: normal;
+  font-weight: 400;
+  src: local("Material Icons"), local("MaterialIcons-Regular"),
+    url(font/material-icons.woff2) format("woff2");
+}
+
+.material-icons {
+  font-family: "Material Icons";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px; /* Preferred icon size */
+  display: inline-block;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+
+  /* Support for all WebKit browsers. */
+  -webkit-font-smoothing: antialiased;
+  /* Support for Safari and Chrome. */
+  text-rendering: optimizeLegibility;
+
+  /* Support for Firefox. */
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Support for IE. */
+  font-feature-settings: "liga";
+}
+

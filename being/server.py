@@ -124,6 +124,7 @@ def init_web_server(being=None, content=None) -> web.Application:
 
     # Pages
     app.router.add_get('/', file_response_handler('static/index.html'))
+    app.router.add_get('/favicon.ico', file_response_handler('static/favicon.ico'))
 
     # Rest API
     api = web.Application()
