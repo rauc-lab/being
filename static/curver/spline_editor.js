@@ -16,6 +16,7 @@ import {
     arrays_equal,
     remove_all_children,
     assert,
+    deep_copy,
 } from "/static/js/utils.js";
 import {
     Degree,
@@ -128,6 +129,26 @@ class Mover {
 }
 
 
+
+/**
+ * Find index to insert item into sorted array so that it stays sorted.
+ */
+function searchsorted(arr, val) {
+    let lower = 0;
+    let upper = arr.length;
+    while (lower < upper) {
+        let mid = parseInt((lower + upper) / 2);
+        if (arr[mid] < val)
+            lower = mid + 1;
+        else
+            upper = mid
+    }
+
+    return lower;
+}
+
+
+
 function create_material_button() {
     const btn = document.createElement("button");
     btn.classList.add("mdc-icon-button")
@@ -161,33 +182,23 @@ class Editor extends CurverBase {
         this.undoBtn.title = "Undo"
         this.undoBtn.disabled = true;
         this.toolbar.appendChild(this.undoBtn);
-        this.undoBtn.addEventListener("click", evt => {
-            this.history.undo();
-            this.init_spline_elements();
-        });
 
         this.redoBtn = create_material_button();
         this.redoBtn.innerHTML = "redo"
         this.redoBtn.title = "Redo"
         this.redoBtn.disabled = true;
         this.toolbar.appendChild(this.redoBtn);
-        this.redoBtn.addEventListener("click", evt => {
-            this.history.redo();
-            this.init_spline_elements();
-        });
 
         const save = create_material_button();
         save.id = "btn-save"
         save.innerHTML = "save";
         save.title = "Save spline"
-        save.addEventListener("click", e => this.save_spline(save))
         this.toolbar.appendChild(save);
 
         const selMot = document.createElement("button");
         selMot.classList.add("btn-black")
         selMot.id = "btn-save"
         selMot.innerHTML = "Select Motor";
-        selMot.addEventListener("click", e => this.select_motor(selMot))
         this.toolbar.appendChild(selMot);
 
         // TODO : Toggle button start / stop
@@ -216,6 +227,22 @@ class Editor extends CurverBase {
         zoomReset.innerHTML = "zoom_out_map"
         zoomReset.title = "Reset zoom"
         this.toolbar.appendChild(zoomReset);
+
+
+        // Event handlers
+        this.undoBtn.addEventListener("click", evt => {
+            this.history.undo();
+            this.init_spline_elements();
+        });
+        this.redoBtn.addEventListener("click", evt => {
+            this.history.redo();
+            this.init_spline_elements();
+        });
+        save.addEventListener("click", e => this.save_spline(save))
+        selMot.addEventListener("click", e => this.select_motor(selMot))
+        this.svg.addEventListener("dblclick", evt => {
+            this.insert_new_knot(evt);
+        });
     }
 
 
@@ -237,6 +264,30 @@ class Editor extends CurverBase {
         let a = PT.matrixTransform(this.ctmInv);
         let b = (new DOMPoint(a.x, a.y)).matrixTransform(this.trafoInv);
         return [b.x, b.y];
+    }
+
+
+    /**
+     * Insert new knot into current spline.
+     */
+    insert_new_knot(evt) {
+        evt.preventDefault();
+        if (this.history.length === 0) {
+            return;
+        }
+
+        const pos = this.mouse_coordinates(evt);
+        const currentSpline = this.history.retrieve();
+        const newSpline = currentSpline.copy();
+        const index = searchsorted(newSpline.x, pos[0]);
+        newSpline.x.splice(index, 0, pos[0]);
+        newSpline.c.forEach(row => {
+            row.splice(index, 0, pos[1]);
+        });
+        // TODO: Do some coefficients cleanup. Wrap around and maybe take the
+        // direction of the previous knots as the new default coefficients...
+        this.history.capture(newSpline);
+        this.init_spline_elements();
     }
 
 
