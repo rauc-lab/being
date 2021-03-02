@@ -68,3 +68,12 @@ section {
   font-feature-settings: "liga";
 }
 
+@font-face {
+  font-family: open-sans;
+  src:url(font/OpenSans-Regular.ttf)  format("truetype")
+}
+
+body {
+  font-family: open-sans, Verdana, Helvetica, Sans-Serif;
+}
+
