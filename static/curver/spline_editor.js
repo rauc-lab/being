@@ -2,28 +2,13 @@
 /**
  * Spline editor custom HTML element.
  */
-import { History, } from "/static/js/history.js";
-import {
-    subtract_arrays,
-    clip,
-} from "/static/js/math.js";
-import {
-    create_element,
-    path_d,
-    setattr,
-} from "/static/js/svg.js";
-import {
-    arrays_equal,
-    remove_all_children,
-    assert,
-    deep_copy,
-} from "/static/js/utils.js";
-import {
-    Degree,
-    Order,
-} from "/static/js/spline.js";
 import { CurverBase } from "/static/curver/curver.js";
-import { BPoly } from "/static/js/spline.js";
+import { make_draggable } from "/static/js/draggable.js";
+import { History } from "/static/js/history.js";
+import { subtract_arrays, clip } from "/static/js/math.js";
+import { Degree, Order, BPoly } from "/static/js/spline.js";
+import { create_element, path_d, setattr } from "/static/js/svg.js";
+import { arrays_equal, remove_all_children, assert, deep_copy } from "/static/js/utils.js";
 
 
 /** Main loop interval of being block network. */
@@ -39,6 +24,8 @@ const EPS = 0;
 const KNOT = 0;
 const FIRST_CP = 1;
 const SECOND_CP = 2;
+
+/** Zero spline with duration 1.0 */
 const ZERO_SPLINE = new BPoly([[0.], [0.], [0.], [0.]], [0., 1.]);
 
 
@@ -58,6 +45,7 @@ class Mover {
 
     /**
      * Move knot around for some delta.
+     *
      * @param nr - Knot number to move.
      * @param delta - Delta 2d offset vector. Data space.
      * @param c1 - C1 continuity.
@@ -227,7 +215,9 @@ class Editor extends CurverBase {
         this.play.addEventListener("click", evt => this.play_motion(this.play))
         save.addEventListener("click", evt => this.save_spline(save))
         this.svg.addEventListener("dblclick", evt => {
-            evt.preventDefault();
+            // TODO: How to prevent accidental text selection?
+            //evt.stopPropagation()
+            //evt.preventDefault();
             this.insert_new_knot(evt);
         });
 
@@ -274,6 +264,44 @@ class Editor extends CurverBase {
 
 
     /**
+     * Make something draggable inside data space. Wraps default
+     * make_draggable. Handles mouse -> image space -> data space
+     * transformation, calculates delta offset, triggers redraws. Mostly used
+     * to drag SVG elements around.
+     *
+     * @param ele - Element to make draggable.
+     * @param on_drag - On drag motion callback. Will be called with a relative
+     * delta array.
+     */
+    make_draggable(ele, on_drag) {
+        /** Start position of drag motion. */
+        let start = null;
+
+        make_draggable(
+            ele,
+            evt => {
+                start = this.mouse_coordinates(evt);
+            },
+            evt => {
+                const end = this.mouse_coordinates(evt);
+                const delta = subtract_arrays(end, start);
+                on_drag(delta);
+                this.draw_spline();
+            },
+            evt => {
+                const end = this.mouse_coordinates(evt);
+                if (arrays_equal(start, end)) {
+                    return;
+                }
+
+                this.history.capture(this.mover.spline);
+                this.init_spline_elements();
+            },
+        )
+    }
+
+
+    /**
      * Insert new knot into current spline.
      */
     insert_new_knot(evt) {
@@ -297,91 +325,6 @@ class Editor extends CurverBase {
     }
 
 
-    /**
-     * Make element draggable. Handles mouse -> image space -> data space
-     * transformation, calculates delta offset, triggers redraws.
-     */
-    make_draggable(ele, on_drag) {
-        /** Start position of drag motion. */
-        let start = null;
-
-
-        /**
-         * Enable all event listeners for drag action. 
-         */
-        function enable_drag_listeners() {
-            addEventListener("mousemove", drag);
-            addEventListener("mouseup", end_drag);
-            addEventListener("mouseleave", end_drag);
-            addEventListener("keyup", escape_drag);
-        }
-
-
-        /**
-         * Disable all event listerns of drag action.
-         */
-        function disable_drag_listeners() {
-            removeEventListener("mousemove", drag);
-            removeEventListener("mouseup", end_drag);
-            removeEventListener("mouseleave", end_drag);
-            removeEventListener("keyup", escape_drag);
-        }
-
-
-        /**
-         * Start drag movement.
-         */
-        const start_drag = evt => {
-            const leftMouseButton = 1;
-            if (evt.which !== leftMouseButton) {
-                return;
-            }
-
-            //disable_drag_listeners();  // TODO: Do we need this?
-            enable_drag_listeners();
-            start = this.mouse_coordinates(evt);
-        };
-
-        ele.addEventListener("mousedown", start_drag);
-
-
-        /**
-         * Drag element.
-         */
-        const drag = evt => {
-            evt.preventDefault();
-            const end = this.mouse_coordinates(evt);
-            const delta = subtract_arrays(end, start);
-            on_drag(delta);
-            this.draw_spline();
-        }
-
-
-        /**
-         * Escape drag by hitting escape key.
-         */
-        function escape_drag(evt) {
-            const escKeyCode = 27;
-            if (evt.keyCode == escKeyCode) {
-                end_drag(evt);
-            }
-        }
-
-
-        /**
-         * End dragging of element.
-         */
-        const end_drag = evt => {
-            disable_drag_listeners();
-            const end = this.mouse_coordinates(evt);
-            if (arrays_equal(start, end)) {
-                return;
-            }
-
-            this.history.capture(this.mover.spline);
-            this.init_spline_elements();
-        }
-    }
 
     /**
      * Load spline into spline editor.
@@ -404,6 +347,7 @@ class Editor extends CurverBase {
 
     /**
      * Play back spline on motors
+     *
      * @param {*} el 
      */
     play_motion(el) {
@@ -435,6 +379,7 @@ class Editor extends CurverBase {
 
     /**
      * Initialize spline elements.
+     *
      * @param lw - Base line width.
      */
     init_spline_elements(lw = 2) {
