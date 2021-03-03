@@ -150,6 +150,25 @@ function searchsorted(arr, val) {
 }
 
 
+const CHECKED = "checked"
+
+
+function toggle_button(btn) {
+    btn.toggleAttribute(CHECKED);
+}
+
+
+function switch_button_off(btn) {
+    btn.removeAttribute(CHECKED);
+}
+
+
+function switch_button_on(btn) {
+    if (!btn.hasAttribute(CHECKED))
+        btn.toggleAttribute(CHECKED)
+}
+
+
 /**
  * Spline editor.
  *
@@ -169,6 +188,9 @@ class Editor extends CurverBase {
         // Buttons and UI elements
         this.undoBtn = this.add_button("undo", "Undo last action");
         this.redoBtn = this.add_button("redo", "Redo last action")
+        this.c1Btn = this.add_button("timeline", "Toggle smooth knot transitions");
+        switch_button_on(this.c1Btn);
+
         const save = this.add_button("save", "Save motion", "save");
         this.isPlaying = false;
         const selMotDiv = document.createElement("div")
@@ -186,7 +208,7 @@ class Editor extends CurverBase {
         const zoomOut = this.add_button("zoom_out", "Zoom Out");
         const zoomReset = this.add_button("zoom_out_map", "Reset Zoom");
 
-        this.update_history_buttons()
+        this.update_buttons()
 
         // Event handlers
         this.undoBtn.addEventListener("click", evt => {
@@ -197,6 +219,10 @@ class Editor extends CurverBase {
             this.history.redo();
             this.init_spline_elements();
         });
+        this.c1Btn.addEventListener("click", evt => {
+            toggle_button(this.c1Btn);
+        });
+
         this.selMot.addEventListener("click", evt => this.select_motor())
         this.play.addEventListener("click", evt => this.play_motion(this.play))
         save.addEventListener("click", evt => this.save_spline(save))
@@ -209,11 +235,18 @@ class Editor extends CurverBase {
     }
 
 
+    /**
+     * C1 continuity activated?
+     */
+    get c1() {
+        return this.c1Btn.hasAttribute(CHECKED);
+    }
+
 
     /**
      * Update disabled state of undo / redo buttons according to history.
      */
-    update_history_buttons() {
+    update_buttons() {
         this.undoBtn.disabled = !this.history.undoable;
         this.redoBtn.disabled = !this.history.redoable;
     }
@@ -416,7 +449,7 @@ class Editor extends CurverBase {
         this.bbox.expand_by_point([1, .1]);
         this.update_trafo();
         this.lines.forEach(line => line.clear());
-        this.update_history_buttons();
+        this.update_buttons();
         remove_all_children(this.svg);
         switch (currentSpline.order) {
             case Order.CUBIC:
@@ -527,7 +560,7 @@ class Editor extends CurverBase {
                         return spline.point(seg, cpNr);
                     }, 3 * lw, "red"),
                     (delta) => {
-                        this.mover.move_control_point(seg, cpNr, delta);
+                        this.mover.move_control_point(seg, cpNr, delta, this.c1);
                     },
                 );
             }
@@ -540,7 +573,7 @@ class Editor extends CurverBase {
             this.make_draggable(
                 circle,
                 (delta) => {
-                    this.mover.move_knot(knotNr, delta);
+                    this.mover.move_knot(knotNr, delta, this.c1);
                 },
             );
             circle.addEventListener("dblclick", evt => {
