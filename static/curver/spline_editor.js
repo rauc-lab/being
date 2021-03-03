@@ -33,7 +33,7 @@ const INTERVAL = 0.010 * 1.2;  // TODO: Why do we have line overlays with the co
 const PT = create_element("svg").createSVGPoint();
 
 /** Minimum knot distance episolon */
-const EPS = .1;
+const EPS = 0;
 
 /** Named indices for BPoly coefficents matrix */
 const KNOT = 0;
@@ -150,15 +150,6 @@ function searchsorted(arr, val) {
 }
 
 
-function create_material_button() {
-    const btn = document.createElement("button");
-    btn.classList.add("mdc-icon-button")
-    btn.classList.add("material-icons")
-    btn.classList.add("btn-black")
-    return btn;
-}
-
-
 /**
  * Spline editor.
  *
@@ -169,35 +160,17 @@ class Editor extends CurverBase {
         console.log("BeingCurver.constructor");
         const auto = false;
         super(auto);
-
-        /** Editing history of splines. */
+        this.duration = 1;
+        this.maxlen = 1;
         this.history = new History();
         this.history.capture(ZERO_SPLINE);
         this.mover = null;
 
-        /** Current working copy */
-        this.duration = 1;
-        this.maxlen = 1;
-
-        this.undoBtn = create_material_button();
-        this.undoBtn.innerHTML = "undo"
-        this.undoBtn.title = "Undo"
-        this.toolbar.appendChild(this.undoBtn);
-
-        this.redoBtn = create_material_button();
-        this.redoBtn.innerHTML = "redo"
-        this.redoBtn.title = "Redo"
-        this.toolbar.appendChild(this.redoBtn);
-
-        const save = create_material_button();
-        save.id = "btn-save"
-        save.innerHTML = "save";
-        save.title = "Save spline"
-        this.toolbar.appendChild(save);
-
-        /** Play choreo on motor */
+        // Buttons and UI elements
+        this.undoBtn = this.add_button("undo", "Undo last action");
+        this.redoBtn = this.add_button("redo", "Redo last action")
+        const save = this.add_button("save", "Save motion", "save");
         this.isPlaying = false;
-
         const selMotDiv = document.createElement("div")
         selMotDiv.classList.add("btn-black")
         this.selMot = document.createElement("select");
@@ -208,30 +181,12 @@ class Editor extends CurverBase {
         selMotDiv.appendChild(label)
         selMotDiv.appendChild(this.selMot)
         this.toolbar.appendChild(selMotDiv);
-
-        this.play = create_material_button();
-        this.play.title = "Play spline on motor"
-        this.play.innerHTML = "play_circle"
-        this.toolbar.appendChild(this.play)
-
-        const zoomIn = create_material_button();
-        zoomIn.innerHTML = "zoom_in"
-        zoomIn.title = "Zoom in "
-        this.toolbar.appendChild(zoomIn);
-
-        const zoomOut = create_material_button();
-        zoomOut.innerHTML = "zoom_out"
-        zoomOut.title = "Zoom out"
-        this.toolbar.appendChild(zoomOut);
-
-        const zoomReset = create_material_button();
-        zoomReset.innerHTML = "zoom_out_map"
-        zoomReset.title = "Reset zoom"
-        this.toolbar.appendChild(zoomReset);
-
+        this.play = this.add_button("play_arrow", "Play spline on motor");
+        const zoomIn = this.add_button("zoom_in", "Zoom In");
+        const zoomOut = this.add_button("zoom_out", "Zoom Out");
+        const zoomReset = this.add_button("zoom_out_map", "Reset Zoom");
 
         this.update_history_buttons()
-
 
         // Event handlers
         this.undoBtn.addEventListener("click", evt => {
@@ -242,11 +197,11 @@ class Editor extends CurverBase {
             this.history.redo();
             this.init_spline_elements();
         });
-        this.selMot.addEventListener("click", e => this.select_motor(this.selMot))
-        this.play.addEventListener("click", e => this.play_motion(this.play))
-        save.addEventListener("click", e => this.save_spline(save))
+        this.selMot.addEventListener("click", evt => this.select_motor())
+        this.play.addEventListener("click", evt => this.play_motion(this.play))
+        save.addEventListener("click", evt => this.save_spline(save))
         this.svg.addEventListener("dblclick", evt => {
-            console.log("svg.dblclick");
+            evt.preventDefault();
             this.insert_new_knot(evt);
         });
 
@@ -289,7 +244,6 @@ class Editor extends CurverBase {
      * Insert new knot into current spline.
      */
     insert_new_knot(evt) {
-        evt.preventDefault();
         if (this.history.length === 0) {
             return;
         }
@@ -406,13 +360,13 @@ class Editor extends CurverBase {
     }
 
 
-    save_spline(el) {
+    save_spline() {
         console.log("save_spline()");
     }
 
 
-    select_motor(el) {
-        console.log("select_motor() :" + el.value);
+    select_motor() {
+        console.log("select_motor() :" + this.selMot.value);
     }
 
     /**
@@ -458,8 +412,8 @@ class Editor extends CurverBase {
         const currentSpline = this.history.retrieve();
         this.set_duration(currentSpline.duration);
         this.bbox = currentSpline.bbox();
-        this.bbox.expand_by_point([0, -EPS]);
-        this.bbox.expand_by_point([1, EPS]);
+        this.bbox.expand_by_point([0, -.1]);
+        this.bbox.expand_by_point([1, .1]);
         this.update_trafo();
         this.lines.forEach(line => line.clear());
         this.update_history_buttons();

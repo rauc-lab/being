@@ -48,8 +48,11 @@ div.toolbar button:only-of-type {
   flex: initial;
 }
 
-.material-icons.recording {
-  color: red;
+.material-icons[checked] {
+  background: red;
+}
+.material-icons:hover[checked] {
+  background: red;
 }
 
 .btn-black {

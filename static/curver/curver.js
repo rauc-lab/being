@@ -53,6 +53,23 @@ export class CurverBase extends HTMLElement {
     }
 
 
+    add_button(innerHTML, title = "", id = "", toggle = false, parent_ = null) {
+        if (parent_ === null) {
+            parent_ = this.toolbar;
+        }
+
+        const btn = document.createElement("button");
+        btn.classList.add("mdc-icon-button")
+        btn.classList.add("material-icons")
+        btn.classList.add("btn-black")
+        btn.innerHTML = innerHTML;
+        btn.title = title;
+        btn.id = id;
+        parent_.appendChild(btn);
+        return btn;
+    }
+
+
     /**
      * Initialize DOM elements with shadow root.
      */

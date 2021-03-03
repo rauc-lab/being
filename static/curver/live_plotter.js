@@ -122,20 +122,17 @@ class Line {
 class Plotter extends CurverBase {
     constructor() {
         super();
-
-        this.isRecording = false;
-
-        const rec = document.createElement("button");
-        rec.classList.add("btn-black")
-        rec.classList.add("mdc-icon-button")
-        rec.classList.add("material-icons")
-        rec.id = "btn-rec"
-        rec.innerHTML = "circle";
-        rec.title = "Record Signal"
-        rec.addEventListener("click", e => this.record_signal(rec))
-        this.toolbar.appendChild(rec);
+        this.recBtn = this.add_button("fiber_manual_record", "Record Motor", "btn-rec");
+        this.recBtn.addEventListener("click", evt => this.record_signal(evt));
     }
 
+    /**
+     * Is currently recording property.
+     */
+    get recording() {
+        // TODO: Good idea to store recording state in buttons checked attribute?
+        return this.recBtn.hasAttribute("checked");
+    }
 
     /**
      * Process new data message from backend.
@@ -155,15 +152,7 @@ class Plotter extends CurverBase {
      * Record selected signal 
      */
     record_signal(el) {
-        this.isRecording = !this.isRecording
-        if (this.isRecording) {
-            el.classList.add("recording")
-            // TODO: Start recorder
-        }
-        else {
-            el.classList.remove("recording")
-            //TOOD: Remove recorder
-        }
+        this.recBtn.toggleAttribute("checked");
     }
 }
 
