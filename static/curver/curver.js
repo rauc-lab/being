@@ -44,7 +44,7 @@ export class CurverBase extends HTMLElement {
         this.auto = auto;
         this.width = 1;
         this.height = 1;
-        this.bbox = new BBox([0, 0], [1, 1]);
+        this.viewport = new BBox([0, 0], [1, 1]);
         this.trafo = new DOMMatrix();
         this.trafoInv = new DOMMatrix();
         this.lines = [];
@@ -53,7 +53,16 @@ export class CurverBase extends HTMLElement {
     }
 
 
-    add_button(innerHTML, title = "", id = "", toggle = false, parent_ = null) {
+    /**
+     * Add a new material icon button to toolbar (or any other parent_
+     * element).
+     *
+     * @param innerHTML - Inner HTML text
+     * @param title - Tooltip
+     * @param id - Button ID.
+     * @param parent_ - Parent HTML element to append the new button to.
+     */
+    add_button(innerHTML, title = "", id = "", parent_ = null) {
         if (parent_ === null) {
             parent_ = this.toolbar;
         }
@@ -92,8 +101,7 @@ export class CurverBase extends HTMLElement {
         this.ctx.lineJoin = "round";  //"bevel" || "round" || "miter";
 
         // SVG
-        const svg = create_element("svg");
-        this.svg = svg;
+        this.svg = create_element("svg");
  
         this.graphs = document.createElement("div")
         this.graphs.classList.add("graphDiv")
@@ -108,9 +116,9 @@ export class CurverBase extends HTMLElement {
      * Update viewport bounding box.
      */
     update_bbox() {
-        this.bbox.reset();
+        this.viewport.reset();
         this.lines.forEach(line => {
-            this.bbox.expand_by_bbox(line.calc_bbox());
+            this.viewport.expand_by_bbox(line.calc_bbox());
         });
     }
 
@@ -119,15 +127,15 @@ export class CurverBase extends HTMLElement {
      * Update viewport transformation.
      */
     update_trafo() {
-        const [sx, sy] = divide_arrays([this.width - 2 * MARGIN, this.height - 2 * MARGIN], this.bbox.size);
+        const [sx, sy] = divide_arrays([this.width - 2 * MARGIN, this.height - 2 * MARGIN], this.viewport.size);
         if (!isFinite(sx) || !isFinite(sy) || sx === 0 || sy === 0)
             return
 
         this.trafo = DOMMatrix.fromMatrix({
             a: sx,
             d: -sy,
-            e: -sx * this.bbox.ll[0] + MARGIN,
-            f: sy * (this.bbox.ll[1] + this.bbox.height) + MARGIN,
+            e: -sx * this.viewport.ll[0] + MARGIN,
+            f: sy * (this.viewport.ll[1] + this.viewport.height) + MARGIN,
         });
         this.trafoInv = this.trafo.inverse();
         this.ctx.setTransform(this.trafo);
@@ -228,13 +236,13 @@ export class CurverBase extends HTMLElement {
         ctx.font = ".8em Helvetica";
         ctx.textAlign = "center";
         ctx.textBaseline = "top";   // top, middle, bottom
-        tick_space(this.bbox.ll[0], this.bbox.ur[0]).forEach(x => {
+        tick_space(this.viewport.ll[0], this.viewport.ur[0]).forEach(x => {
             const pt = (new DOMPoint(x, 0)).matrixTransform(this.trafo);
             ctx.fillText(x.toPrecision(1), pt.x, origin.y + offset);
         });
         ctx.textAlign = "right";
         ctx.textBaseline = "middle";   // top, middle, bottom
-        tick_space(this.bbox.ll[1], this.bbox.ur[1]).forEach(y => {
+        tick_space(this.viewport.ll[1], this.viewport.ur[1]).forEach(y => {
             const pt = (new DOMPoint(0, y)).matrixTransform(this.trafo);
             ctx.fillText(y.toPrecision(1), origin.x - offset, pt.y);
         });

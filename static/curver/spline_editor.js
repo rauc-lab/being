@@ -2,13 +2,14 @@
 /**
  * Spline editor custom HTML element.
  */
+import { BBox } from "/static/js/bbox.js";
 import { CurverBase } from "/static/curver/curver.js";
 import { make_draggable } from "/static/js/draggable.js";
 import { History } from "/static/js/history.js";
 import { subtract_arrays, clip } from "/static/js/math.js";
 import { Degree, Order, BPoly } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
-import { arrays_equal, remove_all_children, assert, deep_copy } from "/static/js/utils.js";
+import { arrays_equal, remove_all_children, assert, searchsorted } from "/static/js/utils.js";
 
 
 /** Main loop interval of being block network. */
@@ -18,7 +19,7 @@ const INTERVAL = 0.010 * 1.2;  // TODO: Why do we have line overlays with the co
 const PT = create_element("svg").createSVGPoint();
 
 /** Minimum knot distance episolon */
-const EPS = 0;
+const EPS = 1e-3;
 
 /** Named indices for BPoly coefficents matrix */
 const KNOT = 0;
@@ -26,7 +27,15 @@ const FIRST_CP = 1;
 const SECOND_CP = 2;
 
 /** Zero spline with duration 1.0 */
-const ZERO_SPLINE = new BPoly([[0.], [0.], [0.], [0.]], [0., 1.]);
+const ZERO_SPLINE = new BPoly([
+    [0.],
+    [0.],
+    [0.],
+    [0.],
+], [0., 1.]);
+
+
+const ZOOM_FACTOR_PER_STEP = 1.5;
 
 
 /**
@@ -119,41 +128,51 @@ class Mover {
 }
 
 
+/** Checked string literal */
+const CHECKED = "checked";
+
 
 /**
- * Find index to insert item into sorted array so that it stays sorted.
+ * Toggle checked attribute of HTML button.
+ *
+ * @param {object} btn - Button to toggle.
  */
-function searchsorted(arr, val) {
-    let lower = 0;
-    let upper = arr.length;
-    while (lower < upper) {
-        let mid = parseInt((lower + upper) / 2);
-        if (arr[mid] < val)
-            lower = mid + 1;
-        else
-            upper = mid;
-    }
-
-    return lower;
-}
-
-
-const CHECKED = "checked"
-
-
 function toggle_button(btn) {
     btn.toggleAttribute(CHECKED);
 }
 
-
+/**
+ * Switch toggle HTML button off.
+ *
+ * @param {object} btn - Button to switch off.
+ */
 function switch_button_off(btn) {
     btn.removeAttribute(CHECKED);
 }
 
 
+/**
+ * Switch toggle HTML button on.
+ *
+ * @param {object} btn - Button to switch on.
+ */
 function switch_button_on(btn) {
+    // Note: Really JS? Has it to be that way?
     if (!btn.hasAttribute(CHECKED))
         btn.toggleAttribute(CHECKED)
+}
+
+
+/**
+ * Zoom / scale bounding box in place.
+ *
+ * @param {Bbox} bbox Bounding box to scale.
+ * @param {Number} factor Zoom factor.
+ */
+function zoom_bbox_in_place(bbox, factor) {
+    const mid = .5 * (bbox.left + bbox.right);
+    bbox.left = 1 / factor * (bbox.left - mid) + mid;
+    bbox.right = 1 / factor * (bbox.right - mid) + mid;
 }
 
 
@@ -172,13 +191,42 @@ class Editor extends CurverBase {
         this.history = new History();
         this.history.capture(ZERO_SPLINE);
         this.mover = null;
+        this.dataBbox = new BBox([0, 0], [1, 1]);
 
-        // Buttons and UI elements
+        // Editing history buttons
         this.undoBtn = this.add_button("undo", "Undo last action");
+        this.undoBtn.addEventListener("click", evt => {
+            this.history.undo();
+            this.init_spline_elements();
+        });
         this.redoBtn = this.add_button("redo", "Redo last action")
+        this.redoBtn.addEventListener("click", evt => {
+            this.history.redo();
+            this.init_spline_elements();
+        });
+
+        // C1 line continuity toggle button
         this.c1Btn = this.add_button("timeline", "Toggle smooth knot transitions");
         switch_button_on(this.c1Btn);
+        this.c1Btn.addEventListener("click", evt => {
+            toggle_button(this.c1Btn);
+        });
 
+        // Zoom buttons
+        this.add_button("zoom_in", "Zoom In").addEventListener("click", evt => {
+            zoom_bbox_in_place(this.viewport, ZOOM_FACTOR_PER_STEP);
+            this.init_spline_elements();
+        });
+        this.add_button("zoom_out", "Zoom Out").addEventListener("click", evt => {
+            zoom_bbox_in_place(this.viewport, 1 / ZOOM_FACTOR_PER_STEP);
+            this.init_spline_elements();
+        });
+        this.add_button("zoom_out_map", "Reset zoom").addEventListener("click", evt => {
+            this.viewport = this.dataBbox.copy();
+            this.init_spline_elements();
+        });
+
+        /*
         const save = this.add_button("save", "Save motion", "save");
         this.isPlaying = false;
         const selMotDiv = document.createElement("div")
@@ -195,32 +243,22 @@ class Editor extends CurverBase {
         const zoomIn = this.add_button("zoom_in", "Zoom In");
         const zoomOut = this.add_button("zoom_out", "Zoom Out");
         const zoomReset = this.add_button("zoom_out_map", "Reset Zoom");
+        */
 
         this.update_buttons()
 
-        // Event handlers
-        this.undoBtn.addEventListener("click", evt => {
-            this.history.undo();
-            this.init_spline_elements();
-        });
-        this.redoBtn.addEventListener("click", evt => {
-            this.history.redo();
-            this.init_spline_elements();
-        });
-        this.c1Btn.addEventListener("click", evt => {
-            toggle_button(this.c1Btn);
-        });
-
+        /*
         this.selMot.addEventListener("click", evt => this.select_motor())
         this.play.addEventListener("click", evt => this.play_motion(this.play))
         save.addEventListener("click", evt => this.save_spline(save))
+        */
         this.svg.addEventListener("dblclick", evt => {
             // TODO: How to prevent accidental text selection?
             //evt.stopPropagation()
             //evt.preventDefault();
             this.insert_new_knot(evt);
         });
-
+        this.setup_zoom_drag();
         this.init_spline_elements();
     }
 
@@ -230,6 +268,42 @@ class Editor extends CurverBase {
      */
     get c1() {
         return this.c1Btn.hasAttribute(CHECKED);
+    }
+
+
+    /**
+     * Setup drag event handlers for moving horizontally and zooming vertically.
+     */
+    setup_zoom_drag() {
+        let start = null;
+        let orig = null;
+        let mid = 0;
+
+        make_draggable(
+            this,
+            evt => {
+                start = [evt.clientX, evt.clientY];
+                orig = this.viewport.copy();
+                const pt = this.mouse_coordinates(evt);
+                const alpha = clip((pt[0] - orig.left) / orig.width, 0, 1);
+                mid = orig.left + alpha * orig.width;
+            },
+            evt => {
+                const end = [evt.clientX, evt.clientY];
+                const delta = subtract_arrays(end, start);
+                const shift = -delta[0] / this.width * orig.width;
+                const factor = Math.exp(-0.01 * delta[1]);
+                this.viewport.left = factor * (orig.left - mid + shift) + mid;
+                this.viewport.right = factor * (orig.right - mid + shift) + mid;
+                this.update_trafo();
+                this.draw_spline();
+            },
+            evt => {
+                start = null;
+                orig = null;
+                mid = 0;
+            },
+        );
     }
 
 
@@ -335,7 +409,6 @@ class Editor extends CurverBase {
         this.init_spline_elements();
     }
 
-
     save_spline() {
         console.log("save_spline()");
     }
@@ -388,12 +461,15 @@ class Editor extends CurverBase {
         }
 
         const currentSpline = this.history.retrieve();
+        const bbox = currentSpline.bbox();
+        bbox.expand_by_point([0., -.1]);
+        bbox.expand_by_point([0., .1]);
+        this.dataBbox = bbox;
+        this.viewport.ll[1] = bbox.ll[1];
+        this.viewport.ur[1] = bbox.ur[1];
         this.set_duration(currentSpline.duration);
-        this.bbox = currentSpline.bbox();
-        this.bbox.expand_by_point([0, -.1]);
-        this.bbox.expand_by_point([1, .1]);
         this.update_trafo();
-        this.lines.forEach(line => line.clear());
+        //this.lines.forEach(line => line.clear());
         this.update_buttons();
         remove_all_children(this.svg);
         switch (currentSpline.order) {

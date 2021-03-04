@@ -19,10 +19,10 @@ export function make_draggable(ele, start_drag, drag, end_drag,
      * Enable all event listeners for drag action.
      */
     function enable_drag_listeners() {
-        addEventListener("mousemove", _drag);
-        addEventListener("mouseup", _end_drag);
-        addEventListener("mouseleave", _end_drag);
-        addEventListener("keyup", _escape_drag);
+        addEventListener("mousemove", drag_internal);
+        addEventListener("mouseup", end_drag_internal);
+        addEventListener("mouseleave", end_drag_internal);
+        addEventListener("keyup", escape_drag_internal);
     }
 
 
@@ -30,10 +30,10 @@ export function make_draggable(ele, start_drag, drag, end_drag,
      * Disable all event listerns of drag action.
      */
     function disable_drag_listeners() {
-        removeEventListener("mousemove", _drag);
-        removeEventListener("mouseup", _end_drag);
-        removeEventListener("mouseleave", _end_drag);
-        removeEventListener("keyup", _escape_drag);
+        removeEventListener("mousemove", drag_internal);
+        removeEventListener("mouseup", end_drag_internal);
+        removeEventListener("mouseleave", end_drag_internal);
+        removeEventListener("keyup", escape_drag_internal);
     }
 
 
@@ -42,17 +42,18 @@ export function make_draggable(ele, start_drag, drag, end_drag,
      *
      * @param evt - Mouse event.
      */
-    function _start_drag(evt) {
+    function start_drag_internal(evt) {
         if (evt.which !== mouseButton) {
             return;
         }
+        evt.stopPropagation();
 
         //disable_drag_listeners();  // TODO: Do we need this?
         enable_drag_listeners();
         start_drag(evt);
     }
 
-    ele.addEventListener("mousedown", _start_drag);
+    ele.addEventListener("mousedown", start_drag_internal);
 
 
     /**
@@ -60,7 +61,7 @@ export function make_draggable(ele, start_drag, drag, end_drag,
      *
      * @param evt - Mouse event.
      */
-    function _drag(evt) {
+    function drag_internal(evt) {
         evt.preventDefault();
         drag(evt);
     }
@@ -71,9 +72,9 @@ export function make_draggable(ele, start_drag, drag, end_drag,
      *
      * @param evt - Mouse event.
      */
-    function _escape_drag(evt) {
+    function escape_drag_internal(evt) {
         if (evt.keyCode === ESC_KEY_CODE) {
-            _end_drag(evt);
+            end_drag_internal(evt);
         }
     }
 
@@ -83,7 +84,7 @@ export function make_draggable(ele, start_drag, drag, end_drag,
      *
      * @param evt - Mouse event.
      */
-    function _end_drag(evt) {
+    function end_drag_internal(evt) {
         disable_drag_listeners();
         end_drag(evt);
     }

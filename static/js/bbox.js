@@ -1,5 +1,6 @@
 "use strict";
-import {clip} from "/static/js/math.js";
+import { clip } from "/static/js/math.js";
+import { deep_copy } from "/static/js/utils.js";
 
 
 /**
@@ -35,6 +36,37 @@ export class BBox {
         return this.ur[1] - this.ll[1];
     }
 
+
+    /**
+     * Get leftmost x value.
+     */
+    get left() {
+        return this.ll[0];
+    }
+
+    /**
+     * Set leftmost x value.
+     */
+    set left(pos) {
+        this.ll[0] = pos;
+    }
+
+
+    /**
+     * Get rightmost x value.
+     */
+    get right() {
+        return this.ur[0];
+    }
+
+
+    /**
+     * Set rightmost x value.
+     */
+    set right(value) {
+        this.ur[0] = value;
+    }
+
     /**
      * Reset to infinite bounding box.
      */
@@ -62,22 +94,18 @@ export class BBox {
 
     /**
      * Expand bounding box region for another bounding box.
+     *
+     * @param {BBox} bbox - Bounding box to expand this bounding box with.
      */
     expand_by_bbox(bbox) {
         this.expand_by_point(bbox.ll);
         this.expand_by_point(bbox.ur);
     }
 
-    /*
-    l1_distance(pt) {
-        // TODO
-        const [x, y] = pt;
-    }
-    */
-
-
     /**
      * Clip point inside bounding box.
+     *
+     * @param {Array} pt - 2D point to clip.
      */
     clip_point(pt) {
         return [
@@ -85,14 +113,11 @@ export class BBox {
             clip(pt[1], this.ll[1], this.ur[1]),
         ]
     }
-}
 
-
-/**
- * Fit bounding box from array of 2D points.
- */
-export function fit_bbox(pts) {
-    let bbox = new BBox();
-    bbox.expand_by_points(pts);
-    return bbox;
+    /**
+     * Copy bounding box.
+     */
+    copy() {
+        return new BBox(deep_copy(this.ll), deep_copy(this.ur));
+    }
 }

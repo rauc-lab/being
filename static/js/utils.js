@@ -113,3 +113,21 @@ export function assert(condition, message="") {
         throw ("AssertionError " + message).trim();
     }
 }
+
+
+/**
+ * Find index to insert item into sorted array so that it stays sorted.
+ */
+export function searchsorted(arr, val) {
+    let lower = 0;
+    let upper = arr.length;
+    while (lower < upper) {
+        let mid = parseInt((lower + upper) / 2);
+        if (arr[mid] < val)
+            lower = mid + 1;
+        else
+            upper = mid;
+    }
+
+    return lower;
+}
