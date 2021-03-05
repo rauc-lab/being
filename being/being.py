@@ -4,6 +4,7 @@ import time
 from typing import List
 
 from being.backends import CanBackend
+from being.clock import Clock
 from being.config import INTERVAL
 from being.connectables import ValueOutput
 from being.execution import ExecOrder, execute, block_network_graph
@@ -16,6 +17,7 @@ from being.web_socket import WebSocket
 
 WEB_SOCKET_ADDRESS = '/stream'
 """Web socket URL."""
+
 
 
 def find_all_motors(execOrder: ExecOrder) -> List[Motor]:
@@ -45,6 +47,7 @@ class Being:
         self.execOrder = topological_sort(self.graph)
         self.network = CanBackend.single_instance_get()
         motors = list(find_all_motors(self.execOrder))
+        self.clock = Clock.single_instance_setdefault()
         if motors:
             home_motors(motors)
             self.network.enable_drives()
@@ -63,6 +66,8 @@ class Being:
         execute(self.execOrder)
         if self.network is not None:
             self.network.send_sync()
+
+        self.clock.step()
 
     def run(self):
         """Run being standalone."""
