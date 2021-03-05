@@ -205,12 +205,16 @@ class Editor extends CurverBase {
             this.init_spline_elements();
         });
 
+        this.add_space_to_toolbar();
+
         // C1 line continuity toggle button
         this.c1Btn = this.add_button("timeline", "Toggle smooth knot transitions");
         switch_button_on(this.c1Btn);
         this.c1Btn.addEventListener("click", evt => {
             toggle_button(this.c1Btn);
         });
+
+        this.add_space_to_toolbar();
 
         // Zoom buttons
         this.add_button("zoom_in", "Zoom In").addEventListener("click", evt => {
@@ -327,6 +331,8 @@ class Editor extends CurverBase {
 
     /**
      * Coordinates of mouse event inside canvas / SVG data space.
+     * 
+     * @param {MouseEvent} evt Mouse event to transform into data space.
      */
     mouse_coordinates(evt) {
         PT.x = evt.clientX;

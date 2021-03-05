@@ -79,6 +79,14 @@ export class CurverBase extends HTMLElement {
     }
 
 
+    add_space_to_toolbar() {
+        const span = document.createElement("span");
+        span.classList.add("space");
+        this.toolbar.appendChild(span);
+        return span;
+    }
+
+
     /**
      * Initialize DOM elements with shadow root.
      */
