@@ -24,17 +24,6 @@
 </head>
 
 <body>
-    <nav>
-        <ul>
-            <li><a href="#plotter">plotter</a></li>
-            <li><a href="#editor">editor</a></li>
-            <li><a href="#settings">settings</a></li>
-        </ul>
-    </nav>
-
-    <h1>Plotter</h1>
-    <being-plotter id="plotter"></being-plotter>
-
     <h1>Spline Editor</h1>
     <being-editor id="editor"></being-editor>
 
@@ -71,13 +60,11 @@
     */
 
     ready(function () {
-        const plotter = document.getElementById("plotter");
         const editor = document.getElementById("editor");
         const host = window.location.host;
         const streamUrl = 'ws://' + host + '/stream';
         receive_from_websocket(streamUrl, {
             "output-values": [
-                msg => plotter.new_data(msg),
                 msg => editor.new_data(msg),
             ],
         });
