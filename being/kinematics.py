@@ -106,7 +106,6 @@ def step(state: State, dt: float) -> State:
     )
 
 
-@sequencable
 def kinematic_filter(targetPosition: float, dt: float, state: State = State(),
         targetVelocity: float = 0., maxSpeed: float = 1., maxAcc: float = 1.,
         lower: float = -INF, upper: float = INF) -> State:
@@ -147,3 +146,12 @@ def kinematic_filter(targetPosition: float, dt: float, state: State = State(),
         dt -= duration
 
     return state._replace(acceleration=0.)
+
+
+def kinematic_filter_vec(targets, dt, state=State(), **kwargs):
+    traj = []
+    for target in targets:
+        state = kinematic_filter(target, dt, state=state, **kwargs)
+        traj.append(state)
+
+    return np.array(traj)

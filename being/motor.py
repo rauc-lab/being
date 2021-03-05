@@ -212,7 +212,7 @@ class Motor(Block):
 
         # Kinematic filter input target position
         self.state = kinematic_filter(
-            targets=self.input.value,
+            self.input.value,
             dt=INTERVAL,
             state=self.state,
             maxSpeed=1.,
