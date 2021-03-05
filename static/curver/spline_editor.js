@@ -230,6 +230,33 @@ class Editor extends CurverBase {
             this.init_spline_elements();
         });
 
+        this.add_space_to_toolbar();
+
+        this.add_button("play_arrow", "Play / pause motion playback").addEventListener("click", evt => {
+            const btn = evt.target;
+            if (btn.hasAttribute(CHECKED)) {
+                btn.innerHTML = "play_arrow";
+            } else {
+                btn.innerHTML = "pause";
+            }
+            toggle_button(btn);
+
+         });
+
+        this.add_button("fiber_manual_record", "Record motion with motor").addEventListener("click", evt => {
+            const btn = evt.target;
+            if (btn.hasAttribute(CHECKED)) {
+                btn.innerHTML = "fiber_manual_record";
+            } else {
+                btn.innerHTML = "stop";
+            }
+            toggle_button(btn);
+
+         });
+        this.add_button("loop", "Toogle loop motion").addEventListener("click", evt => {
+            toggle_button(evt.target);
+         });
+
         /*
         const save = this.add_button("save", "Save motion", "save");
         this.isPlaying = false;
@@ -284,7 +311,7 @@ class Editor extends CurverBase {
         let mid = 0;
 
         make_draggable(
-            this,
+            this.svg,
             evt => {
                 start = [evt.clientX, evt.clientY];
                 orig = this.viewport.copy();
