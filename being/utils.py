@@ -57,7 +57,7 @@ def read_file(filepath):
 
 
 def write_file(filepath, data):
-    with open(filepath, 'r') as file:
+    with open(filepath, 'w') as file:
         file.write(data)
 
 
