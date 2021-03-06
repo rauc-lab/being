@@ -1,3 +1,4 @@
+import collections
 import fnmatch
 import glob
 import os
@@ -48,6 +49,16 @@ def listdir(directory, fullpath=True) -> List[Filepath]:
         fp.split(directory + '/', maxsplit=1)[1]
         for fp in filepaths
     ]
+
+
+def read_file(filepath):
+    with open(filepath) as file:
+        return file.read()
+
+
+def write_file(filepath, data):
+    with open(filepath, 'r') as file:
+        file.write(data)
 
 
 class SingleInstanceCache:
@@ -111,4 +122,17 @@ class SingleInstanceCache:
             self = cls(*args, **kwargs)
             cls.INSTANCES[cls] = weakref.ref(self)
 
+        return self
+
+
+class IdAware:
+
+    """Assign ascending id numbers to instances."""
+
+    COUNTERS = collections.defaultdict(int)
+
+    def __new__(cls, *args, **kwargs):
+        self = super().__new__(cls, *args, **kwargs)
+        self.id = cls.COUNTERS[cls]
+        cls.COUNTERS[cls] += 1
         return self
