@@ -19,13 +19,28 @@ export function ready(fn) {
 
 
 /**
- * Fetch JSON data from url.
+ * Fetch JSON data from or to url.
  * 
- * @param {string} url - URL to get JSON data from.
+ * @param {String} url URL address.
+ * @param {String} method HTTP method.
+ * @param {Object} data JSON data (for PUT and POST method)
  */
-export async function fetch_json(url) {
-    const response = await fetch(url);
-    return await response.json();
+export async function fetch_json(url, method = "GET", data = {}) {
+    const options = {
+        method: method,
+        headers: {"Content-Type": "application/json"},
+    };
+    if (method === "POST" || method === "PUT") {
+        options["body"] = JSON.stringify(data);
+    }
+
+    const response = await fetch(url, options);
+    if (!response.ok) {
+        console.log("Response:", response);
+        throw new Error("Something went wrong fetching data!");
+    }
+
+    return response.json();
 }
 
 
