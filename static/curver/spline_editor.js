@@ -9,7 +9,7 @@ import { History } from "/static/js/history.js";
 import { subtract_arrays, clip } from "/static/js/math.js";
 import { Degree, Order, BPoly } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
-import { arrays_equal, remove_all_children, assert, searchsorted } from "/static/js/utils.js";
+import { arrays_equal, remove_all_children, assert, searchsorted, fetch_json } from "/static/js/utils.js";
 
 
 /** Main loop interval of being block network. */
@@ -36,6 +36,10 @@ const ZERO_SPLINE = new BPoly([
 
 
 const ZOOM_FACTOR_PER_STEP = 1.5;
+
+
+const HOST = window.location.host;
+const HTTP_HOST = "http://" + HOST;
 
 
 /**
@@ -232,17 +236,18 @@ class Editor extends CurverBase {
 
         this.add_space_to_toolbar();
 
-        this.add_button("play_arrow", "Play / pause motion playback").addEventListener("click", evt => {
-            const btn = evt.target;
-            if (btn.hasAttribute(CHECKED)) {
-                btn.innerHTML = "play_arrow";
-            } else {
-                btn.innerHTML = "pause";
-            }
-            toggle_button(btn);
-
+        this.add_button("play_arrow", "Play / pause motion playback").addEventListener("click", async evt => {
+            console.log("Play");
+            const url = HTTP_HOST + "/api/motors/0/play";
+            const spline = this.history.retrieve();
+            const res = await fetch_json(url, "POST", {
+                spline: spline.to_dict(),
+                loop: false,
+            });
+            console.log("res:", res);
          });
 
+        /*
         this.add_button("fiber_manual_record", "Record motion with motor").addEventListener("click", evt => {
             const btn = evt.target;
             if (btn.hasAttribute(CHECKED)) {
@@ -252,10 +257,11 @@ class Editor extends CurverBase {
             }
             toggle_button(btn);
 
-         });
+        });
         this.add_button("loop", "Toogle loop motion").addEventListener("click", evt => {
             toggle_button(evt.target);
-         });
+        });
+        */
 
         /*
         const save = this.add_button("save", "Save motion", "save");
@@ -388,6 +394,7 @@ class Editor extends CurverBase {
             ele,
             evt => {
                 start = this.mouse_coordinates(evt);
+                console.log("Mouse down. TODO: Pause behavior engine")
             },
             evt => {
                 const end = this.mouse_coordinates(evt);

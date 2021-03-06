@@ -44,7 +44,7 @@ export class CurverBase extends HTMLElement {
         this.auto = auto;
         this.width = 1;
         this.height = 1;
-        this.viewport = new BBox([0, 0], [1, 1]);
+        this.viewport = new BBox([0, -0.001], [1, 0.001]);
         this.trafo = new DOMMatrix();
         this.trafoInv = new DOMMatrix();
         this.lines = [];
