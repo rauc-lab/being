@@ -42,6 +42,76 @@ const HOST = window.location.host;
 const HTTP_HOST = "http://" + HOST;
 
 
+
+
+/** Checked string literal */
+const CHECKED = "checked";
+
+
+/**
+ * Toggle checked attribute of HTML button.
+ *
+ * @param {object} btn - Button to toggle.
+ */
+function toggle_button(btn) {
+    btn.toggleAttribute(CHECKED);
+}
+
+/**
+ * Switch toggle HTML button off.
+ *
+ * @param {object} btn - Button to switch off.
+ */
+function switch_button_off(btn) {
+    btn.removeAttribute(CHECKED);
+}
+
+
+/**
+ * Switch toggle HTML button on.
+ *
+ * @param {object} btn - Button to switch on.
+ */
+function switch_button_on(btn) {
+    // Note: Really JS? Has it to be that way?
+    if (!btn.hasAttribute(CHECKED))
+        btn.toggleAttribute(CHECKED)
+}
+
+
+/**
+ * Check if button has checked attribute / is turned on.
+ *
+ * @param {object} btn HTML button.
+ */
+function is_checked(btn) {
+    return btn.hasAttribute(CHECKED);
+}
+
+
+/**
+ * Zoom / scale bounding box in place.
+ *
+ * @param {Bbox} bbox Bounding box to scale.
+ * @param {Number} factor Zoom factor.
+ */
+function zoom_bbox_in_place(bbox, factor) {
+    const mid = .5 * (bbox.left + bbox.right);
+    bbox.left = 1 / factor * (bbox.left - mid) + mid;
+    bbox.right = 1 / factor * (bbox.right - mid) + mid;
+}
+
+
+function smooth_out_spline(spline) {
+    const degree = spline.degree;
+    for (let seg=0; seg<spline.n_segments; seg++) {
+        if (seg > 0) {
+            spline.c[KNOT + degree][seg-1] = spline.c[KNOT][seg];
+        }
+    }
+}
+
+
 /**
  * Spline mover.
  *
@@ -132,53 +202,6 @@ class Mover {
 }
 
 
-/** Checked string literal */
-const CHECKED = "checked";
-
-
-/**
- * Toggle checked attribute of HTML button.
- *
- * @param {object} btn - Button to toggle.
- */
-function toggle_button(btn) {
-    btn.toggleAttribute(CHECKED);
-}
-
-/**
- * Switch toggle HTML button off.
- *
- * @param {object} btn - Button to switch off.
- */
-function switch_button_off(btn) {
-    btn.removeAttribute(CHECKED);
-}
-
-
-/**
- * Switch toggle HTML button on.
- *
- * @param {object} btn - Button to switch on.
- */
-function switch_button_on(btn) {
-    // Note: Really JS? Has it to be that way?
-    if (!btn.hasAttribute(CHECKED))
-        btn.toggleAttribute(CHECKED)
-}
-
-
-/**
- * Zoom / scale bounding box in place.
- *
- * @param {Bbox} bbox Bounding box to scale.
- * @param {Number} factor Zoom factor.
- */
-function zoom_bbox_in_place(bbox, factor) {
-    const mid = .5 * (bbox.left + bbox.right);
-    bbox.left = 1 / factor * (bbox.left - mid) + mid;
-    bbox.right = 1 / factor * (bbox.right - mid) + mid;
-}
-
 
 /**
  * Spline editor.
@@ -195,7 +218,7 @@ class Editor extends CurverBase {
         this.history = new History();
         this.history.capture(ZERO_SPLINE);
         this.mover = null;
-        this.dataBbox = new BBox([0, 0], [1, 1]);
+        this.dataBbox = new BBox([0, 0], [1, 0.04]);
 
         // Editing history buttons
         this.undoBtn = this.add_button("undo", "Undo last action");
@@ -236,13 +259,18 @@ class Editor extends CurverBase {
 
         this.add_space_to_toolbar();
 
-        this.add_button("play_arrow", "Play / pause motion playback").addEventListener("click", async evt => {
+        this.playBtn = this.add_button("play_arrow", "Play / pause motion playback");
+        this.loopBtn = this.add_button("loop", "Loop spline motion");
+        this.loopBtn.addEventListener("click", evt => {
+            toggle_button(this.loopBtn);
+        });
+        this.playBtn.addEventListener("click", async evt => {
             console.log("Play");
             const url = HTTP_HOST + "/api/motors/0/play";
             const spline = this.history.retrieve();
             const res = await fetch_json(url, "POST", {
                 spline: spline.to_dict(),
-                loop: false,
+                loop: is_checked(this.loopBtn),
             });
             console.log("res:", res);
          });
@@ -304,7 +332,7 @@ class Editor extends CurverBase {
      * C1 continuity activated?
      */
     get c1() {
-        return this.c1Btn.hasAttribute(CHECKED);
+        return is_checked(this.c1Btn);
     }
 
 
@@ -432,6 +460,8 @@ class Editor extends CurverBase {
             row.splice(index, 0, pos[1]);
         });
 
+        smooth_out_spline(newSpline);
+
         // TODO: Do some coefficients cleanup. Wrap around and maybe take the
         // direction of the previous knots as the new default coefficients...
         this.history.capture(newSpline);
@@ -500,10 +530,11 @@ class Editor extends CurverBase {
             return;
         }
 
+
         const currentSpline = this.history.retrieve();
         const bbox = currentSpline.bbox();
-        bbox.expand_by_point([0., -.1]);
-        bbox.expand_by_point([0., .1]);
+        bbox.expand_by_point([0., 0]);
+        bbox.expand_by_point([0., .04]);
         this.dataBbox = bbox;
         this.viewport.ll[1] = bbox.ll[1];
         this.viewport.ur[1] = bbox.ur[1];
@@ -599,6 +630,7 @@ class Editor extends CurverBase {
         const currentSpline = this.history.retrieve();
         this.mover = new Mover(currentSpline);
         const spline = this.mover.spline;  // Working copy
+        //console.table(spline.c);
         for (let seg = 0; seg < spline.n_segments; seg++) {
             this.init_path(() => {
                 return [

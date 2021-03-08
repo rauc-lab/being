@@ -51,11 +51,13 @@
     const host = window.location.host;
 
     async function main() {
+        /*
         const url = "http://" + host + "/api/motors";
         const data = await fetch_json(url);
         console.log(data);
         const plotter = document.getElementById("plotter");
         const editor = document.getElementById("editor");
+        */
         const streamUrl = 'ws://' + host + '/stream';
         receive_from_websocket(streamUrl, {
             "output-values": [

@@ -120,7 +120,7 @@ def being_controller(being) -> web.RouteTableDef:
             data = await request.json()
             spline = spline_from_dict(data['spline'])
             return json_response({
-                'startTime': mp.play_spline(spline),
+                'startTime': mp.play_spline(spline, data['loop']),
             })
         except IndexError:
             return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
