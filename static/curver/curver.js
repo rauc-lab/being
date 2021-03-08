@@ -14,6 +14,7 @@ import {
 import {
     cycle,
 } from "/static/js/utils.js";
+import { Line } from "/static/curver/line.js";
 
 
 /** Default line colors */
@@ -79,6 +80,9 @@ export class CurverBase extends HTMLElement {
     }
 
 
+    /**
+     * Add a spacing element to toolbar.
+     */
     add_space_to_toolbar() {
         const span = document.createElement("span");
         span.classList.add("space");

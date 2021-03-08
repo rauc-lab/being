@@ -10,6 +10,7 @@ import { subtract_arrays, clip } from "/static/js/math.js";
 import { Degree, Order, BPoly } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
 import { arrays_equal, remove_all_children, assert, searchsorted, fetch_json } from "/static/js/utils.js";
+import { Line } from "/static/curver/line.js";
 
 
 /** Main loop interval of being block network. */
@@ -219,6 +220,7 @@ class Editor extends CurverBase {
         this.history.capture(ZERO_SPLINE);
         this.mover = null;
         this.dataBbox = new BBox([0, 0], [1, 0.04]);
+        this.startTime = 0.;
 
         // Editing history buttons
         this.undoBtn = this.add_button("undo", "Undo last action");
@@ -272,7 +274,7 @@ class Editor extends CurverBase {
                 spline: spline.to_dict(),
                 loop: is_checked(this.loopBtn),
             });
-            console.log("res:", res);
+            this.startTime = res['startTime'];
          });
 
         /*
@@ -707,7 +709,6 @@ class Editor extends CurverBase {
      * Process new data message from backend.
      */
     new_data(msg) {
-        return;
         while (this.lines.length < msg.values.length) {
             const color = this.colorPicker.next();
             const maxlen = this.duration / INTERVAL;
@@ -715,7 +716,10 @@ class Editor extends CurverBase {
         }
 
         msg.values.forEach((value, nr) => {
-            this.lines[nr].append_data([msg.timestamp % this.duration, value]);
+            this.lines[nr].append_data([
+                (msg.timestamp - this.startTime) % this.duration,
+                value,
+            ]);
         });
     }
 }
