@@ -357,13 +357,11 @@ class Editor extends CurverBase {
 
                 if (evt.currentTarget.id !== this.selected) {
                     // Cant unselect current spline, at least one spline needs 
-                    // to be selected
+                    // to be selected. Also we want the current selected spline 
+                    // to be visible in the graph.
                     this.selected = evt.currentTarget.id
-                    let entries = this.shadowRoot.querySelectorAll(".spline-list-entry")
-                    entries.forEach(entry => {
-                        entry.removeAttribute("checked")
-                    })
-                    evt.currentTarget.setAttribute("checked", "")
+                    this.visibles.add(evt.currentTarget.id)
+                    this.update_spline_list_selection()
                     this.init_spline_elements()
                 }
             })
@@ -371,26 +369,40 @@ class Editor extends CurverBase {
             checkbox.addEventListener("click", evt => {
 
                 evt.stopPropagation()
-                if (this.visibles.has(evt.target.parentNode.id)) {
-                    this.visibles.delete(evt.target.parentNode.id)
-                    evt.target.innerHTML = ""
+                const filename = evt.target.parentNode.id
+                if (this.selected !== filename) {
+                    if (this.visibles.has(filename)) {
+                        this.visibles.delete(filename)
+                    }
+                    else {
+                        this.visibles.add(filename)
+                    }
                 }
-                else {
-                    this.visibles.add(evt.target.parentNode.id)
-                    evt.target.innerHTML = VISIBILITY
-                }
+                this.update_spline_list_selection()
             }, true)
 
             this.spline_list_div.append(entry)
 
         })
+        this.update_spline_list_selection()
+    }
 
-        // Preselection
+    update_spline_list_selection() {
+
+        let entries = this.shadowRoot.querySelectorAll(".spline-list-entry")
+        entries.forEach(entry => {
+            entry.removeAttribute("checked")
+            entry.querySelector(".spline-checkbox").innerHTML = ""
+        })
+
+        // Preselection 
         if (this.selected == null) {
             const latest = this.splines.length - 1
-            const spline_fd = this.splines[latest].filename
-            this.selected = spline_fd
-            this.visibles.add(spline_fd)
+            if (latest >= 0) {
+                const spline_fd = this.splines[latest].filename
+                this.selected = spline_fd
+                this.visibles.add(spline_fd)
+            }
         }
 
         this.shadowRoot.getElementById(this.selected).setAttribute("checked", "")
