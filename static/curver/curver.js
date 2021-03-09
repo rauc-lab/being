@@ -90,6 +90,10 @@ export class CurverBase extends HTMLElement {
         link.setAttribute("rel", "stylesheet");
         link.setAttribute("href", "static/curver/curver.css");
 
+        this.main = document.createElement("div")
+        this.main.classList.add("main")
+        this.main.id = "main"
+
         // Toolbar
         this.toolbar = document.createElement("div");
         this.toolbar.classList.add("toolbar");
@@ -108,7 +112,9 @@ export class CurverBase extends HTMLElement {
         this.graphs.appendChild(this.canvas)
         this.graphs.appendChild(this.svg)
 
-        this.shadowRoot.append(link, this.toolbar, this.graphs);
+        this.main.append(this.toolbar, this.graphs)
+
+        this.shadowRoot.append(link, this.main);
     }
 
 
@@ -150,7 +156,7 @@ export class CurverBase extends HTMLElement {
      */
     resize() {
         //console.log("CurverBase.resize");
-        this.canvas.width = this.width = this.clientWidth;
+        this.canvas.width = this.width = this.shadowRoot.getElementById("main").clientWidth;
         this.canvas.height = this.height = this.clientHeight - this.toolbar.offsetHeight;
         this.graphs.style.height = this.height + "px"
 

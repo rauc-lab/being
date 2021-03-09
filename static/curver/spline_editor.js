@@ -9,7 +9,7 @@ import { History } from "/static/js/history.js";
 import { subtract_arrays, clip } from "/static/js/math.js";
 import { Degree, Order, BPoly } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
-import { arrays_equal, remove_all_children, assert, searchsorted } from "/static/js/utils.js";
+import { arrays_equal, remove_all_children, assert, searchsorted, fetch_json } from "/static/js/utils.js";
 
 
 /** Main loop interval of being block network. */
@@ -192,6 +192,8 @@ class Editor extends CurverBase {
         this.history.capture(ZERO_SPLINE);
         this.mover = null;
         this.dataBbox = new BBox([0, 0], [1, 1]);
+        this.splines = []
+        this.visibles = new Set()
 
         // Editing history buttons
         this.undoBtn = this.add_button("undo", "Undo last action");
@@ -245,6 +247,11 @@ class Editor extends CurverBase {
         const zoomReset = this.add_button("zoom_out_map", "Reset Zoom");
         */
 
+        this.add_spline_list()
+        this.fetch_splines().then(() =>
+            this.update_spline_list()
+        )
+
         this.update_buttons()
 
         /*
@@ -260,6 +267,83 @@ class Editor extends CurverBase {
         });
         this.setup_zoom_drag();
         this.init_spline_elements();
+    }
+
+    /**
+     * Update content in spline list
+     */
+    update_spline_list() {
+        this.spline_list.forEach(spline => {
+            const entry = document.createElement("div")
+            entry.classList.add("spline-list-entry")
+            entry.id = spline.filename
+            const checkbox = document.createElement("span")
+            checkbox.classList.add("spline-checkbox")
+            checkbox.classList.add("material-icons")
+            checkbox.classList.add("mdc-icon-button")
+            checkbox.innerHTML = ""
+            checkbox.value = spline.filename
+            checkbox.title = "Show in Graph"
+            const text = document.createElement("span")
+            text.innerHTML = spline.filename
+            entry.append(checkbox, text)
+
+            entry.addEventListener("click", evt => {
+
+                if (evt.currentTarget.id !== this.selected) {
+                    // Cant unselect current spline, at least one spline needs 
+                    // to be selected
+                    this.selected = evt.currentTarget.id
+                    let entries = this.shadowRoot.querySelectorAll(".spline-list-entry")
+                    entries.forEach(entry => {
+                        entry.removeAttribute("checked")
+                    })
+                    evt.currentTarget.setAttribute("checked", "")
+                    this.init_spline_elements()
+                }
+            })
+
+            checkbox.addEventListener("click", evt => {
+
+                evt.stopPropagation()
+                if (this.visibles.has(evt.target.parentNode.id)) {
+                    this.visibles.delete(evt.target.parentNode.id)
+                    evt.target.innerHTML = ""
+                }
+                else {
+                    this.visibles.add(evt.target.parentNode.id)
+                    evt.target.innerHTML = "visibility"
+                }
+            }, true)
+
+            this.spline_list_div.append(entry)
+        })
+    }
+
+    /**
+     * Get splines from API
+     */
+    async fetch_splines() {
+        try {
+            return await fetch_json("/api/motions").then(res => this.spline_list = res)
+        }
+        catch (err) {
+            throw Error(error)
+        }
+    }
+
+    /**
+     * Spline list selection
+     */
+    add_spline_list() {
+        const container = document.createElement("div")
+        container.classList.add("spline-list")
+        const title = document.createElement("h2")
+        title.appendChild(document.createTextNode("Motions"))
+        container.appendChild(title)
+        this.spline_list_div = document.createElement("div")
+        container.appendChild(this.spline_list_div)
+        this.shadowRoot.insertBefore(container, this.shadowRoot.childNodes[1]) // insert after css link
     }
 
 
@@ -280,7 +364,7 @@ class Editor extends CurverBase {
         let mid = 0;
 
         make_draggable(
-            this,
+            this.svg,
             evt => {
                 start = [evt.clientX, evt.clientY];
                 orig = this.viewport.copy();

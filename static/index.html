@@ -4,6 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <title>Being - Curver</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" type="text/css" href="static/reset.css">
     <link rel="stylesheet" type="text/css" href="static/main.css">
     <link href="static/font/material-icons.woff2" type="font/ttf">
@@ -11,65 +12,57 @@
     <script type="module" src="static/curver/live_plotter.js"></script>
     <script type="module" src="static/curver/spline_editor.js"></script>
     <style>
-        #plotter {
-            width: 100%;
-            height: 30vh;
-        }
-
         #editor {
             width: 100%;
-            height: 40vh;
+            height: 80vh;
         }
     </style>
 </head>
 
 <body>
-    <h1>Spline Editor</h1>
     <being-editor id="editor"></being-editor>
 
-    <h1 id="settings">Settings</h1>
-
-</body>
-<script type="module">
-    import { ready } from "/static/js/utils.js";
-    import { receive_from_websocket } from "/static/js/web-socket.js";
-    import { BPoly } from "/static/js/spline.js";
+    <script type="module">
+        import { ready } from "/static/js/utils.js";
+        import { receive_from_websocket } from "/static/js/web-socket.js";
+        import { BPoly } from "/static/js/spline.js";
 
 
-    const data = {
-        "type": "BPoly",
-        "extrapolate": true,
-        "axis": 0,
-        "knots": [0.0, 1.0, 3.0, 6.0],
-        "coefficients": [
-            [0.0, 1.0, 0.0],
-            [0.5888888888888889, 1.2148148148148148, -0.9666666666666666],
-            [0.8925925925925928, 0.6444444444444444, -2.1],
-            [1.0, 0.0, -0.9999999999999996]
-        ]
-    };
+        const data = {
+            "type": "BPoly",
+            "extrapolate": true,
+            "axis": 0,
+            "knots": [0.0, 1.0, 3.0, 6.0],
+            "coefficients": [
+                [0.0, 1.0, 0.0],
+                [0.5888888888888889, 1.2148148148148148, -0.9666666666666666],
+                [0.8925925925925928, 0.6444444444444444, -2.1],
+                [1.0, 0.0, -0.9999999999999996]
+            ]
+        };
 
-    const spline = BPoly.from_object(data);
+        const spline = BPoly.from_object(data);
 
-    /*
-    import {bpoly_to_bezier} from "/static/js/bezier.js";
-    cps = bpoly_to_bezier(spline);
-    let cps = bpoly_to_bezier(spline);
-    let knots = cps.map(row => row[0]);
-    knots.push(cps[0][3]);
-    */
+        /*
+        import {bpoly_to_bezier} from "/static/js/bezier.js";
+        cps = bpoly_to_bezier(spline);
+        let cps = bpoly_to_bezier(spline);
+        let knots = cps.map(row => row[0]);
+        knots.push(cps[0][3]);
+        */
 
-    ready(function () {
-        const editor = document.getElementById("editor");
-        const host = window.location.host;
-        const streamUrl = 'ws://' + host + '/stream';
-        receive_from_websocket(streamUrl, {
-            "output-values": [
-                msg => editor.new_data(msg),
-            ],
+        ready(function () {
+            const editor = document.getElementById("editor");
+            const host = window.location.host;
+            const streamUrl = 'ws://' + host + '/stream';
+            receive_from_websocket(streamUrl, {
+                "output-values": [
+                    msg => editor.new_data(msg),
+                ],
+            });
+            //editor.load_spline(spline);
         });
-        //editor.load_spline(spline);
-    });
-</script>
+    </script>
+</body>
 
 </html>
