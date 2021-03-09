@@ -14,6 +14,7 @@ import {
 import {
     cycle,
 } from "/static/js/utils.js";
+import { Line } from "/static/curver/line.js";
 
 
 /** Default line colors */
@@ -44,7 +45,7 @@ export class CurverBase extends HTMLElement {
         this.auto = auto;
         this.width = 1;
         this.height = 1;
-        this.viewport = new BBox([0, 0], [1, 1]);
+        this.viewport = new BBox([0, -0.001], [1, 0.001]);
         this.trafo = new DOMMatrix();
         this.trafoInv = new DOMMatrix();
         this.lines = [];
@@ -76,6 +77,17 @@ export class CurverBase extends HTMLElement {
         btn.id = id;
         parent_.appendChild(btn);
         return btn;
+    }
+
+
+    /**
+     * Add a spacing element to toolbar.
+     */
+    add_space_to_toolbar() {
+        const span = document.createElement("span");
+        span.classList.add("space");
+        this.toolbar.appendChild(span);
+        return span;
     }
 
 

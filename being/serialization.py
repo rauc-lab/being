@@ -191,6 +191,9 @@ class BeingEncoder(json.JSONEncoder):
             return spline_to_dict(o)
 
         if isinstance(o, ndarray):
+            if o.ndim == 0:  # Scalar shape
+                return float(o)
+
             return ndarray_to_dict(o)
 
         objType = type(o)

@@ -18,58 +18,42 @@
 
         #editor {
             width: 100%;
-            height: 40vh;
+            height: 50vh;
         }
     </style>
 </head>
 
 <body>
     <h1>Spline Editor</h1>
+
     <being-editor id="editor"></being-editor>
 
-    <h1 id="settings">Settings</h1>
+    <script type="module">
+        import { ready } from "/static/js/utils.js";
+        import { receive_from_websocket } from "/static/js/web-socket.js";
+        import { fetch_json } from "/static/js/utils.js";
+
+        const host = window.location.host;
+
+        async function main() {
+            /*
+            const url = "http://" + host + "/api/motors";
+            const data = await fetch_json(url);
+            console.log(data);
+            const plotter = document.getElementById("plotter");
+            const editor = document.getElementById("editor");
+            */
+            const streamUrl = 'ws://' + host + '/stream';
+            receive_from_websocket(streamUrl, {
+                "output-values": [
+                    msg => editor.new_data(msg),
+                ],
+            });
+        }
+
+        ready(main);
+    </script>
 
 </body>
-<script type="module">
-    import { ready } from "/static/js/utils.js";
-    import { receive_from_websocket } from "/static/js/web-socket.js";
-    import { BPoly } from "/static/js/spline.js";
-
-
-    const data = {
-        "type": "BPoly",
-        "extrapolate": true,
-        "axis": 0,
-        "knots": [0.0, 1.0, 3.0, 6.0],
-        "coefficients": [
-            [0.0, 1.0, 0.0],
-            [0.5888888888888889, 1.2148148148148148, -0.9666666666666666],
-            [0.8925925925925928, 0.6444444444444444, -2.1],
-            [1.0, 0.0, -0.9999999999999996]
-        ]
-    };
-
-    const spline = BPoly.from_object(data);
-
-    /*
-    import {bpoly_to_bezier} from "/static/js/bezier.js";
-    cps = bpoly_to_bezier(spline);
-    let cps = bpoly_to_bezier(spline);
-    let knots = cps.map(row => row[0]);
-    knots.push(cps[0][3]);
-    */
-
-    ready(function () {
-        const editor = document.getElementById("editor");
-        const host = window.location.host;
-        const streamUrl = 'ws://' + host + '/stream';
-        receive_from_websocket(streamUrl, {
-            "output-values": [
-                msg => editor.new_data(msg),
-            ],
-        });
-        //editor.load_spline(spline);
-    });
-</script>
 
 </html>

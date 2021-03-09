@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Material Icons";
+  font-style: normal;
+  font-weight: 400;
+  src: local("Material Icons"), local("MaterialIcons-Regular"),
+    url(/static/font/material-icons.woff2) format("woff2");
+}
+
 :host {
   display: inline-block;
   position: relative;
@@ -19,83 +27,40 @@ svg circle {
   cursor: pointer;
 }
 
-
-button.material-icons:disabled {
-  color: silver;
+.graphDiv {
+  position: relative;
+  width: inherit;
 }
 
 div.toolbar {
   display: flex;
   flex-wrap: wrap;
-  border: 2px solid black;
+  border-top: 2px solid black;
+  border-bottom: 2px solid black;
 }
 
 div.toolbar:empty {
   visibility: hidden;
 }
 
-div.toolbar button:first-of-type {
-  margin-left: 0;
-  border-left: 0;
-}
-
-div.toolbar button:last-of-type {
-  margin-right: 0;
-  border-right: 0;
-}
-
-div.toolbar button:only-of-type {
-  border-right: inherit;
-  flex: initial;
-}
-
-.material-icons[checked] {
-  color: white;
-  background: black;
-}
-
-.material-icons:hover[checked] {
-  color: white;
-  background: black;
-}
-
-
 .btn-black {
-  border-style: solid;
-  border-width: 1px;
-  border-color: black;
-  color: black;
-  /* margin: 0 0.5rem 0 0.5rem; */
-  background-color: transparent;
-  border-top: 0;
-  border-bottom: 0;
-  flex: content;
-}
-
-button.btn-black:hover {
-  /* font-weight: bold; */
+  outline: none;
   cursor: pointer;
-  background-color: whitesmoke;
+  border: none;
+  background: none;
 }
 
-.graphDiv {
-  position: relative;
-  width: inherit;
+div.toolbar * {
+  border-right: 2px solid black;
 }
 
-div.btn-black {
-  justify-content: center;
-  display: flex;
-  align-items: center;
-  align-self: center;
+div.toolbar *:first-child {
+  border-left: 2px solid black;
 }
 
-@font-face {
-  font-family: "Material Icons";
-  font-style: normal;
-  font-weight: 400;
-  src: local("Material Icons"), local("MaterialIcons-Regular"),
-    url(/static/font/material-icons.woff2) format("woff2");
+.space {
+  display: inline-block;
+  width: 18px;
 }
 
 .material-icons {
@@ -121,4 +86,20 @@ div.btn-black {
 
   /* Support for IE. */
   font-feature-settings: "liga";
+}
+
+/** Button effects */
+
+div.toolbar button:active {
+  background: black;
+  color: white;
+}
+
+.material-icons[checked] {
+  background: black;
+  color: white;
+}
+
+button.material-icons:disabled {
+  color: silver;
 }

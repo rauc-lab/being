@@ -27,6 +27,10 @@ from being.math import sign
 from being.resources import register_resource
 
 
+STILL_HOMING = True
+DONE_HOMING = False
+
+
 def create_node(network, nodeId):
     """CiA402Node factory."""
     # TODO: Support for different motors / different CiA402Node subclasses?
@@ -150,11 +154,15 @@ class Motor(Block):
     def home(self, speed: int = 100):
         """Crude homing procedure. Move with PROFILED_VELOCITY operation mode
         upwards and downwards until reaching limits (position not increasing or
-        decreasing anymore). Implemented as Generator so that we can home multiple
-        motors in parallel (quasi pseudo coroutine).
+        decreasing anymore). Implemented as Generator so that we can home
+        multiple motors in parallel (quasi pseudo coroutine). time.sleep has to
+        be handled by the caller.
 
         Kwargs:
             speed: Homing speed.
+
+        Yields:
+            Homing state.
         """
         direction = sign(speed)
         speed = abs(speed)
@@ -175,7 +183,7 @@ class Motor(Block):
             _move(node, direction * speed)
             while pos > upper:
                 upper = pos
-                yield True
+                yield STILL_HOMING
                 pos = node.sdo[POSITION_ACTUAL_VALUE].raw
 
             logger.info('Moving downwards')
@@ -183,7 +191,7 @@ class Motor(Block):
             _move(node, -direction * speed)
             while pos < lower:
                 lower = pos
-                yield True
+                yield STILL_HOMING
                 pos = node.sdo[POSITION_ACTUAL_VALUE].raw
 
             width = upper - lower
@@ -204,7 +212,7 @@ class Motor(Block):
 
         self.state = KinematicState(position=node.position)
         while True:
-            yield False
+            yield DONE_HOMING
 
     def update(self):
         # Fetch actual position
@@ -212,7 +220,7 @@ class Motor(Block):
 
         # Kinematic filter input target position
         self.state = kinematic_filter(
-            targets=self.input.value,
+            self.input.value,
             dt=INTERVAL,
             state=self.state,
             maxSpeed=1.,

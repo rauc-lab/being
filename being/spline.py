@@ -74,7 +74,7 @@ def spline_duration(spline: Spline) -> float:
     return knots[-1] - knots[0]
 
 
-def shitf_spline(spline: Spline, offset=0.) -> Spline:
+def shift_spline(spline: Spline, offset=0.) -> Spline:
     """Shift spline by some offset in time."""
     return type(spline).construct_fast(
         c=spline.c,
@@ -195,6 +195,33 @@ def bezier_control_points(spline: Spline) -> ndarray:
         cps[seg, :, 1] = spline.c[:, seg]
 
     return cps
+
+
+def sample_spline(spline: Spline, t, loop: bool = False):
+    """Sample spline. Clips time values for non extrapolating splines. Also
+    supports looping.
+
+    Args:
+        spline: Some spline to sample (must be callable).
+        t: Time value(s)
+
+    Kwargs:
+        loop: Loop spline motion.
+
+    Returns:
+        Spline value(s).
+    """
+    start = spline.x[0]  # No fancy indexing. Faster then `start, end = spline.x[[0, -1]]`
+    end = spline.x[-1]
+
+    if loop:
+        duration = end - start
+        return spline((t - start) % duration + start)
+
+    if spline.extrapolate:
+        return spline(t)
+
+    return spline(np.clip(t, start, end))
 
 
 def smoothing_spline_demo():

@@ -50,7 +50,7 @@ export function spline_degree(spline) {
  * need a data structure for storing and manipulating the spline.
  */
 export class BPoly {
-    constructor(c, x, extrapolate=null, axis=0) {
+    constructor(c, x, extrapolate=false, axis=0) {
         this.c = c;
         this.x = x;
         this.extrapolate = extrapolate;
@@ -168,5 +168,15 @@ export class BPoly {
      */
     copy() {
         return new BPoly(deep_copy(this.c), deep_copy(this.x), this.extrapolate, this.axis);
+    }
+
+    to_dict() {
+        return {
+            "type": "BPoly",
+            "extrapolate": this.extrapolate,
+            "axis": 0,
+            "knots": this.x,
+            "coefficients": this.c,
+        }
     }
 }
