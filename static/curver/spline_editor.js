@@ -361,15 +361,9 @@ class Editor extends CurverBase {
                     this.selected = evt.currentTarget.id
                     this.visibles.add(evt.currentTarget.id)
                     this.update_spline_list_selection()
-                    this.history.clear()
-                    const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
-                    this.history.capture(selectedSpline.content);
-                    const currentSpline = this.history.retrieve();
-                    const bbox = currentSpline.bbox();
-                    bbox.expand_by_point([0., 0]);
-                    bbox.expand_by_point([0., .04]);
-                    this.dataBbox = bbox;
-                    this.viewport = this.dataBbox.copy();
+
+                    // graph manipulation
+                    this.init_spline_selection()
                     this.init_spline_elements()
                 }
             })
@@ -386,12 +380,26 @@ class Editor extends CurverBase {
                     }
                 }
                 this.update_spline_list_selection()
+                this.init_spline_elements()
             }, true)
 
             this.spline_list_div.append(entry)
 
         })
         this.update_spline_list_selection()
+        this.init_spline_elements()
+    }
+
+    init_spline_selection() {
+        this.history.clear()
+        const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
+        this.history.capture(selectedSpline.content);
+        const currentSpline = this.history.retrieve();
+        const bbox = currentSpline.bbox();
+        bbox.expand_by_point([0., 0]);
+        bbox.expand_by_point([0., .04]);
+        this.dataBbox = bbox;
+        this.viewport = this.dataBbox.copy();
     }
 
     update_spline_list_selection() {
@@ -410,6 +418,7 @@ class Editor extends CurverBase {
                 this.selected = spline_fd
                 this.visibles.add(spline_fd)
             }
+            this.init_spline_selection()
         }
 
         this.shadowRoot.getElementById(this.selected).setAttribute("checked", "")
@@ -669,6 +678,7 @@ class Editor extends CurverBase {
         remove_all_children(this.svg);
         switch (currentSpline.order) {
             case Order.CUBIC:
+                this.init_cubic_spline_background_elements(lw); // Plot under selected!
                 this.init_cubic_spline_elements(lw);
                 break;
             case Order.QUADRATIC:
@@ -681,6 +691,7 @@ class Editor extends CurverBase {
         }
 
         this.draw_spline();
+        // this.draw_background_splines()
     }
 
 
@@ -700,6 +711,25 @@ class Editor extends CurverBase {
 
         return path
     }
+
+    /**
+    * Initialize an SVG path element and adds it to the SVG parent element.
+    * data_source callback needs to deliver the 2-4 Bézier control points.
+    */
+    init_background_path(data_source, strokeWidth = 1, color = "silver") {
+        const path = create_element('path');
+        setattr(path, "stroke", color);
+        setattr(path, "stroke-dasharray", "2,2")
+        setattr(path, "stroke-width", strokeWidth);
+        setattr(path, "fill", "transparent");
+        this.svg.appendChild(path)
+        path.draw = () => {
+            setattr(path, "d", path_d(this.transform_points(data_source())));
+        };
+
+        return path
+    }
+
 
 
     /**
@@ -754,7 +784,6 @@ class Editor extends CurverBase {
         const currentSpline = this.history.retrieve();
         this.mover = new Mover(currentSpline);
         const spline = this.mover.spline;  // Working copy
-        //console.table(spline.c);
         for (let seg = 0; seg < spline.n_segments; seg++) {
             this.init_path(() => {
                 return [
@@ -810,6 +839,29 @@ class Editor extends CurverBase {
         this.draw_spline()
     }
 
+    /**
+    * Initialize all SVG path elements for a cubic background splines. 
+    */
+    init_cubic_spline_background_elements(lw = 2) {
+        const backgroundSplines = [...this.visibles].filter(spl => spl !== this.selected)
+        backgroundSplines.forEach(splFilename => {
+            const currentSpline = this.splines.filter(spl => spl.filename === splFilename)[0].content
+
+            for (let seg = 0; seg < currentSpline.n_segments; seg++) {
+                this.init_background_path(() => {
+                    return [
+                        currentSpline.point(seg, 0),
+                        currentSpline.point(seg, 1),
+                        currentSpline.point(seg, 2),
+                        currentSpline.point(seg + 1, 0),
+                    ];
+                }, lw);
+            }
+        })
+
+        this.draw_spline()
+    }
+
 
     init_linear_spline(data, lw = 2) {
         // TODO: Make me!
@@ -825,7 +877,6 @@ class Editor extends CurverBase {
             ele.draw();
         }
     }
-
 
     /**
      * Process new data message from backend.
