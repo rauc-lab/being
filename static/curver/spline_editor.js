@@ -354,7 +354,6 @@ class Editor extends CurverBase {
             entry.append(checkbox, text)
 
             entry.addEventListener("click", evt => {
-
                 if (evt.currentTarget.id !== this.selected) {
                     // Cant unselect current spline, at least one spline needs 
                     // to be selected. Also we want the current selected spline 
@@ -362,12 +361,20 @@ class Editor extends CurverBase {
                     this.selected = evt.currentTarget.id
                     this.visibles.add(evt.currentTarget.id)
                     this.update_spline_list_selection()
+                    this.history.clear()
+                    const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
+                    this.history.capture(selectedSpline.content);
+                    const currentSpline = this.history.retrieve();
+                    const bbox = currentSpline.bbox();
+                    bbox.expand_by_point([0., 0]);
+                    bbox.expand_by_point([0., .04]);
+                    this.dataBbox = bbox;
+                    this.viewport = this.dataBbox.copy();
                     this.init_spline_elements()
                 }
             })
 
             checkbox.addEventListener("click", evt => {
-
                 evt.stopPropagation()
                 const filename = evt.target.parentNode.id
                 if (this.selected !== filename) {
@@ -418,7 +425,12 @@ class Editor extends CurverBase {
      */
     async fetch_splines() {
         try {
-            return await fetch_json("/api/motions").then(res => this.splines = res)
+            return await fetch_json("/api/motions").then(res => {
+                this.splines = res
+                this.splines.forEach(spline => {
+                    spline.content = BPoly.from_object(spline.content)
+                })
+            })
         }
         catch (err) {
             throw Error(error)
