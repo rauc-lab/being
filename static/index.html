@@ -53,19 +53,12 @@
         */
 
         ready(function () {
-<<<<<<< HEAD
-=======
             const plotter = document.getElementById("plotter");
->>>>>>> ae8c771c8d13bb035a16efdcc00660ba97a60a96
             const editor = document.getElementById("editor");
             const host = window.location.host;
             const streamUrl = 'ws://' + host + '/stream';
             receive_from_websocket(streamUrl, {
                 "output-values": [
-<<<<<<< HEAD
-=======
-                    msg => plotter.new_data(msg),
->>>>>>> ae8c771c8d13bb035a16efdcc00660ba97a60a96
                     msg => editor.new_data(msg),
                 ],
             });
