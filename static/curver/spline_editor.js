@@ -38,15 +38,13 @@ const ZERO_SPLINE = new BPoly([
 
 const ZOOM_FACTOR_PER_STEP = 1.5;
 
-
 const HOST = window.location.host;
 const HTTP_HOST = "http://" + HOST;
 
-
-
-
 /** Checked string literal */
 const CHECKED = "checked";
+
+const VISIBILITY = "visibility"
 
 
 /**
@@ -105,9 +103,9 @@ function zoom_bbox_in_place(bbox, factor) {
 
 function smooth_out_spline(spline) {
     const degree = spline.degree;
-    for (let seg=0; seg<spline.n_segments; seg++) {
+    for (let seg = 0; seg < spline.n_segments; seg++) {
         if (seg > 0) {
-            spline.c[KNOT + degree][seg-1] = spline.c[KNOT][seg];
+            spline.c[KNOT + degree][seg - 1] = spline.c[KNOT][seg];
         }
     }
 }
@@ -219,7 +217,6 @@ class Editor extends CurverBase {
         this.history = new History();
         this.history.capture(ZERO_SPLINE);
         this.mover = null;
-        // this.dataBbox = new BBox([0, 0], [1, 1]);
         this.splines = []
         this.visibles = new Set()
         this.dataBbox = new BBox([0, 0], [1, 0.04]);
@@ -278,7 +275,7 @@ class Editor extends CurverBase {
                 loop: is_checked(this.loopBtn),
             });
             this.startTime = res['startTime'];
-         });
+        });
 
         /*
         this.add_button("fiber_manual_record", "Record motion with motor").addEventListener("click", evt => {
@@ -341,7 +338,7 @@ class Editor extends CurverBase {
      * Update content in spline list
      */
     update_spline_list() {
-        this.spline_list.forEach(spline => {
+        this.splines.forEach(spline => {
             const entry = document.createElement("div")
             entry.classList.add("spline-list-entry")
             entry.id = spline.filename
@@ -380,11 +377,27 @@ class Editor extends CurverBase {
                 }
                 else {
                     this.visibles.add(evt.target.parentNode.id)
-                    evt.target.innerHTML = "visibility"
+                    evt.target.innerHTML = VISIBILITY
                 }
             }, true)
 
             this.spline_list_div.append(entry)
+
+        })
+
+        // Preselection
+        if (this.selected == null) {
+            const latest = this.splines.length - 1
+            const spline_fd = this.splines[latest].filename
+            this.selected = spline_fd
+            this.visibles.add(spline_fd)
+        }
+
+        this.shadowRoot.getElementById(this.selected).setAttribute("checked", "")
+        this.visibles.forEach(filename => {
+            const parent = this.shadowRoot.getElementById(filename)
+            const checkbox = parent.querySelector(".spline-checkbox")
+            checkbox.innerHTML = VISIBILITY
         })
     }
 
@@ -393,7 +406,7 @@ class Editor extends CurverBase {
      */
     async fetch_splines() {
         try {
-            return await fetch_json("/api/motions").then(res => this.spline_list = res)
+            return await fetch_json("/api/motions").then(res => this.splines = res)
         }
         catch (err) {
             throw Error(error)

@@ -1,14 +1,13 @@
 "use strict";
-import {Deque} from "/static/js/deque.js";
-import {last_element} from "/static/js/utils.js";
-
+import { Deque } from "/static/js/deque.js";
+import { last_element } from "/static/js/utils.js";
 
 
 /**
  * Edit history container.
  */
 export class History {
-    constructor(maxlen=20) {
+    constructor(maxlen = 20) {
         this.past = new Deque(0, maxlen);
         this.future = new Deque(0, maxlen);
     }

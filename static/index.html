@@ -28,25 +28,26 @@
         import { receive_from_websocket } from "/static/js/web-socket.js";
         import { BPoly } from "/static/js/spline.js";
 
-    const host = window.location.host;
+        const host = window.location.host;
 
-    async function main() {
-        /*
-        const url = "http://" + host + "/api/motors";
-        const data = await fetch_json(url);
-        console.log(data);
-        const plotter = document.getElementById("plotter");
-        const editor = document.getElementById("editor");
-        */
-        const streamUrl = 'ws://' + host + '/stream';
-        receive_from_websocket(streamUrl, {
-            "output-values": [
-                msg => editor.new_data(msg),
-            ],
-        });
-    }
+        async function main() {
+            /*
+            const url = "http://" + host + "/api/motors";
+            const data = await fetch_json(url);
+            console.log(data);
+            const plotter = document.getElementById("plotter");
+            const editor = document.getElementById("editor");
+            */
+            const streamUrl = 'ws://' + host + '/stream';
+            receive_from_websocket(streamUrl, {
+                "output-values": [
+                    msg => editor.new_data(msg),
+                ],
+            });
+        }
 
-    ready(main);
-</script>
+        ready(main);
+    </script>
+</body>
 
 </html>
