@@ -5,7 +5,7 @@ import json
 import logging
 
 from being.serialization import loads, dumps
-from being.utils import rootname, SingleInstanceCache
+from being.utils import rootname, read_file, write_file, SingleInstanceCache
 
 
 class Content(SingleInstanceCache):
@@ -25,6 +25,13 @@ class Content(SingleInstanceCache):
         """Resolve full path for given name."""
         return os.path.join(self.directory, name + '.json')
 
+    def _sorted_names(self):
+        """All motion names present. Sorted according to creation / modified
+        date.
+        """
+        filepaths = glob.glob(self.directory + '/*.json')
+        return map(rootname, sorted(filepaths, key=os.path.getctime))
+
     def motion_exists(self, name):
         fp = self._fullpath(name)
         return os.path.exists(fp)
@@ -32,14 +39,12 @@ class Content(SingleInstanceCache):
     def load_motion(self, name):
         self.logger.debug('Loading motion %r', name)
         fp = self._fullpath(name)
-        with open(fp) as f:
-            return loads(f.read())
+        return loads(read_file(fp))
 
     def save_motion(self, spline, name):
         self.logger.debug('Saving motion %r', name)
         fp = self._fullpath(name)
-        with open(fp, 'w') as f:
-            f.write(dumps(spline))
+        write_file(fp, dumps(spline))
 
     def delete_motion(self, name):
         self.logger.debug('Deleting motion %r', name)
@@ -48,8 +53,8 @@ class Content(SingleInstanceCache):
 
     def list_motions(self):
         return [
-            rootname(fp)
-            for fp in glob.glob(self.directory + '/*.json')
+            (name, self.load_motion(name))
+            for name in self._sorted_names()
         ]
 
     def dict_motions(self):

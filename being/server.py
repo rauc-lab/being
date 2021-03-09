@@ -7,7 +7,7 @@ from collections import OrderedDict, defaultdict
 from aiohttp import web
 
 from being.content import Content
-from being.serialization import dumps, loads
+from being.serialization import dumps, loads, spline_from_dict
 from being.web_socket import WebSocket
 
 
@@ -16,7 +16,6 @@ API_PREFIX = '/api'
 
 WEB_SOCKET_ADDRESS = '/stream'
 """Web socket URL."""
-
 
 LOGGER = logging.getLogger(__name__)
 """Server module logger."""
@@ -58,8 +57,7 @@ def content_controller(content: Content) -> web.RouteTableDef:
 
     @routes.get('/motions')
     async def get_all_motions(request):
-        motions = content.dict_motions()
-        return json_response(motions)
+        return json_response(content.dict_motions())
 
     @routes.get('/motions/{name}')
     async def get_motion_by_name(request):
@@ -110,6 +108,58 @@ def content_controller(content: Content) -> web.RouteTableDef:
     return routes
 
 
+def being_controller(being) -> web.RouteTableDef:
+    """API routes for being object."""
+    routes = web.RouteTableDef()
+
+    @routes.post('/motors/{id}/play')
+    async def play_spline(request):
+        id = int(request.match_info['id'])
+        try:
+            mp = being.motionPlayers[id]
+            data = await request.json()
+            spline = spline_from_dict(data['spline'])
+            return json_response({
+                'startTime': mp.play_spline(spline, data['loop']),
+            })
+        except IndexError:
+            return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
+        except KeyError:
+            return web.HTTPBadRequest(text=f'Could not parse spline!')
+
+    """
+    mpInfos = [
+        {
+            'type': 'motion-player',
+            'id': id,
+        }
+        for id, mp in enumerate(being.motionPlayers)
+    ]
+
+    @routes.get('/motors')
+    def get_motors(request):
+        return json_response(mpInfos)
+
+    @routes.put('/motors/{id}')
+    def set_live_value(request):
+        print('set_live_value()')
+        id = int(request.match_info['id'])
+        print('id:', id)
+        return respond_ok()
+
+    @routes.put('/motors/{id}/move')
+    def move_motor(request):
+        return respond_ok()
+
+    #@routes.get('/behaviors')
+    #def get_behaviors(request):
+    #    return respond_ok()
+
+    """
+
+    return routes
+
+
 def init_web_server(being=None, content=None) -> web.Application:
     """Initialize aiohttp web server application and setup some routes.
 
@@ -129,9 +179,7 @@ def init_web_server(being=None, content=None) -> web.Application:
     # Rest API
     api = web.Application()
     if being:
-        # TODO: Being API
-        #being.subscribe(being.Event.SINGLE_CYCLE, ws.send_json)
-        pass
+        api.add_routes(being_controller(being))
 
     if content:
         api.add_routes(content_controller(content))
@@ -166,8 +214,10 @@ if __name__ == '__main__':
     from being.being import awake
     from being.block import Block
     from being.constants import TAU
+    from being.motion_player import MotionPlayer
 
 
+    """
     class SineGenerator(Block):
         def __init__(self, frequency=1.):
             super().__init__()
@@ -179,3 +229,6 @@ if __name__ == '__main__':
             self.output.value = math.sin(TAU * self.frequency * now)
 
     awake(SineGenerator(.1), SineGenerator(.2), SineGenerator(.4), web=True)
+    """
+    mp = MotionPlayer()
+    awake(mp)
