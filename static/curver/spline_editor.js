@@ -14,7 +14,7 @@ import { Line } from "/static/curver/line.js";
 
 
 /** Main loop interval of being block network. */
-const INTERVAL = 0.010 * 1.2;  // TODO: Why do we have line overlays with the correct interval???
+const INTERVAL = 0.010;
 
 /** Dummy SVG point for transformations. */
 const PT = create_element("svg").createSVGPoint();
@@ -206,9 +206,17 @@ class Mover {
 class Transport {
     constructor(editor) {
         this.editor = editor;
-        this.playing = false;
         this.position = 0;
+        this.playing = false;
+        this.looping = false;
+        this.startTime = 0;
+        this.duration = 1;
         this.init_cursor();
+    }
+
+    toggle_looping() {
+        this.looping = !this.looping;
+        this.editor.update_buttons();
     }
 
     init_cursor() {
@@ -221,15 +229,17 @@ class Transport {
 
     play() {
         this.playing = true;
+        this.editor.update_buttons();
     }
 
     pause() {
         this.playing = false;
+        this.editor.update_buttons();
     }
 
     stop() {
-        this.playing = false;
-        this.move(0);
+        this.pause();
+        this.position = 0;
     }
 
     draw() {
@@ -240,9 +250,20 @@ class Transport {
         setattr(this.cursor, "y2", this.editor.height);
     }
 
-    move(position) {
-        this.position = position;
+    move(timestamp) {
+        let pos = timestamp - this.startTime;
+        if (this.looping) {
+            pos %= this.duration;
+        }
+
+        if (pos > this.duration) {
+            this.stop();
+        } else {
+            this.position = pos;
+        }
+
         this.draw();
+        return pos;
     }
 }
 
@@ -257,15 +278,10 @@ class Editor extends CurverBase {
         console.log("BeingCurver.constructor");
         const auto = false;
         super(auto);
-        this.duration = 1;
-        this.maxlen = 1;
         this.history = new History();
         this.history.capture(ZERO_SPLINE);
         this.mover = null;
         this.dataBbox = new BBox([0, 0], [1, 0.04]);
-
-
-        this.startTime = 0.;
 
         this.transport = new Transport(this);
 
@@ -312,32 +328,29 @@ class Editor extends CurverBase {
         this.playPauseBtn = this.add_button("play_arrow", "Play / pause motion playback");
         this.stopBtn = this.add_button("stop", "Stop spline playback").addEventListener("click", async evt => {
             const url = HTTP_HOST + "/api/motors/0/stop";
-            await fetch_json(url, "POST");
+            await fetch(url, {method: "POST"});
             this.transport.stop();
-            this.update_buttons();
         });
         this.loopBtn = this.add_button("loop", "Loop spline motion");
         this.loopBtn.addEventListener("click", evt => {
-            toggle_button(this.loopBtn);
+            this.transport.toggle_looping();
         });
         this.playPauseBtn.addEventListener("click", async evt => {
             if (this.transport.playing) {
                 const url = HTTP_HOST + "/api/motors/0/stop";
-                await fetch_json(url, "POST");
+                await fetch(url, {method: "POST"});
                 this.transport.pause();
             } else {
                 const url = HTTP_HOST + "/api/motors/0/play";
                 const spline = this.history.retrieve();
                 const res = await fetch_json(url, "POST", {
                     spline: spline.to_dict(),
-                    loop: is_checked(this.loopBtn),
+                    loop: this.transport.looping,
                     offset: this.transport.position,
                 });
-                this.startTime = res['startTime'];
+                this.transport.startTime = res["startTime"];
                 this.transport.play();
             }
-
-            this.update_buttons();
         });
 
         this.svg.addEventListener("click", evt => {
@@ -407,14 +420,6 @@ class Editor extends CurverBase {
 
 
     /**
-     * Spline editor in looped playback mode.
-     */
-    get looping() {
-        return is_checked(this.loopBtn);
-    }
-
-
-    /**
      * Setup drag event handlers for moving horizontally and zooming vertically.
      */
     setup_zoom_drag() {
@@ -460,6 +465,12 @@ class Editor extends CurverBase {
             this.playPauseBtn.innerHTML = "pause";
         } else {
             this.playPauseBtn.innerHTML = "play_arrow";
+        }
+
+        if (this.transport.looping) {
+            switch_button_on(this.loopBtn);
+        } else {
+            switch_button_off(this.loopBtn);
         }
     }
 
@@ -570,34 +581,14 @@ class Editor extends CurverBase {
         console.log("select_motor() :" + this.selMot.value);
     }
 
-    /**
-     * Play back spline on motors
-     *
-     * @param {*} el 
-     */
-    play_motion(el) {
-        this.isPlaying = !this.isPlaying
-        if (this.isPlaying) {
-            // TODO: Call API
-            el.innerHTML = "stop"
-            el.style.color = "red"
-            el.title = "Stop playback"
-
-        }
-        else {
-            el.title = "Play spline on motor"
-            el.style.color = "black"
-            el.innerHTML = "play_circle"
-        }
-    }
 
     /**
      * Set current duration of spline editor.
      */
     set_duration(duration) {
-        this.duration = duration;
+        this.transport.duration = duration;
         this.lines.forEach(line => {
-            line.maxlen = this.duration / INTERVAL
+            line.maxlen = .8 * (duration / INTERVAL)
         });
     }
 
@@ -789,6 +780,7 @@ class Editor extends CurverBase {
      * Process new data message from backend.
      */
     new_data(msg) {
+        // Clear of old data points in live plot
         if (!this.transport.playing) {
             this.lines.forEach(line => {
                 line.data.popleft();
@@ -796,19 +788,7 @@ class Editor extends CurverBase {
             return;
         }
 
-        let pos = msg.timestamp - this.startTime;
-        if (this.looping) {
-            pos %= this.duration;
-        }
-
-        if (pos > this.duration) {
-            this.transport.stop();
-            this.transport.move(0.);
-            this.update_buttons();
-        } else {
-            this.transport.move(pos);
-        }
-
+        const pos = this.transport.move(msg.timestamp);
 
         // Init new lines
         while (this.lines.length < msg.values.length) {
@@ -823,6 +803,5 @@ class Editor extends CurverBase {
         });
     }
 }
-
 
 customElements.define('being-editor', Editor);

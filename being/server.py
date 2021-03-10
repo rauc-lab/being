@@ -133,7 +133,7 @@ def being_controller(being) -> web.RouteTableDef:
         try:
             mp = being.motionPlayers[id]
             mp.stop()
-            return json_response()
+            return respond_ok()
         except IndexError:
             return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
 
