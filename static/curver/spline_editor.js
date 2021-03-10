@@ -321,11 +321,13 @@ class Editor extends CurverBase {
         this.undoBtn.addEventListener("click", evt => {
             this.history.undo();
             this.init_spline_elements();
+            this.stop_spline_playback();
         });
         this.redoBtn = this.add_button("redo", "Redo last action")
         this.redoBtn.addEventListener("click", evt => {
             this.history.redo();
             this.init_spline_elements();
+            this.stop_spline_playback();
         });
 
         this.add_space_to_toolbar();
