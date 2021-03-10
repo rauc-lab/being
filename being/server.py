@@ -9,6 +9,7 @@ from aiohttp import web
 from being.content import Content
 from being.serialization import dumps, loads, spline_from_dict
 from being.web_socket import WebSocket
+from being.utils import random_name
 
 
 API_PREFIX = '/api'
@@ -68,11 +69,12 @@ def content_controller(content: Content) -> web.RouteTableDef:
         spline = content.load_motion(name)
         return json_response(spline)
 
-    @routes.post('/motions/{name}')
+    @routes.post('/motions')
     async def create_motion(request):
-        name = request.match_info['name']
-        if content.motion_exists(name):
-            return web.HTTPConflict(text=f'Motion {name!r} does already exist!')
+
+        rnd_name = random_name()
+        while content.motion_exists(rnd_name):
+            rnd_name = random_name()
 
         try:
             spline = await request.json(loads=loads)
@@ -174,7 +176,8 @@ def init_web_server(being=None, content=None) -> web.Application:
 
     # Pages
     app.router.add_get('/', file_response_handler('static/index.html'))
-    app.router.add_get('/favicon.ico', file_response_handler('static/favicon.ico'))
+    app.router.add_get(
+        '/favicon.ico', file_response_handler('static/favicon.ico'))
 
     # Rest API
     api = web.Application()
@@ -215,7 +218,6 @@ if __name__ == '__main__':
     from being.block import Block
     from being.constants import TAU
     from being.motion_player import MotionPlayer
-
 
     """
     class SineGenerator(Block):

@@ -383,7 +383,7 @@ class Editor extends CurverBase {
                 this.init_spline_elements()
             }, true)
 
-            this.spline_list_div.append(entry)
+            this.splineListDiv.append(entry)
 
         })
         this.update_spline_list_selection()
@@ -455,8 +455,21 @@ class Editor extends CurverBase {
         const title = document.createElement("h2")
         title.appendChild(document.createTextNode("Motions"))
         container.appendChild(title)
-        this.spline_list_div = document.createElement("div")
-        container.appendChild(this.spline_list_div)
+        this.splineListDiv = document.createElement("div")
+        this.splineListDiv.style.borderBottom = "2px solid black"
+        this.splineListDiv.style.paddingBottom = "5px"
+        container.appendChild(this.splineListDiv)
+        this.addSplineButton = this.add_button("add_box", "Create new spline")
+        const newBtnContainer = document.createElement("div")
+        newBtnContainer.style.display = "flex"
+        newBtnContainer.style.justifyContent = "center"
+        newBtnContainer.appendChild(this.addSplineButton)
+        container.appendChild(newBtnContainer)
+
+        this.addSplineButton.addEventListener("click", evt => {
+
+        })
+
         this.shadowRoot.insertBefore(container, this.shadowRoot.childNodes[1]) // insert after css link
     }
 
