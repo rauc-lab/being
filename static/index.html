@@ -21,12 +21,24 @@
 </head>
 
 <body>
+    <nav>
+        <ul>
+            <li><a href="#plotter">plotter</a></li>
+            <li><a href="#editor">editor</a></li>
+            <li><a href="#settings">settings</a></li>
+        </ul>
+    </nav>
+
+    <h1>Behavior</h1>
+
+    <h1>Spline Editor</h1>
+    
     <being-editor id="editor"></being-editor>
 
     <script type="module">
         import { ready } from "/static/js/utils.js";
         import { receive_from_websocket } from "/static/js/web-socket.js";
-        import { BPoly } from "/static/js/spline.js";
+        import { fetch_json } from "/static/js/utils.js";
 
         const host = window.location.host;
 
@@ -45,9 +57,7 @@
                 ],
             });
         }
-
         ready(main);
     </script>
 </body>
-
 </html>

@@ -80,19 +80,29 @@ class MotionPlayer(Block):
         self.startTime = 0
         self.looping = False
 
-    def play_spline(self, spline: Spline, loop=False):
+    def stop(self):
+        if self.spline:
+            now = self.clock.now()
+            pos = sample_spline(self.spline, (now - self.startTime), loop=self.looping)
+        else:
+            pos = 0
+
+        self.spline = constant_spline(position=pos)
+        self.startTime = 0
+        self.looping = False
+
+    def play_spline(self, spline: Spline, loop=False, offset=0):
         """Play a spline directly.
 
         Args:
             spline: Spline to play.
-        """
-        if spline.x[0] != 0:
-            # TODO: Zeroing spline in time could be done in Content manager. But
-            # better safe than sorry.
-            spline = shift_spline(spline, offset=-spline.x[0])
 
+        Kwargs:
+            loop: Loop spline playback.
+            offset: Start offset inside spline.
+        """
         self.spline = spline
-        self.startTime = self.clock.now()
+        self.startTime = self.clock.now() - offset
         self.looping = loop
         return self.startTime
 
