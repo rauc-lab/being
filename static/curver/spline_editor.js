@@ -35,15 +35,15 @@ const ZERO_SPLINE = new BPoly([
     [0.],
 ], [0., 1.]);
 
-
+/** Magnification factor for one single click on the zoom buttons */
 const ZOOM_FACTOR_PER_STEP = 1.5;
 
 
+/** Current host address */
 const HOST = window.location.host;
+
+/** Current http host address. */
 const HTTP_HOST = "http://" + HOST;
-
-
-
 
 /** Checked string literal */
 const CHECKED = "checked";
@@ -103,6 +103,11 @@ function zoom_bbox_in_place(bbox, factor) {
 }
 
 
+/**
+ * Assure c0 continuity in spline coefficient matrix.
+ *
+ * @param {Spline} spline
+ */
 function smooth_out_spline(spline) {
     const degree = spline.degree;
     for (let seg=0; seg<spline.n_segments; seg++) {
@@ -203,6 +208,10 @@ class Mover {
 }
 
 
+/**
+ * Transport / playback cursor container. Current playing position, duration,
+ * looping, playing, cursor drawing.
+ */
 class Transport {
     constructor(editor) {
         this.editor = editor;
@@ -214,11 +223,17 @@ class Transport {
         this.init_cursor();
     }
 
+    /**
+     * Toggle looping.
+     */
     toggle_looping() {
         this.looping = !this.looping;
         this.editor.update_buttons();
     }
 
+    /**
+     * Initialize cursor SVG line.
+     */
     init_cursor() {
         const line = create_element("line");
         setattr(line, "stroke-width", 2);
@@ -227,22 +242,35 @@ class Transport {
         this.cursor = line;
     }
 
+    /**
+     * Start playback in transport.
+     */
     play() {
         this.playing = true;
         this.editor.update_buttons();
     }
 
+    /**
+     * Pause playback in transport.
+     */
     pause() {
         this.playing = false;
         this.editor.update_buttons();
     }
 
+    /**
+     * Stop transport playback and rewind.
+     */
     stop() {
         this.pause();
         this.position = 0;
+        this.draw_cursor();
     }
 
-    draw() {
+    /**
+     * Draw SVG cursor line (update its attributes).
+     */
+    draw_cursor() {
         const [x, _] = this.editor.transform_point([this.position, 0]);
         setattr(this.cursor, "x1", x);
         setattr(this.cursor, "y1", 0);
@@ -250,6 +278,9 @@ class Transport {
         setattr(this.cursor, "y2", this.editor.height);
     }
 
+    /**
+     * Update transport position.
+     */
     move(timestamp) {
         let pos = timestamp - this.startTime;
         if (this.looping) {
@@ -262,7 +293,7 @@ class Transport {
             this.position = pos;
         }
 
-        this.draw();
+        this.draw_cursor();
         return pos;
     }
 }
@@ -344,7 +375,11 @@ class Editor extends CurverBase {
 
         this.svg.addEventListener("click", evt => {
             const pt = this.mouse_coordinates(evt);
-            console.log("click at", pt);
+            this.transport.position = pt[0];
+            this.transport.draw_cursor();
+            if (this.transport.playing) {
+                this.play_current_spline();
+            }
         });
 
         /*
@@ -458,6 +493,7 @@ class Editor extends CurverBase {
                 this.viewport.right = factor * (orig.right - mid + shift) + mid;
                 this.update_trafo();
                 this.draw_spline();
+                this.transport.draw_cursor();
             },
             evt => {
                 start = null;
