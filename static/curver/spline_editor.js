@@ -14,7 +14,7 @@ import { Line } from "/static/curver/line.js";
 
 
 /** Main loop interval of being block network. */
-const INTERVAL = 0.010 * 1.2;  // TODO: Why do we have line overlays with the correct interval???
+const INTERVAL = 0.010;
 
 /** Dummy SVG point for transformations. */
 const PT = create_element("svg").createSVGPoint();
@@ -35,10 +35,13 @@ const ZERO_SPLINE = new BPoly([
     [0.],
 ], [0., 1.]);
 
-
+/** Magnification factor for one single click on the zoom buttons */
 const ZOOM_FACTOR_PER_STEP = 1.5;
 
+/** Current host address */
 const HOST = window.location.host;
+
+/** Current http host address. */
 const HTTP_HOST = "http://" + HOST;
 
 /** Checked string literal */
@@ -101,6 +104,11 @@ function zoom_bbox_in_place(bbox, factor) {
 }
 
 
+/**
+ * Assure c0 continuity in spline coefficient matrix.
+ *
+ * @param {Spline} spline
+ */
 function smooth_out_spline(spline) {
     const degree = spline.degree;
     for (let seg = 0; seg < spline.n_segments; seg++) {
@@ -201,6 +209,96 @@ class Mover {
 }
 
 
+/**
+ * Transport / playback cursor container. Current playing position, duration,
+ * looping, playing, cursor drawing.
+ */
+class Transport {
+    constructor(editor) {
+        this.editor = editor;
+        this.position = 0;
+        this.playing = false;
+        this.looping = false;
+        this.startTime = 0;
+        this.duration = 1;
+        this.init_cursor();
+    }
+
+    /**
+     * Toggle looping.
+     */
+    toggle_looping() {
+        this.looping = !this.looping;
+        this.editor.update_buttons();
+    }
+
+    /**
+     * Initialize cursor SVG line.
+     */
+    init_cursor() {
+        const line = create_element("line");
+        setattr(line, "stroke-width", 2);
+        setattr(line, "stroke", "gray");
+        this.editor.transportGroup.appendChild(line);
+        this.cursor = line;
+    }
+
+    /**
+     * Start playback in transport.
+     */
+    play() {
+        this.playing = true;
+        this.editor.update_buttons();
+    }
+
+    /**
+     * Pause playback in transport.
+     */
+    pause() {
+        this.playing = false;
+        this.editor.update_buttons();
+    }
+
+    /**
+     * Stop transport playback and rewind.
+     */
+    stop() {
+        this.pause();
+        this.position = 0;
+        this.draw_cursor();
+    }
+
+    /**
+     * Draw SVG cursor line (update its attributes).
+     */
+    draw_cursor() {
+        const [x, _] = this.editor.transform_point([this.position, 0]);
+        setattr(this.cursor, "x1", x);
+        setattr(this.cursor, "y1", 0);
+        setattr(this.cursor, "x2", x);
+        setattr(this.cursor, "y2", this.editor.height);
+    }
+
+    /**
+     * Update transport position.
+     */
+    move(timestamp) {
+        let pos = timestamp - this.startTime;
+        if (this.looping) {
+            pos %= this.duration;
+        }
+
+        if (pos > this.duration) {
+            this.stop();
+        } else {
+            this.position = pos;
+        }
+
+        this.draw_cursor();
+        return pos;
+    }
+}
+
 
 /**
  * Spline editor.
@@ -212,26 +310,27 @@ class Editor extends CurverBase {
         console.log("BeingCurver.constructor");
         const auto = false;
         super(auto);
-        this.duration = 1;
-        this.maxlen = 1;
         this.history = new History();
         this.history.capture(ZERO_SPLINE);
         this.mover = null;
         this.splines = []
         this.visibles = new Set()
         this.dataBbox = new BBox([0, 0], [1, 0.04]);
-        this.startTime = 0.;
+
+        this.transport = new Transport(this);
 
         // Editing history buttons
         this.undoBtn = this.add_button("undo", "Undo last action");
         this.undoBtn.addEventListener("click", evt => {
             this.history.undo();
             this.init_spline_elements();
+            this.stop_spline_playback();
         });
         this.redoBtn = this.add_button("redo", "Redo last action")
         this.redoBtn.addEventListener("click", evt => {
             this.history.redo();
             this.init_spline_elements();
+            this.stop_spline_playback();
         });
 
         this.add_space_to_toolbar();
@@ -261,20 +360,31 @@ class Editor extends CurverBase {
 
         this.add_space_to_toolbar();
 
-        this.playBtn = this.add_button("play_arrow", "Play / pause motion playback");
+        // Transport buttons
+        this.playPauseBtn = this.add_button("play_arrow", "Play / pause motion playback");
+        this.stopBtn = this.add_button("stop", "Stop spline playback").addEventListener("click", async evt => {
+            this.stop_spline_playback();
+            this.transport.stop();
+        });
         this.loopBtn = this.add_button("loop", "Loop spline motion");
         this.loopBtn.addEventListener("click", evt => {
-            toggle_button(this.loopBtn);
+            this.transport.toggle_looping();
         });
-        this.playBtn.addEventListener("click", async evt => {
-            console.log("Play");
-            const url = HTTP_HOST + "/api/motors/0/play";
-            const spline = this.history.retrieve();
-            const res = await fetch_json(url, "POST", {
-                spline: spline.to_dict(),
-                loop: is_checked(this.loopBtn),
-            });
-            this.startTime = res['startTime'];
+        this.playPauseBtn.addEventListener("click", async evt => {
+            if (this.transport.playing) {
+                this.stop_spline_playback();
+            } else {
+                this.play_current_spline();
+            }
+        });
+
+        this.svg.addEventListener("click", evt => {
+            const pt = this.mouse_coordinates(evt);
+            this.transport.position = pt[0];
+            this.transport.draw_cursor();
+            if (this.transport.playing) {
+                this.play_current_spline();
+            }
         });
 
         /*
@@ -328,6 +438,7 @@ class Editor extends CurverBase {
             // TODO: How to prevent accidental text selection?
             //evt.stopPropagation()
             //evt.preventDefault();
+            this.stop_spline_playback();
             this.insert_new_knot(evt);
         });
         this.setup_zoom_drag();
@@ -468,6 +579,29 @@ class Editor extends CurverBase {
         return is_checked(this.c1Btn);
     }
 
+    /**
+     * Play current spline on Being. Start transport cursor.
+     */
+    async play_current_spline() {
+        const url = HTTP_HOST + "/api/motors/0/play";
+        const spline = this.history.retrieve();
+        const res = await fetch_json(url, "POST", {
+            spline: spline.to_dict(),
+            loop: this.transport.looping,
+            offset: this.transport.position,
+        });
+        this.transport.startTime = res["startTime"];
+        this.transport.play();
+    }
+
+    /**
+     * Stop spline playback on Being.
+     */
+    async stop_spline_playback() {
+        const url = HTTP_HOST + "/api/motors/0/stop";
+        await fetch(url, {method: "POST"});
+        this.transport.pause();
+    }
 
     /**
      * Setup drag event handlers for moving horizontally and zooming vertically.
@@ -495,6 +629,7 @@ class Editor extends CurverBase {
                 this.viewport.right = factor * (orig.right - mid + shift) + mid;
                 this.update_trafo();
                 this.draw_spline();
+                this.transport.draw_cursor();
             },
             evt => {
                 start = null;
@@ -511,6 +646,17 @@ class Editor extends CurverBase {
     update_buttons() {
         this.undoBtn.disabled = !this.history.undoable;
         this.redoBtn.disabled = !this.history.redoable;
+        if (this.transport.playing) {
+            this.playPauseBtn.innerHTML = "pause";
+        } else {
+            this.playPauseBtn.innerHTML = "play_arrow";
+        }
+
+        if (this.transport.looping) {
+            switch_button_on(this.loopBtn);
+        } else {
+            switch_button_off(this.loopBtn);
+        }
     }
 
 
@@ -555,7 +701,7 @@ class Editor extends CurverBase {
             ele,
             evt => {
                 start = this.mouse_coordinates(evt);
-                console.log("Mouse down. TODO: Pause behavior engine")
+                this.stop_spline_playback();
             },
             evt => {
                 const end = this.mouse_coordinates(evt);
@@ -602,7 +748,6 @@ class Editor extends CurverBase {
     }
 
 
-
     /**
      * Load spline into spline editor.
      */
@@ -621,34 +766,14 @@ class Editor extends CurverBase {
         console.log("select_motor() :" + this.selMot.value);
     }
 
-    /**
-     * Play back spline on motors
-     *
-     * @param {*} el 
-     */
-    play_motion(el) {
-        this.isPlaying = !this.isPlaying
-        if (this.isPlaying) {
-            // TODO: Call API
-            el.innerHTML = "stop"
-            el.style.color = "red"
-            el.title = "Stop playback"
-
-        }
-        else {
-            el.title = "Play spline on motor"
-            el.style.color = "black"
-            el.innerHTML = "play_circle"
-        }
-    }
 
     /**
      * Set current duration of spline editor.
      */
     set_duration(duration) {
-        this.duration = duration;
+        this.transport.duration = duration;
         this.lines.forEach(line => {
-            line.maxlen = this.duration / INTERVAL
+            line.maxlen = .8 * (duration / INTERVAL)
         });
     }
 
@@ -663,7 +788,6 @@ class Editor extends CurverBase {
             return;
         }
 
-
         const currentSpline = this.history.retrieve();
         const bbox = currentSpline.bbox();
         bbox.expand_by_point([0., 0]);
@@ -675,7 +799,7 @@ class Editor extends CurverBase {
         this.update_trafo();
         //this.lines.forEach(line => line.clear());
         this.update_buttons();
-        remove_all_children(this.svg);
+        remove_all_children(this.splineGroup);
         switch (currentSpline.order) {
             case Order.CUBIC:
                 this.init_cubic_spline_background_elements(lw); // Plot under selected!
@@ -704,7 +828,7 @@ class Editor extends CurverBase {
         setattr(path, "stroke", color);
         setattr(path, "stroke-width", strokeWidth);
         setattr(path, "fill", "transparent");
-        this.svg.appendChild(path)
+        this.splineGroup.appendChild(path)
         path.draw = () => {
             setattr(path, "d", path_d(this.transform_points(data_source())));
         };
@@ -740,7 +864,7 @@ class Editor extends CurverBase {
         const circle = create_element('circle');
         setattr(circle, "r", radius);
         setattr(circle, "fill", color);
-        this.svg.appendChild(circle);
+        this.splineGroup.appendChild(circle);
         circle.draw = () => {
             const a = this.transform_point(data_source());
             setattr(circle, "cx", a[0]);
@@ -760,7 +884,7 @@ class Editor extends CurverBase {
         const line = create_element("line");
         setattr(line, "stroke-width", strokeWidth);
         setattr(line, "stroke", color);
-        this.svg.appendChild(line);
+        this.splineGroup.appendChild(line);
         line.draw = () => {
             const [start, end] = data_source();
             const a = this.transform_point(start);
@@ -773,6 +897,7 @@ class Editor extends CurverBase {
 
         return line;
     }
+
 
 
     /**
@@ -873,7 +998,7 @@ class Editor extends CurverBase {
      * the current state from the spline via the data_source callbacks.
      */
     draw_spline() {
-        for (let ele of this.svg.children) {
+        for (let ele of this.splineGroup.children) {
             ele.draw();
         }
     }
@@ -882,20 +1007,28 @@ class Editor extends CurverBase {
      * Process new data message from backend.
      */
     new_data(msg) {
+        // Clear of old data points in live plot
+        if (!this.transport.playing) {
+            this.lines.forEach(line => {
+                line.data.popleft();
+            });
+            return;
+        }
+
+        const pos = this.transport.move(msg.timestamp);
+
+        // Init new lines
         while (this.lines.length < msg.values.length) {
             const color = this.colorPicker.next();
             const maxlen = this.duration / INTERVAL;
             this.lines.push(new Line(this.ctx, color, maxlen));
         }
 
+        // Plot data
         msg.values.forEach((value, nr) => {
-            this.lines[nr].append_data([
-                (msg.timestamp - this.startTime) % this.duration,
-                value,
-            ]);
+            this.lines[nr].append_data([pos, value]);
         });
     }
 }
-
 
 customElements.define('being-editor', Editor);
