@@ -336,8 +336,7 @@ class Editor extends CurverBase {
         this.add_space_to_toolbar();
 
         // C1 line continuity toggle button
-        this.c1Btn = this.add_button("timeline", "Toggle smooth knot transitions");
-        switch_button_on(this.c1Btn);
+        this.c1Btn = this.add_button("timeline", "Break continous knot transitions");
         this.c1Btn.addEventListener("click", evt => {
             toggle_button(this.c1Btn);
         });
@@ -443,6 +442,14 @@ class Editor extends CurverBase {
         });
         this.setup_zoom_drag();
         this.init_spline_elements();
+    }
+
+
+    /**
+     * C1 continuity activated?
+     */
+    get c1() {
+        return !is_checked(this.c1Btn);
     }
 
     /**
@@ -571,13 +578,6 @@ class Editor extends CurverBase {
         this.shadowRoot.insertBefore(container, this.shadowRoot.childNodes[1]) // insert after css link
     }
 
-
-    /**
-     * C1 continuity activated?
-     */
-    get c1() {
-        return is_checked(this.c1Btn);
-    }
 
     /**
      * Play current spline on Being. Start transport cursor.
