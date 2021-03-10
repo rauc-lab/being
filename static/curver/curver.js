@@ -119,8 +119,11 @@ export class CurverBase extends HTMLElement {
         // SVG
         this.svg = create_element("svg");
         this.splineGroup = this.svg.appendChild(create_element("g"));
+        this.splineGroup.id = "selected-spline"
         this.transportGroup = this.svg.appendChild(create_element("g"));
-        console.log("transportGroup:", this.transportGroup);
+        this.transportGroup.id = "cursor"
+        this.backgroundGroup = this.svg.appendChild(create_element("g"));
+        this.backgroundGroup.id = "background-splines"
  
         this.graphs = document.createElement("div")
         this.graphs.classList.add("graphDiv")
