@@ -57,5 +57,16 @@ class Content(SingleInstanceCache):
             for name in self._sorted_names()
         ]
 
+    def dict_motions(self):
+        files = glob.glob(self.directory + '/*.json')
+        files.sort(key=os.path.getmtime)  # latest modified last in list
+        names = map(rootname, files)
+        motions = []
+        for name in names:
+            motions.append({
+                "filename": name,
+                "content": self.load_motion(name)})
+        return motions
+
     def __str__(self):
         return '%s(directory=%r)' % (type(self).__name__, self.directory)

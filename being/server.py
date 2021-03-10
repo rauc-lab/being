@@ -57,7 +57,7 @@ def content_controller(content: Content) -> web.RouteTableDef:
 
     @routes.get('/motions')
     async def get_all_motions(request):
-        return json_response(content.list_motions())
+        return json_response(content.dict_motions())
 
     @routes.get('/motions/{name}')
     async def get_motion_by_name(request):

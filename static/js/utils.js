@@ -10,7 +10,7 @@
  * @param {function} fn - Callback.
  */
 export function ready(fn) {
-    if (document.readyState != "loading"){
+    if (document.readyState != "loading") {
         fn();
     } else {
         document.addEventListener("DOMContentLoaded", fn);
@@ -87,7 +87,7 @@ export function cycle(sequence) {
     // TODO: Use proper JS generators / iterator / what ever it is called
     let idx = 0;
     return {
-        next: function() {
+        next: function () {
             //return sequence[idx++ % sequence.length];  // Actually no. idx unbounded.
             idx %= sequence.length;
             const pick = sequence[idx];
@@ -107,7 +107,7 @@ export function arrays_equal(a, b) {
             return false;
         }
 
-        for (let i=0; i<a.length; i++) {
+        for (let i = 0; i < a.length; i++) {
             if (!arrays_equal(a[i], b[i])) {
                 return false;
             }
@@ -123,7 +123,7 @@ export function arrays_equal(a, b) {
 /**
  * Assert something and throw an error if condition does not hold up.
  */
-export function assert(condition, message="") {
+export function assert(condition, message = "") {
     if (!condition) {
         throw ("AssertionError " + message).trim();
     }

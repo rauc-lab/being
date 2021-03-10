@@ -4,34 +4,30 @@
 <head>
     <meta charset="utf-8" />
     <title>Being - Curver</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" type="text/css" href="static/reset.css">
     <link rel="stylesheet" type="text/css" href="static/main.css">
     <link href="static/font/material-icons.woff2" type="font/ttf">
     <link href="static/font/OpenSans-Regular.ttf" type="font/ttf">
     <script type="module" src="static/curver/live_plotter.js"></script>
     <script type="module" src="static/curver/spline_editor.js"></script>
+    <script type="module" src="static/curver/spline_list.js"></script>
     <style>
-        #plotter {
-            width: 100%;
-            height: 30vh;
-        }
-
         #editor {
             width: 100%;
-            height: 50vh;
+            height: 80vh;
         }
     </style>
 </head>
 
 <body>
-    <h1>Spline Editor</h1>
-
     <being-editor id="editor"></being-editor>
 
     <script type="module">
         import { ready } from "/static/js/utils.js";
         import { receive_from_websocket } from "/static/js/web-socket.js";
         import { fetch_json } from "/static/js/utils.js";
+        import { BPoly } from "/static/js/spline.js";
 
         const host = window.location.host;
 
@@ -53,7 +49,6 @@
 
         ready(main);
     </script>
-
 </body>
 
 </html>
