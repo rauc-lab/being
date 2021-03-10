@@ -20,6 +20,26 @@ def random_name():
     return '_'.join(twoWords)
 
 
+def empty_spline():
+    """ Empty spline with two knots (line) """
+    return {
+        "type": "BPoly",
+        "extrapolate": False,
+        "axis": 0,
+        "knots": [
+            0.0,
+            1
+        ],
+        "coefficients":
+        [
+            [0],
+            [0],
+            [0],
+            [0]
+        ],
+    }
+
+
 def filter_by_type(sequence, type_) -> Generator:
     """Filter sequence by type."""
     return (

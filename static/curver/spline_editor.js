@@ -456,6 +456,7 @@ class Editor extends CurverBase {
      * Update content in spline list
      */
     update_spline_list() {
+        remove_all_children(this.splineListDiv)
         this.splines.forEach(spline => {
             const entry = document.createElement("div")
             entry.classList.add("spline-list-entry")
@@ -560,7 +561,7 @@ class Editor extends CurverBase {
             })
         }
         catch (err) {
-            throw Error(error)
+            throw Error(err)
         }
     }
 
@@ -585,8 +586,14 @@ class Editor extends CurverBase {
         container.appendChild(newBtnContainer)
 
         this.addSplineButton.addEventListener("click", evt => {
-
-        })
+            this.create_spline().then(res => {
+                // TODO: get latest spline from response, don't fetch again
+                this.fetch_splines().then(() =>
+                    this.update_spline_list()
+                )
+            })
+        }
+        )
 
         this.shadowRoot.insertBefore(container, this.shadowRoot.childNodes[1]) // insert after css link
     }
@@ -776,6 +783,21 @@ class Editor extends CurverBase {
         console.log("save_spline()");
     }
 
+    /**
+    * Create a new spline on the backend. Content is a line with 
+    * arbitrary filename
+    */
+    async create_spline() {
+        const url = HTTP_HOST + "/api/motions";
+        const resp = await fetch(url, { method: "POST" });
+
+        if (!resp.ok) {
+            throw new Error(resp.statusText);
+        }
+
+        return await resp.json()
+    }
+
 
     select_motor() {
         console.log("select_motor() :" + this.selMot.value);
@@ -818,7 +840,7 @@ class Editor extends CurverBase {
         remove_all_children(this.backgroundGroup)
         switch (currentSpline.order) {
             case Order.CUBIC:
-                this.init_cubic_spline_background_elements(lw); // Plot under selected!
+                this.init_cubic_spline_background_elements(lw = 1); // Plot under selected!
                 this.init_cubic_spline_elements(lw);
                 break;
             case Order.QUADRATIC:
@@ -845,7 +867,7 @@ class Editor extends CurverBase {
         setattr(path, "stroke-width", strokeWidth);
         setattr(path, "fill", "transparent");
         if (backgroundSpline) {
-            setattr(path, "stroke-dasharray", "2,2")
+            // setattr(path, "stroke-dasharray", "2,2")
             this.backgroundGroup.appendChild(path)
         } else {
             this.splineGroup.appendChild(path)
@@ -982,7 +1004,7 @@ class Editor extends CurverBase {
                         currentSpline.point(seg, 2),
                         currentSpline.point(seg + 1, 0),
                     ];
-                }, lw, "silver", true);
+                }, lw, "#0005", true);
             }
         })
 

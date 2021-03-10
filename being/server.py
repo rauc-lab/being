@@ -9,7 +9,7 @@ from aiohttp import web
 from being.content import Content
 from being.serialization import dumps, loads, spline_from_dict
 from being.web_socket import WebSocket
-from being.utils import random_name
+from being.utils import random_name, empty_spline
 
 
 API_PREFIX = '/api'
@@ -76,12 +76,9 @@ def content_controller(content: Content) -> web.RouteTableDef:
         while content.motion_exists(rnd_name):
             rnd_name = random_name()
 
-        try:
-            spline = await request.json(loads=loads)
-        except json.JSONDecodeError as err:
-            return web.HTTPNotAcceptable(text='Failed deserializing JSON spline!')
+        spline = empty_spline()
 
-        content.save_motion(spline, name)
+        content.save_motion(spline, rnd_name)
         return json_response(spline)
 
     @routes.put('/motions/{name}')
