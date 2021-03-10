@@ -596,7 +596,7 @@ class Editor extends CurverBase {
      */
     async stop_spline_playback() {
         const url = HTTP_HOST + "/api/motors/0/stop";
-        await fetch(url, {method: "POST"});
+        await fetch(url, { method: "POST" });
         this.transport.pause();
     }
 
@@ -626,6 +626,7 @@ class Editor extends CurverBase {
                 this.viewport.right = factor * (orig.right - mid + shift) + mid;
                 this.update_trafo();
                 this.draw_spline();
+                this.draw_background_spline();
                 this.transport.draw_cursor();
             },
             evt => {
@@ -663,6 +664,7 @@ class Editor extends CurverBase {
     resize() {
         super.resize();
         this.draw_spline();
+        this.draw_background_spline();
     }
 
 
@@ -797,6 +799,7 @@ class Editor extends CurverBase {
         //this.lines.forEach(line => line.clear());
         this.update_buttons();
         remove_all_children(this.splineGroup);
+        remove_all_children(this.backgroundGroup)
         switch (currentSpline.order) {
             case Order.CUBIC:
                 this.init_cubic_spline_background_elements(lw); // Plot under selected!
@@ -820,37 +823,23 @@ class Editor extends CurverBase {
      * Initialize an SVG path element and adds it to the SVG parent element.
      * data_source callback needs to deliver the 2-4 Bézier control points.
      */
-    init_path(data_source, strokeWidth = 1, color = "black") {
+    init_path(data_source, strokeWidth = 1, color = "black", backgroundSpline = false) {
         const path = create_element('path');
         setattr(path, "stroke", color);
         setattr(path, "stroke-width", strokeWidth);
         setattr(path, "fill", "transparent");
-        this.splineGroup.appendChild(path)
+        if (backgroundSpline) {
+            setattr(path, "stroke-dasharray", "2,2")
+            this.backgroundGroup.appendChild(path)
+        } else {
+            this.splineGroup.appendChild(path)
+        }
         path.draw = () => {
             setattr(path, "d", path_d(this.transform_points(data_source())));
         };
 
         return path
     }
-
-    /**
-    * Initialize an SVG path element and adds it to the SVG parent element.
-    * data_source callback needs to deliver the 2-4 Bézier control points.
-    */
-    init_background_path(data_source, strokeWidth = 1, color = "silver") {
-        const path = create_element('path');
-        setattr(path, "stroke", color);
-        setattr(path, "stroke-dasharray", "2,2")
-        setattr(path, "stroke-width", strokeWidth);
-        setattr(path, "fill", "transparent");
-        this.svg.appendChild(path)
-        path.draw = () => {
-            setattr(path, "d", path_d(this.transform_points(data_source())));
-        };
-
-        return path
-    }
-
 
 
     /**
@@ -970,18 +959,18 @@ class Editor extends CurverBase {
             const currentSpline = this.splines.filter(spl => spl.filename === splFilename)[0].content
 
             for (let seg = 0; seg < currentSpline.n_segments; seg++) {
-                this.init_background_path(() => {
+                this.init_path(() => {
                     return [
                         currentSpline.point(seg, 0),
                         currentSpline.point(seg, 1),
                         currentSpline.point(seg, 2),
                         currentSpline.point(seg + 1, 0),
                     ];
-                }, lw);
+                }, lw, "silver", true);
             }
         })
 
-        this.draw_spline()
+        this.draw_background_spline()
     }
 
 
@@ -997,6 +986,17 @@ class Editor extends CurverBase {
     draw_spline() {
         for (let ele of this.splineGroup.children) {
             ele.draw();
+        }
+    }
+
+    /**
+    * Draw the current spline / update all the SVG elements. They will fetch
+    * the current state from the spline via the data_source callbacks.
+    */
+    draw_background_spline() {
+        for (let ele of this.backgroundGroup.children) {
+            if (ele.nodeName === "path")
+                ele.draw();
         }
     }
 

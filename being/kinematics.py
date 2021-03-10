@@ -8,11 +8,12 @@ from being.constants import INF
 from being.math import sign, clip
 
 
-State = collections.namedtuple('State', 'position velocity acceleration', defaults=(0., 0., 0.))
+State = collections.namedtuple(
+    'State', 'position velocity acceleration', defaults=(0., 0., 0.))
 
 
 def optimal_trajectory(xEnd: float, vEnd: float = 0., state: State = State(),
-        maxSpeed: float = 1., maxAcc: float = 1.) -> list:
+                       maxSpeed: float = 1., maxAcc: float = 1.) -> list:
     """Calculate acceleration bang profiles for optimal trajectory from initial
     `state` to target position / velocity. Respecting the kinematic limits. Bang
     profiles are given by their duration and the acceleration value.
@@ -67,7 +68,8 @@ def optimal_trajectory(xEnd: float, vEnd: float = 0., state: State = State(),
 
     # Trapezoidal speed profile
     accDuration = (s * maxSpeed - v0) / (s * maxAcc)
-    t2 = ((vEnd**2 + v0**2 - 2 * s * maxSpeed * v0) / (2 * maxAcc) + s * dx) / maxSpeed
+    t2 = ((vEnd**2 + v0**2 - 2 * s * maxSpeed * v0) /
+          (2 * maxAcc) + s * dx) / maxSpeed
     cruiseDuration = t2 - accDuration
     decDuration = (vEnd - s * maxSpeed) / (-s * maxAcc)
     return [
@@ -107,8 +109,8 @@ def step(state: State, dt: float) -> State:
 
 
 def kinematic_filter(targetPosition: float, dt: float, state: State = State(),
-        targetVelocity: float = 0., maxSpeed: float = 1., maxAcc: float = 1.,
-        lower: float = -INF, upper: float = INF) -> State:
+                     targetVelocity: float = 0., maxSpeed: float = 1., maxAcc: float = 1.,
+                     lower: float = -INF, upper: float = INF) -> State:
     """Filter target position with respect to the kinematic limits (maximum
     speed and maximum acceleration / deceleration). Online optimal trajectory.
 
