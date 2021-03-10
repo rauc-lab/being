@@ -132,7 +132,6 @@ class Mover {
         this.spline = spline.copy();
     }
 
-
     /**
      * Move knot around for some delta.
      *
@@ -141,7 +140,7 @@ class Mover {
      * @param c1 - C1 continuity.
      */
     move_knot(nr, delta, c1 = true) {
-        const xmin = (nr > 0) ? this.orig.x[nr - 1] + EPS : -Infinity;
+        const xmin = (nr > 0) ? this.orig.x[nr - 1] + EPS : 0;  // Allow only for kausal splines
         const xmax = (nr < this.orig.n_segments) ? this.orig.x[nr + 1] - EPS : Infinity;
 
         // Move knot horizontally
@@ -168,14 +167,12 @@ class Mover {
         }
     }
 
-
     /**
      * X axis spacing ratio between two consecutive segments
      */
     _ratio(seg) {
         return this.spline._dx(seg + 1) / this.spline._dx(seg);
     }
-
 
     /**
      * Move control point around by some delta.
