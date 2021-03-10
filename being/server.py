@@ -9,6 +9,7 @@ from aiohttp import web
 from being.content import Content
 from being.serialization import dumps, loads, spline_from_dict
 from being.web_socket import WebSocket
+from being.utils import random_name, empty_spline
 
 
 API_PREFIX = '/api'
@@ -68,18 +69,16 @@ def content_controller(content: Content) -> web.RouteTableDef:
         spline = content.load_motion(name)
         return json_response(spline)
 
-    @routes.post('/motions/{name}')
+    @routes.post('/motions')
     async def create_motion(request):
-        name = request.match_info['name']
-        if content.motion_exists(name):
-            return web.HTTPConflict(text=f'Motion {name!r} does already exist!')
 
-        try:
-            spline = await request.json(loads=loads)
-        except json.JSONDecodeError as err:
-            return web.HTTPNotAcceptable(text='Failed deserializing JSON spline!')
+        rnd_name = random_name()
+        while content.motion_exists(rnd_name):
+            rnd_name = random_name()
 
-        content.save_motion(spline, name)
+        spline = empty_spline()
+
+        content.save_motion(spline, rnd_name)
         return json_response(spline)
 
     @routes.put('/motions/{name}')
@@ -184,7 +183,8 @@ def init_web_server(being=None, content=None) -> web.Application:
 
     # Pages
     app.router.add_get('/', file_response_handler('static/index.html'))
-    app.router.add_get('/favicon.ico', file_response_handler('static/favicon.ico'))
+    app.router.add_get(
+        '/favicon.ico', file_response_handler('static/favicon.ico'))
 
     # Rest API
     api = web.Application()

@@ -93,7 +93,3 @@ section {
   /* Support for IE. */
   font-feature-settings: "liga";
 }
-
-being-plotter, being-editor {
-    border-bottom: 2px solid black;
-}

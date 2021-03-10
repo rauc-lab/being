@@ -4,9 +4,40 @@ import glob
 import os
 import weakref
 from typing import Dict, List, Generator
+from random import choices
 
 
 Filepath = str
+RANDOM_WORDS = ['deep', 'pumped', 'purple', 'scary', 'unequaled', 'serious',
+                'uninterested', 'peaceful', 'unknown', 'spurious', 'compact',
+                'finish', 'blue', 'highway', 'movie', 'folklore',
+                'prove', 'uncertainty',
+                ]
+
+
+def random_name():
+    twoWords = choices(RANDOM_WORDS, k=2)
+    return '_'.join(twoWords)
+
+
+def empty_spline():
+    """ Empty spline with two knots (line) """
+    return {
+        "type": "BPoly",
+        "extrapolate": False,
+        "axis": 0,
+        "knots": [
+            0.0,
+            1
+        ],
+        "coefficients":
+        [
+            [0],
+            [0],
+            [0],
+            [0]
+        ],
+    }
 
 
 def filter_by_type(sequence, type_) -> Generator:
@@ -41,7 +72,7 @@ def listdir(directory, fullpath=True) -> List[Filepath]:
     Args:
         directory: Directory to traverse.
     """
-    filepaths = sorted(glob.iglob(os.path.join(directory, '*')) )
+    filepaths = sorted(glob.iglob(os.path.join(directory, '*')))
     if fullpath:
         return filepaths
 
