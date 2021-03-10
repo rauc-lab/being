@@ -215,8 +215,7 @@ def sample_spline(spline: Spline, t, loop: bool = False):
     end = spline.x[-1]
 
     if loop:
-        duration = end - start
-        return spline((t - start) % duration + start)
+        t = (t - start) % end + start
 
     if spline.extrapolate:
         return spline(t)

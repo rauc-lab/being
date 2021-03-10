@@ -9,7 +9,7 @@ import { History } from "/static/js/history.js";
 import { subtract_arrays, clip } from "/static/js/math.js";
 import { Degree, Order, BPoly } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
-import { arrays_equal, remove_all_children, assert, searchsorted, fetch_json } from "/static/js/utils.js";
+import { arrays_equal, remove_all_children, assert, searchsorted, fetch_json, last_element } from "/static/js/utils.js";
 import { Line } from "/static/curver/line.js";
 
 
@@ -58,6 +58,7 @@ const VISIBILITY = "visibility"
 function toggle_button(btn) {
     btn.toggleAttribute(CHECKED);
 }
+
 
 /**
  * Switch toggle HTML button off.
@@ -441,7 +442,6 @@ class Editor extends CurverBase {
         this.init_spline_elements();
     }
 
-
     /**
      * C1 continuity activated?
      */
@@ -518,7 +518,6 @@ class Editor extends CurverBase {
     }
 
     update_spline_list_selection() {
-
         let entries = this.shadowRoot.querySelectorAll(".spline-list-entry")
         entries.forEach(entry => {
             entry.removeAttribute("checked")
@@ -794,7 +793,7 @@ class Editor extends CurverBase {
         this.dataBbox = bbox;
         this.viewport.ll[1] = bbox.ll[1];
         this.viewport.ur[1] = bbox.ur[1];
-        this.set_duration(currentSpline.duration);
+        this.set_duration(last_element(currentSpline.x));
         this.update_trafo();
         //this.lines.forEach(line => line.clear());
         this.update_buttons();
