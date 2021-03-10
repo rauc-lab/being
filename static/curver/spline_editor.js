@@ -327,8 +327,7 @@ class Editor extends CurverBase {
         // Transport buttons
         this.playPauseBtn = this.add_button("play_arrow", "Play / pause motion playback");
         this.stopBtn = this.add_button("stop", "Stop spline playback").addEventListener("click", async evt => {
-            const url = HTTP_HOST + "/api/motors/0/stop";
-            await fetch(url, {method: "POST"});
+            this.stop_spline_playback();
             this.transport.stop();
         });
         this.loopBtn = this.add_button("loop", "Loop spline motion");
@@ -337,19 +336,9 @@ class Editor extends CurverBase {
         });
         this.playPauseBtn.addEventListener("click", async evt => {
             if (this.transport.playing) {
-                const url = HTTP_HOST + "/api/motors/0/stop";
-                await fetch(url, {method: "POST"});
-                this.transport.pause();
+                this.stop_spline_playback();
             } else {
-                const url = HTTP_HOST + "/api/motors/0/play";
-                const spline = this.history.retrieve();
-                const res = await fetch_json(url, "POST", {
-                    spline: spline.to_dict(),
-                    loop: this.transport.looping,
-                    offset: this.transport.position,
-                });
-                this.transport.startTime = res["startTime"];
-                this.transport.play();
+                this.play_current_spline();
             }
         });
 
@@ -404,6 +393,7 @@ class Editor extends CurverBase {
             // TODO: How to prevent accidental text selection?
             //evt.stopPropagation()
             //evt.preventDefault();
+            this.stop_spline_playback();
             this.insert_new_knot(evt);
         });
         this.setup_zoom_drag();
@@ -418,6 +408,29 @@ class Editor extends CurverBase {
         return is_checked(this.c1Btn);
     }
 
+    /**
+     * Play current spline on Being. Start transport cursor.
+     */
+    async play_current_spline() {
+        const url = HTTP_HOST + "/api/motors/0/play";
+        const spline = this.history.retrieve();
+        const res = await fetch_json(url, "POST", {
+            spline: spline.to_dict(),
+            loop: this.transport.looping,
+            offset: this.transport.position,
+        });
+        this.transport.startTime = res["startTime"];
+        this.transport.play();
+    }
+
+    /**
+     * Stop spline playback on Being.
+     */
+    async stop_spline_playback() {
+        const url = HTTP_HOST + "/api/motors/0/stop";
+        await fetch(url, {method: "POST"});
+        this.transport.pause();
+    }
 
     /**
      * Setup drag event handlers for moving horizontally and zooming vertically.
@@ -516,7 +529,7 @@ class Editor extends CurverBase {
             ele,
             evt => {
                 start = this.mouse_coordinates(evt);
-                console.log("Mouse down. TODO: Pause behavior engine")
+                this.stop_spline_playback();
             },
             evt => {
                 const end = this.mouse_coordinates(evt);
