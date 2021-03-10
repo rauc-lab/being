@@ -10,7 +10,7 @@ from being.connectables import ValueOutput
 from being.execution import ExecOrder, execute, block_network_graph
 from being.graph import topological_sort
 from being.motion_player import MotionPlayer
-from being.motor import home_motors, Motor
+from being.motor import home_motors, _MotorBase
 from being.server import WEB_SOCKET_ADDRESS, init_web_server, run_web_server
 from being.utils import filter_by_type
 from being.web_socket import WebSocket
@@ -34,10 +34,10 @@ class Being:
         self.graph = block_network_graph(blocks)
         self.execOrder = topological_sort(self.graph)
         self.network = CanBackend.single_instance_get()
-        motors = list(filter_by_type(self.execOrder, Motor))
+        motors = list(filter_by_type(self.execOrder, _MotorBase))
         self.motionPlayers = list(filter_by_type(self.execOrder, MotionPlayer))
         self.clock = Clock.single_instance_setdefault()
-        if motors:
+        if self.network:
             home_motors(motors)
             self.network.enable_drives()
 

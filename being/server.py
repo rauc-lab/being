@@ -218,27 +218,8 @@ async def run_web_server(app: web.Application):
 
 if __name__ == '__main__':
     # Run server with dummy being
-    import time
-    import math
-
     from being.being import awake
-    from being.block import Block
-    from being.constants import TAU
     from being.motion_player import MotionPlayer
+    from being.motor import DummyMotor
 
-
-    """
-    class SineGenerator(Block):
-        def __init__(self, frequency=1.):
-            super().__init__()
-            self.frequency = frequency
-            self.add_value_output()
-
-        def update(self):
-            now = time.perf_counter()
-            self.output.value = math.sin(TAU * self.frequency * now)
-
-    awake(SineGenerator(.1), SineGenerator(.2), SineGenerator(.4), web=True)
-    """
-    mp = MotionPlayer()
-    awake(mp)
+    awake(MotionPlayer() | DummyMotor())

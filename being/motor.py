@@ -60,7 +60,20 @@ def home_motors(motors, interval=.01, timeout=4., **kwargs):
     return True
 
 
-class Motor(Block):
+class _MotorBase(Block):
+
+    """Motor base class."""
+
+    def __init__(self):
+        super().__init__()
+        self.add_value_input()
+        self.add_value_output()
+
+    def home(self):
+        yield DONE_HOMING
+
+
+class Motor(_MotorBase):
 
     """Motor blocks which takes set-point values through its inputs and outputs
     the current actual position value through its output. The input position
@@ -215,9 +228,6 @@ class Motor(Block):
             yield DONE_HOMING
 
     def update(self):
-        # Fetch actual position
-        self.output.value = self.node.pdo['Position Actual Value'].raw / SI_2_FAULHABER
-
         # Kinematic filter input target position
         self.state = kinematic_filter(
             self.input.value,
@@ -232,5 +242,38 @@ class Motor(Block):
         self.node.pdo['Target Position'].raw = soll
         self.node.rpdo[2].transmit()
 
+        # Fetch actual position
+        self.output.value = self.node.pdo['Position Actual Value'].raw / SI_2_FAULHABER
+
     def __str__(self):
         return f'{type(self).__name__}(nodeId={self.nodeId})'
+
+
+
+class DummyMotor(_MotorBase):
+
+    """Dummy motor for testing and standalone usage."""
+
+    def __init__(self, rodLength=0.04):
+        super().__init__()
+        self.rodLength = rodLength
+        self.add_value_input()
+        self.add_value_output()
+        self.state = KinematicState()
+
+    def home(self, speed: int = 100):
+        yield DONE_HOMING
+
+    def update(self):
+        # Kinematic filter input target position
+        self.state = kinematic_filter(
+            self.input.value,
+            dt=INTERVAL,
+            state=self.state,
+            maxSpeed=1.,
+            maxAcc=1.,
+            lower=0.,
+            upper=self.rodLength,
+        )
+
+        self.output.value = self.state.position
