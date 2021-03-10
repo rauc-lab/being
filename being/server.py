@@ -26,7 +26,7 @@ def respond_ok():
     return web.Response()
 
 
-def json_response(thing):
+def json_response(thing={}):
     """aiohttp web.json_response but with our custom JSON serialization /
     dumps.
     """
@@ -120,12 +120,22 @@ def being_controller(being) -> web.RouteTableDef:
             data = await request.json()
             spline = spline_from_dict(data['spline'])
             return json_response({
-                'startTime': mp.play_spline(spline, data['loop']),
+                'startTime': mp.play_spline(spline, loop=data['loop'], offset=data['offset']),
             })
         except IndexError:
             return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
         except KeyError:
             return web.HTTPBadRequest(text=f'Could not parse spline!')
+
+    @routes.post('/motors/{id}/stop')
+    async def play_spline(request):
+        id = int(request.match_info['id'])
+        try:
+            mp = being.motionPlayers[id]
+            mp.stop()
+            return json_response()
+        except IndexError:
+            return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
 
     """
     mpInfos = [
