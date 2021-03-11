@@ -3,7 +3,6 @@
  * Curver base class for live plotter and spline editor.
  */
 import { BBox } from "/static/js/bbox.js";
-import { History, } from "/static/js/history.js";
 import { tick_space, } from "/static/js/layout.js";
 import {
     divide_arrays,
@@ -14,7 +13,6 @@ import {
 import {
     cycle,
 } from "/static/js/utils.js";
-import { Line } from "/static/js/line.js";
 
 
 /** Default line colors */
@@ -51,6 +49,18 @@ export class CurverBase extends HTMLElement {
         this.lines = [];
         this.colorPicker = cycle(COLORS);
         this.init_elements();
+    }
+
+
+    connectedCallback() {
+        addEventListener("resize", evt => this.resize());
+        this.resize();
+        //this.run();
+        //setTimeout(() => this.resize(), 1);
+        setTimeout(() => {
+            this.resize();
+            this.run();
+        }, 100);
     }
 
 
@@ -185,18 +195,6 @@ export class CurverBase extends HTMLElement {
 
         //this.draw();
         this.update_trafo();
-    }
-
-
-    connectedCallback() {
-        addEventListener("resize", evt => this.resize());
-        this.resize();
-        //this.run();
-        //setTimeout(() => this.resize(), 1);
-        setTimeout(() => {
-            this.resize();
-            this.run();
-        }, 100);
     }
 
 

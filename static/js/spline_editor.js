@@ -21,9 +21,6 @@ const INTERVAL = 0.010;
 /** Dummy SVG point for transformations. */
 const PT = create_element("svg").createSVGPoint();
 
-/** Minimum knot distance episolon */
-export const EPS = 1e-3;
-
 /** Zero spline with duration 1.0 */
 const ZERO_SPLINE = new BPoly([
     [0.],
@@ -43,8 +40,6 @@ const HTTP_HOST = "http://" + HOST;
 
 /** Checked string literal */
 const CHECKED = "checked";
-
-const VISIBILITY = "visibility"
 
 
 /**
@@ -109,7 +104,6 @@ function zoom_bbox_in_place(bbox, factor) {
  */
 class Editor extends CurverBase {
     constructor() {
-        console.log("BeingCurver.constructor");
         const auto = false;
         super(auto);
         this.history = new History();
@@ -344,7 +338,7 @@ class Editor extends CurverBase {
         this.visibles.forEach(filename => {
             const parent = this.shadowRoot.getElementById(filename)
             const checkbox = parent.querySelector(".spline-checkbox")
-            checkbox.innerHTML = VISIBILITY
+            checkbox.innerHTML = "visibility";
         })
     }
 
