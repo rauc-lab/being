@@ -7,10 +7,12 @@ import { CurverBase } from "/static/js/curver.js";
 import { make_draggable } from "/static/js/draggable.js";
 import { History } from "/static/js/history.js";
 import { subtract_arrays, clip } from "/static/js/math.js";
-import { Degree, Order, BPoly } from "/static/js/spline.js";
+import { smooth_out_spline, Order, BPoly } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
-import { arrays_equal, remove_all_children, assert, searchsorted, fetch_json, last_element } from "/static/js/utils.js";
+import { arrays_equal, remove_all_children, searchsorted, fetch_json, last_element } from "/static/js/utils.js";
 import { Line } from "/static/js/line.js";
+import { Transport } from "/static/js/transport.js";
+import { Mover } from "/static/js/mover.js";
 
 
 /** Main loop interval of being block network. */
@@ -20,12 +22,7 @@ const INTERVAL = 0.010;
 const PT = create_element("svg").createSVGPoint();
 
 /** Minimum knot distance episolon */
-const EPS = 1e-3;
-
-/** Named indices for BPoly coefficents matrix */
-const KNOT = 0;
-const FIRST_CP = 1;
-const SECOND_CP = 2;
+export const EPS = 1e-3;
 
 /** Zero spline with duration 1.0 */
 const ZERO_SPLINE = new BPoly([
@@ -102,199 +99,6 @@ function zoom_bbox_in_place(bbox, factor) {
     const mid = .5 * (bbox.left + bbox.right);
     bbox.left = 1 / factor * (bbox.left - mid) + mid;
     bbox.right = 1 / factor * (bbox.right - mid) + mid;
-}
-
-
-/**
- * Assure c0 continuity in spline coefficient matrix.
- *
- * @param {Spline} spline
- */
-function smooth_out_spline(spline) {
-    const degree = spline.degree;
-    for (let seg = 0; seg < spline.n_segments; seg++) {
-        if (seg > 0) {
-            spline.c[KNOT + degree][seg - 1] = spline.c[KNOT][seg];
-        }
-    }
-}
-
-
-/**
- * Spline mover.
- *
- * Manages spline dragging and editing. Keeps a backup copy of the original
- * spline as `orig` so that we can do delta manipulations.
- */
-class Mover {
-    constructor(spline) {
-        assert(spline.degree == Degree.CUBIC, "Only cubic splines supported for now!");
-        this.orig = spline
-        this.spline = spline.copy();
-    }
-
-    /**
-     * Move knot around for some delta.
-     *
-     * @param nr - Knot number to move.
-     * @param delta - Delta 2d offset vector. Data space.
-     * @param c1 - C1 continuity.
-     */
-    move_knot(nr, delta, c1 = true) {
-        const xmin = (nr > 0) ? this.orig.x[nr - 1] + EPS : 0;  // Allow only for kausal splines
-        const xmax = (nr < this.orig.n_segments) ? this.orig.x[nr + 1] - EPS : Infinity;
-
-        // Move knot horizontally
-        this.spline.x[nr] = clip(this.orig.x[nr] + delta[0], xmin, xmax);
-        if (nr > 0) {
-            // Move knot vertically on the left
-            const degree = this.spline.degree;
-            this.spline.c[degree][nr - 1] = this.orig.c[degree][nr - 1] + delta[1];
-        }
-
-        if (nr < this.spline.n_segments) {
-            // Move knot vertically on the right
-            this.spline.c[KNOT][nr] = this.orig.c[KNOT][nr] + delta[1];
-        }
-
-        // Move control points
-        if (nr == this.spline.n_segments) {
-            this.move_control_point(nr - 1, SECOND_CP, delta, false);
-        } else if (c1) {
-            this.move_control_point(nr, FIRST_CP, delta);
-        } else {
-            this.move_control_point(nr, FIRST_CP, delta, false);
-            this.move_control_point(nr - 1, SECOND_CP, delta, false);
-        }
-    }
-
-    /**
-     * X axis spacing ratio between two consecutive segments
-     */
-    _ratio(seg) {
-        return this.spline._dx(seg + 1) / this.spline._dx(seg);
-    }
-
-    /**
-     * Move control point around by some delta.
-     */
-    move_control_point(seg, nr, delta, c1 = true) {
-        // Move control point vertically
-        this.spline.c[nr][seg] = this.orig.c[nr][seg] + delta[1];
-
-        // TODO: This is messy. Any better way?
-        const leftMost = (seg === 0) && (nr === FIRST_CP);
-        const rightMost = (seg === this.spline.n_segments - 1) && (nr === SECOND_CP);
-        if (leftMost || rightMost) {
-            return;
-        }
-
-        // Move adjacent control point vertically
-        if (c1 && this.spline.degree == Degree.CUBIC) {
-            if (nr == FIRST_CP) {
-                const y = this.spline.c[KNOT][seg];
-                const q = this._ratio(seg - 1);
-                const dy = this.spline.c[FIRST_CP][seg] - y;
-                this.spline.c[SECOND_CP][seg - 1] = y - dy / q;
-            } else if (nr == SECOND_CP) {
-                const y = this.spline.c[KNOT][seg + 1];
-                const q = this._ratio(seg);
-                const dy = this.spline.c[SECOND_CP][seg] - y;
-                this.spline.c[FIRST_CP][seg + 1] = y - q * dy;
-            }
-        }
-    }
-}
-
-
-/**
- * Transport / playback cursor container. Current playing position, duration,
- * looping, playing, cursor drawing.
- */
-class Transport {
-    constructor(editor) {
-        this.editor = editor;
-        this.position = 0;
-        this.playing = false;
-        this.looping = false;
-        this.startTime = 0;
-        this.duration = 1;
-        this.init_cursor();
-    }
-
-    /**
-     * Toggle looping.
-     */
-    toggle_looping() {
-        this.looping = !this.looping;
-        this.editor.update_buttons();
-    }
-
-    /**
-     * Initialize cursor SVG line.
-     */
-    init_cursor() {
-        const line = create_element("line");
-        setattr(line, "stroke-width", 2);
-        setattr(line, "stroke", "gray");
-        this.editor.transportGroup.appendChild(line);
-        this.cursor = line;
-    }
-
-    /**
-     * Start playback in transport.
-     */
-    play() {
-        this.playing = true;
-        this.editor.update_buttons();
-    }
-
-    /**
-     * Pause playback in transport.
-     */
-    pause() {
-        this.playing = false;
-        this.editor.update_buttons();
-    }
-
-    /**
-     * Stop transport playback and rewind.
-     */
-    stop() {
-        this.pause();
-        this.position = 0;
-        this.draw_cursor();
-    }
-
-    /**
-     * Draw SVG cursor line (update its attributes).
-     */
-    draw_cursor() {
-        const [x, _] = this.editor.transform_point([this.position, 0]);
-        setattr(this.cursor, "x1", x);
-        setattr(this.cursor, "y1", 0);
-        setattr(this.cursor, "x2", x);
-        setattr(this.cursor, "y2", this.editor.height);
-    }
-
-    /**
-     * Update transport position.
-     */
-    move(timestamp) {
-        let pos = timestamp - this.startTime;
-        if (this.looping) {
-            pos %= this.duration;
-        }
-
-        if (pos > this.duration) {
-            this.stop();
-        } else {
-            this.position = pos;
-        }
-
-        this.draw_cursor();
-        return pos;
-    }
 }
 
 

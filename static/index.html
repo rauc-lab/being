@@ -21,6 +21,8 @@
 </head>
 
 <body>
+    <!--
+
     <nav>
         <ul>
             <li><a href="#plotter">plotter</a></li>
@@ -32,6 +34,7 @@
     <h1>Behavior</h1>
 
     <h1>Spline Editor</h1>
+    -->
     
     <being-editor id="editor"></being-editor>
 
@@ -48,8 +51,9 @@
             const data = await fetch_json(url);
             console.log(data);
             const plotter = document.getElementById("plotter");
-            const editor = document.getElementById("editor");
             */
+            const editor = document.getElementById("editor");
+            console.log(editor);
             const streamUrl = 'ws://' + host + '/stream';
             receive_from_websocket(streamUrl, {
                 "output-values": [
@@ -57,6 +61,7 @@
                 ],
             });
         }
+
         ready(main);
     </script>
 </body>

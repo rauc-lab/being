@@ -7,6 +7,12 @@ import {deep_copy, last_element} from "/static/js/utils.js";
 import {BBox} from "/static/js/bbox.js";
 
 
+/** Named indices for BPoly coefficents matrix */
+export const KNOT = 0;
+export const FIRST_CP = 1;
+export const SECOND_CP = 2;
+
+
 /** Spline orders */
 export const Order = Object.freeze({
     "CUBIC": 4,
@@ -41,6 +47,20 @@ export function spline_degree(spline) {
     return spline_order(spline) - 1;
 }
 
+
+/**
+ * Assure c0 continuity in spline coefficient matrix.
+ *
+ * @param {Spline} spline
+ */
+export function smooth_out_spline(spline) {
+    const degree = spline.degree;
+    for (let seg = 0; seg < spline.n_segments; seg++) {
+        if (seg > 0) {
+            spline.c[KNOT + degree][seg - 1] = spline.c[KNOT][seg];
+        }
+    }
+}
 
 /**
  * JS BPoly wrapper.

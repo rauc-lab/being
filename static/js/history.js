@@ -50,6 +50,10 @@ export class History {
      * Retrieve current state.
      */
     retrieve() {
+        if (this.past.length === 0) {
+            return null;
+        }
+
         return last_element(this.past);
     }
 
@@ -58,8 +62,9 @@ export class History {
      * Wind back one state.
      */
     undo() {
-        if (!this.undoable)
+        if (!this.undoable) {
             throw "Nothing to undo!";
+        }
 
         const current = this.past.pop();
         this.future.appendleft(current);
@@ -71,8 +76,9 @@ export class History {
      * Rewind one state.
      */
     redo() {
-        if (!this.redoable)
+        if (!this.redoable) {
             throw "Nothing to redo!";
+        }
 
         const previous = this.future.popleft();
         this.past.push(previous);

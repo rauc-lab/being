@@ -1,4 +1,3 @@
-/*jslint browser:true */
 "use strict";
 import { LEFT_MOUSE_BUTTON, ESC_KEY_CODE } from "/static/js/constants.js";
 
