@@ -5,6 +5,8 @@
 import {array_shape, array_min, array_max} from "/static/js/math.js";
 import {deep_copy, last_element} from "/static/js/utils.js";
 import {BBox} from "/static/js/bbox.js";
+import {assert} from "/static/js/utils.js";
+import {clip} from "/static/js/math.js";
 
 
 /** Named indices for BPoly coefficents matrix */
@@ -145,14 +147,10 @@ export class BPoly {
 
 
     /**
-     * Inter segment interval. Segment width divided depending on spline degree.
+     * Segment width.
      */
     _dx(seg) {
-        if (this.degree == Degree.CONSTANT) {
-            return (this.x[seg+1] - this.x[seg]);
-        }
-
-        return (this.x[seg+1] - this.x[seg]) / this.degree;
+        return this.x[seg+1] - this.x[seg];
     }
 
 
@@ -170,14 +168,126 @@ export class BPoly {
 
 
     /**
+     * Get first derative value at knot position.
+     *
+     * @param {Number} nr Knot number.
+     * @param {String} side Which side of the knot.
+     */
+    get_derivative_at_knot(nr, side="right") {
+        if (side == "right") {
+            assert(0 <= nr && nr < this.n_segments);
+            const seg = nr;
+            return this.degree * (this.c[FIRST_CP][seg] - this.c[KNOT][seg]) / this._dx(seg);
+        } else {
+            assert(0 < nr && nr <= this.n_segments);
+            const seg = nr - 1;
+            const knot = KNOT + this.degree;
+            return this.degree * (this.c[knot][seg] - this.c[knot-1][seg]) / this._dx(seg);
+        }
+    }
+
+    /**
+     * Adjust control points for a given dervative value.
+     *
+     * @param {Number} nr Knot number.
+     * @param {Number} value Derivative value to ensure.
+     * @param {String} side Which side of the knot.
+     */
+    set_derivative_at_knot(nr, value, side="right") {
+        if (side == "right") {
+            assert(0 <= nr && nr < this.n_segments);
+            const seg = nr;
+            this.c[FIRST_CP][seg] = this._dx(seg) * value / this.degree + this.c[KNOT][seg];
+        } else {
+            assert(0 < nr && nr <= this.n_segments);
+            const seg = nr - 1;
+            const knot = KNOT + this.degree;
+            this.c[knot-1][seg] = this.c[knot][seg] - this._dx(seg) * value / this.degree;
+        }
+    }
+
+
+    /**
+     * Move knot to another position.
+     *
+     * @param {Number} nr Knot number.
+     * @param {Array} pos New knot position.
+     * @param {Bool} c1 C1 continuity (move surounding control points as well)
+     */
+    position_knot(nr, pos, c1 = false) {
+        let left = -Infinity;
+        let right = Infinity;
+        let leftDer = 0;
+        let rightDer = 0;
+        if (nr > 0) {
+            left = this.x[nr - 1];
+            leftDer = this.get_derivative_at_knot(nr, "left");
+        }
+
+        if (nr < this.n_segments) {
+            right = this.x[nr + 1];
+            rightDer = this.get_derivative_at_knot(nr, "right");
+        }
+
+        this.x[nr] = clip(pos[0], left, right);
+
+        if (nr > 0) {
+            const knot = KNOT + this.degree;
+            const prevSeg = nr - 1;
+            this.c[knot][prevSeg] = pos[1];
+            if (c1) {
+                this.set_derivative_at_knot(nr, leftDer, "left");
+            }
+        }
+
+        if (nr < this.n_segments) {
+            const seg = nr;
+            this.c[KNOT][seg] = pos[1];
+            if (c1) {
+                this.set_derivative_at_knot(nr, rightDer, "right");
+            }
+        }
+    }
+
+
+    /**
+     * Move control point around (only vertically).
+     *
+     * @param {Number} seg Segment number.
+     * @param {Number} nr Knot / control point number.
+     * @param {Number} y New y position of control point.
+     * @param {Bool} c1 Ensure C1 continnuity.
+     */
+    position_control_point(seg, nr, y, c1 = false) {
+        const leftMost = (nr === FIRST_CP) && (seg === 0);
+        const rightMost = (nr === SECOND_CP) && (seg === this.n_segments - 1);
+        if (!c1 || leftMost || rightMost) {
+            this.c[nr][seg] = y;
+            return;
+        }
+
+        if (nr == FIRST_CP) {
+            const der = this.get_derivative_at_knot(seg, "right");
+            this.c[FIRST_CP][seg] = y;
+            this.set_derivative_at_knot(seg, der, "left");
+        } else if (nr == SECOND_CP) {
+            const der = this.get_derivative_at_knot(seg+1, "left");
+            this.c[SECOND_CP][seg] = y;
+            this.set_derivative_at_knot(seg+1, der, "right");
+        }
+    }
+
+
+    /**
      * Bézier control point.
      *
-     * @param seg - Segment index.
-     * @param nr - Control point index. E.g. for cubic 0 -> left knot, 1 ->
+     * @param seg Segment index.
+     * @param nr Control point index. E.g. for cubic 0 -> left knot, 1 -> First control point, etc...
      */
     point(seg, nr=0) {
         if (seg == this.x.length - 1) {
-            return [this.end, last_element(this.c[this.degree])];
+            const knot = KNOT + this.degree;
+            return [this.end, last_element(this.c[knot])];
         }
 
         return [this._x(seg, nr), this.c[nr][seg]];
@@ -190,6 +300,9 @@ export class BPoly {
         return new BPoly(deep_copy(this.c), deep_copy(this.x), this.extrapolate, this.axis);
     }
 
+    /**
+     * Convert BPoly instance to dict representation.
+     */
     to_dict() {
         return {
             "type": "BPoly",

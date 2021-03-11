@@ -12,7 +12,6 @@ import { create_element, path_d, setattr } from "/static/js/svg.js";
 import { arrays_equal, remove_all_children, searchsorted, fetch_json, last_element } from "/static/js/utils.js";
 import { Line } from "/static/js/line.js";
 import { Transport } from "/static/js/transport.js";
-import { Mover } from "/static/js/mover.js";
 
 
 /** Main loop interval of being block network. */
@@ -108,7 +107,7 @@ class Editor extends CurverBase {
         super(auto);
         this.history = new History();
         this.history.capture(ZERO_SPLINE);
-        this.mover = null;
+        this.workingCopy = null;
         this.splines = []
         this.visibles = new Set()
         this.dataBbox = new BBox([0, 0], [1, 0.04]);
@@ -521,8 +520,7 @@ class Editor extends CurverBase {
             },
             evt => {
                 const end = this.mouse_coordinates(evt);
-                const delta = subtract_arrays(end, start);
-                on_drag(delta);
+                on_drag(end);
                 this.draw_spline();
             },
             evt => {
@@ -531,7 +529,7 @@ class Editor extends CurverBase {
                     return;
                 }
 
-                this.history.capture(this.mover.spline);
+                this.history.capture(this.workingCopy);
                 this.init_spline_elements();
             },
         )
@@ -725,8 +723,8 @@ class Editor extends CurverBase {
      */
     init_cubic_spline_elements(lw = 2) {
         const currentSpline = this.history.retrieve();
-        this.mover = new Mover(currentSpline);
-        const spline = this.mover.spline;  // Working copy
+        const spline = currentSpline.copy();
+        this.workingCopy = spline;
         for (let seg = 0; seg < spline.n_segments; seg++) {
             this.init_path(() => {
                 return [
@@ -748,8 +746,8 @@ class Editor extends CurverBase {
                     this.init_circle(() => {
                         return spline.point(seg, cpNr);
                     }, 3 * lw, "red"),
-                    (delta) => {
-                        this.mover.move_control_point(seg, cpNr, delta, this.c1);
+                    pos => {
+                        spline.position_control_point(seg, cpNr, pos[1], this.c1);
                     },
                 );
             }
@@ -761,8 +759,8 @@ class Editor extends CurverBase {
             }, 3 * lw);
             this.make_draggable(
                 circle,
-                (delta) => {
-                    this.mover.move_knot(knotNr, delta, this.c1);
+                pos => {
+                    spline.position_knot(knotNr, pos, this.c1);
                 },
             );
             circle.addEventListener("dblclick", evt => {
@@ -860,4 +858,4 @@ class Editor extends CurverBase {
     }
 }
 
-customElements.define('being-editor', Editor);
+customElements.define("being-editor", Editor);
