@@ -25,11 +25,13 @@ def plot_trajectory(t, trajectory, *args, ax=None, labelit=False, **kwargs):
 
         ax.plot(t, trajectory, *args, color=DEFAULT_COLORS[0], **kwargs)
     else:
+        zorder = 0
         for row, color, label in zip(trajectory.T, DEFAULT_COLORS, labels):
             if labelit:
                 kwargs['label'] = label
 
-            ax.plot(t, row, *args, color=color, **kwargs)
+            ax.plot(t, row, *args, color=color, zorder=zorder, **kwargs)
+            zorder -= 1
 
     if labelit:
         ax.legend()
