@@ -215,7 +215,9 @@ def sample_spline(spline: Spline, t, loop: bool = False):
     end = spline.x[-1]
 
     if loop:
-        t = (t - start) % end + start
+        # duration = end - start
+        duration = end  # We want to include dead time at the beginning from 0 -> start
+        t = (t - start) % duration + start
 
     if spline.extrapolate:
         return spline(t)
