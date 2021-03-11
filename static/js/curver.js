@@ -68,10 +68,10 @@ export class CurverBase extends HTMLElement {
      * Add a new material icon button to toolbar (or any other parent_
      * element).
      *
-     * @param innerHTML - Inner HTML text
-     * @param title - Tooltip
-     * @param id - Button ID.
-     * @param parent_ - Parent HTML element to append the new button to.
+     * @param innerHTML Inner HTML text
+     * @param title Tooltip
+     * @param id Button ID.
+     * @param parent_ Parent HTML element to append the new button to.
      */
     add_button(innerHTML, title = "", id = "", parent_ = null) {
         if (parent_ === null) {
@@ -195,6 +195,20 @@ export class CurverBase extends HTMLElement {
 
         //this.draw();
         this.update_trafo();
+    }
+
+
+    /**
+     * Coordinates of mouse event inside canvas / SVG data space.
+     *
+     * @param {MouseEvent} evt Mouse event to transform into data space.
+     */
+    mouse_coordinates(evt) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = evt.clientX - rect.left;
+        const y = evt.clientY - rect.top;
+        const pt = (new DOMPoint(x, y)).matrixTransform(this.trafoInv);
+        return [pt.x, pt.y]
     }
 
 

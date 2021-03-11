@@ -485,20 +485,6 @@ class Editor extends CurverBase {
 
 
     /**
-     * Coordinates of mouse event inside canvas / SVG data space.
-     * 
-     * @param {MouseEvent} evt Mouse event to transform into data space.
-     */
-    mouse_coordinates(evt) {
-        PT.x = evt.clientX;
-        PT.y = evt.clientY;
-        let a = PT.matrixTransform(this.ctmInv);
-        let b = (new DOMPoint(a.x, a.y)).matrixTransform(this.trafoInv);
-        return [b.x, b.y];
-    }
-
-
-    /**
      * Make something draggable inside data space. Wraps default
      * make_draggable. Handles mouse -> image space -> data space
      * transformation, calculates delta offset, triggers redraws. Mostly used
