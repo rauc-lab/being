@@ -33,6 +33,10 @@ export const Degree = Object.freeze({
 });
 
 
+const LEFT = "left";
+const RIGHT = "right";
+
+
 /**
  * Get order of spline.
  */
@@ -173,16 +177,25 @@ export class BPoly {
      * @param {Number} nr Knot number.
      * @param {String} side Which side of the knot.
      */
-    get_derivative_at_knot(nr, side="right") {
-        if (side == "right") {
+    get_derivative_at_knot(nr, side=RIGHT) {
+        if (side === RIGHT) {
             assert(0 <= nr && nr < this.n_segments);
             const seg = nr;
-            return this.degree * (this.c[FIRST_CP][seg] - this.c[KNOT][seg]) / this._dx(seg);
-        } else {
+            const dx = this._dx(seg);
+            if (dx === 0) {
+                return 0.;
+            }
+            return this.degree * (this.c[FIRST_CP][seg] - this.c[KNOT][seg]) / dx;
+        } else if (side === LEFT) {
             assert(0 < nr && nr <= this.n_segments);
             const seg = nr - 1;
+            const dx = this._dx(seg);
+            if (dx === 0) {
+                return 0.;
+            }
+
             const knot = KNOT + this.degree;
-            return this.degree * (this.c[knot][seg] - this.c[knot-1][seg]) / this._dx(seg);
+            return this.degree * (this.c[knot][seg] - this.c[knot-1][seg]) / dx;
         }
     }
 
@@ -193,8 +206,8 @@ export class BPoly {
      * @param {Number} value Derivative value to ensure.
      * @param {String} side Which side of the knot.
      */
-    set_derivative_at_knot(nr, value, side="right") {
-        if (side == "right") {
+    set_derivative_at_knot(nr, value, side=RIGHT) {
+        if (side === RIGHT) {
             assert(0 <= nr && nr < this.n_segments);
             const seg = nr;
             this.c[FIRST_CP][seg] = this._dx(seg) * value / this.degree + this.c[KNOT][seg];
@@ -221,12 +234,12 @@ export class BPoly {
         let rightDer = 0;
         if (nr > 0) {
             left = this.x[nr - 1];
-            leftDer = this.get_derivative_at_knot(nr, "left");
+            leftDer = this.get_derivative_at_knot(nr, LEFT);
         }
 
         if (nr < this.n_segments) {
             right = this.x[nr + 1];
-            rightDer = this.get_derivative_at_knot(nr, "right");
+            rightDer = this.get_derivative_at_knot(nr, RIGHT);
         }
 
         this.x[nr] = clip(pos[0], left, right);
@@ -236,7 +249,7 @@ export class BPoly {
             const prevSeg = nr - 1;
             this.c[knot][prevSeg] = pos[1];
             if (c1) {
-                this.set_derivative_at_knot(nr, leftDer, "left");
+                this.set_derivative_at_knot(nr, leftDer, LEFT);
             }
         }
 
@@ -244,7 +257,7 @@ export class BPoly {
             const seg = nr;
             this.c[KNOT][seg] = pos[1];
             if (c1) {
-                this.set_derivative_at_knot(nr, rightDer, "right");
+                this.set_derivative_at_knot(nr, rightDer, RIGHT);
             }
         }
     }
@@ -266,14 +279,14 @@ export class BPoly {
             return;
         }
 
-        if (nr == FIRST_CP) {
-            const der = this.get_derivative_at_knot(seg, "right");
+        if (nr === FIRST_CP) {
+            const der = this.get_derivative_at_knot(seg, RIGHT);
             this.c[FIRST_CP][seg] = y;
-            this.set_derivative_at_knot(seg, der, "left");
-        } else if (nr == SECOND_CP) {
-            const der = this.get_derivative_at_knot(seg+1, "left");
+            this.set_derivative_at_knot(seg, der, LEFT);
+        } else if (nr === SECOND_CP) {
+            const der = this.get_derivative_at_knot(seg+1, LEFT);
             this.c[SECOND_CP][seg] = y;
-            this.set_derivative_at_knot(seg+1, der, "right");
+            this.set_derivative_at_knot(seg+1, der, RIGHT);
         }
     }
 
@@ -285,7 +298,7 @@ export class BPoly {
      * @param nr Control point index. E.g. for cubic 0 -> left knot, 1 -> First control point, etc...
      */
     point(seg, nr=0) {
-        if (seg == this.x.length - 1) {
+        if (seg === this.x.length - 1) {
             const knot = KNOT + this.degree;
             return [this.end, last_element(this.c[knot])];
         }
