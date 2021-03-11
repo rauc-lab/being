@@ -3,14 +3,14 @@
  * Spline editor custom HTML element.
  */
 import { BBox } from "/static/js/bbox.js";
-import { CurverBase } from "/static/curver/curver.js";
+import { CurverBase } from "/static/js/curver.js";
 import { make_draggable } from "/static/js/draggable.js";
 import { History } from "/static/js/history.js";
 import { subtract_arrays, clip } from "/static/js/math.js";
 import { Degree, Order, BPoly } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
 import { arrays_equal, remove_all_children, assert, searchsorted, fetch_json, last_element } from "/static/js/utils.js";
-import { Line } from "/static/curver/line.js";
+import { Line } from "/static/js/line.js";
 
 
 /** Main loop interval of being block network. */

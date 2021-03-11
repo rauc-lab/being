@@ -14,7 +14,7 @@ import {
 import {
     cycle,
 } from "/static/js/utils.js";
-import { Line } from "/static/curver/line.js";
+import { Line } from "/static/js/line.js";
 
 
 /** Default line colors */
@@ -100,7 +100,7 @@ export class CurverBase extends HTMLElement {
         // Apply external styles to the shadow dom
         const link = document.createElement("link");
         link.setAttribute("rel", "stylesheet");
-        link.setAttribute("href", "static/curver/curver.css");
+        link.setAttribute("href", "static/curver.css");
 
         this.main = document.createElement("div")
         this.main.classList.add("main")

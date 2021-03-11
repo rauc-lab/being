@@ -3,8 +3,8 @@
  * Live plotter custom HTML element.
  */
 
-import { CurverBase } from "/static/curver/curver.js";
-import { Line } from "/static/curver/line.js";
+import { CurverBase } from "/static/js/curver.js";
+import { Line } from "/static/js/line.js";
 
 
 /**
