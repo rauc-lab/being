@@ -5,7 +5,7 @@
 import {array_shape, array_min, array_max} from "/static/js/math.js";
 import {deep_copy, last_element} from "/static/js/utils.js";
 import {BBox} from "/static/js/bbox.js";
-import {assert} from "/static/js/utils.js";
+import {assert, searchsorted} from "/static/js/utils.js";
 import {clip} from "/static/js/math.js";
 
 
@@ -307,6 +307,27 @@ export class BPoly {
     }
 
 
+    /**
+     * Insert new knot into the spline.
+     *
+     * @param {Array} pos Knot x, y position.
+     */
+    insert_knot(pos) {
+        const index = searchsorted(this.x, pos[0]);
+        this.x.splice(index, 0, pos[0]);
+        this.c.forEach(row => {
+            row.splice(index, 0, pos[1]);
+        });
+
+        smooth_out_spline(this);
+    }
+
+
+    /**
+     * Remove knot from spline.
+     *
+     * @param {Number} knotNr Knot number to remove.
+     */
     remove_knot(knotNr) {
         this.x.splice(knotNr, 1);
         this.c.forEach(row => {

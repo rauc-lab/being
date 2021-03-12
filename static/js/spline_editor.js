@@ -7,9 +7,9 @@ import { CurverBase } from "/static/js/curver.js";
 import { make_draggable } from "/static/js/draggable.js";
 import { History } from "/static/js/history.js";
 import { subtract_arrays, clip } from "/static/js/math.js";
-import { smooth_out_spline, Order, BPoly } from "/static/js/spline.js";
-import { create_element, path_d, setattr } from "/static/js/svg.js";
-import { arrays_equal, remove_all_children, searchsorted, fetch_json, last_element } from "/static/js/utils.js";
+import { Order, BPoly } from "/static/js/spline.js";
+import { create_element } from "/static/js/svg.js";
+import { remove_all_children, fetch_json, last_element } from "/static/js/utils.js";
 import { Line } from "/static/js/line.js";
 import { Transport } from "/static/js/transport.js";
 import { SplineDrawer } from "/static/js/spline_drawer.js";
@@ -511,20 +511,14 @@ class Editor extends CurverBase {
         const pos = this.mouse_coordinates(evt);
         const currentSpline = this.history.retrieve();
         const newSpline = currentSpline.copy();
-        const index = searchsorted(newSpline.x, pos[0]);
-        newSpline.x.splice(index, 0, pos[0]);
-        newSpline.c.forEach(row => {
-            row.splice(index, 0, pos[1]);
-        });
-
-        smooth_out_spline(newSpline);
+        newSpline.insert_knot(pos);
 
         // TODO: Do some coefficients cleanup. Wrap around and maybe take the
         // direction of the previous knots as the new default coefficients...
         this.history.capture(newSpline);
-        this.init_spline_elements();
+        this.drawer.clear();
+        this.drawer.draw_spline(newSpline);
     }
-
 
     /**
      * Load spline into spline editor.
