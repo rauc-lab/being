@@ -306,6 +306,14 @@ export class BPoly {
         return [this._x(seg, nr), this.c[nr][seg]];
     }
 
+
+    remove_knot(knotNr) {
+        this.x.splice(knotNr, 1);
+        this.c.forEach(row => {
+            row.splice(knotNr, 1);
+        });
+    }
+
     /**
      * Create a copy for the spline (deep copy).
      */

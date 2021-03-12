@@ -12,6 +12,8 @@ import { create_element, path_d, setattr } from "/static/js/svg.js";
 import { arrays_equal, remove_all_children, searchsorted, fetch_json, last_element } from "/static/js/utils.js";
 import { Line } from "/static/js/line.js";
 import { Transport } from "/static/js/transport.js";
+import { SplineDrawer } from "/static/js/spline_drawer.js";
+
 
 
 /** Main loop interval of being block network. */
@@ -96,6 +98,7 @@ function zoom_bbox_in_place(bbox, factor) {
 }
 
 
+
 /**
  * Spline editor.
  *
@@ -113,6 +116,9 @@ class Editor extends CurverBase {
         this.dataBbox = new BBox([0, 0], [1, 0.04]);
 
         this.transport = new Transport(this);
+
+        this.drawer = new SplineDrawer(this, this.splineGroup);
+        this.drawer.draw_spline(ZERO_SPLINE);
 
         // Editing history buttons
         this.undoBtn = this.add_button("undo", "Undo last action");
@@ -244,6 +250,16 @@ class Editor extends CurverBase {
      */
     get c1() {
         return !is_checked(this.c1Btn);
+    }
+
+    spline_changing() {
+        this.stop_spline_playback();
+    }
+
+    spline_changed(workingCopy) {
+        this.history.capture(workingCopy);
+        this.drawer.clear();
+        this.drawer.draw_spline(workingCopy);
     }
 
     /**
@@ -441,8 +457,8 @@ class Editor extends CurverBase {
                 this.viewport.left = factor * (orig.left - mid + shift) + mid;
                 this.viewport.right = factor * (orig.right - mid + shift) + mid;
                 this.update_trafo();
-                this.draw_spline();
-                this.draw_background_spline();
+                this.drawer.draw();
+                //this.draw_background_spline();
                 this.transport.draw_cursor();
             },
             evt => {
@@ -479,48 +495,10 @@ class Editor extends CurverBase {
      */
     resize() {
         super.resize();
-        this.draw_spline();
-        this.draw_background_spline();
+        this.drawer.draw();
+        //this.draw_spline();
+        //this.draw_background_spline();
     }
-
-
-    /**
-     * Make something draggable inside data space. Wraps default
-     * make_draggable. Handles mouse -> image space -> data space
-     * transformation, calculates delta offset, triggers redraws. Mostly used
-     * to drag SVG elements around.
-     *
-     * @param ele - Element to make draggable.
-     * @param on_drag - On drag motion callback. Will be called with a relative
-     * delta array.
-     */
-    make_draggable(ele, on_drag) {
-        /** Start position of drag motion. */
-        let start = null;
-
-        make_draggable(
-            ele,
-            evt => {
-                start = this.mouse_coordinates(evt);
-                this.stop_spline_playback();
-            },
-            evt => {
-                const end = this.mouse_coordinates(evt);
-                on_drag(end);
-                this.draw_spline();
-            },
-            evt => {
-                const end = this.mouse_coordinates(evt);
-                if (arrays_equal(start, end)) {
-                    return;
-                }
-
-                this.history.capture(this.workingCopy);
-                this.init_spline_elements();
-            },
-        )
-    }
-
 
     /**
      * Insert new knot into current spline.
@@ -599,6 +577,7 @@ class Editor extends CurverBase {
      * @param lw - Base line width.
      */
     init_spline_elements(lw = 2) {
+        return;
         if (this.history.length === 0) {
             return;
         }
@@ -634,182 +613,22 @@ class Editor extends CurverBase {
         // this.draw_background_splines()
     }
 
-
-    /**
-     * Initialize an SVG path element and adds it to the SVG parent element.
-     * data_source callback needs to deliver the 2-4 Bézier control points.
-     */
-    init_path(data_source, strokeWidth = 1, color = "black", backgroundSpline = false) {
-        const path = create_element('path');
-        setattr(path, "stroke", color);
-        setattr(path, "stroke-width", strokeWidth);
-        setattr(path, "fill", "transparent");
-        if (backgroundSpline) {
-            // setattr(path, "stroke-dasharray", "2,2")
-            this.backgroundGroup.appendChild(path)
-        } else {
-            this.splineGroup.appendChild(path)
-        }
-        path.draw = () => {
-            setattr(path, "d", path_d(this.transform_points(data_source())));
-        };
-
-        return path
-    }
-
-
-    /**
-     * Initialize an SVG circle element and adds it to the SVG parent element.
-     * data_source callback needs to deliver the center point of the circle.
-     */
-    init_circle(data_source, radius = 1, color = "black") {
-        const circle = create_element('circle');
-        setattr(circle, "r", radius);
-        setattr(circle, "fill", color);
-        this.splineGroup.appendChild(circle);
-        circle.draw = () => {
-            const a = this.transform_point(data_source());
-            setattr(circle, "cx", a[0]);
-            setattr(circle, "cy", a[1]);
-        };
-
-        return circle;
-    }
-
-
-    /**
-     * Initialize an SVG line element and adds it to the SVG parent element.
-     * data_source callback needs to deliver the start end and point of the
-     * line.
-     */
-    init_line(data_source, strokeWidth = 1, color = "black") {
-        const line = create_element("line");
-        setattr(line, "stroke-width", strokeWidth);
-        setattr(line, "stroke", color);
-        this.splineGroup.appendChild(line);
-        line.draw = () => {
-            const [start, end] = data_source();
-            const a = this.transform_point(start);
-            const b = this.transform_point(end);
-            setattr(line, "x1", a[0]);
-            setattr(line, "y1", a[1]);
-            setattr(line, "x2", b[0]);
-            setattr(line, "y2", b[1]);
-        };
-
-        return line;
-    }
-
-
-
-    /**
-     * Initialize all SVG elements for a cubic spline. Hooks up the draggable
-     * callbacks. We create a copy of the current spline (working copy) on
-     * which the drag handlers will be placed.
-     */
-    init_cubic_spline_elements(lw = 2) {
-        const currentSpline = this.history.retrieve();
-        const spline = currentSpline.copy();
-        this.workingCopy = spline;
-        for (let seg = 0; seg < spline.n_segments; seg++) {
-            this.init_path(() => {
-                return [
-                    spline.point(seg, 0),
-                    spline.point(seg, 1),
-                    spline.point(seg, 2),
-                    spline.point(seg + 1, 0),
-                ];
-            }, lw);
-            this.init_line(() => {
-                return [spline.point(seg, 0), spline.point(seg, 1)];
-            });
-            this.init_line(() => {
-                return [spline.point(seg, 2), spline.point(seg + 1, 0)];
-            });
-
-            for (let cpNr = 1; cpNr < spline.degree; cpNr++) {
-                this.make_draggable(
-                    this.init_circle(() => {
-                        return spline.point(seg, cpNr);
-                    }, 3 * lw, "red"),
-                    pos => {
-                        spline.position_control_point(seg, cpNr, pos[1], this.c1);
-                    },
-                );
-            }
-        }
-
-        for (let knotNr = 0; knotNr <= spline.n_segments; knotNr++) {
-            const circle = this.init_circle(() => {
-                return spline.point(knotNr);
-            }, 3 * lw);
-            this.make_draggable(
-                circle,
-                pos => {
-                    spline.position_knot(knotNr, pos, this.c1);
-                },
-            );
-            circle.addEventListener("dblclick", evt => {
-                evt.stopPropagation();
-                const currentSpline = this.history.retrieve();
-                const newSpline = currentSpline.copy();
-                const index = clip(knotNr, 0, currentSpline.n_segments);
-                newSpline.x.splice(index, 1);
-                newSpline.c.forEach(row => {
-                    row.splice(index, 1);
-                })
-                this.history.capture(newSpline);
-                this.init_spline_elements();
-            });
-        }
-
-        this.draw_spline()
-    }
-
     /**
     * Initialize all SVG path elements for a cubic background splines. 
     */
     init_cubic_spline_background_elements(lw = 2) {
-        const backgroundSplines = [...this.visibles].filter(spl => spl !== this.selected)
-        backgroundSplines.forEach(splFilename => {
-            const currentSpline = this.splines.filter(spl => spl.filename === splFilename)[0].content
-
-            for (let seg = 0; seg < currentSpline.n_segments; seg++) {
-                this.init_path(() => {
-                    return [
-                        currentSpline.point(seg, 0),
-                        currentSpline.point(seg, 1),
-                        currentSpline.point(seg, 2),
-                        currentSpline.point(seg + 1, 0),
-                    ];
-                }, lw, "#0005", true);
-            }
-        })
-
-        this.draw_background_spline()
+        // TODO: To be replaced with its own spline drawer 
+        return;
     }
 
-
-    init_linear_spline(data, lw = 2) {
-        // TODO: Make me!
-    }
-
-
-    /**
-     * Draw the current spline / update all the SVG elements. They will fetch
-     * the current state from the spline via the data_source callbacks.
-     */
-    draw_spline() {
-        for (let ele of this.splineGroup.children) {
-            ele.draw();
-        }
-    }
 
     /**
     * Draw the current spline / update all the SVG elements. They will fetch
     * the current state from the spline via the data_source callbacks.
     */
     draw_background_spline() {
+        // TODO: To be replaced with its own spline drawer 
+        return;
         for (let ele of this.backgroundGroup.children) {
             if (ele.nodeName === "path")
                 ele.draw();
