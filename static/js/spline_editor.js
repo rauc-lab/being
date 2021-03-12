@@ -69,9 +69,7 @@ function switch_button_off(btn) {
  * @param {object} btn - Button to switch on.
  */
 function switch_button_on(btn) {
-    // Note: Really JS? Has it to be that way?
-    if (!btn.hasAttribute(CHECKED))
-        btn.toggleAttribute(CHECKED)
+    btn.setAttribute(CHECKED, "");
 }
 
 
@@ -98,7 +96,6 @@ function zoom_bbox_in_place(bbox, factor) {
 }
 
 
-
 /**
  * Spline editor.
  *
@@ -110,28 +107,26 @@ class Editor extends CurverBase {
         super(auto);
         this.history = new History();
         this.history.capture(ZERO_SPLINE);
-        this.workingCopy = null;
         this.splines = []
         this.visibles = new Set()
         this.dataBbox = new BBox([0, 0], [1, 0.04]);
-
         this.transport = new Transport(this);
-
         this.drawer = new SplineDrawer(this, this.splineGroup);
         this.drawer.draw_spline(ZERO_SPLINE);
+        this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
 
         // Editing history buttons
         this.undoBtn = this.add_button("undo", "Undo last action");
         this.undoBtn.addEventListener("click", evt => {
             this.history.undo();
-            this.init_spline_elements();
             this.stop_spline_playback();
+            this.draw();
         });
         this.redoBtn = this.add_button("redo", "Redo last action")
         this.redoBtn.addEventListener("click", evt => {
             this.history.redo();
-            this.init_spline_elements();
             this.stop_spline_playback();
+            this.draw();
         });
 
         this.add_space_to_toolbar();
@@ -147,15 +142,18 @@ class Editor extends CurverBase {
         // Zoom buttons
         this.add_button("zoom_in", "Zoom In").addEventListener("click", evt => {
             zoom_bbox_in_place(this.viewport, ZOOM_FACTOR_PER_STEP);
-            this.init_spline_elements();
+            this.update_trafo();
+            this.draw();
         });
         this.add_button("zoom_out", "Zoom Out").addEventListener("click", evt => {
             zoom_bbox_in_place(this.viewport, 1 / ZOOM_FACTOR_PER_STEP);
-            this.init_spline_elements();
+            this.update_trafo();
+            this.draw();
         });
         this.add_button("zoom_out_map", "Reset zoom").addEventListener("click", evt => {
             this.viewport = this.dataBbox.copy();
-            this.init_spline_elements();
+            this.update_trafo();
+            this.draw();
         });
 
         this.add_space_to_toolbar();
@@ -187,53 +185,12 @@ class Editor extends CurverBase {
             }
         });
 
-        /*
-        this.add_button("fiber_manual_record", "Record motion with motor").addEventListener("click", evt => {
-            const btn = evt.target;
-            if (btn.hasAttribute(CHECKED)) {
-                btn.innerHTML = "fiber_manual_record";
-            } else {
-                btn.innerHTML = "stop";
-            }
-            toggle_button(btn);
-
-        });
-        this.add_button("loop", "Toogle loop motion").addEventListener("click", evt => {
-            toggle_button(evt.target);
-        });
-        */
-
-        /*
-        const save = this.add_button("save", "Save motion", "save");
-        this.isPlaying = false;
-        const selMotDiv = document.createElement("div")
-        selMotDiv.classList.add("btn-black")
-        this.selMot = document.createElement("select");
-        this.selMot.id = "select-motor"
-        const label = document.createElement("label")
-        label.innerHTML = "Motion Player: "
-        label.for = "select-motor"
-        selMotDiv.appendChild(label)
-        selMotDiv.appendChild(this.selMot)
-        this.toolbar.appendChild(selMotDiv);
-        this.play = this.add_button("play_arrow", "Play spline on motor");
-        const zoomIn = this.add_button("zoom_in", "Zoom In");
-        const zoomOut = this.add_button("zoom_out", "Zoom Out");
-        const zoomReset = this.add_button("zoom_out_map", "Reset Zoom");
-        */
-
         this.add_spline_list()
         this.fetch_splines().then(() =>
             this.update_spline_list()
         )
 
         this.update_buttons()
-
-        /*
-        this.selMot.addEventListener("click", evt => this.select_motor())
-        this.play.addEventListener("click", evt => this.play_motion(this.play))
-        save.addEventListener("click", evt => this.save_spline(save))
-        */
         this.svg.addEventListener("dblclick", evt => {
             // TODO: How to prevent accidental text selection?
             //evt.stopPropagation()
@@ -242,24 +199,6 @@ class Editor extends CurverBase {
             this.insert_new_knot(evt);
         });
         this.setup_zoom_drag();
-        this.init_spline_elements();
-    }
-
-    /**
-     * C1 continuity activated?
-     */
-    get c1() {
-        return !is_checked(this.c1Btn);
-    }
-
-    spline_changing() {
-        this.stop_spline_playback();
-    }
-
-    spline_changed(workingCopy) {
-        this.history.capture(workingCopy);
-        this.drawer.clear();
-        this.drawer.draw_spline(workingCopy);
     }
 
     /**
@@ -401,12 +340,64 @@ class Editor extends CurverBase {
                     this.update_spline_list()
                 )
             })
-        }
-        )
+        });
 
         this.shadowRoot.insertBefore(container, this.shadowRoot.childNodes[1]) // insert after css link
     }
 
+    /**
+    * Initialize all SVG path elements for a cubic background splines. 
+    */
+    init_cubic_spline_background_elements(lw = 2) {
+        // TODO: To be replaced with its own spline drawer 
+        return;
+    }
+
+    /**
+     * Draw the current spline / update all the SVG elements. They will fetch
+     * the current state from the spline via the data_source callbacks.
+     */
+    draw_background_spline() {
+        // TODO: To be replaced with its own spline drawer 
+        return;
+        for (let ele of this.backgroundGroup.children) {
+            if (ele.nodeName === "path")
+                ele.draw();
+        }
+    }
+
+    /**
+     * Create a new spline on the backend. Content is a line with 
+     * arbitrary filename
+     */
+    async create_spline() {
+        const url = HTTP_HOST + "/api/motions";
+        const resp = await fetch(url, { method: "POST" });
+
+        if (!resp.ok) {
+            throw new Error(resp.statusText);
+        }
+
+        return await resp.json()
+    }
+
+
+    /**
+     * C1 continuity activated?
+     */
+    get c1() {
+        return !is_checked(this.c1Btn);
+    }
+
+    spline_changing() {
+        this.stop_spline_playback();
+    }
+
+    spline_changed(workingCopy) {
+        this.history.capture(workingCopy);
+        this.drawer.clear();
+        this.drawer.draw_spline(workingCopy);
+    }
 
     /**
      * Play current spline on Being. Start transport cursor.
@@ -457,8 +448,7 @@ class Editor extends CurverBase {
                 this.viewport.left = factor * (orig.left - mid + shift) + mid;
                 this.viewport.right = factor * (orig.right - mid + shift) + mid;
                 this.update_trafo();
-                this.drawer.draw();
-                //this.draw_background_spline();
+                this.draw();
                 this.transport.draw_cursor();
             },
             evt => {
@@ -515,9 +505,7 @@ class Editor extends CurverBase {
 
         // TODO: Do some coefficients cleanup. Wrap around and maybe take the
         // direction of the previous knots as the new default coefficients...
-        this.history.capture(newSpline);
-        this.drawer.clear();
-        this.drawer.draw_spline(newSpline);
+        this.spline_changed(newSpline);
     }
 
     /**
@@ -525,33 +513,11 @@ class Editor extends CurverBase {
      */
     load_spline(spline) {
         this.history.clear();
-        this.history.capture(spline);
-        this.init_spline_elements();
-    }
-
-    save_spline() {
-        console.log("save_spline()");
-    }
-
-    /**
-    * Create a new spline on the backend. Content is a line with 
-    * arbitrary filename
-    */
-    async create_spline() {
-        const url = HTTP_HOST + "/api/motions";
-        const resp = await fetch(url, { method: "POST" });
-
-        if (!resp.ok) {
-            throw new Error(resp.statusText);
-        }
-
-        return await resp.json()
+        this.spline_changed(spline);
     }
 
 
-    select_motor() {
-        console.log("select_motor() :" + this.selMot.value);
-    }
+
 
 
     /**
@@ -607,27 +573,6 @@ class Editor extends CurverBase {
         // this.draw_background_splines()
     }
 
-    /**
-    * Initialize all SVG path elements for a cubic background splines. 
-    */
-    init_cubic_spline_background_elements(lw = 2) {
-        // TODO: To be replaced with its own spline drawer 
-        return;
-    }
-
-
-    /**
-    * Draw the current spline / update all the SVG elements. They will fetch
-    * the current state from the spline via the data_source callbacks.
-    */
-    draw_background_spline() {
-        // TODO: To be replaced with its own spline drawer 
-        return;
-        for (let ele of this.backgroundGroup.children) {
-            if (ele.nodeName === "path")
-                ele.draw();
-        }
-    }
 
     /**
      * Process new data message from backend.
@@ -654,6 +599,10 @@ class Editor extends CurverBase {
         msg.values.forEach((value, nr) => {
             this.lines[nr].append_data([pos, value]);
         });
+    }
+
+    draw() {
+        this.drawer.draw();
     }
 }
 
