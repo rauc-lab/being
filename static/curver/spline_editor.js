@@ -379,6 +379,9 @@ class Editor extends CurverBase {
             const pt = this.mouse_coordinates(evt);
             this.transport.position = pt[0];
             this.transport.draw_cursor();
+            this.lines.forEach(line => {
+                line.data.clear();
+            });
             if (this.transport.playing) {
                 this.play_current_spline();
             }
@@ -801,12 +804,20 @@ class Editor extends CurverBase {
 
 
     /**
+     * Get current line buffer length for transport duration.
+     */
+    get maxlen() {
+        return .8 * (this.transport.duration / INTERVAL);
+    }
+
+
+    /**
      * Set current duration of spline editor.
      */
     set_duration(duration) {
         this.transport.duration = duration;
         this.lines.forEach(line => {
-            line.maxlen = .8 * (duration / INTERVAL)
+            line.maxlen = this.maxlen;
         });
     }
 
@@ -1051,8 +1062,7 @@ class Editor extends CurverBase {
         // Init new lines
         while (this.lines.length < msg.values.length) {
             const color = this.colorPicker.next();
-            const maxlen = this.duration / INTERVAL;
-            this.lines.push(new Line(this.ctx, color, maxlen));
+            this.lines.push(new Line(this.ctx, color, this.maxlen));
         }
 
         // Plot data
