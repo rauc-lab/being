@@ -848,7 +848,7 @@ class Editor extends CurverBase {
         switch (currentSpline.order) {
             case Order.CUBIC:
                 this.init_cubic_spline_background_elements(lw = 1); // Plot under selected!
-                this.init_cubic_spline_elements(lw);
+                this.init_cubic_spline_elements(lw = 2);
                 break;
             case Order.QUADRATIC:
                 throw "Quadratic splines are not supported!";
