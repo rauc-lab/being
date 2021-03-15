@@ -52,11 +52,11 @@ div.toolbar:empty {
   background: none;
 }
 
-div.toolbar * {
+div.toolbar > * {
   border-right: 2px solid black;
 }
 
-div.toolbar *:first-child {
+div.toolbar > *:first-child {
   border-left: 2px solid black;
 }
 
@@ -140,4 +140,11 @@ span.spline-checkbox{
   :host {
     flex-direction: column;
   }
+}
+
+/** Label and select */
+
+div.toolbar select {
+  border: none;
+  font-size: 18px; /* Preferred icon size */
 }

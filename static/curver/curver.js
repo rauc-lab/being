@@ -81,13 +81,42 @@ export class CurverBase extends HTMLElement {
 
 
     /**
-     * Add a spacing element to toolbar.
+     * Add a spacing element to the toolbar.
      */
     add_space_to_toolbar() {
         const span = document.createElement("span");
         span.classList.add("space");
         this.toolbar.appendChild(span);
         return span;
+    }
+
+
+    /**
+     * Add a select element to the toolbar. 
+     *
+     * @param {String} name Select name and label.
+     * @param {String} options Select options.
+     */
+    add_select(options, name="") {
+        const container = document.createElement("div");
+        if (name !== "") {
+            const label = document.createElement("label");
+            label.innerHTML = name;
+            label.setAttribute("for", name);
+            container.appendChild(label);
+        }
+
+        const select = document.createElement("select");
+        select.setAttribute("name", name);
+        options.forEach(opt => {
+            const option = document.createElement("option");
+            option.setAttribute("value", opt);
+            option.innerHTML = opt;
+            select.appendChild(option);
+        });
+        container.appendChild(select);
+        this.toolbar.appendChild(container);
+        return select;
     }
 
 

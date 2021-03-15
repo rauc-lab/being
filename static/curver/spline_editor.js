@@ -357,6 +357,16 @@ class Editor extends CurverBase {
 
         this.add_space_to_toolbar();
 
+        // Motor selection
+        const select = this.add_select(["Motor 0", "Motor 1"]);
+        select.addEventListener("change", evt => {
+            console.log(evt);
+            console.log(select);
+            console.log(select.selectedIndex);
+        });
+
+        this.add_space_to_toolbar();
+
         // Transport buttons
         this.playPauseBtn = this.add_button("play_arrow", "Play / pause motion playback");
         this.stopBtn = this.add_button("stop", "Stop spline playback").addEventListener("click", async evt => {
