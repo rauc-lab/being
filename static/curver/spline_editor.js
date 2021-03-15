@@ -609,7 +609,7 @@ class Editor extends CurverBase {
             loop: this.transport.looping,
             offset: this.transport.position,
         });
-        this.transport.startTime = res["startTime"];
+        this.transport.startTime = res["startTime"] + INTERVAL;
         this.transport.play();
     }
 
