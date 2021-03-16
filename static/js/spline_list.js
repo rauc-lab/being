@@ -1,6 +1,7 @@
 "use strict";
 import { remove_all_children, fetch_json } from "/static/js/utils.js";
 import { BPoly } from "/static/js/spline.js";
+import { HTTP_HOST } from "/static/js/constants.js";
 
 export class SplineList {
     constructor(editor) {
