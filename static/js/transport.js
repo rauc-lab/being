@@ -22,7 +22,7 @@ export class Transport {
      */
     toggle_looping() {
         this.looping = !this.looping;
-        this.editor.update_buttons();
+        this.editor.update_ui();
     }
 
     /**
@@ -41,7 +41,7 @@ export class Transport {
      */
     play() {
         this.playing = true;
-        this.editor.update_buttons();
+        this.editor.update_ui();
     }
 
     /**
@@ -49,7 +49,7 @@ export class Transport {
      */
     pause() {
         this.playing = false;
-        this.editor.update_buttons();
+        this.editor.update_ui();
     }
 
     /**

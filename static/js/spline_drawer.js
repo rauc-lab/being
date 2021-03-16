@@ -13,7 +13,6 @@ export class SplineDrawer {
         this.container = container;
         this.splines = [];
         this.elements = [];
-        this.c1 = true;
     }
 
     /**
@@ -176,7 +175,7 @@ export class SplineDrawer {
             this.make_draggable(
                 circle,
                 pos => {
-                    wc.position_knot(knot, pos, this.c1);
+                    wc.position_knot(knot, pos, this.editor.c1);
                 },
                 wc,
             );
@@ -220,7 +219,7 @@ export class SplineDrawer {
                 this.make_draggable(
                     circle,
                     pos => {
-                        wc.position_control_point(seg, cp, pos[1], this.c1);
+                        wc.position_control_point(seg, cp, pos[1], this.editor.c1);
                     },
                     wc,
                 );
