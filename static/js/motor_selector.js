@@ -33,15 +33,19 @@ export class MotorSelector {
         return this.motorInfos[this.selected_index].actualValueIndex;
     }
 
+    motor_url(id) {
+        return HTTP_HOST + "/api/motors/" + id;
+    }
+
     /**
      * Motor API url for currently selected motor.
      */
-    get selected_motor_url() {
+    selected_motor_url() {
         if (this.selected_index === NOTHING_SELECTED) {
             throw "No motor selected yet!";
         }
 
-        return HTTP_HOST + "/api/motors/" + this.selected_index;
+        return this.motor_url(this.selected_index);
     }
 
     /**

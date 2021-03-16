@@ -360,11 +360,13 @@ class Editor extends CurverBase {
 
         // Motor selection
         const select = this.add_select();
+        select.addEventListener("change", evt => {
+            this.stop_all_spline_playbacks();
+        });
         this.motorSelector = new MotorSelector(select);
         const url = HTTP_HOST + "/api/motors";
         fetch_json(url).then(motorInfos => {
             this.motorSelector.populate(motorInfos);
-            console.log(this.motorSelector.selected_motor_url);
         });
 
         this.add_space_to_toolbar();
@@ -615,12 +617,11 @@ class Editor extends CurverBase {
         this.shadowRoot.insertBefore(container, this.shadowRoot.childNodes[1]) // insert after css link
     }
 
-
     /**
      * Play current spline on Being. Start transport cursor.
      */
     async play_current_spline() {
-        const url = this.motorSelector.selected_motor_url + "/play";
+        const url = this.motorSelector.selected_motor_url() + "/play";
         const spline = this.history.retrieve();
         const res = await fetch_json(url, "POST", {
             spline: spline.to_dict(),
@@ -632,12 +633,24 @@ class Editor extends CurverBase {
     }
 
     /**
-     * Stop spline playback on Being.
+     * Stop spline playback on Being for currently selected motor.
      */
     async stop_spline_playback() {
-        const url = this.motorSelector.selected_motor_url + "/stop";
+        const url = this.motorSelector.selected_motor_url() + "/stop";
         await fetch(url, { method: "POST" });
         this.transport.pause();
+    }
+
+    /**
+     * Stop spline playback on Being for all known motors.
+     */
+    async stop_all_spline_playbacks() {
+        this.transport.pause();
+        const stopTasks = this.motorSelector.motorInfos.map(info => {
+            const url = this.motorSelector.motor_url(info.id) + "/stop";
+            return fetch(url, {method: "POST"});
+        });
+        await Promise.all(stopTasks);
     }
 
     /**
