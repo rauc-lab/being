@@ -333,7 +333,7 @@ class Editor extends CurverBase {
      */
     resize() {
         super.resize();
-        this.drawer.draw();
+        this.draw();
     }
 
     /**
