@@ -128,11 +128,13 @@ div.spline-list-entry {
   white-space: nowrap;
   display: flex;
   align-items: center;
+  padding: 10px;
 }
 
 span.spline-checkbox{
   width: 24px;
   height: 24px;
+  margin-right: 8px;
 }
 
 /* Media queries here */

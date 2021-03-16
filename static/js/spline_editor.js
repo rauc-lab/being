@@ -13,7 +13,7 @@ import { remove_all_children, fetch_json, last_element } from "/static/js/utils.
 import { Line } from "/static/js/line.js";
 import { Transport } from "/static/js/transport.js";
 import { SplineDrawer } from "/static/js/spline_drawer.js";
-
+import { SplineList } from "/static/js/spline_list.js";
 
 
 /** Main loop interval of being block network. */
@@ -107,12 +107,11 @@ class Editor extends CurverBase {
         super(auto);
         this.history = new History();
         this.history.capture(ZERO_SPLINE);
-        this.splines = []
-        this.visibles = new Set()
         this.dataBbox = new BBox([0, 0], [1, 0.04]);
         this.transport = new Transport(this);
         this.drawer = new SplineDrawer(this, this.splineGroup);
         this.drawer.draw_spline(ZERO_SPLINE);
+        this.splineList = new SplineList(this);
         this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
 
         // Editing history buttons
@@ -185,9 +184,13 @@ class Editor extends CurverBase {
             }
         });
 
-        this.add_spline_list()
-        this.fetch_splines().then(() =>
-            this.update_spline_list()
+
+        // this.add_spline_list()
+        this.splineList.add_spline_list()
+
+
+        this.splineList.fetch_splines().then(() =>
+            this.splineList.update_spline_list()
         )
 
         this.update_buttons()
@@ -199,186 +202,6 @@ class Editor extends CurverBase {
             this.insert_new_knot(evt);
         });
         this.setup_zoom_drag();
-    }
-
-    /**
-     * Update content in spline list
-     */
-    update_spline_list() {
-        remove_all_children(this.splineListDiv)
-        this.splines.forEach(spline => {
-            const entry = document.createElement("div")
-            entry.classList.add("spline-list-entry")
-            entry.id = spline.filename
-            const checkbox = document.createElement("span")
-            checkbox.classList.add("spline-checkbox")
-            checkbox.classList.add("material-icons")
-            checkbox.classList.add("mdc-icon-button")
-            checkbox.innerHTML = ""
-            checkbox.value = spline.filename
-            checkbox.title = "Show in Graph"
-            const text = document.createElement("span")
-            text.innerHTML = spline.filename
-            entry.append(checkbox, text)
-
-            entry.addEventListener("click", evt => {
-                if (evt.currentTarget.id !== this.selected) {
-                    // Cant unselect current spline, at least one spline needs 
-                    // to be selected. Also we want the current selected spline 
-                    // to be visible in the graph.
-                    this.selected = evt.currentTarget.id
-                    this.visibles.add(evt.currentTarget.id)
-                    this.update_spline_list_selection()
-
-                    // graph manipulation
-                    this.init_spline_selection()
-                    this.init_spline_elements()
-                }
-            })
-
-            checkbox.addEventListener("click", evt => {
-                evt.stopPropagation()
-                const filename = evt.target.parentNode.id
-                if (this.selected !== filename) {
-                    if (this.visibles.has(filename)) {
-                        this.visibles.delete(filename)
-                    }
-                    else {
-                        this.visibles.add(filename)
-                    }
-                }
-                this.update_spline_list_selection()
-                this.init_spline_elements()
-            }, true)
-
-            this.splineListDiv.append(entry)
-
-        })
-        this.update_spline_list_selection()
-        this.init_spline_elements()
-    }
-
-    init_spline_selection() {
-        this.history.clear()
-        const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
-        this.history.capture(selectedSpline.content);
-        const currentSpline = this.history.retrieve();
-        const bbox = currentSpline.bbox();
-        bbox.expand_by_point([0., 0]);
-        bbox.expand_by_point([0., .04]);
-        this.dataBbox = bbox;
-        this.viewport = this.dataBbox.copy();
-    }
-
-    update_spline_list_selection() {
-        let entries = this.shadowRoot.querySelectorAll(".spline-list-entry")
-        entries.forEach(entry => {
-            entry.removeAttribute("checked")
-            entry.querySelector(".spline-checkbox").innerHTML = ""
-        })
-
-        // Preselection 
-        if (this.selected == null) {
-            const latest = this.splines.length - 1
-            if (latest >= 0) {
-                const spline_fd = this.splines[latest].filename
-                this.selected = spline_fd
-                this.visibles.add(spline_fd)
-            }
-            this.init_spline_selection()
-        }
-
-        this.shadowRoot.getElementById(this.selected).setAttribute("checked", "")
-        this.visibles.forEach(filename => {
-            const parent = this.shadowRoot.getElementById(filename)
-            const checkbox = parent.querySelector(".spline-checkbox")
-            checkbox.innerHTML = "visibility";
-        })
-    }
-
-    /**
-     * Get splines from API
-     */
-    async fetch_splines() {
-        try {
-            return await fetch_json("/api/motions").then(res => {
-                this.splines = res
-                this.splines.forEach(spline => {
-                    spline.content = BPoly.from_object(spline.content)
-                })
-            })
-        }
-        catch (err) {
-            throw Error(err)
-        }
-    }
-
-    /**
-     * Spline list selection
-     */
-    add_spline_list() {
-        const container = document.createElement("div")
-        container.classList.add("spline-list")
-        const title = document.createElement("h2")
-        title.appendChild(document.createTextNode("Motions"))
-        container.appendChild(title)
-        this.splineListDiv = document.createElement("div")
-        this.splineListDiv.style.borderBottom = "2px solid black"
-        this.splineListDiv.style.paddingBottom = "5px"
-        container.appendChild(this.splineListDiv)
-        this.addSplineButton = this.add_button("add_box", "Create new spline")
-        const newBtnContainer = document.createElement("div")
-        newBtnContainer.style.display = "flex"
-        newBtnContainer.style.justifyContent = "center"
-        newBtnContainer.appendChild(this.addSplineButton)
-        container.appendChild(newBtnContainer)
-
-        this.addSplineButton.addEventListener("click", evt => {
-            this.create_spline().then(res => {
-                // TODO: get latest spline from response, don't fetch again
-                this.fetch_splines().then(() =>
-                    this.update_spline_list()
-                )
-            })
-        });
-
-        this.shadowRoot.insertBefore(container, this.shadowRoot.childNodes[1]) // insert after css link
-    }
-
-    /**
-    * Initialize all SVG path elements for a cubic background splines. 
-    */
-    init_cubic_spline_background_elements(lw = 2) {
-        // TODO: To be replaced with its own spline drawer 
-        return;
-    }
-
-    /**
-     * Draw the current spline / update all the SVG elements. They will fetch
-     * the current state from the spline via the data_source callbacks.
-     */
-    draw_background_spline() {
-        // TODO: To be replaced with its own spline drawer 
-        return;
-        for (let ele of this.backgroundGroup.children) {
-            if (ele.nodeName === "path")
-                ele.draw();
-        }
-    }
-
-    /**
-     * Create a new spline on the backend. Content is a line with 
-     * arbitrary filename
-     */
-    async create_spline() {
-        const url = HTTP_HOST + "/api/motions";
-        const resp = await fetch(url, { method: "POST" });
-
-        if (!resp.ok) {
-            throw new Error(resp.statusText);
-        }
-
-        return await resp.json()
     }
 
 
@@ -486,8 +309,6 @@ class Editor extends CurverBase {
     resize() {
         super.resize();
         this.drawer.draw();
-        //this.draw_spline();
-        //this.draw_background_spline();
     }
 
     /**
@@ -508,34 +329,50 @@ class Editor extends CurverBase {
         this.spline_changed(newSpline);
     }
 
+
     /**
      * Load spline into spline editor.
+     * Recalculate bounding box
      */
     load_spline(spline) {
         this.history.clear();
-        this.spline_changed(spline);
+        this.history.capture(spline);
+        this.drawer.clear();
+
+        const currentSpline = this.history.retrieve();
+        const bbox = currentSpline.bbox();
+        bbox.expand_by_point([0., 0]);
+        bbox.expand_by_point([0., .04]);
+        this.dataBbox = bbox;
+        this.viewport = this.dataBbox.copy();
+        // this.viewport.ll[1] = bbox.ll[1];
+        // this.viewport.ur[1] = bbox.ur[1];
+        // this.set_duration(last_element(currentSpline.x));
+        this.update_trafo();
+        
+
+        this.drawer.draw_spline(spline);
+        this.drawer.draw(); // draw all
+
+        this.update_buttons()
     }
 
 
-
-
-
-    /**
-     * Set current duration of spline editor.
-     */
-    set_duration(duration) {
-        this.transport.duration = duration;
-        this.lines.forEach(line => {
-            line.maxlen = .8 * (duration / INTERVAL)
-        });
-    }
+    // /**
+    //  * Set current duration of spline editor.
+    //  */
+    // set_duration(duration) {
+    //     this.transport.duration = duration;
+    //     this.lines.forEach(line => {
+    //         line.maxlen = .8 * (duration / INTERVAL)
+    //     });
+    // }
 
 
     /**
      * Initialize spline elements.
      *
      * @param lw - Base line width.
-     */
     init_spline_elements(lw = 2) {
         return;
         if (this.history.length === 0) {
@@ -572,6 +409,7 @@ class Editor extends CurverBase {
         this.draw_spline();
         // this.draw_background_splines()
     }
+     */
 
 
     /**

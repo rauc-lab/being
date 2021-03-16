@@ -32,9 +32,9 @@ export class SplineDrawer {
      * Clear everything from SplineDrawer.
      */
     clear() {
-        this.elements.forEach(ele => {
-            this.container.removeChild(ele);
-        });
+        while (this.container.hasChildNodes()) {
+            this.container.removeChild(this.container.firstChild)
+        }
         clear_array(this.splines);
         clear_array(this.elements);
     }

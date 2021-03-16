@@ -1,5 +1,6 @@
 "use strict";
 import { create_element, setattr } from "/static/js/svg.js";
+import { last_element } from "/static/js/utils.js";
 
 /**
  * Transport / playback cursor container. Current playing position, duration,
@@ -76,6 +77,10 @@ export class Transport {
      */
     move(timestamp) {
         let pos = timestamp - this.startTime;
+
+        const currentSpline = this.editor.history.retrieve();
+        this.duration = last_element(currentSpline.x)
+
         if (this.looping) {
             pos %= this.duration;
         }
