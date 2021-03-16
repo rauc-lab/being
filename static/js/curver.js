@@ -3,7 +3,6 @@
  * Curver base class for live plotter and spline editor.
  */
 import { BBox } from "/static/js/bbox.js";
-import { History, } from "/static/js/history.js";
 import { tick_space, } from "/static/js/layout.js";
 import {
     divide_arrays,
@@ -15,7 +14,6 @@ import {
     cycle,
     add_option,
 } from "/static/js/utils.js";
-import { Line } from "/static/curver/line.js";
 
 
 /** Default line colors */
@@ -55,14 +53,26 @@ export class CurverBase extends HTMLElement {
     }
 
 
+    connectedCallback() {
+        addEventListener("resize", evt => this.resize());
+        this.resize();
+        //this.run();
+        //setTimeout(() => this.resize(), 1);
+        setTimeout(() => {
+            this.resize();
+            this.run();
+        }, 100);
+    }
+
+
     /**
      * Add a new material icon button to toolbar (or any other parent_
      * element).
      *
-     * @param innerHTML - Inner HTML text
-     * @param title - Tooltip
-     * @param id - Button ID.
-     * @param parent_ - Parent HTML element to append the new button to.
+     * @param innerHTML Inner HTML text
+     * @param title Tooltip
+     * @param id Button ID.
+     * @param parent_ Parent HTML element to append the new button to.
      */
     add_button(innerHTML, title = "", id = "", parent_ = null) {
         if (parent_ === null) {
@@ -127,7 +137,7 @@ export class CurverBase extends HTMLElement {
         // Apply external styles to the shadow dom
         const link = document.createElement("link");
         link.setAttribute("rel", "stylesheet");
-        link.setAttribute("href", "static/curver/curver.css");
+        link.setAttribute("href", "static/curver.css");
 
         this.main = document.createElement("div")
         this.main.classList.add("main")
@@ -215,15 +225,17 @@ export class CurverBase extends HTMLElement {
     }
 
 
-    connectedCallback() {
-        addEventListener("resize", evt => this.resize());
-        this.resize();
-        //this.run();
-        //setTimeout(() => this.resize(), 1);
-        setTimeout(() => {
-            this.resize();
-            this.run();
-        }, 100);
+    /**
+     * Coordinates of mouse event inside canvas / SVG data space.
+     *
+     * @param {MouseEvent} evt Mouse event to transform into data space.
+     */
+    mouse_coordinates(evt) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = evt.clientX - rect.left;
+        const y = evt.clientY - rect.top;
+        const pt = (new DOMPoint(x, y)).matrixTransform(this.trafoInv);
+        return [pt.x, pt.y]
     }
 
 

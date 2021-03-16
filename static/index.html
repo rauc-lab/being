@@ -9,9 +9,9 @@
     <link rel="stylesheet" type="text/css" href="static/main.css">
     <link href="static/font/material-icons.woff2" type="font/ttf">
     <link href="static/font/OpenSans-Regular.ttf" type="font/ttf">
-    <script type="module" src="static/curver/live_plotter.js"></script>
-    <script type="module" src="static/curver/spline_editor.js"></script>
-    <script type="module" src="static/curver/spline_list.js"></script>
+    <script type="module" src="static/js/live_plotter.js"></script>
+    <script type="module" src="static/js/spline_editor.js"></script>
+    <script type="module" src="static/js/spline_list.js"></script>
     <style>
         #editor {
             width: 100%;
@@ -51,8 +51,9 @@
             const data = await fetch_json(url);
             console.log(data);
             const plotter = document.getElementById("plotter");
-            const editor = document.getElementById("editor");
             */
+            const editor = document.getElementById("editor");
+            console.log(editor);
             const streamUrl = 'ws://' + host + '/stream';
             receive_from_websocket(streamUrl, {
                 "output-values": [
@@ -60,6 +61,7 @@
                 ],
             });
         }
+
         ready(main);
     </script>
 </body>

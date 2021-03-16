@@ -39,6 +39,7 @@ div.toolbar {
   flex-wrap: wrap;
   border-top: 2px solid black;
   border-bottom: 2px solid black;
+  border-right: 2px solid black;
 }
 
 div.toolbar:empty {
@@ -128,11 +129,13 @@ div.spline-list-entry {
   white-space: nowrap;
   display: flex;
   align-items: center;
+  padding: 10px;
 }
 
 span.spline-checkbox{
   width: 24px;
   height: 24px;
+  margin-right: 8px;
 }
 
 /* Media queries here */
