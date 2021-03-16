@@ -247,4 +247,9 @@ if __name__ == '__main__':
     from being.motion_player import MotionPlayer
     from being.motor import DummyMotor
 
-    awake(MotionPlayer() | DummyMotor())
+    blocks = [
+        MotionPlayer() | DummyMotor(),
+        MotionPlayer() | DummyMotor(),
+    ]
+
+    awake(*blocks)
