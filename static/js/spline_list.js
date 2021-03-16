@@ -10,6 +10,9 @@ export class SplineList {
         this.selected = null
     }
 
+    /**
+     * Build node and attach to parent (editor)
+     */
     add_spline_list() {
         const container = document.createElement("div")
         container.classList.add("spline-list")
@@ -39,9 +42,6 @@ export class SplineList {
     }
 
 
-    /**
-    * Get splines from API
-    */
     async fetch_splines() {
         try {
             return await fetch_json("/api/motions").then(res => {
@@ -56,10 +56,6 @@ export class SplineList {
         }
     }
 
-
-    /**
-    * Update content in spline list
-    */
     update_spline_list() {
 
         remove_all_children(this.splineListDiv)
@@ -82,17 +78,14 @@ export class SplineList {
             entry.addEventListener("click", evt => {
                 if (evt.currentTarget.id !== this.selected) {
                     // Cant unselect current spline, at least one spline needs 
-                    // to be selected. Also we want the current selected spline 
-                    // to be visible in the graph.
+                    // to be selected. 
                     this.selected = evt.currentTarget.id
                     this.visibles.add(evt.currentTarget.id)
                     this.update_spline_list_selection()
-
-                    // graph manipulation
                     this.init_spline_selection()
-                    // this.init_spline_elements()
                     const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
                     this.editor.load_spline(selectedSpline.content)
+                    this.draw_background_splines()
                 }
             })
 
@@ -108,14 +101,25 @@ export class SplineList {
                     }
                 }
                 this.update_spline_list_selection()
-                // this.init_spline_elements()
+                this.draw_background_splines()
             }, true)
 
             this.splineListDiv.append(entry)
 
         })
         this.update_spline_list_selection()
-        // this.init_spline_elements()
+        this.draw_background_splines()
+    }
+
+    draw_background_splines() {
+        this.editor.backgroundDrawer.clear()
+
+        for (let bgSplineFn of this.visibles) {
+            let spl = this.splines.filter(sp => sp.filename === bgSplineFn)[0]
+            this.editor.backgroundDrawer.draw_spline(spl.content, false)
+        }
+        // draw path
+        this.editor.backgroundDrawer.draw()
     }
 
     update_spline_list_selection() {

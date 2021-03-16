@@ -368,50 +368,6 @@ class Editor extends CurverBase {
     //     });
     // }
 
-
-    /**
-     * Initialize spline elements.
-     *
-     * @param lw - Base line width.
-    init_spline_elements(lw = 2) {
-        return;
-        if (this.history.length === 0) {
-            return;
-        }
-
-        const currentSpline = this.history.retrieve();
-        const bbox = currentSpline.bbox();
-        bbox.expand_by_point([0., 0]);
-        bbox.expand_by_point([0., .04]);
-        this.dataBbox = bbox;
-        this.viewport.ll[1] = bbox.ll[1];
-        this.viewport.ur[1] = bbox.ur[1];
-        this.set_duration(last_element(currentSpline.x));
-        this.update_trafo();
-        //this.lines.forEach(line => line.clear());
-        this.update_buttons();
-        remove_all_children(this.splineGroup);
-        remove_all_children(this.backgroundGroup)
-        switch (currentSpline.order) {
-            case Order.CUBIC:
-                this.init_cubic_spline_background_elements(lw = 1); // Plot under selected!
-                this.init_cubic_spline_elements(lw);
-                break;
-            case Order.QUADRATIC:
-                throw "Quadratic splines are not supported!";
-            case Order.LINEAR:
-            // TODO: Make me!
-            // return this.init_linear_spline(cps, lw);
-            default:
-                throw "Order " + order + " not implemented!";
-        }
-
-        this.draw_spline();
-        // this.draw_background_splines()
-    }
-     */
-
-
     /**
      * Process new data message from backend.
      */
@@ -441,6 +397,7 @@ class Editor extends CurverBase {
 
     draw() {
         this.drawer.draw();
+        this.backgroundDrawer.draw()
     }
 }
 
