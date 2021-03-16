@@ -76,11 +76,9 @@ class Editor extends CurverBase {
         this.lines.push(this.line);
 
         this.setup_toolbar_elements();
-        this.setup_svg_drag_navigation();
-        this.load_spline(ZERO_SPLINE);
-        this.update_ui()
 
         // SVG event listeners
+        this.setup_svg_drag_navigation();
         this.svg.addEventListener("click", evt => {
             this.lines.forEach(line => {
                 line.data.clear();
@@ -98,6 +96,14 @@ class Editor extends CurverBase {
             //evt.preventDefault();
             this.stop_spline_playback();
             this.insert_new_knot(evt);
+        });
+
+        // Initial data
+        this.load_spline(ZERO_SPLINE);
+        this.update_ui()
+        const url = HTTP_HOST + "/api/motors";
+        fetch_json(url).then(motorInfos => {
+            this.motorSelector.populate(motorInfos);
         });
     }
 
@@ -161,10 +167,7 @@ class Editor extends CurverBase {
             this.stop_all_spline_playbacks();
         });
         this.motorSelector = new MotorSelector(select);
-        const url = HTTP_HOST + "/api/motors";
-        fetch_json(url).then(motorInfos => {
-            this.motorSelector.populate(motorInfos);
-        });
+
 
         this.add_space_to_toolbar();
 
