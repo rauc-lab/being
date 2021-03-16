@@ -6,11 +6,13 @@ import { BBox } from "/static/js/bbox.js";
 import { CurverBase } from "/static/curver/curver.js";
 import { make_draggable } from "/static/js/draggable.js";
 import { History } from "/static/js/history.js";
+import { HTTP_HOST } from "/static/js/constants.js";
 import { subtract_arrays, clip } from "/static/js/math.js";
 import { Degree, Order, BPoly } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
 import { arrays_equal, remove_all_children, assert, searchsorted, fetch_json, last_element } from "/static/js/utils.js";
 import { Line } from "/static/curver/line.js";
+import { MotorSelector } from "/static/js/motor_selector.js";
 
 
 /** Main loop interval of being block network. */
@@ -37,12 +39,6 @@ const ZERO_SPLINE = new BPoly([
 
 /** Magnification factor for one single click on the zoom buttons */
 const ZOOM_FACTOR_PER_STEP = 1.5;
-
-/** Current host address */
-const HOST = window.location.host;
-
-/** Current http host address. */
-const HTTP_HOST = "http://" + HOST;
 
 /** Checked string literal */
 const CHECKED = "checked";
@@ -317,6 +313,11 @@ class Editor extends CurverBase {
 
         this.transport = new Transport(this);
 
+        // Single actual value line
+        const color = this.colorPicker.next();
+        this.line = new Line(this.ctx, color, this.maxlen);
+        this.lines.push(this.line);
+
         // Editing history buttons
         this.undoBtn = this.add_button("undo", "Undo last action");
         this.undoBtn.addEventListener("click", evt => {
@@ -358,11 +359,12 @@ class Editor extends CurverBase {
         this.add_space_to_toolbar();
 
         // Motor selection
-        const select = this.add_select(["Motor 0", "Motor 1"]);
-        select.addEventListener("change", evt => {
-            console.log(evt);
-            console.log(select);
-            console.log(select.selectedIndex);
+        const select = this.add_select();
+        this.motorSelector = new MotorSelector(select);
+        const url = HTTP_HOST + "/api/motors";
+        fetch_json(url).then(motorInfos => {
+            this.motorSelector.populate(motorInfos);
+            console.log(this.motorSelector.selected_motor_url);
         });
 
         this.add_space_to_toolbar();
@@ -440,7 +442,6 @@ class Editor extends CurverBase {
         this.update_buttons()
 
         /*
-        this.selMot.addEventListener("click", evt => this.select_motor())
         this.play.addEventListener("click", evt => this.play_motion(this.play))
         save.addEventListener("click", evt => this.save_spline(save))
         */
@@ -460,6 +461,13 @@ class Editor extends CurverBase {
      */
     get c1() {
         return !is_checked(this.c1Btn);
+    }
+
+    /**
+     * Get current line buffer length for transport duration.
+     */
+    get maxlen() {
+        return .8 * (this.transport.duration / INTERVAL);
     }
 
     /**
@@ -612,7 +620,7 @@ class Editor extends CurverBase {
      * Play current spline on Being. Start transport cursor.
      */
     async play_current_spline() {
-        const url = HTTP_HOST + "/api/motors/0/play";
+        const url = this.motorSelector.selected_motor_url + "/play";
         const spline = this.history.retrieve();
         const res = await fetch_json(url, "POST", {
             spline: spline.to_dict(),
@@ -627,7 +635,7 @@ class Editor extends CurverBase {
      * Stop spline playback on Being.
      */
     async stop_spline_playback() {
-        const url = HTTP_HOST + "/api/motors/0/stop";
+        const url = this.motorSelector.selected_motor_url + "/stop";
         await fetch(url, { method: "POST" });
         this.transport.pause();
     }
@@ -669,7 +677,6 @@ class Editor extends CurverBase {
         );
     }
 
-
     /**
      * Update disabled state of undo / redo buttons according to history.
      */
@@ -689,7 +696,6 @@ class Editor extends CurverBase {
         }
     }
 
-
     /**
      * Trigger viewport resize and redraw.
      */
@@ -698,7 +704,6 @@ class Editor extends CurverBase {
         this.draw_spline();
         this.draw_background_spline();
     }
-
 
     /**
      * Coordinates of mouse event inside canvas / SVG data space.
@@ -712,7 +717,6 @@ class Editor extends CurverBase {
         let b = (new DOMPoint(a.x, a.y)).matrixTransform(this.trafoInv);
         return [b.x, b.y];
     }
-
 
     /**
      * Make something draggable inside data space. Wraps default
@@ -752,7 +756,6 @@ class Editor extends CurverBase {
         )
     }
 
-
     /**
      * Insert new knot into current spline.
      */
@@ -777,7 +780,6 @@ class Editor extends CurverBase {
         this.history.capture(newSpline);
         this.init_spline_elements();
     }
-
 
     /**
      * Load spline into spline editor.
@@ -807,20 +809,6 @@ class Editor extends CurverBase {
         return await resp.json()
     }
 
-
-    select_motor() {
-        console.log("select_motor() :" + this.selMot.value);
-    }
-
-
-    /**
-     * Get current line buffer length for transport duration.
-     */
-    get maxlen() {
-        return .8 * (this.transport.duration / INTERVAL);
-    }
-
-
     /**
      * Set current duration of spline editor.
      */
@@ -830,7 +818,6 @@ class Editor extends CurverBase {
             line.maxlen = this.maxlen;
         });
     }
-
 
     /**
      * Initialize spline elements.
@@ -873,7 +860,6 @@ class Editor extends CurverBase {
         // this.draw_background_splines()
     }
 
-
     /**
      * Initialize an SVG path element and adds it to the SVG parent element.
      * data_source callback needs to deliver the 2-4 Bézier control points.
@@ -896,7 +882,6 @@ class Editor extends CurverBase {
         return path
     }
 
-
     /**
      * Initialize an SVG circle element and adds it to the SVG parent element.
      * data_source callback needs to deliver the center point of the circle.
@@ -914,7 +899,6 @@ class Editor extends CurverBase {
 
         return circle;
     }
-
 
     /**
      * Initialize an SVG line element and adds it to the SVG parent element.
@@ -938,8 +922,6 @@ class Editor extends CurverBase {
 
         return line;
     }
-
-
 
     /**
      * Initialize all SVG elements for a cubic spline. Hooks up the draggable
@@ -1028,11 +1010,9 @@ class Editor extends CurverBase {
         this.draw_background_spline()
     }
 
-
     init_linear_spline(data, lw = 2) {
         // TODO: Make me!
     }
-
 
     /**
      * Draw the current spline / update all the SVG elements. They will fetch
@@ -1061,24 +1041,13 @@ class Editor extends CurverBase {
     new_data(msg) {
         // Clear of old data points in live plot
         if (!this.transport.playing) {
-            this.lines.forEach(line => {
-                line.data.popleft();
-            });
+            this.line.data.popleft();
             return;
         }
 
-        const pos = this.transport.move(msg.timestamp);
-
-        // Init new lines
-        while (this.lines.length < msg.values.length) {
-            const color = this.colorPicker.next();
-            this.lines.push(new Line(this.ctx, color, this.maxlen));
-        }
-
-        // Plot data
-        msg.values.forEach((value, nr) => {
-            this.lines[nr].append_data([pos, value]);
-        });
+        const t = this.transport.move(msg.timestamp);
+        const actualValue = msg.values[this.motorSelector.actualValueIndex];
+        this.line.append_data([t, actualValue]);
     }
 }
 

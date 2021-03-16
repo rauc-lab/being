@@ -146,3 +146,18 @@ export function searchsorted(arr, val) {
 
     return lower;
 }
+
+
+/**
+ * Add option to select.
+ *
+ * @param {HTMLElement} select Select element to append option to.
+ * @param {String} name Option name.
+ */
+export function add_option(select, name) {
+    const option = document.createElement("option");
+    option.setAttribute("value", name);
+    option.innerHTML = name;
+    select.appendChild(option);
+    return option;
+}

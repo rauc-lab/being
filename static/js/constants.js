@@ -18,3 +18,9 @@ export const LEFT_MOUSE_BUTTON = 1;
 
 /** Escape key code */
 export const ESC_KEY_CODE = 27;
+
+/** Current host address */
+export const HOST = window.location.host;
+
+/** Current http host address. */
+export const HTTP_HOST = "http://" + HOST;

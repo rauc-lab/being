@@ -1,20 +1,18 @@
 """Awaking a being to live. Main start execution entry point."""
 import asyncio
 import time
-from typing import List
 
 from being.backends import CanBackend
 from being.clock import Clock
 from being.config import INTERVAL
 from being.connectables import ValueOutput
-from being.execution import ExecOrder, execute, block_network_graph
+from being.execution import execute, block_network_graph
 from being.graph import topological_sort
 from being.motion_player import MotionPlayer
 from being.motor import home_motors, _MotorBase
 from being.server import WEB_SOCKET_ADDRESS, init_web_server, run_web_server
 from being.utils import filter_by_type
 from being.web_socket import WebSocket
-
 
 
 def value_outputs(blocks):

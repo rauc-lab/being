@@ -107,9 +107,34 @@ def content_controller(content: Content) -> web.RouteTableDef:
     return routes
 
 
+def any_item(iterable):
+    """Pick first element of iterable."""
+    return next(iter(iterable))
+
+
+def serialize_motion_players(being):
+    """Return list of motion player / motors informations."""
+    ret = []
+    for nr, mp in enumerate(being.motionPlayers):
+        input_ = any_item(mp.output.outgoingConnections)
+        motor = input_.owner
+        dct = {
+            "id": nr,
+            "setpointValueIndex": being.valueOutputs.index(mp.output),
+            "actualValueIndex": being.valueOutputs.index(motor.output),
+        }
+        ret.append(dct)
+
+    return ret
+
+
 def being_controller(being) -> web.RouteTableDef:
     """API routes for being object."""
     routes = web.RouteTableDef()
+
+    @routes.get('/motors')
+    async def get_motors(request):
+        return json_response(serialize_motion_players(being))
 
     @routes.post('/motors/{id}/play')
     async def play_spline(request):

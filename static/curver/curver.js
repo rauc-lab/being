@@ -13,6 +13,7 @@ import {
 } from "/static/js/svg.js";
 import {
     cycle,
+    add_option,
 } from "/static/js/utils.js";
 import { Line } from "/static/curver/line.js";
 
@@ -97,7 +98,7 @@ export class CurverBase extends HTMLElement {
      * @param {String} name Select name and label.
      * @param {String} options Select options.
      */
-    add_select(options, name="") {
+    add_select(options = [], name = "") {
         const container = document.createElement("div");
         if (name !== "") {
             const label = document.createElement("label");
@@ -109,10 +110,7 @@ export class CurverBase extends HTMLElement {
         const select = document.createElement("select");
         select.setAttribute("name", name);
         options.forEach(opt => {
-            const option = document.createElement("option");
-            option.setAttribute("value", opt);
-            option.innerHTML = opt;
-            select.appendChild(option);
+            add_option(select, opt);
         });
         container.appendChild(select);
         this.toolbar.appendChild(container);
