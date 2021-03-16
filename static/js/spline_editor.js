@@ -7,14 +7,14 @@ import { CurverBase } from "/static/js/curver.js";
 import { make_draggable } from "/static/js/draggable.js";
 import { History } from "/static/js/history.js";
 import { subtract_arrays, clip } from "/static/js/math.js";
-import { Order, BPoly } from "/static/js/spline.js";
+import { BPoly } from "/static/js/spline.js";
 import { create_element } from "/static/js/svg.js";
-import { remove_all_children, fetch_json, last_element } from "/static/js/utils.js";
+import { fetch_json } from "/static/js/utils.js";
 import { Line } from "/static/js/line.js";
 import { Transport } from "/static/js/transport.js";
 import { SplineDrawer } from "/static/js/spline_drawer.js";
 import { SplineList } from "/static/js/spline_list.js";
-import { HOST, HTTP_HOST } from "/static/js/constants.js";
+import { HTTP_HOST } from "/static/js/constants.js";
 import { MotorSelector } from "/static/js/motor_selector.js";
 
 
