@@ -184,11 +184,7 @@ class Editor extends CurverBase {
             }
         });
 
-
-        // this.add_spline_list()
         this.splineList.add_spline_list()
-
-
         this.splineList.fetch_splines().then(() =>
             this.splineList.update_spline_list()
         )
@@ -345,11 +341,8 @@ class Editor extends CurverBase {
         bbox.expand_by_point([0., .04]);
         this.dataBbox = bbox;
         this.viewport = this.dataBbox.copy();
-        // this.viewport.ll[1] = bbox.ll[1];
-        // this.viewport.ur[1] = bbox.ur[1];
-        // this.set_duration(last_element(currentSpline.x));
         this.update_trafo();
-        
+
 
         this.drawer.draw_spline(spline);
         this.drawer.draw(); // draw all
@@ -357,16 +350,6 @@ class Editor extends CurverBase {
         this.update_buttons()
     }
 
-
-    // /**
-    //  * Set current duration of spline editor.
-    //  */
-    // set_duration(duration) {
-    //     this.transport.duration = duration;
-    //     this.lines.forEach(line => {
-    //         line.maxlen = .8 * (duration / INTERVAL)
-    //     });
-    // }
 
     /**
      * Process new data message from backend.

@@ -16,13 +16,16 @@ export class SplineList {
     add_spline_list() {
         const container = document.createElement("div")
         container.classList.add("spline-list")
+
         const title = document.createElement("h2")
         title.appendChild(document.createTextNode("Motions"))
         container.appendChild(title)
+
         this.splineListDiv = document.createElement("div")
         this.splineListDiv.style.borderBottom = "2px solid black"
         this.splineListDiv.style.paddingBottom = "5px"
         container.appendChild(this.splineListDiv)
+
         this.addSplineButton = this.editor.add_button("add_box", "Create new spline")
         const newBtnContainer = document.createElement("div")
         newBtnContainer.style.display = "flex"
@@ -38,7 +41,8 @@ export class SplineList {
             })
         });
 
-        this.editor.shadowRoot.insertBefore(container, this.editor.shadowRoot.childNodes[1]) // insert after css link
+        // insert after css link
+        this.editor.shadowRoot.insertBefore(container, this.editor.shadowRoot.childNodes[1])
     }
 
 
@@ -64,6 +68,7 @@ export class SplineList {
             const entry = document.createElement("div")
             entry.classList.add("spline-list-entry")
             entry.id = spline.filename
+
             const checkbox = document.createElement("span")
             checkbox.classList.add("spline-checkbox")
             checkbox.classList.add("material-icons")
@@ -71,24 +76,6 @@ export class SplineList {
             checkbox.innerHTML = ""
             checkbox.value = spline.filename
             checkbox.title = "Show in Graph"
-            const text = document.createElement("span")
-            text.innerHTML = spline.filename
-            entry.append(checkbox, text)
-
-            entry.addEventListener("click", evt => {
-                if (evt.currentTarget.id !== this.selected) {
-                    // Cant unselect current spline, at least one spline needs 
-                    // to be selected. 
-                    this.selected = evt.currentTarget.id
-                    this.visibles.add(evt.currentTarget.id)
-                    this.update_spline_list_selection()
-                    this.init_spline_selection()
-                    const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
-                    this.editor.load_spline(selectedSpline.content)
-                    this.draw_background_splines()
-                }
-            })
-
             checkbox.addEventListener("click", evt => {
                 evt.stopPropagation()
                 const filename = evt.target.parentNode.id
@@ -103,6 +90,34 @@ export class SplineList {
                 this.update_spline_list_selection()
                 this.draw_background_splines()
             }, true)
+            checkbox.addEventListener("mouseover", evt => {
+                evt.stopPropagation()
+                evt.currentTarget.innerHTML = "visibility"
+            })
+            checkbox.addEventListener("mouseout", evt => {
+
+                const filename = evt.target.parentNode.id
+                if (!this.visibles.has(filename)) {
+                    evt.currentTarget.innerHTML = ""
+                }
+            })
+
+            const text = document.createElement("span")
+            text.innerHTML = spline.filename
+            entry.append(checkbox, text)
+            entry.addEventListener("click", evt => {
+                if (evt.currentTarget.id !== this.selected) {
+                    // Cant unselect current spline, at least one spline needs 
+                    // to be selected. 
+                    this.selected = evt.currentTarget.id
+                    this.visibles.add(evt.currentTarget.id)
+                    this.update_spline_list_selection()
+                    this.init_spline_selection()
+                    const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
+                    this.editor.load_spline(selectedSpline.content)
+                    this.draw_background_splines()
+                }
+            })
 
             this.splineListDiv.append(entry)
 
@@ -118,7 +133,7 @@ export class SplineList {
             let spl = this.splines.filter(sp => sp.filename === bgSplineFn)[0]
             this.editor.backgroundDrawer.draw_spline(spl.content, false)
         }
-        // draw path
+
         this.editor.backgroundDrawer.draw()
     }
 

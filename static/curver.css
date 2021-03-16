@@ -39,6 +39,7 @@ div.toolbar {
   flex-wrap: wrap;
   border-top: 2px solid black;
   border-bottom: 2px solid black;
+  border-right: 2px solid black;
 }
 
 div.toolbar:empty {
