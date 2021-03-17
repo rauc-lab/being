@@ -80,13 +80,15 @@ export class SplineList {
             checkbox.addEventListener("click", evt => {
                 evt.stopPropagation()
                 const filename = evt.target.parentNode.id
-                if (this.selected !== filename) {
-                    if (this.visibles.has(filename)) {
-                        this.visibles.delete(filename)
-                    }
-                    else {
-                        this.visibles.add(filename)
-                    }
+                if (this.selected === filename) {
+                    return
+                }
+
+                if (this.visibles.has(filename)) {
+                    this.visibles.delete(filename)
+                }
+                else {
+                    this.visibles.add(filename)
                 }
                 this.update_spline_list_selection()
                 this.draw_background_splines()
@@ -130,9 +132,13 @@ export class SplineList {
     draw_background_splines() {
         this.editor.backgroundDrawer.clear()
 
-        for (let bgSplineFn of this.visibles) {
-            let spl = this.splines.filter(sp => sp.filename === bgSplineFn)[0]
-            this.editor.backgroundDrawer.draw_spline(spl.content, false)
+        let background_splines = this.splines.filter(sp => {
+            return (this.visibles.has(sp.filename) && sp.filename !== this.selected)
+        })
+
+        for (let index in background_splines) {
+            const spline_to_draw = background_splines[index].content
+            this.editor.backgroundDrawer.draw_spline(spline_to_draw, false)
         }
 
         this.editor.backgroundDrawer.draw()
