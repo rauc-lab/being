@@ -8,7 +8,7 @@ import { make_draggable } from "/static/js/draggable.js";
 import { History } from "/static/js/history.js";
 import { subtract_arrays, clip } from "/static/js/math.js";
 import { BPoly } from "/static/js/spline.js";
-import { fetch_json, last_element } from "/static/js/utils.js";
+import { fetch_json } from "/static/js/utils.js";
 import { Line } from "/static/js/line.js";
 import { Transport } from "/static/js/transport.js";
 import { SplineDrawer } from "/static/js/spline_drawer.js";
@@ -168,7 +168,6 @@ class Editor extends CurverBase {
         });
         this.motorSelector = new MotorSelector(select);
 
-
         this.add_space_to_toolbar();
 
         // Transport buttons
@@ -204,6 +203,7 @@ class Editor extends CurverBase {
     draw() {
         this.drawer.draw();
         this.backgroundDrawer.draw()
+        this.transport.draw_cursor();
     }
 
     /**
@@ -224,7 +224,7 @@ class Editor extends CurverBase {
                 mid = orig.left + alpha * orig.width;
             },
             evt => {
-                // Affine image transformation
+                // Affine image transformation with `mid` as "focal point"
                 const end = [evt.clientX, evt.clientY];
                 const delta = subtract_arrays(end, start);
                 const shift = -delta[0] / this.width * orig.width;
@@ -233,7 +233,6 @@ class Editor extends CurverBase {
                 this.viewport.right = factor * (orig.right - mid + shift) + mid;
                 this.update_trafo();
                 this.draw();
-                this.transport.draw_cursor();
             },
             evt => {
                 start = null;
@@ -286,7 +285,6 @@ class Editor extends CurverBase {
     set_duration(duration) {
         this.transport.duration = duration;
         this.line.maxlen = .8 * duration / INTERVAL;
-        this.line.data._purge_left();
     }
 
     /**
@@ -295,7 +293,7 @@ class Editor extends CurverBase {
     draw_current_spline() {
         this.drawer.clear();
         const current = this.history.retrieve();
-        const duration = last_element(current.x);
+        const duration = current.end;
         this.set_duration(duration);
         this.drawer.draw_spline(current);
         this.update_ui();
