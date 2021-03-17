@@ -29,13 +29,11 @@ export class SplineList {
         this.splineListDiv.style.paddingBottom = "5px"
         container.appendChild(this.splineListDiv)
 
-        this.addSplineButton = this.editor.add_button("add_box", "Create new spline")
         const newBtnContainer = document.createElement("div")
         newBtnContainer.style.display = "flex"
         newBtnContainer.style.justifyContent = "center"
-        newBtnContainer.appendChild(this.addSplineButton)
-        container.appendChild(newBtnContainer)
 
+        this.addSplineButton = this.editor.add_button("add_box", "Create new spline")
         this.addSplineButton.addEventListener("click", evt => {
             this.create_spline().then(res => {
                 this.fetch_splines().then(() =>
@@ -43,6 +41,21 @@ export class SplineList {
                 )
             })
         });
+        newBtnContainer.appendChild(this.addSplineButton)
+        container.appendChild(newBtnContainer)
+
+
+        this.delSplineButton = this.editor.add_button("delete", "Delete selected motion")
+        this.delSplineButton.addEventListener("click", evt => {
+            this.delete_spline().then(res => {
+                this.fetch_splines().then(() =>
+                    this.update_spline_list()
+                )
+            })
+        });
+        newBtnContainer.appendChild(this.delSplineButton)
+        container.appendChild(newBtnContainer)
+
 
         // insert after css link
         this.editor.shadowRoot.insertBefore(container, this.editor.shadowRoot.childNodes[1])
@@ -199,5 +212,22 @@ export class SplineList {
         }
 
         return await resp.json()
+    }
+
+    async delete_spline() {
+        // TODO: Ask user only the first time he deletes a file?
+        // Replace ugly confirm dialog
+        if (confirm("Delete motion " + this.selected + " permanently ?")) {
+            const url = HTTP_HOST + "/api/motions/" + this.selected;
+            const resp = await fetch(url, { method: "DELETE" });
+
+            if (resp.ok) {
+                this.visibles.delete(this.selected)
+                this.selected = null
+                return true
+            }
+
+            throw new Error(resp.statusText)
+        }
     }
 }
