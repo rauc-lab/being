@@ -9,6 +9,8 @@ export class SplineList {
         this.splines = []
         this.visibles = new Set()
         this.selected = null
+
+        this.add_spline_list()
     }
 
     /**
