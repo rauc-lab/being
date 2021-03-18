@@ -148,6 +148,5 @@ span.spline-checkbox{
 /** Label and select */
 
 div.toolbar select {
-  border: none;
   font-size: 18px; /* Preferred icon size */
 }

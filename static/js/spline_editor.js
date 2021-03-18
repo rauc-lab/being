@@ -65,7 +65,7 @@ class Editor extends CurverBase {
         this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
         this.motorSelector = null;  // Gets initialized inside setup_toolbar_elements(). Not nice but...
         this.splineList = new SplineList(this);
-        this.splineList.add_spline_list()
+
         this.splineList.fetch_splines().then(() =>
             this.splineList.update_spline_list()
         )
