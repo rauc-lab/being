@@ -61,6 +61,30 @@ class CW(IntEnum):
     HALT = (1 << 8)
 
 
+'''
+class SW(IntEnum):
+
+    """Statusword bits."""
+
+    READY_TO_SWITCH_ON = (1 << 0)
+    SWITCHED_ON = (1 << 1)
+    OPERATION_ENABLED = (1 << 2)
+    FAULT = (1 << 3)
+    VOLTAGE_ENABLED = (1 << 4)
+    QUICK_STOP = (1 << 5)
+    SWITCH_ON_DISABLED = (1 << 6)
+    WARNING = (1 << 7)
+    #alwayszero = (1 << 8)
+    REMOTE = (1 << 9)
+    TARGET_REACHED = (1 << 10)
+    INTERNAL_LIMIT_ACTIVE = (1 << 11)
+    ACKNOWLEDGE = (1 << 12)
+    DEVIATION_ERROR = (1 << 13)
+    #NOT_IN_USE_0 = (1 << 14)
+    #NOT_IN_USE_1 = 15
+'''
+
+
 class Command(IntEnum):
 
     """CANopen CiA 402 controlword commands for state transitions."""

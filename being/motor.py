@@ -5,6 +5,7 @@ import time
 from typing import Optional, Iterable
 
 from being.backends import CanBackend
+from being.bitmagic import check_bit_mask
 from being.block import Block
 from being.can import load_object_dictionary
 from being.can.cia_402 import CiA402Node, OperationMode, Command, CW, State
@@ -21,6 +22,7 @@ from being.config import SI_2_FAULHABER, INTERVAL
 from being.can.nmt import PRE_OPERATIONAL
 from being.connectables import ValueInput, ValueOutput
 from being.constants import INF
+from being.error import BeingError
 from being.kinematics import kinematic_filter
 from being.kinematics import State as KinematicState
 from being.math import sign
@@ -32,6 +34,27 @@ STILL_HOMING = True
 
 DONE_HOMING = False
 """Indicates that homing job has finished."""
+
+FAULHABER_ERRORS = {
+    0x0001: 'Continuous Over Current',
+    0x0002: 'Deviation',
+    0x0004: 'Over Voltage',
+    0x0008: 'Over Temperature',
+    0x0010: 'Flash Memory Error',
+    0x0040: 'CAN In Error Passive Mode',
+    0x0080: 'CAN Overrun (objects lost)',
+    0x0100: 'Life Guard Or Heart- beat Error',
+    0x0200: 'Recovered From Bus Off',
+    0x0800: 'Conversion Overflow',
+    0x1000: 'Internal Software',
+    0x2000: 'PDO Length Exceeded',
+    0x4000: 'PDO not processes due to length error',
+}
+
+
+class DriveError(BeingError):
+
+    """Something went wrong on the drive."""
 
 
 def create_node(network, nodeId):
@@ -71,6 +94,16 @@ def home_motors(motors: Iterable, interval: float = .01, timeout: float = 4., **
         time.sleep(interval)
 
 
+def stringify_faulhaber_error(value: int) -> str:
+    """Concatenate error messages for a given error value."""
+    messages = []
+    for mask, message in FAULHABER_ERRORS.items():
+        if check_bit_mask(value, mask):
+            messages.append(message)
+
+    return ', '.join(messages)
+
+
 class _MotorBase(Block):
 
     """Motor base class."""
@@ -82,6 +115,7 @@ class _MotorBase(Block):
 
     def home(self):
         yield DONE_HOMING
+
 
 
 class Motor(_MotorBase):
@@ -152,9 +186,11 @@ class Motor(_MotorBase):
         node.pdo.read()  # Load both node.tpdo and node.rpdo
 
         # Clear all rx PDOs and Position Actual Value -> PDO2
-        for i, tx in enumerate(node.tpdo.values(), start=1):
+        for nr, tx in enumerate(node.tpdo.values(), start=1):
             tx.clear()
-            if i == 2:
+            if nr == 1:
+                tx.add_variable('Statusword')
+                tx.add_variable('Error Register')
                 tx.add_variable('Position Actual Value')
                 tx.enabled = True
                 tx.trans_type = TransmissionType.SYNCHRONOUS_CYCLIC
@@ -165,9 +201,9 @@ class Motor(_MotorBase):
             tx.save()
 
         # Clear all rx PDOs and Target Position -> PDO2
-        for i, rx in enumerate(node.rpdo.values(), start=1):
+        for nr, rx in enumerate(node.rpdo.values(), start=1):
             rx.clear()
-            if i == 2:
+            if nr == 1:
                 rx.add_variable('Target Position')
                 rx.enabled = True
             else:
@@ -250,6 +286,11 @@ class Motor(_MotorBase):
             yield DONE_HOMING
 
     def update(self):
+        err = self.node.pdo['Error Register'].raw
+        if err:
+            msg = stringify_faulhaber_error(err)
+            raise DriveError(msg)
+
         # Kinematic filter input target position
         self.state = kinematic_filter(
             self.input.value,
@@ -262,14 +303,13 @@ class Motor(_MotorBase):
         # Set target position
         soll = SI_2_FAULHABER * self.state.position
         self.node.pdo['Target Position'].raw = soll
-        self.node.rpdo[2].transmit()
+        self.node.rpdo[1].transmit()
 
         # Fetch actual position
         self.output.value = self.node.pdo['Position Actual Value'].raw / SI_2_FAULHABER
 
     def __str__(self):
         return f'{type(self).__name__}(nodeId={self.nodeId})'
-
 
 
 class DummyMotor(_MotorBase):
