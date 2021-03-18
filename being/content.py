@@ -46,6 +46,12 @@ class Content(SingleInstanceCache):
         fp = self._fullpath(name)
         write_file(fp, dumps(spline))
 
+    def rename_motion(self, name, new_name):
+        self.logger.debug('Rename motion %r to %r', name, new_name)
+        fp = self._fullpath(name)
+        new_fp = self._fullpath(new_name)
+        os.rename(fp, new_fp)
+
     def delete_motion(self, name):
         self.logger.debug('Deleting motion %r', name)
         fp = self._fullpath(name)

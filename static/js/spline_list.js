@@ -141,7 +141,36 @@ export class SplineList {
             text.addEventListener("blur", evt => {
                 evt.currentTarget.contentEditable = "false"
                 if (this.origFilename !== evt.currentTarget.innerHTML) {
-                    this.save_filename(evt.currentTarget)
+                    const newFilename = evt.currentTarget.innerHTML
+                    if (newFilename.length <= 0 ||
+                        newFilename === "<br>" ||
+                        newFilename === "<p>" ||
+                        newFilename === "<div>") {
+                        node.innerHTML = this.origFilename
+                    } else {
+                        this.rename_spline(this.origFilename, newFilename).then(res => {
+                            // local update
+                            // We dont want to reload from the server because we want to keep the 
+                            // evenetually modified spline and history when renaming
+                            let spl = this.splines.filter(sp => sp.filename === this.origFilename)[0]
+                            spl.filename = newFilename
+
+                            if (this.selected === this.origFilename) {
+                                this.selected = newFilename
+                            }
+
+                            if (this.visibles.has(this.origFilename)) {
+                                this.visibles.delete(this.origFilename)
+                                this.visibles.add(newFilename)
+                            }
+
+                            const filename_div = this.editor.shadowRoot.getElementById(this.origFilename)
+                            filename_div.id = newFilename
+
+                            console.log("renamed!!")
+                        })
+
+                    }
                 }
             })
             text.addEventListener("keyup", evt => {
@@ -173,17 +202,6 @@ export class SplineList {
         this.draw_background_splines()
     }
 
-    save_filename(node) {
-        const newFilename = node.innerHTML
-        if (newFilename.length <= 0 ||
-            newFilename === "<br>" ||
-            newFilename === "<p>" ||
-            newFilename === "<div>") {
-            node.innerHTML = this.origFilename
-        } else {
-            console.log("todo: save fn : " + this.origFilename + " as " + newFilename)
-        }
-    }
 
     draw_background_splines() {
         this.editor.backgroundDrawer.clear()
@@ -270,5 +288,17 @@ export class SplineList {
 
             throw new Error(resp.statusText)
         }
+    }
+
+    async rename_spline(name, new_name) {
+        const url = HTTP_HOST + "/api/motions/" + name + "?rename=" + new_name;
+        const resp = await fetch(url, { method: "PUT" });
+
+        if (!resp.ok) {
+            throw new Error(resp.statusText);
+        }
+
+        return await resp.json()
+
     }
 }

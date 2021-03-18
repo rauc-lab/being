@@ -88,7 +88,16 @@ def content_controller(content: Content) -> web.RouteTableDef:
             return web.HTTPNotFound(text='This motion does not exist!')
 
         try:
-            spline = await request.json(loads=loads)
+            if "rename" in request.query:
+                try:
+                    new_name = request.query["rename"]
+                    content.rename_motion(name, new_name)
+                    return json_response(content.load_motion(new_name))
+                except:
+                    return web.HTTPError(text="Renaming failed!")
+
+            else:
+                spline = await request.json(loads=loads)
         except json.JSONDecodeError as err:
             return web.HTTPNotAcceptable(text='Failed deserializing JSON spline!')
 
