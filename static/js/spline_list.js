@@ -136,28 +136,37 @@ export class SplineList {
             const text = document.createElement("span")
             text.innerHTML = spline.filename
             text.contentEditable = "false" // "false" prevents text syntax highlighting
-            text.title="Double click to edit"
+            text.title = "Double click to edit"
             entry.append(checkbox, text)
             // text.addEventListener("click", evt => {
             //     evt.stopPropagation()
             // }, true)
             text.addEventListener("blur", evt => {
                 evt.currentTarget.contentEditable = "false"
-                console.log("todo: save fn")
+                save_filename(evt.currentTarget)
             })
             text.addEventListener("keypress", evt => {
                 if (evt.key === "Enter") {
-                evt.currentTarget.contentEditable = "false"
-                evt.currentTarget.blur()
-                console.log("todo: save fn")
+                    evt.currentTarget.contentEditable = "false"
+                    evt.currentTarget.blur() // saving file handled by "blur" event listener
                 }
             })
             text.addEventListener("dblclick", evt => {
                 if (!evt.currentTarget.isContentEditable) {
                     evt.currentTarget.contentEditable = "true"
                     evt.currentTarget.focus()
+                    this.origFilename = evt.currentTarget.innerHTML
                 }
             })
+
+            const save_filename = (node) => {
+                const newFilename = node.innerHTML
+                if (newFilename.length <= 0) {
+                    node.innerHTML = this.origFilename
+                } else {
+                    console.log("todo: save fn : " + this.origFilename + " as " + newFilename)
+                }
+            }
 
             this.splineListDiv.append(entry)
 
