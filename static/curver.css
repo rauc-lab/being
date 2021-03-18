@@ -120,6 +120,14 @@ div.spline-list-entry:hover {
   cursor: pointer;
 }
 
+/** Edit filename */
+div.spline-list-entry span:last-child:hover {
+  cursor: text;
+}
+div.spline-list-entry span:last-child{
+  caret-color: silver;
+}
+
 div.spline-list-entry[checked] {
   background: black;
   color: white;
@@ -149,4 +157,11 @@ span.spline-checkbox{
 
 div.toolbar select {
   font-size: 18px; /* Preferred icon size */
+}
+
+.noselect {
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
 }

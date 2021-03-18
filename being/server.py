@@ -88,7 +88,18 @@ def content_controller(content: Content) -> web.RouteTableDef:
             return web.HTTPNotFound(text='This motion does not exist!')
 
         try:
-            spline = await request.json(loads=loads)
+            if "rename" in request.query:
+                new_name = request.query["rename"]
+                if content.motion_exists(new_name):
+                    return web.HTTPNotAcceptable(text="Another file with the same name already exists")
+                try:
+                    content.rename_motion(name, new_name)
+                    return json_response(content.load_motion(new_name))
+                except:
+                    return web.HTTPError(text="Renaming failed!")
+
+            else:
+                spline = await request.json(loads=loads)
         except json.JSONDecodeError as err:
             return web.HTTPNotAcceptable(text='Failed deserializing JSON spline!')
 
@@ -102,6 +113,15 @@ def content_controller(content: Content) -> web.RouteTableDef:
             return web.HTTPNotFound(text=f'Motion {name!r} does not exist!')
 
         content.delete_motion(name)
+        return respond_ok()
+
+    @routes.post('/motions/{name}')
+    async def duplicate_motion(request):
+        name = request.match_info['name']
+        if not content.motion_exists(name):
+            return web.HTTPNotFound(text=f'Motion {name!r} does not exist!')
+
+        content.duplicate_motion(name)
         return respond_ok()
 
     return routes
@@ -185,8 +205,8 @@ def being_controller(being) -> web.RouteTableDef:
     def move_motor(request):
         return respond_ok()
 
-    #@routes.get('/behaviors')
-    #def get_behaviors(request):
+    # @routes.get('/behaviors')
+    # def get_behaviors(request):
     #    return respond_ok()
 
     """
@@ -220,7 +240,7 @@ def init_web_server(being=None, content=None) -> web.Application:
         api.add_routes(content_controller(content))
 
     app.add_subapp(API_PREFIX, api)
-    #app.router.add_get('/data-stream', handle_web_socket)
+    # app.router.add_get('/data-stream', handle_web_socket)
     return app
 
 

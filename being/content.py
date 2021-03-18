@@ -3,6 +3,7 @@ import os
 import glob
 import json
 import logging
+import shutil
 
 from being.serialization import loads, dumps
 from being.utils import rootname, read_file, write_file, SingleInstanceCache
@@ -45,6 +46,18 @@ class Content(SingleInstanceCache):
         self.logger.debug('Saving motion %r', name)
         fp = self._fullpath(name)
         write_file(fp, dumps(spline))
+
+    def rename_motion(self, name, new_name):
+        self.logger.debug('Rename motion %r to %r', name, new_name)
+        fp = self._fullpath(name)
+        new_fp = self._fullpath(new_name)
+        os.rename(fp, new_fp)
+
+    def duplicate_motion(self, name):
+        self.logger.debug('Duplicate motion %r', name)
+        fp = self._fullpath(name)
+        fp_copy = self._fullpath(name + "_COPY")
+        shutil.copyfile(fp, fp_copy)
 
     def delete_motion(self, name):
         self.logger.debug('Deleting motion %r', name)

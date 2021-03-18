@@ -1,6 +1,6 @@
 @font-face {
   font-family: open-sans;
-  src:url(font/OpenSans-Regular.ttf)  format("truetype")
+  src: url(font/OpenSans-Regular.ttf) format("truetype");
 }
 
 @font-face {
@@ -16,7 +16,6 @@ body {
   margin: 12px;
 }
 
-
 /** Fluid typography from https://css-tricks.com/snippets/css/fluid-typography/ */
 html {
   font-size: 16px;
@@ -31,7 +30,6 @@ html {
     font-size: 22px;
   }
 }
-
 
 nav {
   border-bottom: 2px solid black;
@@ -55,10 +53,9 @@ nav a {
   text-decoration: none;
 }
 
-nav ul{
-    float: right;
+nav ul {
+  float: right;
 }
-
 
 nav li {
   display: inline;
@@ -66,8 +63,8 @@ nav li {
 }
 
 section {
-    margin: 25px;
-    display: inline;
+  margin: 25px;
+  display: inline;
 }
 
 .material-icons {
@@ -93,4 +90,11 @@ section {
 
   /* Support for IE. */
   font-feature-settings: "liga";
+}
+
+.noselect {
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none; /* Safari */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
 }
