@@ -83,7 +83,21 @@ export class SplineList {
         this.splines.forEach(spline => {
             const entry = document.createElement("div")
             entry.classList.add("spline-list-entry")
+            entry.classList.add("noselect")
             entry.id = spline.filename
+            entry.addEventListener("click", evt => {
+                if (evt.currentTarget.id !== this.selected) {
+                    // Cant unselect current spline, at least one spline needs 
+                    // to be selected. 
+                    this.selected = evt.currentTarget.id
+                    this.visibles.add(evt.currentTarget.id)
+                    this.update_spline_list_selection()
+                    this.init_spline_selection()
+                    const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
+                    this.editor.load_spline(selectedSpline.content)
+                    this.draw_background_splines()
+                }
+            });
 
             const checkbox = document.createElement("span")
             checkbox.classList.add("spline-checkbox")
@@ -113,7 +127,6 @@ export class SplineList {
                 evt.currentTarget.innerHTML = "visibility"
             })
             checkbox.addEventListener("mouseout", evt => {
-
                 const filename = evt.target.parentNode.id
                 if (!this.visibles.has(filename)) {
                     evt.currentTarget.innerHTML = ""
@@ -122,18 +135,27 @@ export class SplineList {
 
             const text = document.createElement("span")
             text.innerHTML = spline.filename
+            text.contentEditable = "false" // "false" prevents text syntax highlighting
+            text.title="Double click to edit"
             entry.append(checkbox, text)
-            entry.addEventListener("click", evt => {
-                if (evt.currentTarget.id !== this.selected) {
-                    // Cant unselect current spline, at least one spline needs 
-                    // to be selected. 
-                    this.selected = evt.currentTarget.id
-                    this.visibles.add(evt.currentTarget.id)
-                    this.update_spline_list_selection()
-                    this.init_spline_selection()
-                    const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
-                    this.editor.load_spline(selectedSpline.content)
-                    this.draw_background_splines()
+            // text.addEventListener("click", evt => {
+            //     evt.stopPropagation()
+            // }, true)
+            text.addEventListener("blur", evt => {
+                evt.currentTarget.contentEditable = "false"
+                console.log("todo: save fn")
+            })
+            text.addEventListener("keypress", evt => {
+                if (evt.key === "Enter") {
+                evt.currentTarget.contentEditable = "false"
+                evt.currentTarget.blur()
+                console.log("todo: save fn")
+                }
+            })
+            text.addEventListener("dblclick", evt => {
+                if (!evt.currentTarget.isContentEditable) {
+                    evt.currentTarget.contentEditable = "true"
+                    evt.currentTarget.focus()
                 }
             })
 
