@@ -2,7 +2,7 @@
 import logging
 import time
 
-from typing import Optional
+from typing import Optional, Iterable
 
 from being.backends import CanBackend
 from being.block import Block
@@ -28,7 +28,10 @@ from being.resources import register_resource
 
 
 STILL_HOMING = True
+"""Indicates that homing job is still in progress."""
+
 DONE_HOMING = False
+"""Indicates that homing job has finished."""
 
 
 def create_node(network, nodeId):
@@ -46,18 +49,26 @@ def _move(node, speed: int):
     node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
 
 
-def home_motors(motors, interval=.01, timeout=4., **kwargs):
-    """Home multiple drives in parallel."""
-    homings = [mot.home(**kwargs) for mot in motors]
+def home_motors(motors: Iterable, interval: float = .01, timeout: float = 4., **kwargs):
+    """Home multiple motors in parallel. This operation will block for time of
+    homing.
+
+    Args:
+        motors: Motors to home.
+
+    Kwargs:
+        interval: Tmp. main loop interval for homing.
+        timeout: Maximum homing duration. RuntimeError if homing takes to long.
+        kwargs: Optional arguments for homing jobs.
+    """
+    homingJobs = [mot.home(**kwargs) for mot in motors]
     starTime = time.perf_counter()
-    while any(map(next, homings)):
+    while any(map(next, homingJobs)):
         passed = time.perf_counter() - starTime
         if passed > timeout:
-            raise RuntimeError('Could not home all motors before timeout')
+            raise RuntimeError(f'Could not home all motors before timeout {timeout} sec.!')
 
         time.sleep(interval)
-
-    return True
 
 
 class _MotorBase(Block):
@@ -164,7 +175,7 @@ class Motor(_MotorBase):
 
             rx.save()
 
-    def home(self, speed: int = 100):
+    def home(self, speed: int = 100, deadCycles: int = 5):
         """Crude homing procedure. Move with PROFILED_VELOCITY operation mode
         upwards and downwards until reaching limits (position not increasing or
         decreasing anymore). Implemented as Generator so that we can home
@@ -184,36 +195,47 @@ class Motor(_MotorBase):
         logger.info('Starting homing for %s', node)
         with node.restore_states_and_operation_mode():
             node.nmt.state = 'PRE-OPERATIONAL'
-            node.change_state(State.READY_TO_SWITCH_ON)
+            node.change_state(State402.READY_TO_SWITCH_ON)
             node.sdo[HOMING_OFFSET].raw = 0
             #TODO: Do we need to set NMT to 'OPERATIONAL'?
             node.set_operation_mode(OperationMode.PROFILED_VELOCITY)
-            node.change_state(State.OPERATION_ENABLE)
+            node.change_state(State402.OPERATION_ENABLE)
 
+            # Move upwards
             logger.info('Moving upwards')
             pos = node.sdo[POSITION_ACTUAL_VALUE].raw
             upper = -INF
             _move(node, direction * speed)
+            for _ in range(deadCycles):
+                yield STILL_HOMING
+
             while pos > upper:
+                #logger.debug('Homing up pos: %d', pos)
                 upper = pos
                 yield STILL_HOMING
                 pos = node.sdo[POSITION_ACTUAL_VALUE].raw
 
+            # Move downwards
             logger.info('Moving downwards')
             lower = INF
             _move(node, -direction * speed)
+            for _ in range(deadCycles):
+                yield STILL_HOMING
+
             while pos < lower:
+                #logger.debug('Homing down pos: %d', pos)
                 lower = pos
                 yield STILL_HOMING
                 pos = node.sdo[POSITION_ACTUAL_VALUE].raw
 
+            # Take into account rod length
             width = upper - lower
             if self.length:
                 dx = .5 * (width - self.length * SI_2_FAULHABER)
                 if dx > 0:
                     lower, upper = lower + dx, upper - dx
 
-            node.change_state(State.READY_TO_SWITCH_ON)
+            node.change_state(State402.READY_TO_SWITCH_ON)
             node.sdo[HOMING_OFFSET].raw = lower
             node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
             node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = upper - lower
@@ -254,9 +276,9 @@ class DummyMotor(_MotorBase):
 
     """Dummy motor for testing and standalone usage."""
 
-    def __init__(self, rodLength=0.04):
+    def __init__(self, length=0.04):
         super().__init__()
-        self.rodLength = rodLength
+        self.length = length
         self.add_value_input()
         self.add_value_output()
         self.state = KinematicState()
@@ -273,7 +295,7 @@ class DummyMotor(_MotorBase):
             maxSpeed=1.,
             maxAcc=1.,
             lower=0.,
-            upper=self.rodLength,
+            upper=self.length,
         )
 
         self.output.value = self.state.position
