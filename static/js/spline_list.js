@@ -30,6 +30,7 @@ export class SplineList {
         container.appendChild(this.splineListDiv)
 
         const newBtnContainer = document.createElement("div")
+        container.appendChild(newBtnContainer)
         newBtnContainer.style.display = "flex"
         newBtnContainer.style.justifyContent = "center"
 
@@ -42,7 +43,6 @@ export class SplineList {
             })
         });
         newBtnContainer.appendChild(this.addSplineButton)
-        container.appendChild(newBtnContainer)
 
 
         this.delSplineButton = this.editor.add_button("delete", "Delete selected motion")
@@ -54,7 +54,16 @@ export class SplineList {
             })
         });
         newBtnContainer.appendChild(this.delSplineButton)
-        container.appendChild(newBtnContainer)
+
+        this.duplSplineButton = this.editor.add_button("file_copy", "Duplicate motion file")
+        this.duplSplineButton.addEventListener("click", evt => {
+            this.duplicate_spline(this.selected).then(() => {
+                this.fetch_splines().then(() =>
+                    this.update_spline_list()
+                )
+            })
+        })
+        newBtnContainer.appendChild(this.duplSplineButton)
 
 
         // insert after css link
@@ -139,6 +148,7 @@ export class SplineList {
             text.title = "Double click to edit"
             entry.append(checkbox, text)
             text.addEventListener("blur", evt => {
+                let current_elem = evt.currentTarget
                 evt.currentTarget.contentEditable = "false"
                 if (this.origFilename !== evt.currentTarget.innerHTML) {
                     const newFilename = evt.currentTarget.innerHTML
@@ -146,7 +156,7 @@ export class SplineList {
                         newFilename === "<br>" ||
                         newFilename === "<p>" ||
                         newFilename === "<div>") {
-                        node.innerHTML = this.origFilename
+                        evt.currentTarget.innerHTML = this.origFilename
                     } else {
                         this.rename_spline(this.origFilename, newFilename).then(res => {
                             // local update
@@ -168,6 +178,9 @@ export class SplineList {
                             filename_div.id = newFilename
 
                             console.log("renamed!!")
+                        }).catch(() => {
+                            // same filename exists
+                            current_elem.innerHTML = this.origFilename
                         })
 
                     }
@@ -266,10 +279,6 @@ export class SplineList {
         const url = HTTP_HOST + "/api/motions";
         const resp = await fetch(url, { method: "POST" });
 
-        if (!resp.ok) {
-            throw new Error(resp.statusText);
-        }
-
         return await resp.json()
     }
 
@@ -285,8 +294,6 @@ export class SplineList {
                 this.selected = null
                 return true
             }
-
-            throw new Error(resp.statusText)
         }
     }
 
@@ -294,11 +301,13 @@ export class SplineList {
         const url = HTTP_HOST + "/api/motions/" + name + "?rename=" + new_name;
         const resp = await fetch(url, { method: "PUT" });
 
-        if (!resp.ok) {
-            throw new Error(resp.statusText);
-        }
-
         return await resp.json()
+    }
 
+    async duplicate_spline(name) {
+        const url = HTTP_HOST + "/api/motions/" + name;
+        const resp = await fetch(url, { method: "POST" });
+
+        return true
     }
 }
