@@ -138,17 +138,17 @@ export class SplineList {
             text.contentEditable = "false" // "false" prevents text syntax highlighting
             text.title = "Double click to edit"
             entry.append(checkbox, text)
-            // text.addEventListener("click", evt => {
-            //     evt.stopPropagation()
-            // }, true)
             text.addEventListener("blur", evt => {
                 evt.currentTarget.contentEditable = "false"
-                save_filename(evt.currentTarget)
+                if (this.origFilename !== evt.currentTarget.innerHTML) {
+                    this.save_filename(evt.currentTarget)
+                }
             })
-            text.addEventListener("keypress", evt => {
-                if (evt.key === "Enter") {
-                    evt.currentTarget.contentEditable = "false"
-                    evt.currentTarget.blur() // saving file handled by "blur" event listener
+            text.addEventListener("keyup", evt => {
+                // Keyup eventListener needed to capture meta keys
+                if (evt.key === "Escape") {
+                    evt.currentTarget.innerHTML = this.origFilename
+                    evt.currentTarget.blur() // saving file handled by "blur" eventListener
                 }
             })
             text.addEventListener("dblclick", evt => {
@@ -158,21 +158,31 @@ export class SplineList {
                     this.origFilename = evt.currentTarget.innerHTML
                 }
             })
-
-            const save_filename = (node) => {
-                const newFilename = node.innerHTML
-                if (newFilename.length <= 0) {
-                    node.innerHTML = this.origFilename
-                } else {
-                    console.log("todo: save fn : " + this.origFilename + " as " + newFilename)
+            text.addEventListener("keypress", evt => {
+                // Keypress eventListener (compared to keyup) fires before contenteditable adds <br>
+                if (evt.key === "Enter") {
+                    evt.currentTarget.blur() // saving file handled by "blur" eventListener
                 }
-            }
+            })
+
 
             this.splineListDiv.append(entry)
 
         })
         this.update_spline_list_selection()
         this.draw_background_splines()
+    }
+
+    save_filename(node) {
+        const newFilename = node.innerHTML
+        if (newFilename.length <= 0 ||
+            newFilename === "<br>" ||
+            newFilename === "<p>" ||
+            newFilename === "<div>") {
+            node.innerHTML = this.origFilename
+        } else {
+            console.log("todo: save fn : " + this.origFilename + " as " + newFilename)
+        }
     }
 
     draw_background_splines() {
