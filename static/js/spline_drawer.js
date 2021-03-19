@@ -166,28 +166,6 @@ export class SplineDrawer {
             return;
         }
 
-        // Knots
-        const knots = arange(wc.n_segments + 1);
-        knots.forEach(knot => {
-            const circle = this.init_circle(() => {
-                return wc.point(knot);
-            }, 3 * lw);
-            this.make_draggable(
-                circle,
-                pos => {
-                    this.editor.spline_changing(pos[1]);
-                    wc.position_knot(knot, pos, this.editor.c1);
-                },
-                wc,
-            );
-            circle.addEventListener("dblclick", evt => {
-                this.editor.spline_changing();
-                evt.stopPropagation();
-                wc.remove_knot(knot);
-                this.editor.spline_changed(wc);
-            });
-        });
-
 
         // Control points
         assert(wc.degree <= Degree.CUBIC, "Spline degree not supported!");
@@ -226,6 +204,30 @@ export class SplineDrawer {
                 );
             });
         });
+
+
+        // Knots
+        const knots = arange(wc.n_segments + 1);
+        knots.forEach(knot => {
+            const circle = this.init_circle(() => {
+                return wc.point(knot);
+            }, 3 * lw);
+            this.make_draggable(
+                circle,
+                pos => {
+                    this.editor.spline_changing(pos[1]);
+                    wc.position_knot(knot, pos, this.editor.c1);
+                },
+                wc,
+            );
+            circle.addEventListener("dblclick", evt => {
+                this.editor.spline_changing();
+                evt.stopPropagation();
+                wc.remove_knot(knot);
+                this.editor.spline_changed(wc);
+            });
+        });
+
         this.draw();
     }
 
