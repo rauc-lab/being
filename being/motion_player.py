@@ -76,18 +76,18 @@ class MotionPlayer(Block):
         self.add_message_input()
         self.add_value_output()
 
-        self.spline = constant_spline(position=0)
+        self.spline = None
         self.startTime = 0
         self.looping = False
 
-    def stop(self):
-        if self.spline:
-            now = self.clock.now()
-            pos = sample_spline(self.spline, (now - self.startTime), loop=self.looping)
-        else:
-            pos = 0
+    @property
+    def playing(self) -> bool:
+        """Spline playback in progress."""
+        return self.spline is not None
 
-        self.spline = constant_spline(position=pos)
+    def stop(self):
+        """Stop spline playback."""
+        self.spline = None
         self.startTime = 0
         self.looping = False
 
@@ -106,6 +106,13 @@ class MotionPlayer(Block):
         self.looping = loop
         return self.startTime
 
+    def live_preview(self, position):
+        """Reset spline and output position value directly."""
+        if self.playing:
+            self.stop()
+
+        self.output.value = position
+
     def process_mc(self, mc: MotionCommand):
         """Process new motion command and schedule next spline to play.
 
@@ -119,5 +126,7 @@ class MotionPlayer(Block):
         for mc in self.input.receive():
             self.process_mc(mc)
 
-        now = self.clock.now()
-        self.output.value = sample_spline(self.spline, (now - self.startTime), loop=self.looping)
+        if self.playing:
+            now = self.clock.now()
+            sample = sample_spline(self.spline, (now - self.startTime), loop=self.looping)
+            self.output.value = sample

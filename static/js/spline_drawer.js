@@ -175,6 +175,7 @@ export class SplineDrawer {
             this.make_draggable(
                 circle,
                 pos => {
+                    this.editor.spline_changing(pos[1]);
                     wc.position_knot(knot, pos, this.editor.c1);
                 },
                 wc,

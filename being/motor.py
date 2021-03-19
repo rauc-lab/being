@@ -289,7 +289,8 @@ class Motor(_MotorBase):
         err = self.node.pdo['Error Register'].raw
         if err:
             msg = stringify_faulhaber_error(err)
-            raise DriveError(msg)
+            #raise DriveError(msg)
+            self.logger.error('DriveError: %s', msg)
 
         # Kinematic filter input target position
         self.state = kinematic_filter(

@@ -187,6 +187,13 @@ class Editor extends CurverBase {
                 this.play_current_spline();
             }
         });
+
+        this.add_space_to_toolbar();
+
+        this.livePreviewBtn = this.add_button("precision_manufacturing", "Toggle live preview of knot position on the motor");
+        this.livePreviewBtn.addEventListener("click", evt => {
+            toggle_button(this.livePreviewBtn);
+        });
     }
 
     /**
@@ -302,8 +309,12 @@ class Editor extends CurverBase {
     /**
      * Notify spline editor that the spline working copy is going to change.
      */
-    spline_changing() {
+    spline_changing(position = null) {
         this.stop_spline_playback();
+        this.line.data.clear();
+        if (position !== null && is_checked(this.livePreviewBtn)) {
+            this.live_preview(position);
+        }
     }
 
     /**
@@ -315,39 +326,46 @@ class Editor extends CurverBase {
     }
 
     /**
-     * Play current spline on Being. Start transport cursor.
+     * API call for spline playback in backend. Also starts transport cursor.
      */
     async play_current_spline() {
         const url = this.motorSelector.selected_motor_url() + "/play";
         const spline = this.history.retrieve();
         const res = await fetch_json(url, "POST", {
-            spline: spline.to_dict(),
-            loop: this.transport.looping,
-            offset: this.transport.position,
+            "spline": spline.to_dict(),
+            "loop": this.transport.looping,
+            "offset": this.transport.position,
         });
         this.transport.startTime = res["startTime"] + INTERVAL;
         this.transport.play();
     }
 
     /**
-     * Stop spline playback on Being for currently selected motor.
+     * API call for stoping spline playback for currently selected motor.
      */
     async stop_spline_playback() {
-        const url = this.motorSelector.selected_motor_url() + "/stop";
-        await fetch(url, { method: "POST" });
         this.transport.pause();
+        const url = this.motorSelector.selected_motor_url() + "/stop";
+        await fetch(url, {"method": "POST"});
     }
 
     /**
-     * Stop spline playback on Being for all known motors.
+     * API call for stoping all spline playback in being for all known motors.
      */
     async stop_all_spline_playbacks() {
         this.transport.pause();
-        const stopTasks = this.motorSelector.motorInfos.map(info => {
-            const url = this.motorSelector.motor_url(info.id) + "/stop";
-            return fetch(url, {method: "POST"});
-        });
-        await Promise.all(stopTasks);
+        const url = HTTP_HOST + "/api/motors/stop";
+        await fetch(url, {"method": "POST"});
+    }
+
+    /**
+     * API call for setting live preview position value to backend.
+     *
+     * @param {Number} position Vertical y position of linear motor.
+     */
+    async live_preview(position) {
+        const url = this.motorSelector.selected_motor_url() + "/livePreview";
+        await fetch_json(url, "PUT", {"position": position});
     }
 
     /**

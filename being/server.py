@@ -154,10 +154,13 @@ def being_controller(being) -> web.RouteTableDef:
 
     @routes.get('/motors')
     async def get_motors(request):
+        """Inform front end of available motion players / motors."""
         return json_response(serialize_motion_players(being))
 
+
     @routes.post('/motors/{id}/play')
-    async def play_spline(request):
+    async def start_spline_playback(request):
+        """Start spline playback for a received spline from front end."""
         id = int(request.match_info['id'])
         try:
             mp = being.motionPlayers[id]
@@ -171,8 +174,10 @@ def being_controller(being) -> web.RouteTableDef:
         except KeyError:
             return web.HTTPBadRequest(text=f'Could not parse spline!')
 
+
     @routes.post('/motors/{id}/stop')
-    async def play_spline(request):
+    async def stop_spline_playback(request):
+        """Stop spline playback."""
         id = int(request.match_info['id'])
         try:
             mp = being.motionPlayers[id]
@@ -181,35 +186,29 @@ def being_controller(being) -> web.RouteTableDef:
         except IndexError:
             return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
 
-    """
-    mpInfos = [
-        {
-            'type': 'motion-player',
-            'id': id,
-        }
-        for id, mp in enumerate(being.motionPlayers)
-    ]
 
-    @routes.get('/motors')
-    def get_motors(request):
-        return json_response(mpInfos)
+    @routes.post('/motors/stop')
+    async def stop_all_spline_playbacks(request):
+        """Stop all spline playbacks aka. stop all motion players."""
+        for mp in being.motionPlayers:
+            mp.stop()
 
-    @routes.put('/motors/{id}')
-    def set_live_value(request):
-        print('set_live_value()')
+        return respond_ok()
+
+
+    @routes.put('/motors/{id}/livePreview')
+    async def live_preview(request):
+        """Live preview of position value for motor."""
         id = int(request.match_info['id'])
-        print('id:', id)
-        return respond_ok()
-
-    @routes.put('/motors/{id}/move')
-    def move_motor(request):
-        return respond_ok()
-
-    # @routes.get('/behaviors')
-    # def get_behaviors(request):
-    #    return respond_ok()
-
-    """
+        try:
+            mp = being.motionPlayers[id]
+            data = await request.json()
+            mp.live_preview(data['position'])
+            return json_response()
+        except IndexError:
+            return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
+        except KeyError:
+            return web.HTTPBadRequest(text=f'Could not parse spline!')
 
     return routes
 
