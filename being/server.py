@@ -1,15 +1,16 @@
-"""Web server backend."""
+"""Web server back end."""
 import logging
 import json
 import asyncio
-from collections import OrderedDict, defaultdict
 
 from aiohttp import web
+import numpy as np
 
 from being.content import Content
 from being.serialization import dumps, loads, spline_from_dict
-from being.web_socket import WebSocket
+from being.spline import smoothing_spline, remove_duplicates, BPoly
 from being.utils import random_name, empty_spline
+from being.constants import TWO_D
 
 
 API_PREFIX = '/api'
@@ -27,10 +28,13 @@ def respond_ok():
     return web.Response()
 
 
-def json_response(thing={}):
+def json_response(thing=None):
     """aiohttp web.json_response but with our custom JSON serialization /
     dumps.
     """
+    if thing is None:
+        thing = {}
+
     return web.json_response(thing, dumps=dumps)
 
 
@@ -132,6 +136,19 @@ def any_item(iterable):
     return next(iter(iterable))
 
 
+def fit_spline(trajectory):
+    """Fit a smoothing spline through a trajectory."""
+    trajectory = np.asarray(trajectory)
+    if trajectory.ndim != TWO_D:
+        raise ValueError('trajectory has to be 2d!')
+
+    t = trajectory[:, 0]
+    x = trajectory[:, 1:]
+    ppoly = smoothing_spline(t, x)
+    ppoly = remove_duplicates(ppoly)
+    return BPoly.from_power_basis(ppoly)
+
+
 def serialize_motion_players(being):
     """Return list of motion player / motors informations."""
     ret = []
@@ -164,15 +181,15 @@ def being_controller(being) -> web.RouteTableDef:
         id = int(request.match_info['id'])
         try:
             mp = being.motionPlayers[id]
-            data = await request.json()
-            spline = spline_from_dict(data['spline'])
+            dct = await request.json()
+            spline = spline_from_dict(dct['spline'])
             return json_response({
-                'startTime': mp.play_spline(spline, loop=data['loop'], offset=data['offset']),
+                'startTime': mp.play_spline(spline, loop=dct['loop'], offset=dct['offset']),
             })
         except IndexError:
             return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
         except KeyError:
-            return web.HTTPBadRequest(text=f'Could not parse spline!')
+            return web.HTTPBadRequest(text='Could not parse spline!')
 
 
     @routes.post('/motors/{id}/stop')
@@ -208,7 +225,26 @@ def being_controller(being) -> web.RouteTableDef:
         except IndexError:
             return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
         except KeyError:
-            return web.HTTPBadRequest(text=f'Could not parse spline!')
+            return web.HTTPBadRequest(text='Could not parse spline!')
+
+    return routes
+
+
+def misc_controller():
+    """All other APIs which are not directly related to being, content,
+    etc...
+    """
+    routes = web.RouteTableDef()
+
+    @routes.post('/fit_spline')
+    async def convert_trajectory(request):
+        """Convert a trajectory array to a spline."""
+        try:
+            trajectory = await request.json()
+            spline = fit_spline(trajectory)
+            return json_response(spline)
+        except ValueError:
+            return web.HTTPBadRequest(text='Wrong trajectory data format. Has to be 2d!')
 
     return routes
 
@@ -227,11 +263,11 @@ def init_web_server(being=None, content=None) -> web.Application:
 
     # Pages
     app.router.add_get('/', file_response_handler('static/index.html'))
-    app.router.add_get(
-        '/favicon.ico', file_response_handler('static/favicon.ico'))
+    app.router.add_get('/favicon.ico', file_response_handler('static/favicon.ico'))
 
     # Rest API
     api = web.Application()
+    api.add_routes(misc_controller())
     if being:
         api.add_routes(being_controller(being))
 
