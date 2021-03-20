@@ -263,6 +263,7 @@ def init_web_server(being=None, content=None) -> web.Application:
 
     # Pages
     app.router.add_get('/', file_response_handler('static/index.html'))
+    app.router.add_get('/spline-editor', file_response_handler('static/spline-editor.html'))
     app.router.add_get('/favicon.ico', file_response_handler('static/favicon.ico'))
 
     # Rest API
@@ -294,17 +295,3 @@ async def run_web_server(app: web.Application):
 
     while True:
         await asyncio.sleep(3600)  # sleep forever
-
-
-if __name__ == '__main__':
-    # Run server with dummy being
-    from being.being import awake
-    from being.motion_player import MotionPlayer
-    from being.motor import DummyMotor
-
-    blocks = [
-        MotionPlayer() | DummyMotor(),
-        MotionPlayer() | DummyMotor(),
-    ]
-
-    awake(*blocks)
