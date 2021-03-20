@@ -12,6 +12,7 @@ export class Transport {
         this.position = 0;
         this.playing = false;
         this.looping = false;
+        this.recording = false;
         this.startTime = 0;
         this.duration = 1;
         this.init_cursor();
@@ -52,9 +53,6 @@ export class Transport {
         this.editor.update_ui();
     }
 
-    /**
-     * Stop transport playback and rewind.
-     */
     stop() {
         this.pause();
         this.position = 0;
@@ -85,7 +83,7 @@ export class Transport {
             pos %= this.duration;
         }
 
-        if (pos > this.duration) {
+        if (this.playing && pos > this.duration) {
             this.stop();
         } else {
             this.position = pos;

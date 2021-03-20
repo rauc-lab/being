@@ -16,6 +16,7 @@ import { SplineList } from "/static/js/spline_list.js";
 import { HTTP_HOST } from "/static/js/constants.js";
 import { MotorSelector } from "/static/js/motor_selector.js";
 import { toggle_button, switch_button_on, switch_button_off, is_checked } from "/static/js/button.js";
+import { Recorder } from "/static/js/recorder.js";
 
 
 /** Main loop interval of being block network. */
@@ -65,10 +66,10 @@ class Editor extends CurverBase {
         this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
         this.motorSelector = null;  // Gets initialized inside setup_toolbar_elements(). Not nice but...
         this.splineList = new SplineList(this);
-
         this.splineList.fetch_splines().then(() =>
             this.splineList.update_spline_list()
         )
+        this.trajectory = [];
 
         // Single actual value line
         const color = this.colorPicker.next();
@@ -172,6 +173,11 @@ class Editor extends CurverBase {
 
         // Transport buttons
         this.playPauseBtn = this.add_button("play_arrow", "Play / pause motion playback");
+        this.recBtn = this.add_button("fiber_manual_record", "Record motion");
+        this.recBtn.classList.add("record");
+        this.recBtn.addEventListener("click", evt => {
+            toggle_button(this.recBtn);
+        });
         this.stopBtn = this.add_button("stop", "Stop spline playback").addEventListener("click", async evt => {
             this.stop_spline_playback();
             this.transport.stop();
@@ -254,6 +260,7 @@ class Editor extends CurverBase {
      * / redo buttons according to history.
      */
     update_ui() {
+        console.log("update_ui");
         this.undoBtn.disabled = !this.history.undoable;
         this.redoBtn.disabled = !this.history.redoable;
         if (this.transport.playing) {
@@ -298,6 +305,7 @@ class Editor extends CurverBase {
      * Draw current version of spline from history.
      */
     draw_current_spline() {
+        console.log("draw_current_spline()");
         this.drawer.clear();
         const current = this.history.retrieve();
         const duration = current.end;
@@ -390,15 +398,17 @@ class Editor extends CurverBase {
      * Process new data message from backend.
      */
     new_data(msg) {
-        // Clear of old data points in live plot
-        if (!this.transport.playing) {
-            this.line.data.popleft();
-            return;
-        }
-
         const t = this.transport.move(msg.timestamp);
         const actualValue = msg.values[this.motorSelector.actualValueIndex];
-        this.line.append_data([t, actualValue]);
+
+        // Clear of old data points in live plot
+        if (this.transport.playing) {
+            this.line.append_data([t, actualValue]);
+        } else {
+            this.line.data.popleft();
+        }
+
+        //this.recorder.process_sample(t, actualValue);
     }
 }
 
