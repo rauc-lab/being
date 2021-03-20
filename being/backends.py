@@ -3,7 +3,11 @@ import contextlib
 import sys
 from typing import List, ForwardRef
 
-import pyaudio
+try:
+    import pyaudio
+except ImportError:
+    pyaudio = None
+
 import canopen
 from being.utils import SingleInstanceCache, filter_by_type
 
@@ -70,33 +74,34 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         self.disconnect()
 
 
-class AudioBackend(SingleInstanceCache, contextlib.AbstractContextManager):
+if pyaudio:
+    class AudioBackend(SingleInstanceCache, contextlib.AbstractContextManager):
 
-    """Sound card connection. Collect audio samples."""
+        """Sound card connection. Collect audio samples."""
 
-    def __init__(self):
-        self.pa = pyaudio.PyAudio()
-        self.stream = self.pa.open(
-            format=self.pa.get_format_from_width(2),
-            channels=1,
-            rate=44100,
-            input=True,
-            output=False,
-            stream_callback=self.callback,
-        )
+        def __init__(self):
+            self.pa = pyaudio.PyAudio()
+            self.stream = self.pa.open(
+                format=self.pa.get_format_from_width(2),
+                channels=1,
+                rate=44100,
+                input=True,
+                output=False,
+                stream_callback=self.callback,
+            )
 
-    def callback(self, in_data, frame_count, time_info, status):
-        #print('callback()', frame_count, time_info, status)
-        return (None, pyaudio.paContinue)
+        def callback(self, in_data, frame_count, time_info, status):
+            #print('callback()', frame_count, time_info, status)
+            return (None, pyaudio.paContinue)
 
-    def __enter__(self):
-        self.stream.start_stream()
-        return self
+        def __enter__(self):
+            self.stream.start_stream()
+            return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.stream.stop_stream()
-        self.stream.close()
-        self.pa.terminate()
+        def __exit__(self, exc_type, exc_value, traceback):
+            self.stream.stop_stream()
+            self.stream.close()
+            self.pa.terminate()
 
 
 # TODO: VideoBackend
