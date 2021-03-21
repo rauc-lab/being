@@ -165,3 +165,16 @@ div.toolbar select {
   -ms-user-select: none; /* Internet Explorer/Edge */
   user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
 }
+
+
+button.record[checked] {
+  background-color: white;
+  color: black;
+  animation: pulsating-red 2s infinite;
+}
+
+@keyframes pulsating-red {
+  0% { background-color: white; }
+  40% { background-color: red; }
+  100% { background-color: white; }
+}

@@ -4,13 +4,11 @@ import json
 import asyncio
 
 from aiohttp import web
-import numpy as np
 
 from being.content import Content
 from being.serialization import dumps, loads, spline_from_dict
-from being.spline import smoothing_spline, remove_duplicates, BPoly
-from being.utils import random_name, empty_spline
-from being.constants import TWO_D
+from being.spline import fit_spline
+from being.utils import random_name, empty_spline, any_item
 
 
 API_PREFIX = '/api'
@@ -131,24 +129,6 @@ def content_controller(content: Content) -> web.RouteTableDef:
     return routes
 
 
-def any_item(iterable):
-    """Pick first element of iterable."""
-    return next(iter(iterable))
-
-
-def fit_spline(trajectory):
-    """Fit a smoothing spline through a trajectory."""
-    trajectory = np.asarray(trajectory)
-    if trajectory.ndim != TWO_D:
-        raise ValueError('trajectory has to be 2d!')
-
-    t = trajectory[:, 0]
-    x = trajectory[:, 1:]
-    ppoly = smoothing_spline(t, x)
-    ppoly = remove_duplicates(ppoly)
-    return BPoly.from_power_basis(ppoly)
-
-
 def serialize_motion_players(being):
     """Return list of motion player / motors informations."""
     ret = []
@@ -190,6 +170,11 @@ def being_controller(being) -> web.RouteTableDef:
             return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
         except KeyError:
             return web.HTTPBadRequest(text='Could not parse spline!')
+        except ValueError as err:
+            LOGGER.error(err)
+            LOGGER.debug('id: %d', id)
+            LOGGER.debug('dct: %s', dct)
+            return web.HTTPBadRequest(text='fSomething went wrong with the spline. Raw data was: {dct}!')
 
 
     @routes.post('/motors/{id}/stop')
@@ -226,6 +211,24 @@ def being_controller(being) -> web.RouteTableDef:
             return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
         except KeyError:
             return web.HTTPBadRequest(text='Could not parse spline!')
+
+
+    @routes.put("/motors/disenable")
+    def disenable_drives(request):
+        if being.network:
+            being.network.engage_drives()
+
+        return respond_ok()
+
+    @routes.put("/motors/enable")
+    def enable_drives(request):
+        for motor in being.motors:
+            motor._update_state()
+
+        if being.network:
+            being.network.enable_drives()
+
+        return respond_ok()
 
     return routes
 

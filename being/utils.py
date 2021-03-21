@@ -167,3 +167,8 @@ class IdAware:
         self.id = cls.COUNTERS[cls]
         cls.COUNTERS[cls] += 1
         return self
+
+
+def any_item(iterable):
+    """Pick first element of iterable."""
+    return next(iter(iterable))

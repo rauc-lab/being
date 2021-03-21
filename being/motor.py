@@ -113,6 +113,9 @@ class _MotorBase(Block):
         self.add_value_input()
         self.add_value_output()
 
+    def _update_state(self):
+        """Update kinematic state from actual position."""
+
     def home(self):
         yield DONE_HOMING
 
@@ -210,6 +213,9 @@ class Motor(_MotorBase):
                 rx.enabled = False
 
             rx.save()
+
+    def _update_state(self):
+        self.state = KinematicState(position=self.node.position)
 
     def home(self, speed: int = 100, deadCycles: int = 5):
         """Crude homing procedure. Move with PROFILED_VELOCITY operation mode

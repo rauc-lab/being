@@ -8,14 +8,14 @@ import { make_draggable } from "/static/js/draggable.js";
 import { History } from "/static/js/history.js";
 import { subtract_arrays, clip } from "/static/js/math.js";
 import { BPoly } from "/static/js/spline.js";
-import { fetch_json } from "/static/js/utils.js";
+import { fetch_json, clear_array } from "/static/js/utils.js";
 import { Line } from "/static/js/line.js";
-import { Transport } from "/static/js/transport.js";
+import { PAUSED, PLAYING, RECORDING, Transport } from "/static/js/transport.js";
 import { SplineDrawer } from "/static/js/spline_drawer.js";
 import { SplineList } from "/static/js/spline_list.js";
 import { HTTP_HOST } from "/static/js/constants.js";
 import { MotorSelector } from "/static/js/motor_selector.js";
-import { toggle_button, switch_button_on, switch_button_off, is_checked } from "/static/js/button.js";
+import { toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button } from "/static/js/button.js";
 
 
 /** Main loop interval of being block network. */
@@ -49,6 +49,13 @@ function zoom_bbox_in_place(bbox, factor) {
 }
 
 
+function put(url) { return fetch(url, {method: "PUT"}) }
+function post(url) { return fetch(url, {method: "POST"}) }
+function get_json(url) { return fetch_json(url, "GET"); }
+function post_json(url, data) { return fetch_json(url, "POST", data); }
+function put_json(url, data) { return fetch_json(url, "PUT", data); }
+
+
 /**
  * Spline editor.
  *
@@ -65,10 +72,10 @@ class Editor extends CurverBase {
         this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
         this.motorSelector = null;  // Gets initialized inside setup_toolbar_elements(). Not nice but...
         this.splineList = new SplineList(this);
-
         this.splineList.fetch_splines().then(() =>
             this.splineList.update_spline_list()
         )
+        this.trajectory = [];
 
         // Single actual value line
         const color = this.colorPicker.next();
@@ -99,12 +106,11 @@ class Editor extends CurverBase {
         });
 
         // Initial data
-        this.load_spline(ZERO_SPLINE);
-        this.update_ui()
-        const url = HTTP_HOST + "/api/motors";
-        fetch_json(url).then(motorInfos => {
+        get_json(HTTP_HOST + "/api/motors").then(motorInfos => {
             this.motorSelector.populate(motorInfos);
         });
+        this.load_spline(ZERO_SPLINE);
+        return;
     }
 
     /**
@@ -172,20 +178,32 @@ class Editor extends CurverBase {
 
         // Transport buttons
         this.playPauseBtn = this.add_button("play_arrow", "Play / pause motion playback");
-        this.stopBtn = this.add_button("stop", "Stop spline playback").addEventListener("click", async evt => {
-            this.stop_spline_playback();
-            this.transport.stop();
-        });
+        this.recBtn = this.add_button("fiber_manual_record", "Record motion");
+        this.recBtn.classList.add("record");
+        this.stopBtn = this.add_button("stop", "Stop spline playback");
         this.loopBtn = this.add_button("loop", "Loop spline motion");
-        this.loopBtn.addEventListener("click", evt => {
-            this.transport.toggle_looping();
-        });
         this.playPauseBtn.addEventListener("click", async evt => {
             if (this.transport.playing) {
                 this.stop_spline_playback();
             } else {
                 this.play_current_spline();
             }
+        });
+        this.recBtn.addEventListener("click", evt => {
+            if (this.transport.recording) {
+                this.stop_recording();
+            } else {
+                this.start_recording();
+            }
+            this.update_ui();
+        });
+        this.stopBtn.addEventListener("click", async evt => {
+            this.stop_spline_playback();
+            this.transport.stop();  // Not the same as pause() which gets triggered in stop_spline_playback()!
+        });
+        this.loopBtn.addEventListener("click", evt => {
+            this.transport.toggle_looping();
+            this.update_ui();
         });
 
         this.add_space_to_toolbar();
@@ -256,10 +274,43 @@ class Editor extends CurverBase {
     update_ui() {
         this.undoBtn.disabled = !this.history.undoable;
         this.redoBtn.disabled = !this.history.redoable;
-        if (this.transport.playing) {
-            this.playPauseBtn.innerHTML = "pause";
-        } else {
-            this.playPauseBtn.innerHTML = "play_arrow";
+
+        switch (this.transport.state) {
+            case PAUSED:
+                this.playPauseBtn.innerHTML = "play_arrow";
+                enable_button(this.playPauseBtn);
+                switch_button_off(this.playPauseBtn);
+
+                this.recBtn.innerHTML = "fiber_manual_record";
+                enable_button(this.recBtn);
+                switch_button_off(this.recBtn);
+
+                enable_button(this.stopBtn);
+                break;
+            case PLAYING:
+                this.playPauseBtn.innerHTML = "pause";
+                enable_button(this.playPauseBtn);
+                switch_button_on(this.playPauseBtn);
+
+                this.recBtn.innerHTML = "fiber_manual_record";
+                disable_button(this.recBtn);
+                switch_button_off(this.recBtn);
+
+                enable_button(this.stopBtn);
+                break;
+            case RECORDING:
+                this.playPauseBtn.innerHTML = "play_arrow";
+                disable_button(this.playPauseBtn);
+                switch_button_off(this.playPauseBtn);
+
+                this.recBtn.innerHTML = "pause";
+                enable_button(this.recBtn);
+                switch_button_on(this.recBtn);
+
+                disable_button(this.stopBtn);
+                break;
+            default:
+                throw "Ooops, something went wrong with the FSM!";
         }
 
         if (this.transport.looping) {
@@ -284,15 +335,6 @@ class Editor extends CurverBase {
         this.draw_current_spline();
     }
 
-    /**
-     * Set current spline duration.
-     *
-     * @param {Number} duration Spline duration in seconds.
-     */
-    set_duration(duration) {
-        this.transport.duration = duration;
-        this.line.maxlen = .8 * duration / INTERVAL;
-    }
 
     /**
      * Draw current version of spline from history.
@@ -301,7 +343,8 @@ class Editor extends CurverBase {
         this.drawer.clear();
         const current = this.history.retrieve();
         const duration = current.end;
-        this.set_duration(duration);
+        this.transport.duration = duration;
+        this.line.maxlen = .8 * duration / INTERVAL;
         this.drawer.draw_spline(current);
         this.update_ui();
     }
@@ -331,22 +374,26 @@ class Editor extends CurverBase {
     async play_current_spline() {
         const url = this.motorSelector.selected_motor_url() + "/play";
         const spline = this.history.retrieve();
-        const res = await fetch_json(url, "POST", {
+        const res = await post_json(url, {
             "spline": spline.to_dict(),
             "loop": this.transport.looping,
             "offset": this.transport.position,
         });
-        this.transport.startTime = res["startTime"] + INTERVAL;
+        this.transport.startTime = res["startTime"] + INTERVAL;  // +INTERVAL for better line matching
         this.transport.play();
+        this.update_ui();
     }
 
     /**
      * API call for stoping spline playback for currently selected motor.
      */
     async stop_spline_playback() {
-        this.transport.pause();
-        const url = this.motorSelector.selected_motor_url() + "/stop";
-        await fetch(url, {"method": "POST"});
+        if (!this.transport.paused) {
+            this.transport.pause();
+            this.update_ui();
+            const url = this.motorSelector.selected_motor_url() + "/stop";
+            await post(url);
+        }
     }
 
     /**
@@ -354,18 +401,48 @@ class Editor extends CurverBase {
      */
     async stop_all_spline_playbacks() {
         this.transport.pause();
-        const url = HTTP_HOST + "/api/motors/stop";
-        await fetch(url, {"method": "POST"});
+        this.update_ui();
+        await post(HTTP_HOST + "/api/motors/stop");
     }
 
     /**
-     * API call for setting live preview position value to backend.
+     * API call for setting live preview position value to back end.
      *
      * @param {Number} position Vertical y position of linear motor.
      */
     async live_preview(position) {
         const url = this.motorSelector.selected_motor_url() + "/livePreview";
-        await fetch_json(url, "PUT", {"position": position});
+        await put_json(url, {"position": position});
+    }
+
+    /**
+     * API call for starting recording trajectory. Disables motors in back end.
+     */
+    async start_recording() {
+        this.transport.record();
+        this.line.data.clear();
+        this.line.data.maxlen = Infinity;
+        this.auto = true;
+        this.drawer.clear();
+        await put(HTTP_HOST + "/api/motors/disenable");
+    }
+
+    /**
+     * API call for ending trajectory recording. Converts trajectory into
+     * spline and draws it. Re-enables motors in back end.
+     */
+    async stop_recording() {
+        this.transport.stop();
+        this.auto = false;
+        await put(HTTP_HOST + "/api/motors/enable");
+        if (!this.trajectory.length) {
+            return;
+        }
+
+        const obj = await post_json(HTTP_HOST + "/api/fit_spline", this.trajectory);
+        clear_array(this.trajectory);
+        const spline = BPoly.from_object(obj);
+        this.load_spline(spline);
     }
 
     /**
@@ -390,15 +467,22 @@ class Editor extends CurverBase {
      * Process new data message from backend.
      */
     new_data(msg) {
-        // Clear of old data points in live plot
-        if (!this.transport.playing) {
-            this.line.data.popleft();
-            return;
-        }
-
         const t = this.transport.move(msg.timestamp);
         const actualValue = msg.values[this.motorSelector.actualValueIndex];
-        this.line.append_data([t, actualValue]);
+        if (this.transport.playing && t > this.transport.duration) {
+            this.transport.stop();
+            this.update_ui();
+        }
+
+        if (this.transport.paused) {
+            this.line.data.popleft();
+        } else {
+            this.line.append_data([t, actualValue]);
+        }
+
+        if (this.transport.recording) {
+            this.trajectory.push([t, actualValue]);
+        }
     }
 }
 

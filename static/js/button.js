@@ -45,3 +45,14 @@ export function switch_button_on(btn) {
 export function is_checked(btn) {
     return btn.hasAttribute(CHECKED);
 }
+
+
+
+export function enable_button(btn) {
+    btn.disabled = false;
+}
+
+
+export function disable_button(btn) {
+    btn.disabled = true;
+}
