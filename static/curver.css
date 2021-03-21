@@ -174,13 +174,7 @@ button.record[checked] {
 }
 
 @keyframes pulsating-red {
-  0% {
-    background-color: white;
-  }
-  50% {
-    background-color: red;
-  }
-  100% {
-    background-color: white;
-  }
+  0% { background-color: white; }
+  40% { background-color: red; }
+  100% { background-color: white; }
 }

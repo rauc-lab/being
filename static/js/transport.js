@@ -1,6 +1,19 @@
 "use strict";
 import { create_element, setattr } from "/static/js/svg.js";
-import { last_element } from "/static/js/utils.js";
+
+
+export const PAUSED = "PAUSED";
+export const PLAYING = "PLAYING";
+export const RECORDING = "RECORDING";
+
+
+/** Valid state transitions. */
+const Transitions = {
+    PAUSED: [PLAYING, RECORDING],
+    PLAYING: [PAUSED],
+    RECORDING: [PAUSED],
+}
+
 
 /**
  * Transport / playback cursor container. Current playing position, duration,
@@ -9,27 +22,30 @@ import { last_element } from "/static/js/utils.js";
 export class Transport {
     constructor(editor) {
         this.editor = editor;
-        this.position = 0;
-        this.playing = false;
+        this.state = PAUSED;
         this.looping = false;
-        this.recording = false;
-        this.startTime = 0;
+        this.position = 0;
         this.duration = 1;
-        this.init_cursor();
+        this.startTime = 0;
+        this._init_cursor();
     }
 
-    /**
-     * Toggle looping.
-     */
-    toggle_looping() {
-        this.looping = !this.looping;
-        this.editor.update_ui();
+    get paused() {
+        return this.state === PAUSED;
+    }
+
+    get playing() {
+        return this.state === PLAYING;
+    }
+
+    get recording() {
+        return this.state === RECORDING;
     }
 
     /**
      * Initialize cursor SVG line.
      */
-    init_cursor() {
+    _init_cursor() {
         const line = create_element("line");
         setattr(line, "stroke-width", 2);
         setattr(line, "stroke", "gray");
@@ -37,24 +53,35 @@ export class Transport {
         this.cursor = line;
     }
 
-    /**
-     * Start playback in transport.
-     */
-    play() {
-        this.playing = true;
-        this.editor.update_ui();
+    _change_state(newState) {
+        if (Transitions[this.state].includes(newState)) {
+            this.state = newState;
+        }
     }
 
-    /**
-     * Pause playback in transport.
-     */
     pause() {
-        this.playing = false;
-        this.editor.update_ui();
+        this._change_state(PAUSED);
     }
 
-    stop() {
-        this.pause();
+    play() {
+        this._change_state(PLAYING);
+    }
+
+    record() {
+        this._change_state(RECORDING);
+    }
+
+    /**
+     * Toggle looping.
+     */
+    toggle_looping() {
+        this.looping = !this.looping;
+    }
+
+    /**
+     * Rewind cursor to the geginning.
+     */
+    rewind() {
         this.position = 0;
         this.draw_cursor();
     }
@@ -75,21 +102,15 @@ export class Transport {
      */
     move(timestamp) {
         let pos = timestamp - this.startTime;
-
-        const currentSpline = this.editor.history.retrieve();
-        this.duration = last_element(currentSpline.x)
-
         if (this.looping) {
             pos %= this.duration;
         }
 
-        if (this.playing && pos > this.duration) {
-            this.stop();
-        } else {
+        if (this.state !== PAUSED) {
             this.position = pos;
+            this.draw_cursor(pos);
         }
 
-        this.draw_cursor();
         return pos;
     }
 }
