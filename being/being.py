@@ -32,11 +32,11 @@ class Being:
         self.graph = block_network_graph(blocks)
         self.execOrder = topological_sort(self.graph)
         self.network = CanBackend.single_instance_get()
-        motors = list(filter_by_type(self.execOrder, _MotorBase))
+        self.motors = list(filter_by_type(self.execOrder, _MotorBase))
         self.motionPlayers = list(filter_by_type(self.execOrder, MotionPlayer))
         self.clock = Clock.single_instance_setdefault()
         if self.network:
-            home_motors(motors)
+            home_motors(self.motors)
             self.network.enable_drives()
 
         self.valueOutputs = list(value_outputs(self.execOrder))

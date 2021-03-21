@@ -27,6 +27,7 @@ export class Transport {
         this.position = 0;
         this.duration = 1;
         this.startTime = 0;
+        this.latestTimestamp = 0;
         this._init_cursor();
     }
 
@@ -68,7 +69,13 @@ export class Transport {
     }
 
     record() {
+        this.startTime = this.latestTimestamp;
         this._change_state(RECORDING);
+    }
+
+    stop() {
+        this._change_state(PAUSED);
+        this.rewind();
     }
 
     /**
@@ -101,6 +108,7 @@ export class Transport {
      * Update transport position.
      */
     move(timestamp) {
+        this.latestTimestamp = timestamp;
         let pos = timestamp - this.startTime;
         if (this.looping) {
             pos %= this.duration;

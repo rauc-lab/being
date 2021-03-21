@@ -152,7 +152,7 @@ def smoothing_spline(x: Sequence, y: Sequence, degree: Degree = Degree.CUBIC,
         # and create a new multivariate PPoly.
         splines = [PPoly.from_spline((t, cRow, k), extrapolate) for cRow in cMatrix]
         coeffs = np.stack([spline.c for spline in splines], axis=-1)
-        ppoly = PPoly.construct_fast(coeffs, t)
+        ppoly = PPoly.construct_fast(coeffs, t, extrapolate)
 
     # TODO: Cutting off excess knots / duplicates in ppoly.x (ppoly.x[:degree]
     # and ppoly.x[-degree:])? Is this necessary?
@@ -223,6 +223,20 @@ def sample_spline(spline: Spline, t, loop: bool = False):
         return spline(t)
 
     return spline(np.clip(t, start, end))
+
+
+def fit_spline(trajectory):
+    """Fit a smoothing spline through a trajectory."""
+    trajectory = np.asarray(trajectory)
+    if trajectory.ndim != TWO_D:
+        raise ValueError('trajectory has to be 2d!')
+
+    t = trajectory[:, 0]
+    x = trajectory[:, 1:]
+    x = x.squeeze()
+    ppoly = smoothing_spline(t, x, smoothing=1e-6, extrapolate=False)
+    ppoly = remove_duplicates(ppoly)
+    return BPoly.from_power_basis(ppoly)
 
 
 def smoothing_spline_demo():
