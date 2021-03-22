@@ -1,4 +1,4 @@
-INTERVAL = .01
+INTERVAL = .010
 """Main loop interval in seconds."""
 
 SI_2_FAULHABER = 1e6

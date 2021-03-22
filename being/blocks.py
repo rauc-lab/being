@@ -1,12 +1,17 @@
 """Miscellaneous blocks."""
 # TODO: Renaming this module? Almost name conflict with block.py?
 import math
+import collections
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 from being.backends import AudioBackend
 from being.block import Block
+from being.clock import Clock
 from being.config import INTERVAL
 from being.constants import TAU
-from being.resources import register_resource
+from being.resources import register_resource, add_callback
 
 
 class Sine(Block):
@@ -71,3 +76,43 @@ class Mic(Block):
             register_resource(audioBackend, duplicates=False)
 
         self.audioBackend = audioBackend
+
+
+class Plotter(Block):
+
+    """Value plotter. Plot multiple signals after shutdown."""
+
+    def __init__(self, nInputs=1):
+        super().__init__()
+        for _ in range(nInputs):
+            self.add_value_input()
+
+        self.timestamps = []
+        self.data = []
+        self.clock = Clock.single_instance_setdefault()
+        add_callback(self.show_plot)
+
+    def update(self):
+        self.timestamps.append(self.clock.now())
+        self.data.append([
+            in_.value for in_ in self.inputs
+        ])
+
+    def _find_labels(self):
+        """Check for named inputs as labels."""
+        for input_ in self.inputs:
+            for key, value in vars(self).items():
+                if value is input_:
+                    yield key
+                    break
+            else:
+                yield
+
+    def show_plot(self):
+        data = np.array(self.data)
+        labels = list(self._find_labels())
+        for row, label in zip(data.T, labels):
+            plt.plot(self.timestamps, row, label=label)
+
+        plt.legend()
+        plt.show()
