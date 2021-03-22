@@ -16,7 +16,7 @@ import { SplineList } from "/static/js/spline_list.js";
 import { API, INTERVAL } from "/static/js/config.js";
 import { MotorSelector } from "/static/js/motor_selector.js";
 import { toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button } from "/static/js/button.js";
-import { put, post, get_json, post_json } from "/static/js/fetching.js";
+import { put, post, get_json, post_json, put_json } from "/static/js/fetching.js";
 
 
 /** Zero spline with duration 1.0 */
