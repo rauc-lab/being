@@ -8,7 +8,7 @@ import { make_draggable } from "/static/js/draggable.js";
 import { History } from "/static/js/history.js";
 import { subtract_arrays, clip } from "/static/js/math.js";
 import { BPoly } from "/static/js/spline.js";
-import { fetch_json, clear_array } from "/static/js/utils.js";
+import { clear_array } from "/static/js/utils.js";
 import { Line } from "/static/js/line.js";
 import { PAUSED, PLAYING, RECORDING, Transport } from "/static/js/transport.js";
 import { SplineDrawer } from "/static/js/spline_drawer.js";
@@ -16,6 +16,7 @@ import { SplineList } from "/static/js/spline_list.js";
 import { API, INTERVAL } from "/static/js/config.js";
 import { MotorSelector } from "/static/js/motor_selector.js";
 import { toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button } from "/static/js/button.js";
+import { put, post, get_json, post_json } from "/static/js/fetching.js";
 
 
 /** Zero spline with duration 1.0 */
@@ -44,13 +45,6 @@ function zoom_bbox_in_place(bbox, factor) {
     bbox.left = 1 / factor * (bbox.left - mid) + mid;
     bbox.right = 1 / factor * (bbox.right - mid) + mid;
 }
-
-
-function put(url) { return fetch(url, {method: "PUT"}) }
-function post(url) { return fetch(url, {method: "POST"}) }
-function get_json(url) { return fetch_json(url, "GET"); }
-function post_json(url, data) { return fetch_json(url, "POST", data); }
-function put_json(url, data) { return fetch_json(url, "PUT", data); }
 
 
 /**

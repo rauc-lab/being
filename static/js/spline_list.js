@@ -1,5 +1,6 @@
 "use strict";
-import { remove_all_children, fetch_json } from "/static/js/utils.js";
+import { remove_all_children } from "/static/js/utils.js";
+import { fetch_json } from "/static/js/fetching.js";
 import { BPoly } from "/static/js/spline.js";
 import { API } from "/static/js/config.js";
 

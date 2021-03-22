@@ -41,20 +41,12 @@
     <script type="module">
         import { ready } from "/static/js/utils.js";
         import { receive_from_websocket } from "/static/js/web-socket.js";
-        import { fetch_json } from "/static/js/utils.js";
         import { WS_ADDRESS } from "/static/js/config.js";
 
         const host = window.location.host;
 
         async function main() {
-            /*
-            const url = "http://" + host + "/api/motors";
-            const data = await fetch_json(url);
-            console.log(data);
-            const plotter = document.getElementById("plotter");
-            */
             const editor = document.getElementById("editor");
-            console.log(editor);
             receive_from_websocket(WS_ADDRESS, {
                 "output-values": [
                     msg => editor.new_data(msg),

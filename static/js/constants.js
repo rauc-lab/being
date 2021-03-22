@@ -18,6 +18,3 @@ export const LEFT_MOUSE_BUTTON = 1;
 
 /** Escape key code */
 export const ESC_KEY_CODE = 27;
-
-/** API address */
-export const API = window.location.origin + "/api";

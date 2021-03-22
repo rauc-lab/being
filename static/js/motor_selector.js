@@ -1,6 +1,6 @@
 "use strict";
 import { remove_all_children, add_option } from "/static/js/utils.js";
-import { API } from "/static/js/constants.js";
+import { API } from "/static/js/config.js";
 
 
 /** Nothing selected in HTML select yet */
