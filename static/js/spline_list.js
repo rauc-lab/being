@@ -1,7 +1,7 @@
 "use strict";
 import { remove_all_children, fetch_json } from "/static/js/utils.js";
 import { BPoly } from "/static/js/spline.js";
-import { API } from "/static/js/constants.js";
+import { API } from "/static/js/config.js";
 
 
 export class SplineList {

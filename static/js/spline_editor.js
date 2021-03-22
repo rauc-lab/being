@@ -13,13 +13,10 @@ import { Line } from "/static/js/line.js";
 import { PAUSED, PLAYING, RECORDING, Transport } from "/static/js/transport.js";
 import { SplineDrawer } from "/static/js/spline_drawer.js";
 import { SplineList } from "/static/js/spline_list.js";
-import { API } from "/static/js/constants.js";
+import { API, INTERVAL } from "/static/js/config.js";
 import { MotorSelector } from "/static/js/motor_selector.js";
 import { toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button } from "/static/js/button.js";
 
-
-/** Main loop interval of being block network. */
-const INTERVAL = 0.010;
 
 /** Zero spline with duration 1.0 */
 const ZERO_SPLINE = new BPoly([
