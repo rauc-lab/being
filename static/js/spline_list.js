@@ -1,6 +1,6 @@
 "use strict";
-import { remove_all_children } from "/static/js/utils.js";
 import { fetch_json } from "/static/js/fetching.js";
+import { remove_all_children, is_valid_filename} from "/static/js/utils.js";
 import { BPoly } from "/static/js/spline.js";
 import { API } from "/static/js/config.js";
 
@@ -148,6 +148,7 @@ export class SplineList {
             text.innerHTML = spline.filename
             text.contentEditable = "false" // "false" prevents text syntax highlighting
             text.title = "Double click to edit"
+            text.setAttribute("required", "")
             entry.append(checkbox, text)
             text.addEventListener("blur", evt => {
                 let current_elem = evt.currentTarget
@@ -157,7 +158,8 @@ export class SplineList {
                     if (newFilename.length <= 0 ||
                         newFilename === "<br>" ||
                         newFilename === "<p>" ||
-                        newFilename === "<div>") {
+                        newFilename === "<div>" ||
+                        !is_valid_filename(newFilename)) {
                         evt.currentTarget.innerHTML = this.origFilename
                     } else {
                         this.rename_spline(this.origFilename, newFilename).then(res => {
@@ -187,8 +189,14 @@ export class SplineList {
 
                     }
                 }
+                evt.currentTarget.classList.remove("nonvalid")
             })
             text.addEventListener("keyup", evt => {
+                if (!is_valid_filename(evt.currentTarget.innerHTML)) {
+                    evt.currentTarget.classList.add("nonvalid")
+                }else {
+                    evt.currentTarget.classList.remove("nonvalid")
+                }
                 // Keyup eventListener needed to capture meta keys
                 if (evt.key === "Escape") {
                     evt.currentTarget.innerHTML = this.origFilename
@@ -287,7 +295,9 @@ export class SplineList {
         // TODO: Ask user only the first time he deletes a file?
         // Replace ugly confirm dialog
         if (confirm("Delete motion " + this.selected + " permanently ?")) {
-            const url = API + "/motions/" + this.selected;
+            let url = API + "/motions/" + this.selected;
+            url = encodeURI(url)
+
             const resp = await fetch(url, { method: "DELETE" });
 
             if (resp.ok) {
@@ -299,14 +309,18 @@ export class SplineList {
     }
 
     async rename_spline(name, new_name) {
-        const url = API + "/motions/" + name + "?rename=" + new_name;
+        let url = API + "/motions/" + name + "?rename=" + new_name;
+        url = encodeURI(url)
+
         const resp = await fetch(url, { method: "PUT" });
 
         return await resp.json()
     }
 
     async duplicate_spline(name) {
-        const url = API + "/motions/" + name;
+        let url = API + "/motions/" + name;
+        url = encodeURI(url)
+
         const resp = await fetch(url, { method: "POST" });
 
         return true
