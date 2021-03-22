@@ -185,3 +185,8 @@ button.record[checked] {
   40% { background-color: red; }
   100% { background-color: white; }
 }
+
+.nonvalid {
+  color:red;
+  border: 2px solid red;
+}
