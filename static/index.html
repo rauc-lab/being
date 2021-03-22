@@ -3,13 +3,20 @@
     <head>
         <title>PATHOS</title>
         <style>
-            body { 
+            html, body {
                 margin: 0;
                 padding: 0;
-                text-align: center;
+                width: 100%;
+                height: 100%;
             }
-            svg { width: 100%; }
+
+            svg {
+                min-width: 100%;
+                min-height: 100%;
+            }
+
             a { text-decoration: none; }
+
             text { 
                 font-size: .5em;
                 font-family: Helvetica;
@@ -21,7 +28,7 @@
     </head>
     <body>
         <a href="https://asl.ethz.ch/research/rauc.html">
-            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="-25 -25 150 150">
+            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="-25 -25 150 150" preserveAspectRatio="xMidYMid meet">
                 <path d="M0 0 L100 0 L100 100 L0 100 L0 0" id="textcircle" stroke="red" stroke-width="0" fill="none"/>
                 <text>
                     <textPath id="myTextPath" xlink:href="#textcircle">
