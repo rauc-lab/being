@@ -124,7 +124,8 @@ div.spline-list-entry:hover {
 div.spline-list-entry span:last-child:hover {
   cursor: text;
 }
-div.spline-list-entry span:last-child{
+
+div.spline-list-entry span:last-child {
   caret-color: silver;
 }
 
@@ -140,7 +141,7 @@ div.spline-list-entry {
   padding: 10px;
 }
 
-span.spline-checkbox{
+span.spline-checkbox {
   width: 24px;
   height: 24px;
   margin-right: 8px;
@@ -157,6 +158,12 @@ span.spline-checkbox{
 
 div.toolbar select {
   font-size: 18px; /* Preferred icon size */
+  border: none;  /* Looks better on Safari / Chrome but worse on Firefox. Need some styling of the arrow box... */
+  /*
+      -moz-appearance:none;
+      -webkit-appearance:none;
+      appearance:none;
+  */
 }
 
 .noselect {
