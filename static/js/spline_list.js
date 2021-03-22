@@ -146,6 +146,7 @@ export class SplineList {
             text.innerHTML = spline.filename
             text.contentEditable = "false" // "false" prevents text syntax highlighting
             text.title = "Double click to edit"
+            text.setAttribute("required", "")
             entry.append(checkbox, text)
             text.addEventListener("blur", evt => {
                 let current_elem = evt.currentTarget
@@ -286,7 +287,9 @@ export class SplineList {
         // TODO: Ask user only the first time he deletes a file?
         // Replace ugly confirm dialog
         if (confirm("Delete motion " + this.selected + " permanently ?")) {
-            const url = HTTP_HOST + "/api/motions/" + this.selected;
+            let url = HTTP_HOST + "/api/motions/" + this.selected;
+            url = encodeURI(url)
+        
             const resp = await fetch(url, { method: "DELETE" });
 
             if (resp.ok) {
@@ -298,14 +301,18 @@ export class SplineList {
     }
 
     async rename_spline(name, new_name) {
-        const url = HTTP_HOST + "/api/motions/" + name + "?rename=" + new_name;
+        let url = HTTP_HOST + "/api/motions/" + name + "?rename=" + new_name;
+        url = encodeURI(url)
+
         const resp = await fetch(url, { method: "PUT" });
 
         return await resp.json()
     }
 
     async duplicate_spline(name) {
-        const url = HTTP_HOST + "/api/motions/" + name;
+        let url = HTTP_HOST + "/api/motions/" + name;
+        url = encodeURI(url)
+
         const resp = await fetch(url, { method: "POST" });
 
         return true
