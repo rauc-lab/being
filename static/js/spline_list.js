@@ -1,5 +1,5 @@
 "use strict";
-import { remove_all_children, fetch_json } from "/static/js/utils.js";
+import { remove_all_children, fetch_json, is_valid_filename} from "/static/js/utils.js";
 import { BPoly } from "/static/js/spline.js";
 import { HTTP_HOST } from "/static/js/constants.js";
 
@@ -156,7 +156,8 @@ export class SplineList {
                     if (newFilename.length <= 0 ||
                         newFilename === "<br>" ||
                         newFilename === "<p>" ||
-                        newFilename === "<div>") {
+                        newFilename === "<div>" ||
+                        !is_valid_filename(newFilename)) {
                         evt.currentTarget.innerHTML = this.origFilename
                     } else {
                         this.rename_spline(this.origFilename, newFilename).then(res => {
@@ -186,8 +187,14 @@ export class SplineList {
 
                     }
                 }
+                evt.currentTarget.classList.remove("nonvalid")
             })
             text.addEventListener("keyup", evt => {
+                if (!is_valid_filename(evt.currentTarget.innerHTML)) {
+                    evt.currentTarget.classList.add("nonvalid")
+                }else {
+                    evt.currentTarget.classList.remove("nonvalid")
+                }
                 // Keyup eventListener needed to capture meta keys
                 if (evt.key === "Escape") {
                     evt.currentTarget.innerHTML = this.origFilename
@@ -289,7 +296,7 @@ export class SplineList {
         if (confirm("Delete motion " + this.selected + " permanently ?")) {
             let url = HTTP_HOST + "/api/motions/" + this.selected;
             url = encodeURI(url)
-        
+
             const resp = await fetch(url, { method: "DELETE" });
 
             if (resp.ok) {

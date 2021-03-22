@@ -28,7 +28,7 @@ export function ready(fn) {
 export async function fetch_json(url, method = "GET", data = {}) {
     const options = {
         method: method,
-        headers: {"Content-Type": "application/json"},
+        headers: { "Content-Type": "application/json" },
     };
     if (method === "POST" || method === "PUT") {
         options["body"] = JSON.stringify(data);
@@ -160,4 +160,15 @@ export function add_option(select, name) {
     option.innerHTML = name;
     select.appendChild(option);
     return option;
+}
+
+/**
+ * Test if the filename is valid on different operating systems
+ */
+export function is_valid_filename(fnm) {
+    var rg1 = /^[^\\/:\*\?"<>\|]+$/; // forbidden characters \ / : * ? " < > |
+    var rg2 = /^\./; // cannot start with dot (.)
+    var rg3 = /^(nul|prn|con|lpt[0-9]|com[0-9])(\.|$)/i; // forbidden file names
+
+    return rg1.test(fnm) && !rg2.test(fnm) && !rg3.test(fnm);
 }
