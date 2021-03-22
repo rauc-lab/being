@@ -1,6 +1,6 @@
 "use strict";
 import { remove_all_children, add_option } from "/static/js/utils.js";
-import { HTTP_HOST } from "/static/js/constants.js";
+import { API } from "/static/js/constants.js";
 
 
 /** Nothing selected in HTML select yet */
@@ -34,7 +34,7 @@ export class MotorSelector {
     }
 
     motor_url(id) {
-        return HTTP_HOST + "/api/motors/" + id;
+        return API + "/motors/" + id;
     }
 
     /**

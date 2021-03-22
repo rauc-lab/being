@@ -13,7 +13,7 @@ import { Line } from "/static/js/line.js";
 import { PAUSED, PLAYING, RECORDING, Transport } from "/static/js/transport.js";
 import { SplineDrawer } from "/static/js/spline_drawer.js";
 import { SplineList } from "/static/js/spline_list.js";
-import { HTTP_HOST } from "/static/js/constants.js";
+import { API } from "/static/js/constants.js";
 import { MotorSelector } from "/static/js/motor_selector.js";
 import { toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button } from "/static/js/button.js";
 
@@ -106,7 +106,7 @@ class Editor extends CurverBase {
         });
 
         // Initial data
-        get_json(HTTP_HOST + "/api/motors").then(motorInfos => {
+        get_json(API + "/motors").then(motorInfos => {
             this.motorSelector.populate(motorInfos);
         });
         this.load_spline(ZERO_SPLINE);
@@ -402,7 +402,7 @@ class Editor extends CurverBase {
     async stop_all_spline_playbacks() {
         this.transport.pause();
         this.update_ui();
-        await post(HTTP_HOST + "/api/motors/stop");
+        await post(API + "/motors/stop");
     }
 
     /**
@@ -424,7 +424,7 @@ class Editor extends CurverBase {
         this.line.data.maxlen = Infinity;
         this.auto = true;
         this.drawer.clear();
-        await put(HTTP_HOST + "/api/motors/disenable");
+        await put(API + "/motors/disenable");
     }
 
     /**
@@ -434,12 +434,12 @@ class Editor extends CurverBase {
     async stop_recording() {
         this.transport.stop();
         this.auto = false;
-        await put(HTTP_HOST + "/api/motors/enable");
+        await put(API + "/motors/enable");
         if (!this.trajectory.length) {
             return;
         }
 
-        const obj = await post_json(HTTP_HOST + "/api/fit_spline", this.trajectory);
+        const obj = await post_json(API + "/fit_spline", this.trajectory);
         clear_array(this.trajectory);
         const spline = BPoly.from_object(obj);
         this.load_spline(spline);

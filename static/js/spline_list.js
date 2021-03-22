@@ -1,7 +1,8 @@
 "use strict";
 import { remove_all_children, fetch_json } from "/static/js/utils.js";
 import { BPoly } from "/static/js/spline.js";
-import { HTTP_HOST } from "/static/js/constants.js";
+import { API } from "/static/js/constants.js";
+
 
 export class SplineList {
     constructor(editor) {
@@ -276,8 +277,7 @@ export class SplineList {
     * arbitrary filename
     */
     async create_spline() {
-        const url = HTTP_HOST + "/api/motions";
-        const resp = await fetch(url, { method: "POST" });
+        const resp = await fetch(API + "/motions", { method: "POST" });
 
         return await resp.json()
     }
@@ -286,7 +286,7 @@ export class SplineList {
         // TODO: Ask user only the first time he deletes a file?
         // Replace ugly confirm dialog
         if (confirm("Delete motion " + this.selected + " permanently ?")) {
-            const url = HTTP_HOST + "/api/motions/" + this.selected;
+            const url = API + "/motions/" + this.selected;
             const resp = await fetch(url, { method: "DELETE" });
 
             if (resp.ok) {
@@ -298,14 +298,14 @@ export class SplineList {
     }
 
     async rename_spline(name, new_name) {
-        const url = HTTP_HOST + "/api/motions/" + name + "?rename=" + new_name;
+        const url = API + "/motions/" + name + "?rename=" + new_name;
         const resp = await fetch(url, { method: "PUT" });
 
         return await resp.json()
     }
 
     async duplicate_spline(name) {
-        const url = HTTP_HOST + "/api/motions/" + name;
+        const url = API + "/motions/" + name;
         const resp = await fetch(url, { method: "POST" });
 
         return true
