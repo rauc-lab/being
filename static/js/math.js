@@ -95,6 +95,26 @@ export function array_ndims(arr) {
 
 
 /**
+ * Reshape array. Taken from math.js _reshape.
+ */
+export function array_reshape(array, shape) {
+  let tmpArray = array
+  let tmpArray2
+  for (let sizeIndex = shape.length - 1; sizeIndex > 0; sizeIndex--) {
+    const size = shape[sizeIndex]
+    tmpArray2 = []
+    const length = tmpArray.length / size
+    for (let i = 0; i < length; i++) {
+      tmpArray2.push(tmpArray.slice(i * size, (i + 1) * size))
+    }
+    tmpArray = tmpArray2
+  }
+
+  return tmpArray
+}
+
+
+/**
  * Array minimum value.
  * @param arr - Flat input array.
  * @returns Minimum value.

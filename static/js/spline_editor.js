@@ -6,7 +6,7 @@ import { BBox } from "/static/js/bbox.js";
 import { CurverBase } from "/static/js/curver.js";
 import { make_draggable } from "/static/js/draggable.js";
 import { History } from "/static/js/history.js";
-import { subtract_arrays, clip } from "/static/js/math.js";
+import { subtract_arrays, clip, array_reshape, multiply_scalar, array_shape } from "/static/js/math.js";
 import { BPoly } from "/static/js/spline.js";
 import { clear_array } from "/static/js/utils.js";
 import { Line } from "/static/js/line.js";
@@ -44,6 +44,25 @@ function zoom_bbox_in_place(bbox, factor) {
     const mid = .5 * (bbox.left + bbox.right);
     bbox.left = 1 / factor * (bbox.left - mid) + mid;
     bbox.right = 1 / factor * (bbox.right - mid) + mid;
+}
+
+
+/**
+ * Scale spline by factor (scale coefficients).
+ */
+function scale_spline(spline, factor) {
+    const shape = array_shape(spline.c);
+    const scaledC = array_reshape(multiply_scalar(factor, spline.c.flat()), shape);
+    return new BPoly(scaledC, spline.x);
+}
+
+
+/**
+ * Stretch spline by factor (scale knots).
+ */
+function stretch_spline(spline, factor) {
+    const newX = multiply_scalar(factor, spline.x);
+    return new BPoly(spline.c, newX);
 }
 
 
@@ -202,6 +221,37 @@ class Editor extends CurverBase {
         this.livePreviewBtn = this.add_button("precision_manufacturing", "Toggle live preview of knot position on the motor");
         this.livePreviewBtn.addEventListener("click", evt => {
             toggle_button(this.livePreviewBtn);
+        });
+
+        this.add_space_to_toolbar();
+
+        this.add_button("compress", "Half spline height").addEventListener("click", evt => {
+            if (!this.history.length) return;
+            this.spline_changing();
+            const newSpline = scale_spline(this.history.retrieve(), 0.5);
+            this.spline_changed(newSpline);
+
+        });
+        this.add_button("expand", "Double spline height").addEventListener("click", evt => {
+            if (!this.history.length) return;
+            this.spline_changing();
+            const newSpline = scale_spline(this.history.retrieve(), 2.0);
+            this.spline_changed(newSpline);
+        });
+
+        this.add_space_to_toolbar();
+
+        this.add_button("directions_run", "Speed up spline").addEventListener("click", evt => {
+            if (!this.history.length) return;
+            this.spline_changing();
+            const newSpline = stretch_spline(this.history.retrieve(), 0.5);
+            this.spline_changed(newSpline);
+        });
+        this.add_button("hiking", "Slow down spline").addEventListener("click", evt => {
+            if (!this.history.length) return;
+            this.spline_changing();
+            const newSpline = stretch_spline(this.history.retrieve(), 2.0);
+            this.spline_changed(newSpline);
         });
     }
 
