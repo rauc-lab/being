@@ -17,6 +17,7 @@ import { API, INTERVAL } from "/static/js/config.js";
 import { MotorSelector } from "/static/js/motor_selector.js";
 import { toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button } from "/static/js/button.js";
 import { put, post, delete_fetch, get_json, fetch_json, post_json, put_json, } from "/static/js/fetching.js";
+import { bezier_to_bpoly } from "/static/js/bezier.js"
 
 
 /** Zero spline with duration 1.0 */
@@ -254,6 +255,15 @@ class Editor extends CurverBase {
             const newSpline = stretch_spline(this.history.retrieve(), 2.0);
             this.spline_changed(newSpline);
         });
+
+        this.add_space_to_toolbar();
+
+        this.add_button("save", "Save motion").addEventListener("click", evt => {
+            if (!this.history.length) return;
+            this.save_spline().then(res => {
+                console.log("saved motion")
+            })
+        })
     }
 
 
@@ -525,6 +535,13 @@ class Editor extends CurverBase {
     */
     async create_spline() {
         return await post_json(API + "/motions")
+    }
+
+    async save_spline() {
+        const bpoly = bezier_to_bpoly(this.history.retrieve())
+        const url = encodeURI(API + "/motions/" + this.splineList.selected)
+
+         return  await put_json(url, bpoly)
     }
 
     async duplicate_spline(name) {
