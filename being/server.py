@@ -131,18 +131,15 @@ def content_controller(content: Content) -> web.RouteTableDef:
 
 def serialize_motion_players(being):
     """Return list of motion player / motors informations."""
-    ret = []
     for nr, mp in enumerate(being.motionPlayers):
         input_ = any_item(mp.output.outgoingConnections)
         motor = input_.owner
-        dct = {
-            "id": nr,
-            "setpointValueIndex": being.valueOutputs.index(mp.output),
-            "actualValueIndex": being.valueOutputs.index(motor.output),
+        yield {
+            'id': nr,
+            'setpointValueIndex': being.valueOutputs.index(mp.output),
+            'actualValueIndex': being.valueOutputs.index(motor.output),
+            'length': motor.length,
         }
-        ret.append(dct)
-
-    return ret
 
 
 def being_controller(being) -> web.RouteTableDef:
@@ -152,8 +149,8 @@ def being_controller(being) -> web.RouteTableDef:
     @routes.get('/motors')
     async def get_motors(request):
         """Inform front end of available motion players / motors."""
-        return json_response(serialize_motion_players(being))
-
+        infos = list(serialize_motion_players(being))
+        return json_response(infos)
 
     @routes.post('/motors/{id}/play')
     async def start_spline_playback(request):
@@ -268,6 +265,7 @@ def init_web_server(being=None, content=None) -> web.Application:
     app.router.add_get('/', file_response_handler('static/index.html'))
     app.router.add_get('/spline-editor', file_response_handler('static/spline-editor.html'))
     app.router.add_get('/favicon.ico', file_response_handler('static/favicon.ico'))
+    app.router.add_get('/web-socket-test', file_response_handler('static/web-socket-test.html'))
 
     # Rest API
     api = web.Application()

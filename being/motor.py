@@ -143,7 +143,7 @@ class Motor(_MotorBase):
             nodeId: CANopen node id.
 
         Kwargs:
-            length: Rod length (used for homing).
+            length: Rod length if known.
             network: External network (dependency injection).
             node: Drive node (dependency injection).
         """
@@ -272,7 +272,7 @@ class Motor(_MotorBase):
 
             # Take into account rod length
             width = upper - lower
-            if self.length:
+            if self.length is not None:
                 dx = .5 * (width - self.length * SI_2_FAULHABER)
                 if dx > 0:
                     lower, upper = lower + dx, upper - dx
