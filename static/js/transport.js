@@ -70,6 +70,7 @@ export class Transport {
 
     record() {
         this.startTime = this.latestTimestamp;
+        this.duration = Infinity;
         this._change_state(RECORDING);
     }
 
