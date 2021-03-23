@@ -27,6 +27,8 @@ const COLORS = [
 const MARGIN = 50;
 
 
+const MIN_BBOX = new BBox([0, -0.001], [1, 0.001]);
+
 /**
  * Curver base class for Plotter and Editor.
  */
@@ -37,7 +39,7 @@ export class CurverBase extends HTMLElement {
         this.auto = auto;
         this.width = 1;
         this.height = 1;
-        this.viewport = new BBox([0, -0.001], [1, 0.001]);
+        this.viewport = MIN_BBOX.copy();
         this.trafo = new DOMMatrix();
         this.trafoInv = new DOMMatrix();
         this.lines = [];
@@ -170,7 +172,7 @@ export class CurverBase extends HTMLElement {
      * Update viewport bounding box.
      */
     update_bbox() {
-        this.viewport.reset();
+        this.viewport = MIN_BBOX.copy();
         this.lines.forEach(line => {
             this.viewport.expand_by_bbox(line.calc_bbox());
         });
