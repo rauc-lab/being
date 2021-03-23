@@ -39,11 +39,11 @@
         </a>
         <script>
             const textPath = document.getElementById("myTextPath");
-            const TAU = Math.PI;
+            const TAU = 2 * Math.PI;
 
             function render(timestamp) {
                 const now = timestamp / 1000;
-                const pos = 5*now - 5*Math.sin(TAU * .5 * now) + 2;
+                const pos = 5*now - 5*Math.sin(TAU * .25 * now) + 2;
                 textPath.setAttributeNS(null, "startOffset", pos % 100 + "%");
                 requestAnimationFrame(render);
             }
