@@ -9,7 +9,6 @@ import { Deque } from "/static/js/deque.js";
 export class Line {
     constructor(ctx, color = COLORS[0], maxlen = 1000, lineWidth = 2) {
         this.ctx = ctx;
-        this._maxlen = maxlen;
         this.data = new Deque(0, maxlen);
         this.color = color;
         this.lineWidth = lineWidth;
@@ -82,10 +81,11 @@ export class Line {
         ctx.beginPath();
         let prev = Infinity;
         this.data.forEach(pt => {
-            if (pt[0] < prev)
+            if (pt[0] < prev) {
                 ctx.moveTo(...pt);
-            else
+            } else {
                 ctx.lineTo(...pt);
+            }
 
             prev = pt[0];
         });
