@@ -16,7 +16,7 @@ import { SplineList } from "/static/js/spline_list.js";
 import { API, INTERVAL } from "/static/js/config.js";
 import { MotorSelector } from "/static/js/motor_selector.js";
 import { toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button } from "/static/js/button.js";
-import { put, post, get_json, post_json, put_json } from "/static/js/fetching.js";
+import { put, post, delete_fetch, get_json, fetch_json, post_json, put_json, } from "/static/js/fetching.js";
 
 
 /** Zero spline with duration 1.0 */
@@ -82,9 +82,7 @@ class Editor extends CurverBase {
         this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
         this.motorSelector = null;  // Gets initialized inside setup_toolbar_elements(). Not nice but...
         this.splineList = new SplineList(this);
-        this.splineList.fetch_splines().then(() =>
-            this.splineList.update_spline_list()
-        )
+        this.reload_spline_list()
         this.trajectory = [];
 
         // Single actual value line
@@ -467,7 +465,7 @@ class Editor extends CurverBase {
      */
     async live_preview(position) {
         const url = this.motorSelector.selected_motor_url() + "/livePreview";
-        await put_json(url, {"position": position});
+        await put_json(url, { "position": position });
     }
 
     /**
@@ -520,6 +518,48 @@ class Editor extends CurverBase {
         this.spline_changed(newSpline);
     }
 
+
+    /**
+    * Create a new spline on the backend. Content is a line with 
+    * arbitrary filename
+    */
+    async create_spline() {
+        return await post_json(API + "/motions")
+    }
+
+    async duplicate_spline(name) {
+        let url = API + "/motions/" + name;
+        url = encodeURI(url)
+
+        return await post(url);
+    }
+
+    async rename_spline(name, new_name) {
+        let url = API + "/motions/" + name + "?rename=" + new_name;
+        url = encodeURI(url)
+
+        return await put_json(url)
+    }
+
+    async delete_spline(name) {
+        let url = API + "/motions/" + name;
+        url = encodeURI(url)
+
+        return await delete_fetch(url)
+    }
+
+    async fetch_splines() {
+        return await get_json("/api/motions")
+    }
+
+    reload_spline_list() {
+        this.fetch_splines().then(res => {
+            this.splineList.splines = res.forEach(spline => {
+                spline.content = BPoly.from_object(spline.content)
+            })
+            this.splineList.populate(res)
+        })
+    }
 
     /**
      * Process new data message from backend.

@@ -8,6 +8,7 @@
 
 :host {
   display: flex;
+  font-size: 18px;
   flex-direction: row;
   position: relative;
   width: 300px;
@@ -142,16 +143,31 @@ div.spline-list-entry {
   padding: 10px;
 }
 
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 span.spline-checkbox {
   width: 24px;
   height: 24px;
   margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.spline-list {
+  width:20%;
 }
 
 /* Media queries here */
 @media screen and (max-width: 800px) {
   :host {
     flex-direction: column;
+  }
+
+  .spline-list  {
+    width: 100%;
   }
 }
 
@@ -160,17 +176,18 @@ span.spline-checkbox {
 div.toolbar select {
   font-size: 18px; /* Preferred icon size */
   border: none;  /* Looks better on Safari / Chrome but worse on Firefox. Need some styling of the arrow box... */
-  /*
-      -moz-appearance:none;
-      -webkit-appearance:none;
-      appearance:none;
-  */
+  background: transparent;
+	background-image: url("data:image/svg+xml;utf8,<svg fill='black' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
+	background-repeat: no-repeat;
+	appearance: none;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	background-position-x: 100%;
+	background-position-y: 50%;
+	padding-right: 1rem;
 }
 
 .noselect {
-  -webkit-touch-callout: none; /* iOS Safari */
-  -webkit-user-select: none; /* Safari */
-  -ms-user-select: none; /* Internet Explorer/Edge */
   user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
 }
 
@@ -190,3 +207,4 @@ button.record[checked] {
   color:red;
   border: 2px solid red;
 }
+
