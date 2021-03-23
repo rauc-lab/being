@@ -20,10 +20,10 @@ const Transitions = {
  * looping, playing, cursor drawing.
  */
 export class Transport {
-    constructor(editor) {
+    constructor(editor, looping=true) {
         this.editor = editor;
         this.state = PAUSED;
-        this.looping = false;
+        this.looping = looping;
         this.position = 0;
         this.duration = 1;
         this.startTime = 0;

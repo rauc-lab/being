@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>PATHOS - Web Socket Test</title>
+    </head>
+    <body>
+        Web Socket Status: <label id="test" style="background-color: red;">Offline</label>
+
+        <script type="module">
+            import { ready } from "/static/js/utils.js";
+            import { receive_from_websocket } from "/static/js/web-socket.js";
+            import { WS_ADDRESS } from "/static/js/config.js";
+
+
+            async function main() {
+                const label = document.getElementById("test");
+                receive_from_websocket(WS_ADDRESS, {
+                    "output-values": [
+                        msg => {
+                            label.style.backgroundColor = 'green';
+                            label.innerHTML = "Online";
+                        },
+                    ],
+                });
+            }
+
+            ready(main);
+        </script>
+    </body>
+</html>

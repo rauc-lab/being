@@ -175,6 +175,7 @@ class Editor extends CurverBase {
 
         // Toggle live preview
         this.livePreviewBtn = this.add_button("precision_manufacturing", "Toggle live preview of knot position on the motor");
+        switch_button_on(this.livePreviewBtn);
         this.livePreviewBtn.addEventListener("click", evt => {
             toggle_button(this.livePreviewBtn);
         });
@@ -255,6 +256,7 @@ class Editor extends CurverBase {
         });
     }
 
+
     /**
      * Trigger viewport resize and redraw.
      */
@@ -262,6 +264,7 @@ class Editor extends CurverBase {
         super.resize();
         this.draw();
     }
+
 
     /**
      * Draw spline editor stuff.
@@ -271,6 +274,7 @@ class Editor extends CurverBase {
         this.backgroundDrawer.draw()
         this.transport.draw_cursor();
     }
+
 
     /**
      * Setup drag event handlers for moving horizontally and zooming vertically.
@@ -307,6 +311,7 @@ class Editor extends CurverBase {
             },
         );
     }
+
 
     /**
      * Update UI elements. Mostly buttons at this time. Disabled state of undo
@@ -361,6 +366,7 @@ class Editor extends CurverBase {
         }
     }
 
+
     /**
      * Load spline into spline editor.
      * Recalculate bounding box
@@ -390,6 +396,7 @@ class Editor extends CurverBase {
         this.update_ui();
     }
 
+
     /**
      * Notify spline editor that the spline working copy is going to change.
      */
@@ -401,6 +408,7 @@ class Editor extends CurverBase {
         }
     }
 
+
     /**
      * Notify spline editor that with the new current state of the spline.
      */
@@ -408,6 +416,7 @@ class Editor extends CurverBase {
         this.history.capture(workingCopy);
         this.draw_current_spline();
     }
+
 
     /**
      * API call for spline playback in backend. Also starts transport cursor.
@@ -425,6 +434,7 @@ class Editor extends CurverBase {
         this.update_ui();
     }
 
+
     /**
      * API call for stoping spline playback for currently selected motor.
      */
@@ -437,6 +447,7 @@ class Editor extends CurverBase {
         }
     }
 
+
     /**
      * API call for stoping all spline playback in being for all known motors.
      */
@@ -445,6 +456,7 @@ class Editor extends CurverBase {
         this.update_ui();
         await post(API + "/motors/stop");
     }
+
 
     /**
      * API call for setting live preview position value to back end.
@@ -468,6 +480,7 @@ class Editor extends CurverBase {
         await put(API + "/motors/disenable");
     }
 
+
     /**
      * API call for ending trajectory recording. Converts trajectory into
      * spline and draws it. Re-enables motors in back end.
@@ -486,6 +499,7 @@ class Editor extends CurverBase {
         this.load_spline(spline);
     }
 
+
     /**
      * Insert new knot into current spline.
      */
@@ -503,6 +517,7 @@ class Editor extends CurverBase {
         // direction of the previous knots as the new default coefficients...
         this.spline_changed(newSpline);
     }
+
 
     /**
     * Create a new spline on the backend. Content is a line with 
@@ -568,5 +583,6 @@ class Editor extends CurverBase {
         }
     }
 }
+
 
 customElements.define("being-editor", Editor);
