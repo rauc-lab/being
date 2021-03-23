@@ -159,11 +159,15 @@ span.spline-checkbox {
 div.toolbar select {
   font-size: 18px; /* Preferred icon size */
   border: none;  /* Looks better on Safari / Chrome but worse on Firefox. Need some styling of the arrow box... */
-  /*
-      -moz-appearance:none;
-      -webkit-appearance:none;
-      appearance:none;
-  */
+  background: transparent;
+	background-image: url("data:image/svg+xml;utf8,<svg fill='black' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
+	background-repeat: no-repeat;
+	appearance: none;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	background-position-x: 100%;
+	background-position-y: 50%;
+	padding-right: 1rem;
 }
 
 .noselect {
@@ -190,3 +194,4 @@ button.record[checked] {
   color:red;
   border: 2px solid red;
 }
+
