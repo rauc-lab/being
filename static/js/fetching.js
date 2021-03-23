@@ -10,6 +10,10 @@ export function post(url) {
     return fetch(url, {method: "POST"});
 }
 
+// delete is a reseverd JS keyword
+export function delete_fetch(url) {
+    return fetch(url, {method: "DELETE"})
+}
 
 /**
  * Fetch JSON data from or to url.

@@ -1,8 +1,6 @@
 "use strict";
-import { fetch_json, put_json, post } from "/static/js/fetching.js";
-import { remove_all_children, is_valid_filename} from "/static/js/utils.js";
+import { remove_all_children, is_valid_filename } from "/static/js/utils.js";
 import { BPoly } from "/static/js/spline.js";
-import { API } from "/static/js/config.js";
 
 
 export class SplineList {
@@ -38,10 +36,8 @@ export class SplineList {
 
         this.addSplineButton = this.editor.add_button("add_box", "Create new spline")
         this.addSplineButton.addEventListener("click", evt => {
-            this.create_spline().then(res => {
-                this.fetch_splines().then(() =>
-                    this.update_spline_list()
-                )
+            this.editor.create_spline().then(() => {
+                this.editor.reload_spline_list()
             })
         });
         newBtnContainer.appendChild(this.addSplineButton)
@@ -49,20 +45,22 @@ export class SplineList {
 
         this.delSplineButton = this.editor.add_button("delete", "Delete selected motion")
         this.delSplineButton.addEventListener("click", evt => {
-            this.delete_spline().then(() => {
-                this.fetch_splines().then(() =>
-                    this.update_spline_list()
-                )
-            })
+            if (confirm("Delete motion " + this.selected + " permanently ?")) {
+                this.editor.delete_spline(this.selected).then(resp => {
+                    if (resp.ok) {
+                        this.visibles.delete(this.selected)
+                        this.selected = null
+                        this.editor.reload_spline_list()
+                    }
+                })
+            }
         });
         newBtnContainer.appendChild(this.delSplineButton)
 
         this.duplSplineButton = this.editor.add_button("file_copy", "Duplicate motion file")
         this.duplSplineButton.addEventListener("click", evt => {
-            this.duplicate_spline(this.selected).then(() => {
-                this.fetch_splines().then(() =>
-                    this.update_spline_list()
-                )
+            this.editor.duplicate_spline(this.selected).then(() => {
+                this.editor.reload_spline_list()
             })
         })
         newBtnContainer.appendChild(this.duplSplineButton)
@@ -72,20 +70,6 @@ export class SplineList {
         this.editor.shadowRoot.insertBefore(container, this.editor.shadowRoot.childNodes[1])
     }
 
-
-    async fetch_splines() {
-        try {
-            return await fetch_json("/api/motions").then(res => {
-                this.splines = res
-                this.splines.forEach(spline => {
-                    spline.content = BPoly.from_object(spline.content)
-                })
-            })
-        }
-        catch (err) {
-            throw Error(err)
-        }
-    }
 
     update_spline_list() {
 
@@ -163,7 +147,7 @@ export class SplineList {
                         !is_valid_filename(newFilename)) {
                         evt.currentTarget.innerHTML = this.origFilename
                     } else {
-                        this.rename_spline(this.origFilename, newFilename).then(res => {
+                        this.editor.rename_spline(this.origFilename, newFilename).then(res => {
                             // local update
                             // We dont want to reload from the server because we want to keep the 
                             // evenetually modified spline and history when renaming
@@ -195,7 +179,7 @@ export class SplineList {
             text.addEventListener("keyup", evt => {
                 if (!is_valid_filename(evt.currentTarget.innerHTML)) {
                     evt.currentTarget.classList.add("nonvalid")
-                }else {
+                } else {
                     evt.currentTarget.classList.remove("nonvalid")
                 }
                 // Keyup eventListener needed to capture meta keys
@@ -281,44 +265,8 @@ export class SplineList {
         this.viewport = this.dataBbox.copy();
     }
 
-
-    /**
-    * Create a new spline on the backend. Content is a line with 
-    * arbitrary filename
-    */
-    async create_spline() {
-        const resp = await fetch(API + "/motions", { method: "POST" });
-
-        return await resp.json()
-    }
-
-    async delete_spline() {
-        // TODO: Ask user only the first time he deletes a file?
-        // Replace ugly confirm dialog
-        if (confirm("Delete motion " + this.selected + " permanently ?")) {
-            let url = API + "/motions/" + this.selected;
-            url = encodeURI(url)
-
-            const resp = await fetch(url, { method: "DELETE" });
-
-            if (resp.ok) {
-                this.visibles.delete(this.selected)
-                this.selected = null
-            }
-        }
-    }
-
-    async rename_spline(name, new_name) {
-        let url = API + "/motions/" + name + "?rename=" + new_name;
-        url = encodeURI(url)
-
-        return await put_json(url)
-    }
-
-    async duplicate_spline(name) {
-        let url = API + "/motions/" + name;
-        url = encodeURI(url)
-
-        return await post(url);
+    populate(splines) {
+        this.splines = splines
+        this.update_spline_list()
     }
 }
