@@ -8,6 +8,7 @@
 
 :host {
   display: flex;
+  font-size: 18px;
   flex-direction: row;
   position: relative;
   width: 300px;
@@ -141,16 +142,31 @@ div.spline-list-entry {
   padding: 10px;
 }
 
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 span.spline-checkbox {
   width: 24px;
   height: 24px;
   margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.spline-list {
+  width:20%;
 }
 
 /* Media queries here */
 @media screen and (max-width: 800px) {
   :host {
     flex-direction: column;
+  }
+
+  .spline-list  {
+    width: 100%;
   }
 }
 

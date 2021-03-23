@@ -1,5 +1,5 @@
 "use strict";
-import { fetch_json, put_json } from "/static/js/fetching.js";
+import { fetch_json, put_json, post } from "/static/js/fetching.js";
 import { remove_all_children, is_valid_filename} from "/static/js/utils.js";
 import { BPoly } from "/static/js/spline.js";
 import { API } from "/static/js/config.js";
@@ -49,7 +49,7 @@ export class SplineList {
 
         this.delSplineButton = this.editor.add_button("delete", "Delete selected motion")
         this.delSplineButton.addEventListener("click", evt => {
-            this.delete_spline().then(res => {
+            this.delete_spline().then(() => {
                 this.fetch_splines().then(() =>
                     this.update_spline_list()
                 )
@@ -149,6 +149,7 @@ export class SplineList {
             text.contentEditable = "false" // "false" prevents text syntax highlighting
             text.title = "Double click to edit"
             text.setAttribute("required", "")
+            text.classList.add("truncate")
             entry.append(checkbox, text)
             text.addEventListener("blur", evt => {
                 let current_elem = evt.currentTarget
@@ -303,7 +304,6 @@ export class SplineList {
             if (resp.ok) {
                 this.visibles.delete(this.selected)
                 this.selected = null
-                return true
             }
         }
     }
@@ -319,6 +319,6 @@ export class SplineList {
         let url = API + "/motions/" + name;
         url = encodeURI(url)
 
-        const resp = await fetch(url, { method: "POST" });
+        return await post(url);
     }
 }

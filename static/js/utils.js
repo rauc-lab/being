@@ -121,7 +121,6 @@ export function searchsorted(arr, val) {
     return lower;
 }
 
-
 /**
  * Add option to select.
  *
