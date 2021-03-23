@@ -1,5 +1,5 @@
 "use strict";
-import { fetch_json } from "/static/js/fetching.js";
+import { fetch_json, put_json } from "/static/js/fetching.js";
 import { remove_all_children, is_valid_filename} from "/static/js/utils.js";
 import { BPoly } from "/static/js/spline.js";
 import { API } from "/static/js/config.js";
@@ -312,9 +312,7 @@ export class SplineList {
         let url = API + "/motions/" + name + "?rename=" + new_name;
         url = encodeURI(url)
 
-        const resp = await fetch(url, { method: "PUT" });
-
-        return await resp.json()
+        return await put_json(url)
     }
 
     async duplicate_spline(name) {
@@ -322,7 +320,5 @@ export class SplineList {
         url = encodeURI(url)
 
         const resp = await fetch(url, { method: "POST" });
-
-        return true
     }
 }
