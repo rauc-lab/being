@@ -48,7 +48,7 @@ export function tick_space(lower, upper, maxTicks=5) {
 	const niceUpper = Math.ceil(upper / spacing) * spacing;
     let span = [];
     for (let i=0; i<=maxTicks; i++) {
-        span.push(niceLower + i * spacing);
+        span.push(Number((niceLower + i * spacing).toPrecision(4)));
     }
 
     return span;

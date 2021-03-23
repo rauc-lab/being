@@ -217,7 +217,7 @@ class Motor(_MotorBase):
     def _update_state(self):
         self.state = KinematicState(position=self.node.position)
 
-    def home(self, speed: int = 100, deadCycles: int = 5):
+    def home(self, speed: int = 100, deadCycles: int = 20):
         """Crude homing procedure. Move with PROFILED_VELOCITY operation mode
         upwards and downwards until reaching limits (position not increasing or
         decreasing anymore). Implemented as Generator so that we can home

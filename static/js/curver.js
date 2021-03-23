@@ -4,7 +4,7 @@
  */
 import { BBox } from "/static/js/bbox.js";
 import { tick_space, } from "/static/js/layout.js";
-import { divide_arrays } from "/static/js/math.js";
+import { divide_arrays, clip } from "/static/js/math.js";
 import { create_element } from "/static/js/svg.js";
 import { cycle, add_option } from "/static/js/utils.js";
 
@@ -294,13 +294,13 @@ export class CurverBase extends HTMLElement {
         ctx.textBaseline = "top";   // top, middle, bottom
         tick_space(this.viewport.ll[0], this.viewport.ur[0]).forEach(x => {
             const pt = (new DOMPoint(x, 0)).matrixTransform(this.trafo);
-            ctx.fillText(x.toPrecision(1), pt.x, origin.y + offset);
+            ctx.fillText(x, pt.x, clip(pt.y + offset, 0, this.height - MARGIN));
         });
         ctx.textAlign = "right";
         ctx.textBaseline = "middle";   // top, middle, bottom
         tick_space(this.viewport.ll[1], this.viewport.ur[1]).forEach(y => {
             const pt = (new DOMPoint(0, y)).matrixTransform(this.trafo);
-            ctx.fillText(y.toPrecision(1), origin.x - offset, pt.y);
+            ctx.fillText(y, clip(pt.x - offset, MARGIN, this.width), pt.y);
         });
 
         ctx.restore();

@@ -1,10 +1,14 @@
 """Plotting util."""
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
 from scipy.interpolate import PPoly
 
-from being.constants import ONE_D
+from being.block import Block
+from being.clock import Clock
 
+from being.constants import ONE_D
+from being.resources import add_callback
 
 DEFAULT_COLORS = [
     dct['color'] for dct in plt.rcParams['axes.prop_cycle']
@@ -75,3 +79,43 @@ def plot_spline(spline: PPoly, nSamples: int = 100, **kwargs):
     """
     t, trajectory = sample_trajectory(spline, nSamples, rett=True)
     plot_trajectory(t, trajectory, **kwargs)
+
+
+class Plotter(Block):
+
+    """Value plotter. Plot multiple signals after shutdown."""
+
+    def __init__(self, nInputs=1):
+        super().__init__()
+        for _ in range(nInputs):
+            self.add_value_input()
+
+        self.timestamps = []
+        self.data = []
+        self.clock = Clock.single_instance_setdefault()
+        add_callback(self.show_plot)
+
+    def update(self):
+        self.timestamps.append(self.clock.now())
+        self.data.append([
+            in_.value for in_ in self.inputs
+        ])
+
+    def _find_labels(self):
+        """Check for named inputs as labels."""
+        for input_ in self.inputs:
+            for key, value in vars(self).items():
+                if value is input_:
+                    yield key
+                    break
+            else:
+                yield
+
+    def show_plot(self):
+        data = np.array(self.data)
+        labels = list(self._find_labels())
+        for row, label in zip(data.T, labels):
+            plt.plot(self.timestamps, row, label=label)
+
+        plt.legend()
+        plt.show()

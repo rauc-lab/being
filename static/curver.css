@@ -56,6 +56,7 @@ div.toolbar:empty {
 
 div.toolbar > * {
   border-right: 2px solid black;
+  margin: 0;
 }
 
 div.toolbar > *:first-child {
@@ -189,7 +190,6 @@ div.toolbar select {
 .noselect {
   user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
 }
-
 
 button.record[checked] {
   background-color: white;
