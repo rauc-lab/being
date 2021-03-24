@@ -132,6 +132,16 @@ class Editor extends CurverBase {
      * Populate toolbar with buttons and motor selection. Wire up event listeners.
      */
     setup_toolbar_elements() {
+
+        // Motor selection
+        const select = this.add_select();
+        select.addEventListener("change", evt => {
+            this.stop_all_spline_playbacks();
+        });
+        this.motorSelector = new MotorSelector(select);
+
+        this.add_space_to_toolbar();
+
         // Transport buttons
         this.playPauseBtn = this.add_button("play_arrow", "Play / pause motion playback");
         this.recBtn = this.add_button("fiber_manual_record", "Record motion");
@@ -161,15 +171,6 @@ class Editor extends CurverBase {
             this.transport.toggle_looping();
             this.update_ui();
         });
-
-        this.add_space_to_toolbar();
-
-        // Motor selection
-        const select = this.add_select();
-        select.addEventListener("change", evt => {
-            this.stop_all_spline_playbacks();
-        });
-        this.motorSelector = new MotorSelector(select);
 
         this.add_space_to_toolbar();
 
@@ -223,6 +224,13 @@ class Editor extends CurverBase {
             this.draw_current_spline();
         });
 
+        this.add_button("save", "Save motion").addEventListener("click", evt => {
+            if (!this.history.length) return;
+            this.save_spline().then(res => {
+                console.log("saved motion")
+            })
+        })
+
         this.add_space_to_toolbar();
 
         // Scaling and stretching spline
@@ -255,14 +263,6 @@ class Editor extends CurverBase {
             this.spline_changed(newSpline);
         });
 
-        this.add_space_to_toolbar();
-
-        this.add_button("save", "Save motion").addEventListener("click", evt => {
-            if (!this.history.length) return;
-            this.save_spline().then(res => {
-                console.log("saved motion")
-            })
-        })
     }
 
 
