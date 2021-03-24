@@ -73,13 +73,3 @@ export function bpoly_to_bezier(spline) {
     return cps;
 }
 
-
-export function bezier_to_bpoly(cps) {
-    return {
-        type: "BPoly",
-        extrapolate: cps.extrapolate,
-        axis: cps.axis,
-        knots: cps.x,
-        coefficients: cps.c
-    }
-}

@@ -17,7 +17,6 @@ import { API, INTERVAL } from "/static/js/config.js";
 import { MotorSelector } from "/static/js/motor_selector.js";
 import { toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button } from "/static/js/button.js";
 import { put, post, delete_fetch, get_json, fetch_json, post_json, put_json, } from "/static/js/fetching.js";
-import { bezier_to_bpoly } from "/static/js/bezier.js"
 
 
 /** Zero spline with duration 1.0 */
@@ -537,7 +536,7 @@ class Editor extends CurverBase {
     }
 
     async save_spline() {
-        const bpoly = bezier_to_bpoly(this.history.retrieve())
+        const bpoly = this.history.retrieve().to_dict()
         const url = encodeURI(API + "/motions/" + this.splineList.selected)
 
          return  await put_json(url, bpoly)
