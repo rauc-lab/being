@@ -35,7 +35,7 @@ const MIN_VIEWPORT = new BBox([Infinity, -0.001], [-Infinity, 0.001]);
  * Curver base class for Plotter and Editor.
  */
 export class CurverBase extends HTMLElement {
-    constructor(auto=true) {
+    constructor(auto = true) {
         console.log("CurverBase.constructor");
         super();
         this.auto = auto;
@@ -158,7 +158,10 @@ export class CurverBase extends HTMLElement {
         this.transportGroup.id = "cursor"
         this.splineGroup = this.svg.appendChild(create_element("g"));
         this.splineGroup.id = "selected-spline"
- 
+        this.knotPosition = this.svg.appendChild(create_element("text"))
+        this.knotPosition.id = "knot-position"
+        this.knotPosition.visibility = "hidden"
+
         this.graphs = document.createElement("div")
         this.graphs.classList.add("graphDiv")
         this.graphs.appendChild(this.canvas)
@@ -236,6 +239,14 @@ export class CurverBase extends HTMLElement {
         const rect = this.canvas.getBoundingClientRect();
         const x = evt.clientX - rect.left;
         const y = evt.clientY - rect.top;
+        const pt = (new DOMPoint(x, y)).matrixTransform(this.trafoInv);
+        return [pt.x, pt.y]
+    }
+
+    /**
+    * Transform a point from view space => data space
+    */
+    inverseTransform_point(x, y) {
         const pt = (new DOMPoint(x, y)).matrixTransform(this.trafoInv);
         return [pt.x, pt.y]
     }

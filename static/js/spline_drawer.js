@@ -226,6 +226,20 @@ export class SplineDrawer {
                 wc.remove_knot(knot);
                 this.editor.spline_changed(wc);
             });
+            circle.addEventListener("mouseover", evt => {
+                this.editor.knotPosition.setAttribute("visibility", "visible")
+                const knotViewSpaceX = parseFloat(evt.target.getAttribute("cx"))
+                const knotViewSpaceY = parseFloat(evt.target.getAttribute("cy"))
+                const ptDataSpace = this.editor.inverseTransform_point(knotViewSpaceX, knotViewSpaceY)
+                this.editor.knotPosition.innerHTML = ptDataSpace[0].toPrecision(2) + ", " + ptDataSpace[1].toPrecision(2) 
+                const textBBox = this.editor.knotPosition.getBBox()
+                this.editor.knotPosition.setAttribute("x", knotViewSpaceX - (textBBox.width / 2)) 
+                const r = evt.target.getAttribute("r")
+                this.editor.knotPosition.setAttribute("y", knotViewSpaceY - 2 * r)
+            })
+            circle.addEventListener("mouseleave" , evt => {
+                this.editor.knotPosition.setAttribute("visibility", "hidden")
+            })
         });
 
         this.draw();
