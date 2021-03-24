@@ -123,11 +123,11 @@ div.spline-list-entry:hover {
 }
 
 /** Edit filename */
-div.spline-list-entry span:last-child:hover {
+div.spline-list-entry span + span:hover {
   cursor: text;
 }
 
-div.spline-list-entry span:last-child {
+div.spline-list-entry span + span {
   caret-color: silver;
 }
 
@@ -154,6 +154,11 @@ span.spline-checkbox {
   height: 24px;
   margin-right: 8px;
   flex-shrink: 0;
+}
+
+#spline-list-toolbar {
+  margin-top: 5px;
+  margin-bottom: 20px;
 }
 
 .spline-list {
@@ -207,4 +212,3 @@ button.record[checked] {
   color:red;
   border: 2px solid red;
 }
-

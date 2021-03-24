@@ -30,6 +30,7 @@ export class SplineList {
         container.appendChild(this.splineListDiv)
 
         const newBtnContainer = document.createElement("div")
+        newBtnContainer.id = "spline-list-toolbar"
         container.appendChild(newBtnContainer)
         newBtnContainer.style.display = "flex"
         newBtnContainer.style.justifyContent = "center"
@@ -65,7 +66,6 @@ export class SplineList {
         })
         newBtnContainer.appendChild(this.duplSplineButton)
 
-
         // insert after css link
         this.editor.shadowRoot.insertBefore(container, this.editor.shadowRoot.childNodes[1])
     }
@@ -81,11 +81,19 @@ export class SplineList {
             entry.classList.add("noselect")
             entry.id = spline.filename
             entry.addEventListener("click", evt => {
+
+                if (this.editor.history.isUnsaved && this.editor.history.undoable) {
+                    if (!confirm("Discard unsaved editing?")) {
+                        return
+                    }
+                }
                 if (evt.currentTarget.id !== this.selected) {
-                    // Cant unselect current spline, at least one spline needs 
-                    // to be selected. 
+                    if (!this.preSelectVisibility) {
+                        this.visibles.delete(this.selected)
+                    }
                     this.selected = evt.currentTarget.id
-                    this.visibles.add(evt.currentTarget.id)
+                    this.preSelectVisibility = this.visibles.has(this.selected)
+                    // this.visibles.add(evt.currentTarget.id)
                     this.update_spline_list_selection()
                     this.init_spline_selection()
                     const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
@@ -102,10 +110,11 @@ export class SplineList {
             checkbox.value = spline.filename
             checkbox.title = "Show in Graph"
             checkbox.addEventListener("click", evt => {
+
                 evt.stopPropagation()
                 const filename = evt.target.parentNode.id
                 if (this.selected === filename) {
-                    return
+                    this.preSelectVisibility = true
                 }
 
                 if (this.visibles.has(filename)) {
@@ -239,7 +248,7 @@ export class SplineList {
             if (latest >= 0) {
                 const spline_fd = this.splines[latest].filename
                 this.selected = spline_fd
-                this.visibles.add(spline_fd)
+                this.preSelectVisibility = false;
             }
             this.init_spline_selection()
         }
@@ -257,7 +266,7 @@ export class SplineList {
         this.editor.history.clear()
         const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
         this.editor.load_spline(selectedSpline.content)
-        this.editor.history.capture(selectedSpline.content);
+        this.editor.history.isUnsaved = false
         const currentSpline = this.editor.history.retrieve();
         const bbox = currentSpline.bbox();
         bbox.expand_by_point([0., 0]);

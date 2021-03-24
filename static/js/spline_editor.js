@@ -17,7 +17,6 @@ import { API, INTERVAL } from "/static/js/config.js";
 import { MotorSelector } from "/static/js/motor_selector.js";
 import { toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button } from "/static/js/button.js";
 import { put, post, delete_fetch, get_json, fetch_json, post_json, put_json, } from "/static/js/fetching.js";
-import { bezier_to_bpoly } from "/static/js/bezier.js"
 
 
 /** Zero spline with duration 1.0 */
@@ -117,8 +116,8 @@ class Editor extends CurverBase {
         get_json(API + "/motors").then(motorInfos => {
             this.motorSelector.populate(motorInfos);
         });
+
         this.reload_spline_list()
-        return;
     }
 
     /**
@@ -132,6 +131,16 @@ class Editor extends CurverBase {
      * Populate toolbar with buttons and motor selection. Wire up event listeners.
      */
     setup_toolbar_elements() {
+
+        // Motor selection
+        const select = this.add_select();
+        select.addEventListener("change", evt => {
+            this.stop_all_spline_playbacks();
+        });
+        this.motorSelector = new MotorSelector(select);
+
+        this.add_space_to_toolbar();
+
         // Transport buttons
         this.playPauseBtn = this.add_button("play_arrow", "Play / pause motion playback");
         this.recBtn = this.add_button("fiber_manual_record", "Record motion");
@@ -161,15 +170,6 @@ class Editor extends CurverBase {
             this.transport.toggle_looping();
             this.update_ui();
         });
-
-        this.add_space_to_toolbar();
-
-        // Motor selection
-        const select = this.add_select();
-        select.addEventListener("change", evt => {
-            this.stop_all_spline_playbacks();
-        });
-        this.motorSelector = new MotorSelector(select);
 
         this.add_space_to_toolbar();
 
@@ -226,6 +226,15 @@ class Editor extends CurverBase {
             if (!this.history.length) return;
             this.save_spline().then(res => {
                 console.log("saved motion")
+            })
+        })
+
+        this.add_button("save", "Save motion").addEventListener("click", evt => {
+            if (!this.history.length) return;
+            this.save_spline().then(res => {
+                this.history.isUnsaved = false
+                const selectedSpline = this.splineList.splines.filter(sp => sp.filename === this.splineList.selected)[0]
+                selectedSpline.content = BPoly.from_object(res)
             })
         })
 
@@ -380,6 +389,7 @@ class Editor extends CurverBase {
     load_spline(spline) {
         this.history.clear();
         this.history.capture(spline);
+        this.history.isUnsaved = false
         const bbox = spline.bbox();
         bbox.expand_by_bbox(DEFAULT_DATA_BBOX);
         this.dataBbox = bbox;
