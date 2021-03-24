@@ -290,10 +290,10 @@ export class CurverBase extends HTMLElement {
         origin.x = Math.round(origin.x);
         origin.y = Math.round(origin.y);
 
-        ctx.moveTo(0, origin.y);
-        ctx.lineTo(this.width, origin.y);
-        ctx.moveTo(origin.x, 0);
-        ctx.lineTo(origin.x, this.height);
+        ctx.moveTo(MARGIN, origin.y);
+        ctx.lineTo(this.width - MARGIN, origin.y);
+        ctx.moveTo(origin.x, MARGIN);
+        ctx.lineTo(origin.x, this.height - MARGIN);
         ctx.stroke();
 
         // Draw ticks
