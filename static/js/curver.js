@@ -158,9 +158,6 @@ export class CurverBase extends HTMLElement {
         this.transportGroup.id = "cursor"
         this.splineGroup = this.svg.appendChild(create_element("g"));
         this.splineGroup.id = "selected-spline"
-        this.knotPosition = this.svg.appendChild(create_element("text"))
-        this.knotPosition.id = "knot-position"
-        this.knotPosition.visibility = "hidden"
 
         this.graphs = document.createElement("div")
         this.graphs.classList.add("graphDiv")

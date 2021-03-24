@@ -13,6 +13,10 @@ export class SplineDrawer {
         this.container = container;
         this.splines = [];
         this.elements = [];
+
+        this.label = editor.svg.appendChild(create_element("text"))
+        this.label.id = "knot-position"
+        this.label.visibility = "hidden"
     }
 
     /**
@@ -217,6 +221,7 @@ export class SplineDrawer {
                 pos => {
                     this.editor.spline_changing(pos[1]);
                     wc.position_knot(knot, pos, this.editor.c1);
+                    this.label.innerHTML = pos[0].toPrecision(2) + ", " + pos[1].toPrecision(2);
                 },
                 wc,
             );
@@ -227,18 +232,18 @@ export class SplineDrawer {
                 this.editor.spline_changed(wc);
             });
             circle.addEventListener("mouseover", evt => {
-                this.editor.knotPosition.setAttribute("visibility", "visible")
+                this.label.setAttribute("visibility", "visible")
                 const knotViewSpaceX = parseFloat(evt.target.getAttribute("cx"))
                 const knotViewSpaceY = parseFloat(evt.target.getAttribute("cy"))
                 const ptDataSpace = this.editor.inverseTransform_point(knotViewSpaceX, knotViewSpaceY)
-                this.editor.knotPosition.innerHTML = ptDataSpace[0].toPrecision(2) + ", " + ptDataSpace[1].toPrecision(2) 
-                const textBBox = this.editor.knotPosition.getBBox()
-                this.editor.knotPosition.setAttribute("x", knotViewSpaceX - (textBBox.width / 2)) 
+                this.label.innerHTML = ptDataSpace[0].toPrecision(2) + ", " + ptDataSpace[1].toPrecision(2)
+                const textBBox = this.label.getBBox()
+                this.label.setAttribute("x", knotViewSpaceX - (textBBox.width / 2))
                 const r = evt.target.getAttribute("r")
-                this.editor.knotPosition.setAttribute("y", knotViewSpaceY - 2 * r)
+                this.label.setAttribute("y", knotViewSpaceY - 2 * r)
             })
             circle.addEventListener("mouseleave" , evt => {
-                this.editor.knotPosition.setAttribute("visibility", "hidden")
+                this.label.setAttribute("visibility", "hidden")
             })
         });
 
