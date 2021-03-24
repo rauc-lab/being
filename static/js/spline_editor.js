@@ -583,6 +583,11 @@ class Editor extends CurverBase {
      */
     new_data(msg) {
         const t = this.transport.move(msg.timestamp);
+        if (!this.motorSelector.actualValueIndex){
+            // In case ws message hits before motorSelector has received motors
+            return
+        }
+
         const actualValue = msg.values[this.motorSelector.actualValueIndex];
         if (this.transport.playing && t > this.transport.duration) {
             this.transport.stop();

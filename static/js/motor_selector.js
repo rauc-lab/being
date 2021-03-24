@@ -30,7 +30,9 @@ export class MotorSelector {
      * Output value index of actual value for currently selected motor.
      */
     get actualValueIndex() {
-        return this.motorInfos[this.selected_index].actualValueIndex;
+        if (this.motorInfos[this.selected_index]) {
+            return this.motorInfos[this.selected_index].actualValueIndex;
+        }
     }
 
     motor_url(id) {
