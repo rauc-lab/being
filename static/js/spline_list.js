@@ -66,7 +66,6 @@ export class SplineList {
         })
         newBtnContainer.appendChild(this.duplSplineButton)
 
-
         // insert after css link
         this.editor.shadowRoot.insertBefore(container, this.editor.shadowRoot.childNodes[1])
     }
@@ -92,7 +91,6 @@ export class SplineList {
                     if (!this.preSelectVisibility) {
                         this.visibles.delete(this.selected)
                     }
-
                     this.selected = evt.currentTarget.id
                     this.preSelectVisibility = this.visibles.has(this.selected)
                     // this.visibles.add(evt.currentTarget.id)
@@ -112,6 +110,7 @@ export class SplineList {
             checkbox.value = spline.filename
             checkbox.title = "Show in Graph"
             checkbox.addEventListener("click", evt => {
+
                 evt.stopPropagation()
                 const filename = evt.target.parentNode.id
                 if (this.selected === filename) {
@@ -267,7 +266,6 @@ export class SplineList {
         this.editor.history.clear()
         const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
         this.editor.load_spline(selectedSpline.content)
-        // this.editor.history.capture(selectedSpline.content);
         this.editor.history.isUnsaved = false
         const currentSpline = this.editor.history.retrieve();
         const bbox = currentSpline.bbox();

@@ -227,7 +227,8 @@ class Editor extends CurverBase {
             if (!this.history.length) return;
             this.save_spline().then(res => {
                 this.history.isUnsaved = false
-                console.log("saved motion")
+                const selectedSpline = this.splineList.splines.filter(sp => sp.filename === this.splineList.selected)[0]
+                selectedSpline.content = BPoly.from_object(res)
             })
         })
 
