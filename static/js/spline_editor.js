@@ -222,6 +222,12 @@ class Editor extends CurverBase {
             this.stop_spline_playback();
             this.draw_current_spline();
         });
+        this.add_button("save", "Save motion").addEventListener("click", evt => {
+            if (!this.history.length) return;
+            this.save_spline().then(res => {
+                console.log("saved motion")
+            })
+        })
 
         this.add_space_to_toolbar();
 
@@ -254,15 +260,6 @@ class Editor extends CurverBase {
             const newSpline = stretch_spline(this.history.retrieve(), 2.0);
             this.spline_changed(newSpline);
         });
-
-        this.add_space_to_toolbar();
-
-        this.add_button("save", "Save motion").addEventListener("click", evt => {
-            if (!this.history.length) return;
-            this.save_spline().then(res => {
-                console.log("saved motion")
-            })
-        })
     }
 
 
@@ -477,6 +474,7 @@ class Editor extends CurverBase {
         await put_json(url, { "position": position });
     }
 
+
     /**
      * API call for starting recording trajectory. Disables motors in back end.
      */
@@ -536,12 +534,14 @@ class Editor extends CurverBase {
         return await post_json(API + "/motions")
     }
 
-    async save_spline() {
-        const bpoly = bezier_to_bpoly(this.history.retrieve())
-        const url = encodeURI(API + "/motions/" + this.splineList.selected)
 
-         return  await put_json(url, bpoly)
+    async save_spline() {
+        const bpoly = this.history.retrieve();
+        const url = encodeURI(API + "/motions/" + this.splineList.selected);
+        await put_json(url, bpoly.to_dict());
+        this.load_spline(bpoly);
     }
+
 
     async duplicate_spline(name) {
         let url = API + "/motions/" + name;
@@ -550,12 +550,14 @@ class Editor extends CurverBase {
         return await post(url);
     }
 
+
     async rename_spline(name, new_name) {
         let url = API + "/motions/" + name + "?rename=" + new_name;
         url = encodeURI(url)
 
         return await put_json(url)
     }
+
 
     async delete_spline(name) {
         let url = API + "/motions/" + name;
@@ -564,9 +566,11 @@ class Editor extends CurverBase {
         return await delete_fetch(url)
     }
 
+
     async fetch_splines() {
         return await get_json("/api/motions")
     }
+
 
     reload_spline_list() {
         this.fetch_splines().then(res => {
@@ -577,12 +581,14 @@ class Editor extends CurverBase {
         })
     }
 
+
     /**
      * Process new data message from backend.
      */
     new_data(msg) {
         const t = this.transport.move(msg.timestamp);
-        if (!this.motorSelector.actualValueIndex){
+
+        if (this.motorSelector.unselected) {
             // In case ws message hits before motorSelector has received motors
             return
         }
@@ -604,6 +610,5 @@ class Editor extends CurverBase {
         }
     }
 }
-
 
 customElements.define("being-editor", Editor);
