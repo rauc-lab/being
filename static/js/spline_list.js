@@ -30,6 +30,7 @@ export class SplineList {
         container.appendChild(this.splineListDiv)
 
         const newBtnContainer = document.createElement("div")
+        newBtnContainer.id = "spline-list-toolbar"
         container.appendChild(newBtnContainer)
         newBtnContainer.style.display = "flex"
         newBtnContainer.style.justifyContent = "center"

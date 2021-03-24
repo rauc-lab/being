@@ -117,8 +117,8 @@ class Editor extends CurverBase {
         get_json(API + "/motors").then(motorInfos => {
             this.motorSelector.populate(motorInfos);
         });
+
         this.reload_spline_list()
-        return;
     }
 
     /**
