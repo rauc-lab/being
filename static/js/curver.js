@@ -27,7 +27,9 @@ const COLORS = [
 const MARGIN = 50;
 
 
-const MIN_BBOX = new BBox([0, -0.001], [1, 0.001]);
+/** Minimum sized bounding box for viewport */
+const MIN_VIEWPORT = new BBox([Infinity, -0.001], [-Infinity, 0.001]);
+
 
 /**
  * Curver base class for Plotter and Editor.
@@ -39,7 +41,7 @@ export class CurverBase extends HTMLElement {
         this.auto = auto;
         this.width = 1;
         this.height = 1;
-        this.viewport = MIN_BBOX.copy();
+        this.viewport = MIN_VIEWPORT.copy();
         this.trafo = new DOMMatrix();
         this.trafoInv = new DOMMatrix();
         this.lines = [];
@@ -75,9 +77,9 @@ export class CurverBase extends HTMLElement {
         }
 
         const btn = document.createElement("button");
-        btn.classList.add("mdc-icon-button")
-        btn.classList.add("material-icons")
-        btn.classList.add("btn-black")
+        btn.classList.add("mdc-icon-button");
+        btn.classList.add("material-icons");
+        btn.classList.add("btn-black");
         btn.innerHTML = innerHTML;
         btn.title = title;
         btn.id = id;
@@ -168,11 +170,16 @@ export class CurverBase extends HTMLElement {
     }
 
 
+    reset_viewport() {
+        this.viewport = MIN_VIEWPORT.copy();
+    }
+
+
     /**
      * Update viewport bounding box.
      */
     update_bbox() {
-        this.viewport = MIN_BBOX.copy();
+        this.reset_viewport();
         this.lines.forEach(line => {
             this.viewport.expand_by_bbox(line.calc_bbox());
         });
@@ -195,7 +202,7 @@ export class CurverBase extends HTMLElement {
         });
         this.trafoInv = this.trafo.inverse();
         this.ctx.setTransform(this.trafo);
-        //this.svg.g.setAttribute("transform", this.trafo.toString());
+        //this.svg.g.setAttribute("transform", this.trafo.toString());  // Sadly not working because of skewed aspect ratio :(
     }
 
 

@@ -1,4 +1,8 @@
 "use strict";
+/**
+ * All kinds of math helpers. Also some numpy flavored array functions.
+ */
+
 
 /**
  * Clip value to [lower, upper] boundaries.
@@ -137,10 +141,10 @@ export function array_max(arr) {
 /**
  * Create zeros array in arbitrary dimensions.
  */
-export function zeros(dimensions) {
+export function zeros(shape) {
     let array = [];
-    for (let i = 0; i < dimensions[0]; i++) {
-        array.push(dimensions.length === 1 ? 0 : zeros(dimensions.slice(1)));
+    for (let i = 0; i < shape[0]; i++) {
+        array.push(shape.length === 1 ? 0 : zeros(shape.slice(1)));
     }
 
     return array;
