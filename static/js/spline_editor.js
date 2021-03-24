@@ -76,7 +76,6 @@ class Editor extends CurverBase {
         const auto = false;
         super(auto);
         this.history = new History();
-        this.dataBbox = DEFAULT_DATA_BBOX.copy();
         this.transport = new Transport(this);
         this.drawer = new SplineDrawer(this, this.splineGroup);
         this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
@@ -196,7 +195,12 @@ class Editor extends CurverBase {
             this.draw();
         });
         this.add_button("zoom_out_map", "Reset zoom").addEventListener("click", evt => {
-            this.viewport = this.dataBbox.copy();
+            if (!this.history.length) return;
+
+            const current = this.history.retrieve();
+            const bbox = current.bbox();
+            bbox.expand_by_bbox(DEFAULT_DATA_BBOX);
+            this.viewport = current.bbox();
             this.update_trafo();
             this.draw();
         });
@@ -376,12 +380,8 @@ class Editor extends CurverBase {
     load_spline(spline) {
         this.history.clear();
         this.history.capture(spline);
-        this.history.isUnsaved = false
-        const bbox = spline.bbox();
-        bbox.expand_by_bbox(DEFAULT_DATA_BBOX);
-        this.dataBbox = bbox;
-        this.viewport = this.dataBbox.copy();
-        this.update_trafo();
+        this.history.isUnsaved = false;
+        this.viewport = spline.bbox();
         this.draw_current_spline();
     }
 
@@ -390,12 +390,18 @@ class Editor extends CurverBase {
      * Draw current version of spline from history.
      */
     draw_current_spline() {
-        this.drawer.clear();
         const current = this.history.retrieve();
-        const duration = current.end;
-        this.transport.duration = duration;
-        this.line.maxlen = .8 * duration / INTERVAL;
+
+        this.viewport.ll[1] = Math.min(this.viewport.ll[1], current.min);
+        this.viewport.ur[1] = Math.max(this.viewport.ur[1], current.max);
+        this.update_trafo();
+
+        this.transport.duration = current.duration;
+        this.line.maxlen = .8 * current.duration / INTERVAL;
+
+        this.drawer.clear();
         this.drawer.draw_spline(current);
+
         this.update_ui();
     }
 
