@@ -102,11 +102,14 @@ def content_controller(content: Content) -> web.RouteTableDef:
 
             else:
                 spline = await request.json(loads=loads)
+                try:
+                    content.save_motion(spline, name)
+                    return json_response(spline)
+                except:
+                    return web.HTTPError(text="Saving spline failed!")
+
         except json.JSONDecodeError as err:
             return web.HTTPNotAcceptable(text='Failed deserializing JSON spline!')
-
-        content.save_motion(spline, name)
-        return json_response(spline)
 
     @routes.delete('/motions/{name}')
     async def delete_motion(request):
@@ -173,7 +176,6 @@ def being_controller(being) -> web.RouteTableDef:
             LOGGER.debug('dct: %s', dct)
             return web.HTTPBadRequest(text='fSomething went wrong with the spline. Raw data was: {dct}!')
 
-
     @routes.post('/motors/{id}/stop')
     async def stop_spline_playback(request):
         """Stop spline playback."""
@@ -185,7 +187,6 @@ def being_controller(being) -> web.RouteTableDef:
         except IndexError:
             return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
 
-
     @routes.post('/motors/stop')
     async def stop_all_spline_playbacks(request):
         """Stop all spline playbacks aka. stop all motion players."""
@@ -193,7 +194,6 @@ def being_controller(being) -> web.RouteTableDef:
             mp.stop()
 
         return respond_ok()
-
 
     @routes.put('/motors/{id}/livePreview')
     async def live_preview(request):
@@ -208,7 +208,6 @@ def being_controller(being) -> web.RouteTableDef:
             return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
         except KeyError:
             return web.HTTPBadRequest(text='Could not parse spline!')
-
 
     @routes.put("/motors/disenable")
     def disenable_drives(request):
@@ -263,9 +262,12 @@ def init_web_server(being=None, content=None) -> web.Application:
 
     # Pages
     app.router.add_get('/', file_response_handler('static/index.html'))
-    app.router.add_get('/spline-editor', file_response_handler('static/spline-editor.html'))
-    app.router.add_get('/favicon.ico', file_response_handler('static/favicon.ico'))
-    app.router.add_get('/web-socket-test', file_response_handler('static/web-socket-test.html'))
+    app.router.add_get(
+        '/spline-editor', file_response_handler('static/spline-editor.html'))
+    app.router.add_get(
+        '/favicon.ico', file_response_handler('static/favicon.ico'))
+    app.router.add_get('/web-socket-test',
+                       file_response_handler('static/web-socket-test.html'))
 
     # Rest API
     api = web.Application()

@@ -1,6 +1,6 @@
 "use strict";
-import {array_shape} from "/static/js/math.js";
-import {last_element} from "/static/js/utils.js";
+import { array_shape } from "/static/js/math.js";
+import { last_element } from "/static/js/utils.js";
 // TODO: Should we change serialization of splines? knots -> x, coefficients ->
 // c? Same as like within Python / Scipy?
 
@@ -60,20 +60,26 @@ export function bpoly_to_bezier(spline) {
     const degree = order - 1;
     const nSegments = shape[1];
     const cps = [];
-    for (let seg=0; seg<nSegments; seg++) {
+    for (let seg = 0; seg < nSegments; seg++) {
         let x0 = spline.knots[seg];
         let x1 = spline.knots[seg + 1];
         let dx = (x1 - x0) / (order - 1)
-        for (let n=0; n<degree; n++) {
+        for (let n = 0; n < degree; n++) {
             cps.push([x0 + n * dx, c[n][seg]])
         }
     }
 
-    cps.push([last_element(x), c[degree][nSegments-1]]);
+    cps.push([last_element(x), c[degree][nSegments - 1]]);
     return cps;
 }
 
 
 export function bezier_to_bpoly(cps) {
-    // TODO: Make me!
+    return {
+        type: "BPoly",
+        extrapolate: cps.extrapolate,
+        axis: cps.axis,
+        knots: cps.x,
+        coefficients: cps.c
+    }
 }
