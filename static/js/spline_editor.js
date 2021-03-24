@@ -83,7 +83,6 @@ class Editor extends CurverBase {
         this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
         this.motorSelector = null;  // Gets initialized inside setup_toolbar_elements(). Not nice but...
         this.splineList = new SplineList(this);
-        this.reload_spline_list()
         this.trajectory = [];
 
         // Single actual value line
@@ -118,7 +117,7 @@ class Editor extends CurverBase {
         get_json(API + "/motors").then(motorInfos => {
             this.motorSelector.populate(motorInfos);
         });
-        this.load_spline(ZERO_SPLINE);
+        this.reload_spline_list()
         return;
     }
 

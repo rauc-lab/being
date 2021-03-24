@@ -256,6 +256,7 @@ export class SplineList {
     init_spline_selection() {
         this.editor.history.clear()
         const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
+        this.editor.load_spline(selectedSpline.content)
         this.editor.history.capture(selectedSpline.content);
         const currentSpline = this.editor.history.retrieve();
         const bbox = currentSpline.bbox();
