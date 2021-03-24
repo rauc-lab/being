@@ -139,8 +139,6 @@ class Editor extends CurverBase {
         });
         this.motorSelector = new MotorSelector(select);
 
-        this.add_space_to_toolbar();
-
         // Transport buttons
         this.playPauseBtn = this.add_button("play_arrow", "Play / pause motion playback");
         this.recBtn = this.add_button("fiber_manual_record", "Record motion");
@@ -173,11 +171,15 @@ class Editor extends CurverBase {
 
         this.add_space_to_toolbar();
 
-        // Toggle live preview
+        // Tool adjustments
         this.livePreviewBtn = this.add_button("precision_manufacturing", "Toggle live preview of knot position on the motor");
         switch_button_on(this.livePreviewBtn);
         this.livePreviewBtn.addEventListener("click", evt => {
             toggle_button(this.livePreviewBtn);
+        });
+        this.c1Btn = this.add_button("timeline", "Break continous knot transitions");
+        this.c1Btn.addEventListener("click", evt => {
+            toggle_button(this.c1Btn);
         });
 
         this.add_space_to_toolbar();
@@ -201,14 +203,6 @@ class Editor extends CurverBase {
 
         this.add_space_to_toolbar();
 
-        // C1 line continuity toggle button
-        this.c1Btn = this.add_button("timeline", "Break continous knot transitions");
-        this.c1Btn.addEventListener("click", evt => {
-            toggle_button(this.c1Btn);
-        });
-
-        this.add_space_to_toolbar();
-
         // Editing history buttons
         this.undoBtn = this.add_button("undo", "Undo last action");
         this.undoBtn.addEventListener("click", evt => {
@@ -222,13 +216,6 @@ class Editor extends CurverBase {
             this.stop_spline_playback();
             this.draw_current_spline();
         });
-        this.add_button("save", "Save motion").addEventListener("click", evt => {
-            if (!this.history.length) return;
-            this.save_spline().then(res => {
-                console.log("saved motion")
-            })
-        })
-
         this.add_button("save", "Save motion").addEventListener("click", evt => {
             if (!this.history.length) return;
             this.save_spline().then(res => {
