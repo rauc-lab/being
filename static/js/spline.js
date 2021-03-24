@@ -33,8 +33,8 @@ export const Degree = Object.freeze({
 });
 
 
-const LEFT = "left";
-const RIGHT = "right";
+export const LEFT = "left";
+export const RIGHT = "right";
 
 
 /**

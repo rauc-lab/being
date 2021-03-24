@@ -240,14 +240,6 @@ export class CurverBase extends HTMLElement {
         return [pt.x, pt.y]
     }
 
-    /**
-    * Transform a point from view space => data space
-    */
-    inverseTransform_point(x, y) {
-        const pt = (new DOMPoint(x, y)).matrixTransform(this.trafoInv);
-        return [pt.x, pt.y]
-    }
-
 
     /**
      * Transform a data point -> view space.

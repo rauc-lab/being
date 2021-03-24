@@ -2,9 +2,13 @@
 import { BBox } from "/static/js/bbox.js";
 import { make_draggable } from "/static/js/draggable.js";
 import { arange } from "/static/js/math.js";
-import { KNOT, FIRST_CP, SECOND_CP, Degree } from "/static/js/spline.js";
+import { KNOT, FIRST_CP, SECOND_CP, Degree, LEFT, RIGHT } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
 import { assert, arrays_equal, clear_array } from "/static/js/utils.js";
+
+
+/** Precision for label numbers */
+const PRECISION = 2;
 
 
 export class SplineDrawer {
@@ -13,10 +17,8 @@ export class SplineDrawer {
         this.container = container;
         this.splines = [];
         this.elements = [];
-
-        this.label = editor.svg.appendChild(create_element("text"))
-        this.label.id = "knot-position"
-        this.label.visibility = "hidden"
+        this.label = editor.svg.appendChild(create_element("text"));
+        this.label.visibility = "hidden";
     }
 
     /**
@@ -65,6 +67,10 @@ export class SplineDrawer {
             evt => {
                 const end = this.editor.mouse_coordinates(evt);
                 on_drag(end);
+                this.label.setAttribute("visibility", "visible");
+                const pt = this.editor.transform_point(end);
+                this.label.setAttribute("x", pt[0] + 15);
+                this.label.setAttribute("y", pt[1] - 15);
                 this.draw();
             },
             evt => {
@@ -73,6 +79,7 @@ export class SplineDrawer {
                     return;
                 }
                 this.editor.spline_changed(workingCopy);
+                this.label.setAttribute("visibility", "hidden");
             }
         );
     }
@@ -203,6 +210,14 @@ export class SplineDrawer {
                     circle,
                     pos => {
                         wc.position_control_point(seg, cp, pos[1], this.editor.c1);
+                        let slope = 0;
+                        if (cp === FIRST_CP) {
+                            slope = wc.get_derivative_at_knot(seg, RIGHT);
+                        } else if (cp === SECOND_CP) {
+                            slope = wc.get_derivative_at_knot(seg + 1, LEFT);
+                        }
+
+                        this.label.innerHTML = slope.toPrecision(PRECISION);
                     },
                     wc,
                 );
@@ -221,7 +236,7 @@ export class SplineDrawer {
                 pos => {
                     this.editor.spline_changing(pos[1]);
                     wc.position_knot(knot, pos, this.editor.c1);
-                    this.label.innerHTML = pos[0].toPrecision(2) + ", " + pos[1].toPrecision(2);
+                    this.label.innerHTML = pos[0].toPrecision(PRECISION) + ", " + pos[1].toPrecision(PRECISION);
                 },
                 wc,
             );
@@ -231,20 +246,6 @@ export class SplineDrawer {
                 wc.remove_knot(knot);
                 this.editor.spline_changed(wc);
             });
-            circle.addEventListener("mouseover", evt => {
-                this.label.setAttribute("visibility", "visible")
-                const knotViewSpaceX = parseFloat(evt.target.getAttribute("cx"))
-                const knotViewSpaceY = parseFloat(evt.target.getAttribute("cy"))
-                const ptDataSpace = this.editor.inverseTransform_point(knotViewSpaceX, knotViewSpaceY)
-                this.label.innerHTML = ptDataSpace[0].toPrecision(2) + ", " + ptDataSpace[1].toPrecision(2)
-                const textBBox = this.label.getBBox()
-                this.label.setAttribute("x", knotViewSpaceX - (textBBox.width / 2))
-                const r = evt.target.getAttribute("r")
-                this.label.setAttribute("y", knotViewSpaceY - 2 * r)
-            })
-            circle.addEventListener("mouseleave" , evt => {
-                this.label.setAttribute("visibility", "hidden")
-            })
         });
 
         this.draw();
