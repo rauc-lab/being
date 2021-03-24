@@ -139,8 +139,6 @@ class Editor extends CurverBase {
         });
         this.motorSelector = new MotorSelector(select);
 
-        this.add_space_to_toolbar();
-
         // Transport buttons
         this.playPauseBtn = this.add_button("play_arrow", "Play / pause motion playback");
         this.recBtn = this.add_button("fiber_manual_record", "Record motion");
@@ -173,11 +171,15 @@ class Editor extends CurverBase {
 
         this.add_space_to_toolbar();
 
-        // Toggle live preview
+        // Tool adjustments
         this.livePreviewBtn = this.add_button("precision_manufacturing", "Toggle live preview of knot position on the motor");
         switch_button_on(this.livePreviewBtn);
         this.livePreviewBtn.addEventListener("click", evt => {
             toggle_button(this.livePreviewBtn);
+        });
+        this.c1Btn = this.add_button("timeline", "Break continous knot transitions");
+        this.c1Btn.addEventListener("click", evt => {
+            toggle_button(this.c1Btn);
         });
 
         this.add_space_to_toolbar();
@@ -201,14 +203,6 @@ class Editor extends CurverBase {
 
         this.add_space_to_toolbar();
 
-        // C1 line continuity toggle button
-        this.c1Btn = this.add_button("timeline", "Break continous knot transitions");
-        this.c1Btn.addEventListener("click", evt => {
-            toggle_button(this.c1Btn);
-        });
-
-        this.add_space_to_toolbar();
-
         // Editing history buttons
         this.undoBtn = this.add_button("undo", "Undo last action");
         this.undoBtn.addEventListener("click", evt => {
@@ -222,7 +216,6 @@ class Editor extends CurverBase {
             this.stop_spline_playback();
             this.draw_current_spline();
         });
-
         this.add_button("save", "Save motion").addEventListener("click", evt => {
             if (!this.history.length) return;
             this.save_spline().then(res => {
@@ -478,6 +471,7 @@ class Editor extends CurverBase {
         await put_json(url, { "position": position });
     }
 
+
     /**
      * API call for starting recording trajectory. Disables motors in back end.
      */
@@ -537,12 +531,14 @@ class Editor extends CurverBase {
         return await post_json(API + "/motions")
     }
 
-    async save_spline() {
-        const bpoly = this.history.retrieve().to_dict()
-        const url = encodeURI(API + "/motions/" + this.splineList.selected)
 
-         return  await put_json(url, bpoly)
+    async save_spline() {
+        const bpoly = this.history.retrieve();
+        const url = encodeURI(API + "/motions/" + this.splineList.selected);
+        await put_json(url, bpoly.to_dict());
+        this.load_spline(bpoly);
     }
+
 
     async duplicate_spline(name) {
         let url = API + "/motions/" + name;
@@ -551,12 +547,14 @@ class Editor extends CurverBase {
         return await post(url);
     }
 
+
     async rename_spline(name, new_name) {
         let url = API + "/motions/" + name + "?rename=" + new_name;
         url = encodeURI(url)
 
         return await put_json(url)
     }
+
 
     async delete_spline(name) {
         let url = API + "/motions/" + name;
@@ -565,9 +563,11 @@ class Editor extends CurverBase {
         return await delete_fetch(url)
     }
 
+
     async fetch_splines() {
         return await get_json("/api/motions")
     }
+
 
     reload_spline_list() {
         this.fetch_splines().then(res => {
@@ -578,12 +578,14 @@ class Editor extends CurverBase {
         })
     }
 
+
     /**
      * Process new data message from backend.
      */
     new_data(msg) {
         const t = this.transport.move(msg.timestamp);
-        if (!this.motorSelector.actualValueIndex){
+
+        if (this.motorSelector.unselected) {
             // In case ws message hits before motorSelector has received motors
             return
         }
@@ -605,6 +607,5 @@ class Editor extends CurverBase {
         }
     }
 }
-
 
 customElements.define("being-editor", Editor);

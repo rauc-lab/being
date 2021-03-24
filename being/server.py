@@ -262,12 +262,9 @@ def init_web_server(being=None, content=None) -> web.Application:
 
     # Pages
     app.router.add_get('/', file_response_handler('static/index.html'))
-    app.router.add_get(
-        '/spline-editor', file_response_handler('static/spline-editor.html'))
-    app.router.add_get(
-        '/favicon.ico', file_response_handler('static/favicon.ico'))
-    app.router.add_get('/web-socket-test',
-                       file_response_handler('static/web-socket-test.html'))
+    app.router.add_get('/spline-editor', file_response_handler('static/spline-editor.html'))
+    app.router.add_get('/favicon.ico', file_response_handler('static/favicon.ico'))
+    app.router.add_get('/web-socket-test', file_response_handler('static/web-socket-test.html'))
 
     # Rest API
     api = web.Application()

@@ -12,6 +12,10 @@ export class MotorSelector {
         this.motorInfos = [];
     }
 
+    get unselected() {
+        return this.select.selectedIndex === NOTHING_SELECTED;
+    }
+
     /**
      * Currently selected motor index.
      */
