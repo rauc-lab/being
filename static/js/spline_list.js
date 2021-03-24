@@ -83,10 +83,13 @@ export class SplineList {
             entry.id = spline.filename
             entry.addEventListener("click", evt => {
                 if (evt.currentTarget.id !== this.selected) {
-                    // Cant unselect current spline, at least one spline needs 
-                    // to be selected. 
+                    if (!this.preSelectVisibility) {
+                        this.visibles.delete(this.selected)
+                    }
+
                     this.selected = evt.currentTarget.id
-                    this.visibles.add(evt.currentTarget.id)
+                    this.preSelectVisibility = this.visibles.has(this.selected)
+                    // this.visibles.add(evt.currentTarget.id)
                     this.update_spline_list_selection()
                     this.init_spline_selection()
                     const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
@@ -106,7 +109,7 @@ export class SplineList {
                 evt.stopPropagation()
                 const filename = evt.target.parentNode.id
                 if (this.selected === filename) {
-                    return
+                    this.preSelectVisibility = true
                 }
 
                 if (this.visibles.has(filename)) {
@@ -240,7 +243,7 @@ export class SplineList {
             if (latest >= 0) {
                 const spline_fd = this.splines[latest].filename
                 this.selected = spline_fd
-                this.visibles.add(spline_fd)
+                this.preSelectVisibility = false;
             }
             this.init_spline_selection()
         }

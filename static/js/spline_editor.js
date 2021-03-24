@@ -261,7 +261,6 @@ class Editor extends CurverBase {
             const newSpline = stretch_spline(this.history.retrieve(), 2.0);
             this.spline_changed(newSpline);
         });
-
     }
 
 
