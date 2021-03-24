@@ -150,3 +150,7 @@ Thumbs.db
 
 # VSCode / VScodium
 .vscode/
+
+# Being Content 
+.content/
+.workbench/content

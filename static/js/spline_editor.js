@@ -226,6 +226,7 @@ class Editor extends CurverBase {
         this.add_button("save", "Save motion").addEventListener("click", evt => {
             if (!this.history.length) return;
             this.save_spline().then(res => {
+                this.history.isUnsaved = false
                 console.log("saved motion")
             })
         })
@@ -381,6 +382,7 @@ class Editor extends CurverBase {
     load_spline(spline) {
         this.history.clear();
         this.history.capture(spline);
+        this.history.isUnsaved = false
         const bbox = spline.bbox();
         bbox.expand_by_bbox(DEFAULT_DATA_BBOX);
         this.dataBbox = bbox;
