@@ -112,14 +112,16 @@ export function searchsorted(arr, val) {
     let upper = arr.length;
     while (lower < upper) {
         let mid = parseInt((lower + upper) / 2);
-        if (arr[mid] < val)
+        if (arr[mid] < val) {
             lower = mid + 1;
-        else
+        } else {
             upper = mid;
+        }
     }
 
     return lower;
 }
+
 
 /**
  * Add option to select.
@@ -134,6 +136,7 @@ export function add_option(select, name) {
     select.appendChild(option);
     return option;
 }
+
 
 /**
  * Test if the filename is valid on different operating systems

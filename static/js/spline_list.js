@@ -1,6 +1,7 @@
 "use strict";
 import { remove_all_children, is_valid_filename } from "/static/js/utils.js";
 import { BPoly } from "/static/js/spline.js";
+import { Api } from "/static/js/api.js";
 
 
 export class SplineList {
@@ -9,9 +10,21 @@ export class SplineList {
         this.splines = []
         this.visibles = new Set()
         this.selected = null
+        this.api = new Api();
 
         this.add_spline_list()
     }
+
+
+    reload_spline_list() {
+        this.api.fetch_splines().then(res => {
+            this.splines = res.forEach(spline => {
+                spline.content = BPoly.from_object(spline.content)
+            })
+            this.populate(res)
+        })
+    }
+
 
     /**
      * Build node and attach to parent (editor)
@@ -36,9 +49,14 @@ export class SplineList {
         newBtnContainer.style.justifyContent = "center"
 
         this.addSplineButton = this.editor.add_button("add_box", "Create new spline")
-        this.addSplineButton.addEventListener("click", evt => {
-            this.editor.create_spline().then(() => {
-                this.editor.reload_spline_list()
+        this.addSplineButton.addEventListener("click", async evt => {
+            await this.api.create_spline();
+            await this.reload_spline_list()
+            this.api.fetch_splines().then(res => {
+                this.splines = res.forEach(spline => {
+                    spline.content = BPoly.from_object(spline.content)
+                })
+                this.populate(res)
             })
         });
         newBtnContainer.appendChild(this.addSplineButton)
@@ -47,11 +65,11 @@ export class SplineList {
         this.delSplineButton = this.editor.add_button("delete", "Delete selected motion")
         this.delSplineButton.addEventListener("click", evt => {
             if (confirm("Delete motion " + this.selected + " permanently ?")) {
-                this.editor.delete_spline(this.selected).then(resp => {
+                this.api.delete_spline(this.selected).then(resp => {
                     if (resp.ok) {
                         this.visibles.delete(this.selected)
                         this.selected = null
-                        this.editor.reload_spline_list()
+                        this.reload_spline_list()
                     }
                 })
             }
@@ -60,8 +78,8 @@ export class SplineList {
 
         this.duplSplineButton = this.editor.add_button("file_copy", "Duplicate motion file")
         this.duplSplineButton.addEventListener("click", evt => {
-            this.editor.duplicate_spline(this.selected).then(() => {
-                this.editor.reload_spline_list()
+            this.api.duplicate_spline(this.selected).then(() => {
+                this.reload_spline_list()
             })
         })
         newBtnContainer.appendChild(this.duplSplineButton)
@@ -156,7 +174,7 @@ export class SplineList {
                         !is_valid_filename(newFilename)) {
                         evt.currentTarget.innerHTML = this.origFilename
                     } else {
-                        this.editor.rename_spline(this.origFilename, newFilename).then(res => {
+                        this.api.rename_spline(this.origFilename, newFilename).then(res => {
                             // local update
                             // We dont want to reload from the server because we want to keep the 
                             // evenetually modified spline and history when renaming

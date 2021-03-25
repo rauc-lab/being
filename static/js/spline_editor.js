@@ -13,10 +13,10 @@ import { Line } from "/static/js/line.js";
 import { PAUSED, PLAYING, RECORDING, Transport } from "/static/js/transport.js";
 import { SplineDrawer } from "/static/js/spline_drawer.js";
 import { SplineList } from "/static/js/spline_list.js";
-import { API, INTERVAL } from "/static/js/config.js";
+import { INTERVAL } from "/static/js/config.js";
 import { MotorSelector } from "/static/js/motor_selector.js";
 import { toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button } from "/static/js/button.js";
-import { put, post, delete_fetch, get_json, fetch_json, post_json, put_json, } from "/static/js/fetching.js";
+import { Api } from "/static/js/api.js";
 
 
 /** Zero spline with duration 1.0 */
@@ -32,6 +32,9 @@ const ZOOM_FACTOR_PER_STEP = 1.5;
 
 /** Default data bbox size. */
 const DEFAULT_DATA_BBOX = new BBox([0, 0], [1, 0.04]);
+
+
+const MIN_HEIGHT = 0.010;
 
 
 /**
@@ -81,7 +84,8 @@ class Editor extends CurverBase {
         this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
         this.motorSelector = null;  // Gets initialized inside setup_toolbar_elements(). Not nice but...
         this.splineList = new SplineList(this);
-        this.trajectory = [];
+        this.recordedTrajectory = [];
+        this.api = new Api();
 
         // Single actual value line
         const color = this.colorPicker.next();
@@ -112,11 +116,11 @@ class Editor extends CurverBase {
         });
 
         // Initial data
-        get_json(API + "/motors").then(motorInfos => {
-            this.motorSelector.populate(motorInfos);
+        this.api.get_motor_infos().then(infos => {
+            this.motorSelector.populate(infos);
         });
 
-        this.reload_spline_list()
+        this.splineList.reload_spline_list()
     }
 
     /**
@@ -130,11 +134,10 @@ class Editor extends CurverBase {
      * Populate toolbar with buttons and motor selection. Wire up event listeners.
      */
     setup_toolbar_elements() {
-
         // Motor selection
         const select = this.add_select();
         select.addEventListener("change", evt => {
-            this.stop_all_spline_playbacks();
+            this.stop_spline_playback();
         });
         this.motorSelector = new MotorSelector(select);
 
@@ -220,27 +223,40 @@ class Editor extends CurverBase {
             this.stop_spline_playback();
             this.draw_current_spline();
         });
-        this.add_button("save", "Save motion").addEventListener("click", evt => {
-            if (!this.history.length) return;
-            this.save_spline().then(res => {
-                this.history.isUnsaved = false
-                const selectedSpline = this.splineList.splines.filter(sp => sp.filename === this.splineList.selected)[0]
-                selectedSpline.content = BPoly.from_object(res)
-            })
+        this.add_button("save", "Save motion").addEventListener("click", async evt => {
+            if (!this.history.length) {
+                return;
+            }
+
+            const spline = this.history.retrieve();
+            const name = this.splineList.selected;
+            await this.api.save_spline(spline, name);
+            this.history.clear();
+            this.history.capture(spline);
+            this.history.isUnsaved = false;
+            const selectedSpline = this.splineList.splines.filter(sp => sp.filename === this.splineList.selected)[0]
+            selectedSpline.content = spline;
+            this.update_ui();
         })
 
         this.add_space_to_toolbar();
 
         // Scaling and stretching spline
         this.add_button("compress", "Half motion height").addEventListener("click", evt => {
-            if (!this.history.length) return;
+            if (!this.history.length) {
+                return;
+            }
+
             this.spline_changing();
             const newSpline = scale_spline(this.history.retrieve(), 0.5);
             this.spline_changed(newSpline);
 
         });
         this.add_button("expand", "Double motion height").addEventListener("click", evt => {
-            if (!this.history.length) return;
+            if (!this.history.length) {
+                return;
+            }
+
             this.spline_changing();
             const newSpline = scale_spline(this.history.retrieve(), 2.0);
             this.spline_changed(newSpline);
@@ -249,13 +265,19 @@ class Editor extends CurverBase {
         this.add_space_to_toolbar();
 
         this.add_button("directions_run", "Speed up motion").addEventListener("click", evt => {
-            if (!this.history.length) return;
+            if (!this.history.length) {
+                return;
+            }
+
             this.spline_changing();
             const newSpline = stretch_spline(this.history.retrieve(), 0.5);
             this.spline_changed(newSpline);
         });
         this.add_button("hiking", "Slow down motion").addEventListener("click", evt => {
-            if (!this.history.length) return;
+            if (!this.history.length) {
+                return;
+            }
+
             this.spline_changing();
             const newSpline = stretch_spline(this.history.retrieve(), 2.0);
             this.spline_changed(newSpline);
@@ -381,7 +403,15 @@ class Editor extends CurverBase {
         this.history.clear();
         this.history.capture(spline);
         this.history.isUnsaved = false;
-        this.viewport = spline.bbox();
+
+        // Calc viewport
+        const bbox = spline.bbox();
+        if (bbox.height === 0) {
+            bbox.ll[1] -= .5 * MIN_HEIGHT;
+            bbox.ur[1] += .5 * MIN_HEIGHT;
+        }
+        this.viewport = bbox;
+
         this.draw_current_spline();
     }
 
@@ -413,7 +443,9 @@ class Editor extends CurverBase {
         this.stop_spline_playback();
         this.line.data.clear();
         if (position !== null && is_checked(this.livePreviewBtn)) {
-            this.live_preview(position);
+            if (this.motorSelector.unselected) return
+            const id = this.motorSelector.selected_index;
+            this.api.live_preview(position, id);
         }
     }
 
@@ -431,14 +463,16 @@ class Editor extends CurverBase {
      * API call for spline playback in backend. Also starts transport cursor.
      */
     async play_current_spline() {
-        const url = this.motorSelector.selected_motor_url() + "/play";
+        if (this.motorSelector.unselected) {
+            return;
+        }
+
         const spline = this.history.retrieve();
-        const res = await post_json(url, {
-            "spline": spline.to_dict(),
-            "loop": this.transport.looping,
-            "offset": this.transport.position,
-        });
-        this.transport.startTime = res["startTime"] + INTERVAL;  // +INTERVAL for better line matching
+        const id = this.motorSelector.selected_index;
+        const loop = this.transport.looping;
+        const offset = this.transport.position;
+        const startTime = await this.api.play_spline(spline, id, loop, offset);
+        this.transport.startTime = startTime + INTERVAL;
         this.transport.play();
         this.update_ui();
     }
@@ -449,32 +483,10 @@ class Editor extends CurverBase {
      */
     async stop_spline_playback() {
         if (!this.transport.paused) {
+            await this.api.stop_spline_playback();
             this.transport.pause();
             this.update_ui();
-            const url = this.motorSelector.selected_motor_url() + "/stop";
-            await post(url);
         }
-    }
-
-
-    /**
-     * API call for stoping all spline playback in being for all known motors.
-     */
-    async stop_all_spline_playbacks() {
-        this.transport.pause();
-        this.update_ui();
-        await post(API + "/motors/stop");
-    }
-
-
-    /**
-     * API call for setting live preview position value to back end.
-     *
-     * @param {Number} position Vertical y position of linear motor.
-     */
-    async live_preview(position) {
-        const url = this.motorSelector.selected_motor_url() + "/livePreview";
-        await put_json(url, { "position": position });
     }
 
 
@@ -487,7 +499,7 @@ class Editor extends CurverBase {
         this.line.data.maxlen = Infinity;
         this.auto = true;
         this.drawer.clear();
-        await put(API + "/motors/disenable");
+        await this.api.disable_motors();
     }
 
 
@@ -498,14 +510,13 @@ class Editor extends CurverBase {
     async stop_recording() {
         this.transport.stop();
         this.auto = false;
-        await put(API + "/motors/enable");
-        if (!this.trajectory.length) {
+        await this.api.enable_motors();
+        if (!this.recordedTrajectory.length) {
             return;
         }
 
-        const obj = await post_json(API + "/fit_spline", this.trajectory);
-        clear_array(this.trajectory);
-        const spline = BPoly.from_object(obj);
+        const spline = await this.api.fit_spline(this.recordedTrajectory);
+        clear_array(this.recordedTrajectory);
         this.load_spline(spline);
     }
 
@@ -526,62 +537,6 @@ class Editor extends CurverBase {
         // TODO: Do some coefficients cleanup. Wrap around and maybe take the
         // direction of the previous knots as the new default coefficients...
         this.spline_changed(newSpline);
-    }
-
-
-    /**
-    * Create a new spline on the backend. Content is a line with 
-    * arbitrary filename
-    */
-    async create_spline() {
-        return await post_json(API + "/motions")
-    }
-
-
-    async save_spline() {
-        const bpoly = this.history.retrieve();
-        const url = encodeURI(API + "/motions/" + this.splineList.selected);
-        await put_json(url, bpoly.to_dict());
-        this.load_spline(bpoly);
-    }
-
-
-    async duplicate_spline(name) {
-        let url = API + "/motions/" + name;
-        url = encodeURI(url)
-
-        return await post(url);
-    }
-
-
-    async rename_spline(name, new_name) {
-        let url = API + "/motions/" + name + "?rename=" + new_name;
-        url = encodeURI(url)
-
-        return await put_json(url)
-    }
-
-
-    async delete_spline(name) {
-        let url = API + "/motions/" + name;
-        url = encodeURI(url)
-
-        return await delete_fetch(url)
-    }
-
-
-    async fetch_splines() {
-        return await get_json("/api/motions")
-    }
-
-
-    reload_spline_list() {
-        this.fetch_splines().then(res => {
-            this.splineList.splines = res.forEach(spline => {
-                spline.content = BPoly.from_object(spline.content)
-            })
-            this.splineList.populate(res)
-        })
     }
 
 
@@ -609,7 +564,7 @@ class Editor extends CurverBase {
         }
 
         if (this.transport.recording) {
-            this.trajectory.push([t, actualValue]);
+            this.recordedTrajectory.push([t, actualValue]);
         }
     }
 }
