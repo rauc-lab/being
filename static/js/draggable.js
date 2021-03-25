@@ -1,5 +1,5 @@
 "use strict";
-import { LEFT_MOUSE_BUTTON, ESC_KEY_CODE } from "/static/js/constants.js";
+import { LEFT_MOUSE_BUTTON } from "/static/js/constants.js";
 
 
 /**
@@ -72,7 +72,7 @@ export function make_draggable(ele, start_drag, drag, end_drag,
      * @param evt - Mouse event.
      */
     function escape_drag_internal(evt) {
-        if (evt.keyCode === ESC_KEY_CODE) {
+        if (evt.key === "Escape") {
             end_drag_internal(evt);
         }
     }
