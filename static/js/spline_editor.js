@@ -280,7 +280,15 @@ class Editor extends CurverBase {
      * Register key event listeners for shortcuts.
      */
     setup_keyboard_shortcuts() {
+        addEventListener("keydown", evt => {
+            // Otherwise we trigger last buttons in focus
+            document.activeElement.blur();
+        });
         addEventListener("keyup", evt => {
+            if (evt.metaKey || evt.shiftKey || evt.ctrlKey) {
+                return;
+            }
+
             switch(evt.key) {
                 case " ":
                     this.toggle_playback();
@@ -299,7 +307,6 @@ class Editor extends CurverBase {
             }
 
             this.update_ui();
-            evt.preventDefault();  // Otherwise we trigger buttons in focus
         });
     }
 
@@ -586,12 +593,16 @@ class Editor extends CurverBase {
      */
     new_data(msg) {
         const t = this.transport.move(msg.timestamp);
-        const actualValue = msg.values[this.motorSelector.actualValueIndex];
         if (this.transport.playing && t > this.transport.duration) {
             this.transport.stop();
             this.update_ui();
         }
 
+        if (this.motorSelector.unselected) {
+            return;
+        }
+
+        const actualValue = msg.values[this.motorSelector.actualValueIndex];
         if (this.transport.paused) {
             this.line.data.popleft();
         } else {
