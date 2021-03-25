@@ -70,6 +70,16 @@ function stretch_spline(spline, factor) {
 
 
 /**
+ * Check if any modifier key was pressed from keyboard event.
+ *
+ * @returns {Boolean}
+ */
+function modifier_key_pressed(evt) {
+    return evt.metaKey || evt.shiftKey || evt.ctrlKey || evt.altKey;
+}
+
+
+/**
  * Spline editor.
  *
  * Shadow root with canvas and SVG overlay.
@@ -276,6 +286,7 @@ class Editor extends CurverBase {
         });
     }
 
+
     /**
      * Register key event listeners for shortcuts.
      */
@@ -285,7 +296,7 @@ class Editor extends CurverBase {
             document.activeElement.blur();
         });
         addEventListener("keyup", evt => {
-            if (evt.metaKey || evt.shiftKey || evt.ctrlKey) {
+            if (modifier_key_pressed(evt)) {
                 return;
             }
 
