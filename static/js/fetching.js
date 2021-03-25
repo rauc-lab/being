@@ -1,4 +1,12 @@
 "use strict";
+/**
+ * Wrappers around fetch API. Replacing HTTP methods with functions as verbs. Also json variantes.
+ */
+
+
+export function get(url) {
+    return fetch(url, {method: "GET"});
+}
 
 
 export function put(url) {
@@ -10,10 +18,12 @@ export function post(url) {
     return fetch(url, {method: "POST"});
 }
 
+
 // delete is a reseverd JS keyword
 export function delete_fetch(url) {
     return fetch(url, {method: "DELETE"})
 }
+
 
 /**
  * Fetch JSON data from or to url.
