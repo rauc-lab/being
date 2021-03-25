@@ -241,10 +241,13 @@ export class SplineDrawer {
                 wc,
             );
             circle.addEventListener("dblclick", evt => {
-                this.editor.spline_changing();
                 evt.stopPropagation();
-                wc.remove_knot(knot);
-                this.editor.spline_changed(wc);
+                if (wc.n_segments > 1) {
+                    this.editor.spline_changing();
+                    wc.remove_knot(knot);
+                    this.editor.spline_changed(wc);
+                }
+
             });
         });
 
