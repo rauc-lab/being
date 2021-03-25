@@ -94,6 +94,12 @@ class Editor extends CurverBase {
 
         this.setup_toolbar_elements();
 
+        // Initial data
+        this.api.get_motor_infos().then(infos => {
+            this.motorSelector.populate(infos);
+        });
+        this.splineList.reload_spline_list()
+
         // SVG event listeners
         this.setup_svg_drag_navigation();
         this.svg.addEventListener("click", evt => {
@@ -115,12 +121,7 @@ class Editor extends CurverBase {
             this.insert_new_knot(evt);
         });
 
-        // Initial data
-        this.api.get_motor_infos().then(infos => {
-            this.motorSelector.populate(infos);
-        });
-
-        this.splineList.reload_spline_list()
+        this.setup_keyboard_shortcuts();
     }
 
     /**
@@ -148,19 +149,10 @@ class Editor extends CurverBase {
         this.stopBtn = this.add_button("stop", "Stop spline playback");
         this.loopBtn = this.add_button("loop", "Loop spline motion");
         this.playPauseBtn.addEventListener("click", async evt => {
-            if (this.transport.playing) {
-                this.stop_spline_playback();
-            } else {
-                this.play_current_spline();
-            }
+            this.toggle_playback();
         });
         this.recBtn.addEventListener("click", evt => {
-            if (this.transport.recording) {
-                this.stop_recording();
-            } else {
-                this.start_recording();
-            }
-            this.update_ui();
+            this.toggle_recording();
         });
         this.stopBtn.addEventListener("click", async evt => {
             this.stop_spline_playback();
@@ -281,6 +273,33 @@ class Editor extends CurverBase {
             this.spline_changing();
             const newSpline = stretch_spline(this.history.retrieve(), 2.0);
             this.spline_changed(newSpline);
+        });
+    }
+
+    /**
+     * Register key event listeners for shortcuts.
+     */
+    setup_keyboard_shortcuts() {
+        addEventListener("keyup", evt => {
+            switch(evt.key) {
+                case " ":
+                    this.toggle_playback();
+                    break;
+                case "r":
+                    this.toggle_recording();
+                    break;
+                case "l":
+                    this.transport.toggle_looping();
+                    break;
+                case "c":
+                    toggle_button(this.c1Btn);
+                    break;
+                default:
+                    return;
+            }
+
+            this.update_ui();
+            evt.preventDefault();  // Otherwise we trigger buttons in focus
         });
     }
 
@@ -459,7 +478,7 @@ class Editor extends CurverBase {
 
 
     /**
-     * API call for spline playback in backend. Also starts transport cursor.
+     * Start playback of current spline in back end.
      */
     async play_current_spline() {
         const spline = this.history.retrieve();
@@ -474,7 +493,7 @@ class Editor extends CurverBase {
 
 
     /**
-     * API call for stoping spline playback for currently selected motor.
+     * Stop all spline playback in back end.
      */
     async stop_spline_playback() {
         if (!this.transport.paused) {
@@ -486,7 +505,19 @@ class Editor extends CurverBase {
 
 
     /**
-     * API call for starting recording trajectory. Disables motors in back end.
+     * Toggle spline playback of current spline.
+     */
+    toggle_playback() {
+        if (this.transport.playing) {
+            this.stop_spline_playback();
+        } else {
+            this.play_current_spline();
+        }
+    }
+
+
+    /**
+     * Start recording trajectory. Disables motors in back end.
      */
     async start_recording() {
         this.transport.record();
@@ -495,12 +526,13 @@ class Editor extends CurverBase {
         this.auto = true;
         this.drawer.clear();
         await this.api.disable_motors();
+        this.update_ui();
     }
 
 
     /**
-     * API call for ending trajectory recording. Converts trajectory into
-     * spline and draws it. Re-enables motors in back end.
+     * Stop trajectory recording, re-enable motors and fit smoothing spline
+     * through trajectory via back end.
      */
     async stop_recording() {
         this.transport.stop();
@@ -513,6 +545,20 @@ class Editor extends CurverBase {
         const spline = await this.api.fit_spline(this.recordedTrajectory);
         clear_array(this.recordedTrajectory);
         this.load_spline(spline);
+        this.update_ui();
+    }
+
+
+
+    /**
+     * Toggle trajectory recording.
+     */
+    toggle_recording() {
+        if (this.transport.recording) {
+            this.stop_recording();
+        } else {
+            this.start_recording();
+        }
     }
 
 
