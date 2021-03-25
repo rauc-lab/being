@@ -406,7 +406,7 @@ class Editor extends CurverBase {
 
         // Calc viewport
         const bbox = spline.bbox();
-        if (bbox.height === 0) {
+        if (bbox.height < MIN_HEIGHT) {
             bbox.ll[1] -= .5 * MIN_HEIGHT;
             bbox.ur[1] += .5 * MIN_HEIGHT;
         }
