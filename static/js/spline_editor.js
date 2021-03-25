@@ -141,6 +141,10 @@ class Editor extends CurverBase {
         return !is_checked(this.c1Btn);
     }
 
+    get snap_to_grid() {
+        return is_checked(this.snapBtn);
+    }
+
     /**
      * Populate toolbar with buttons and motor selection. Wire up event listeners.
      */
@@ -184,6 +188,10 @@ class Editor extends CurverBase {
         this.c1Btn = this.add_button("timeline", "Break continous knot transitions");
         this.c1Btn.addEventListener("click", evt => {
             toggle_button(this.c1Btn);
+        });
+        this.snapBtn = this.add_button("vertical_align_center", "Snap to grid");
+        this.snapBtn.addEventListener("click", evt => {
+            toggle_button(this.snapBtn);
         });
 
         this.add_space_to_toolbar();

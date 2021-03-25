@@ -11,6 +11,32 @@ import { assert, arrays_equal, clear_array } from "/static/js/utils.js";
 const PRECISION = 2;
 
 
+/**
+ * Try to snap value to array of grid values. Return value as if not close
+ * enough to grid. Exclude value itself as grid line candidate.
+ *
+ * @param {Number} value Value to snap to grid.
+ * @param {Array} grid Grid values.
+ * @param {Number} threshold Distance attraction threshold.
+ * @returns Snapped value.
+ */
+function snap_to_value(value, grid, threshold=.001) {
+    let ret = value;
+    let dist = Infinity;
+    grid.forEach(g => {
+        if (value !== g) {
+            const d = Math.abs(value - g);
+            if (d < threshold && d < dist) {
+                dist = d;
+                ret = g;
+            }
+        }
+    });
+
+    return ret;
+}
+
+
 export class SplineDrawer {
     constructor(editor, container) {
         this.editor = editor;
@@ -57,15 +83,22 @@ export class SplineDrawer {
     make_draggable(ele, on_drag, workingCopy) {
         /** Start position of drag motion. */
         let start = null;
+        let yValues = [];
 
         make_draggable(
             ele,
             evt => {
                 start = this.editor.mouse_coordinates(evt);
+                yValues = workingCopy.c.flat();
+                yValues.push(0.0);
                 this.editor.spline_changing();
             },
             evt => {
                 const end = this.editor.mouse_coordinates(evt);
+                if (this.editor.snap_to_grid & !evt.shiftKey) {
+                    end[1] = snap_to_value(end[1], yValues, 0.001);
+                }
+
                 on_drag(end);
                 this.label.setAttribute("visibility", "visible");
                 const pt = this.editor.transform_point(end);
@@ -80,6 +113,8 @@ export class SplineDrawer {
                 }
                 this.editor.spline_changed(workingCopy);
                 this.label.setAttribute("visibility", "hidden");
+                start = null;
+                clear_array(yValues);
             }
         );
     }
@@ -247,7 +282,6 @@ export class SplineDrawer {
                     wc.remove_knot(knot);
                     this.editor.spline_changed(wc);
                 }
-
             });
         });
 
