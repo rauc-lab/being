@@ -443,7 +443,6 @@ class Editor extends CurverBase {
         this.stop_spline_playback();
         this.line.data.clear();
         if (position !== null && is_checked(this.livePreviewBtn)) {
-            if (this.motorSelector.unselected) return
             const id = this.motorSelector.selected_index;
             this.api.live_preview(position, id);
         }
@@ -463,10 +462,6 @@ class Editor extends CurverBase {
      * API call for spline playback in backend. Also starts transport cursor.
      */
     async play_current_spline() {
-        if (this.motorSelector.unselected) {
-            return;
-        }
-
         const spline = this.history.retrieve();
         const id = this.motorSelector.selected_index;
         const loop = this.transport.looping;
@@ -545,12 +540,6 @@ class Editor extends CurverBase {
      */
     new_data(msg) {
         const t = this.transport.move(msg.timestamp);
-
-        if (this.motorSelector.unselected) {
-            // In case ws message hits before motorSelector has received motors
-            return
-        }
-
         const actualValue = msg.values[this.motorSelector.actualValueIndex];
         if (this.transport.playing && t > this.transport.duration) {
             this.transport.stop();

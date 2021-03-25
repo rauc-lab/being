@@ -6,14 +6,11 @@ import { API } from "/static/js/config.js";
 /** Nothing selected in HTML select yet */
 export const NOTHING_SELECTED = -1;
 
+
 export class MotorSelector {
     constructor(select) {
         this.select = select;
         this.motorInfos = [];
-    }
-
-    get unselected() {
-        return this.select.selectedIndex === NOTHING_SELECTED;
     }
 
     /**
@@ -23,6 +20,7 @@ export class MotorSelector {
         return this.select.selectedIndex;
     }
 
+
     /**
      * Output value index of setpoint value for currently selected motor.
      */
@@ -30,29 +28,14 @@ export class MotorSelector {
         return this.motorInfos[this.selected_index].setpointValueIndex;
     }
 
+
     /**
      * Output value index of actual value for currently selected motor.
      */
     get actualValueIndex() {
-        if (this.motorInfos[this.selected_index]) {
-            return this.motorInfos[this.selected_index].actualValueIndex;
-        }
+        return this.motorInfos[this.selected_index].actualValueIndex;
     }
 
-    motor_url(id) {
-        return API + "/motors/" + id;
-    }
-
-    /**
-     * Motor API url for currently selected motor.
-     */
-    selected_motor_url() {
-        if (this.selected_index === NOTHING_SELECTED) {
-            throw "No motor selected yet!";
-        }
-
-        return this.motor_url(this.selected_index);
-    }
 
     /**
      * Populate select with the currently available motors.
