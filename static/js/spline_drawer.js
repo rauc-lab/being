@@ -74,6 +74,7 @@ export class SplineDrawer {
         this.label.visibility = "hidden";
     }
 
+
     /**
      * Calcualte data bounding box of drawn splines.
      */
@@ -86,6 +87,7 @@ export class SplineDrawer {
         return bbox;
     }
 
+
     /**
      * Clear everything from SplineDrawer.
      */
@@ -97,6 +99,30 @@ export class SplineDrawer {
         clear_array(this.elements);
     }
 
+
+    /**
+     * Position label around.
+     *
+     * @param {Array} pos Position to move to (data space).
+     * @param {String} location Label location identifier.
+     */
+    position_label(pos, location = "ur") {
+        const labelBbox = this.label.getBBox();
+        const pt = this.editor.transform_point(pos);
+        if (location.startsWith("u")) {
+            this.label.setAttribute("y", pt[1] - labelBbox.height);
+        } else {
+            this.label.setAttribute("y", pt[1] + labelBbox.height);
+        }
+
+        if (location.endsWith("r")) {
+            this.label.setAttribute("x", pt[0]);
+        } else {
+            this.label.setAttribute("x", pt[0] - labelBbox.width);
+        }
+    }
+
+
     /**
      * Make something draggable inside data space. Wraps default
      * make_draggable. Handles mouse -> image space -> data space
@@ -106,12 +132,13 @@ export class SplineDrawer {
      * @param ele Element to make draggable.
      * @param on_drag On drag motion callback. Will be called with a relative
      * delta array.
+     * @param labelLocation {String} Label location identifier.
      */
     make_draggable(ele, on_drag, workingCopy, labelLocation = "ur") {
         /** Start position of drag motion. */
         let start = null;
         let yValues = [];
-        let boundaries = new BBox();
+        let limits = new BBox();
 
         make_draggable(
             ele,
@@ -120,35 +147,22 @@ export class SplineDrawer {
                 yValues = new Set(workingCopy.c.flat());
                 yValues.add(0.0);
                 this.editor.spline_changing();
-                boundaries = this.editor.limits();
+                limits = this.editor.limits();
             },
             evt => {
                 let end = this.editor.mouse_coordinates(evt);
-                end = clip_point(end, boundaries);
+                end = clip_point(end, limits);
                 if (this.editor.snap_to_grid & !evt.shiftKey) {
                     end[1] = snap_to_value(end[1], yValues, 0.001);
                 }
 
                 on_drag(end);
-                workingCopy.restrict_to_bbox(boundaries);
-                this.draw();
+                workingCopy.restrict_to_bbox(limits);
 
-                // Position label
                 this.label.setAttribute("visibility", "visible");
-                const labelBbox = this.label.getBBox();
-                const pt = this.editor.transform_point(end);
-                if (labelLocation.startsWith("u")) {
-                    this.label.setAttribute("y", pt[1] - labelBbox.height);
-                } else {
-                    this.label.setAttribute("y", pt[1] + labelBbox.height);
-                }
+                this.position_label(end, labelLocation);
 
-                if (labelLocation.endsWith("r")) {
-                    this.label.setAttribute("x", pt[0]);
-                } else {
-                    this.label.setAttribute("x", pt[0] - labelBbox.width);
-                }
-
+                this.draw();
             },
             evt => {
                 const end = this.editor.mouse_coordinates(evt);
@@ -159,7 +173,7 @@ export class SplineDrawer {
                 this.label.setAttribute("visibility", "hidden");
                 start = null;
                 clear_array(yValues);
-                let bbox = new BBox();
+                limits.reset();
             }
         );
     }
@@ -297,7 +311,7 @@ export class SplineDrawer {
                             slope = wc.get_derivative_at_knot(seg + 1, LEFT);
                         }
 
-                        this.label.innerHTML = format_number(slope);
+                        this.label.innerHTML = "Slope: " + format_number(slope);
                     },
                     wc,
                 );
@@ -316,7 +330,8 @@ export class SplineDrawer {
                 pos => {
                     this.editor.spline_changing(pos[1]);
                     wc.position_knot(knot, pos, this.editor.c1);
-                    this.label.innerHTML = format_number(pos[0]) + ", " + format_number(pos[1]);
+                    const txt = "Time: " + format_number(pos[0]) + " s, " + format_number(pos[1]) + " m";
+                    this.label.innerHTML = txt;
                 },
                 wc,
                 knot < wc.n_segments ? "ur" : "ul",
