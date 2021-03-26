@@ -38,9 +38,6 @@ svg circle {
 div.toolbar {
   display: flex;
   flex-wrap: wrap;
-  border-top: 2px solid black;
-  border-bottom: 2px solid black;
-  border-right: 2px solid black;
 }
 
 div.toolbar:empty {
@@ -55,12 +52,8 @@ div.toolbar:empty {
 }
 
 div.toolbar > * {
-  border-right: 2px solid black;
-  margin: 0;
-}
-
-div.toolbar > *:first-child {
-  border-left: 2px solid black;
+  border: 2px solid black;
+  margin: -2px -2px 0 0;
 }
 
 .space {
@@ -190,6 +183,7 @@ div.toolbar select {
 	background-position-x: 100%;
 	background-position-y: 50%;
 	padding-right: 1rem;
+	padding-left: .25rem;
 }
 
 .noselect {

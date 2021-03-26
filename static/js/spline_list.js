@@ -50,17 +50,9 @@ export class SplineList {
 
         this.addSplineButton = this.editor.add_button("add_box", "Create new spline")
         this.addSplineButton.addEventListener("click", async evt => {
-            await this.api.create_spline();
-            await this.reload_spline_list()
-            this.api.fetch_splines().then(res => {
-                this.splines = res.forEach(spline => {
-                    spline.content = BPoly.from_object(spline.content)
-                })
-                this.populate(res)
-            })
+            this.editor.create_new_spline();
         });
         newBtnContainer.appendChild(this.addSplineButton)
-
 
         this.delSplineButton = this.editor.add_button("delete", "Delete selected motion")
         this.delSplineButton.addEventListener("click", evt => {
