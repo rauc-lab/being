@@ -8,7 +8,7 @@ export const NOTHING_SELECTED = -1;
 
 
 export class MotorSelector {
-    constructor(select) {
+    constructor(select=null) {
         this.select = select;
         this.motorInfos = [];
     }
@@ -38,6 +38,10 @@ export class MotorSelector {
      */
     get actualValueIndex() {
         return this.motorInfos[this.selected_index].actualValueIndex;
+    }
+
+    attach_select(select) {
+        this.select = select;
     }
 
 

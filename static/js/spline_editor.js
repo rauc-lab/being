@@ -55,17 +55,17 @@ function zoom_bbox_in_place(bbox, factor) {
  */
 function scale_spline(spline, factor) {
     const shape = array_shape(spline.c);
-    const scaledC = array_reshape(multiply_scalar(factor, spline.c.flat()), shape);
-    return new BPoly(scaledC, spline.x);
+    const scaledCoeffs = array_reshape(multiply_scalar(factor, spline.c.flat()), shape);
+    return new BPoly(scaledCoeffs, spline.x);
 }
 
 
 /**
- * Stretch spline by factor (scale knots).
+ * Stretch spline by factor (strech knots).
  */
 function stretch_spline(spline, factor) {
-    const newX = multiply_scalar(factor, spline.x);
-    return new BPoly(spline.c, newX);
+    const stretchedKnots = multiply_scalar(factor, spline.x);
+    return new BPoly(spline.c, stretchedKnots);
 }
 
 
@@ -92,7 +92,7 @@ class Editor extends CurverBase {
         this.transport = new Transport(this);
         this.drawer = new SplineDrawer(this, this.splineGroup);
         this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
-        this.motorSelector = null;  // Gets initialized inside setup_toolbar_elements(). Not nice but...
+        this.motorSelector = new MotorSelector();
         this.splineList = new SplineList(this);
         this.recordedTrajectory = [];
         this.api = new Api();
@@ -195,7 +195,7 @@ class Editor extends CurverBase {
         select.addEventListener("change", evt => {
             this.stop_spline_playback();
         });
-        this.motorSelector = new MotorSelector(select);
+        this.motorSelector.attach_select(select);
 
 
         // Transport buttons
@@ -479,8 +479,9 @@ class Editor extends CurverBase {
         this.viewport.ur[1] = Math.max(this.viewport.ur[1], current.max);
         this.update_trafo();
 
-        this.transport.duration = current.duration;
-        this.line.maxlen = .8 * current.duration / INTERVAL;
+        const duration = current.end;
+        this.transport.duration = duration;
+        this.line.maxlen = .8 * duration / INTERVAL;
 
         this.drawer.clear();
         this.drawer.draw_spline(current);

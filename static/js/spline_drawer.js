@@ -102,8 +102,8 @@ export class SplineDrawer {
             ele,
             evt => {
                 start = this.editor.mouse_coordinates(evt);
-                yValues = workingCopy.c.flat();
-                yValues.push(0.0);
+                yValues = new Set(workingCopy.c.flat());
+                yValues.add(0.0);
                 this.editor.spline_changing();
             },
             evt => {
