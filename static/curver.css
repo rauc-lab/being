@@ -32,6 +32,7 @@ svg circle {
 
 .graphDiv {
   position: relative;
+  overflow: hidden;
   /* width: inherit; */
 }
 
@@ -205,4 +206,11 @@ button.record[checked] {
 .nonvalid {
   color:red;
   border: 2px solid red;
+}
+
+.annotation {
+  position : absolute;
+  visibility : hidden;
+  box-shadow: 0 0 10px 10px rgba(255, 255, 255, .666);
+  background-color: rgba(255, 255, 255, .666);
 }

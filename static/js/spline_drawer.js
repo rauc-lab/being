@@ -8,7 +8,7 @@ import { assert, arrays_equal, clear_array } from "/static/js/utils.js";
 
 
 /** Precision for label numbers */
-const PRECISION = 2;
+const PRECISION = 3;
 
 
 /**
@@ -70,8 +70,10 @@ export class SplineDrawer {
         this.container = container;
         this.splines = [];
         this.elements = [];
-        this.label = editor.svg.appendChild(create_element("text"));
-        this.label.visibility = "hidden";
+
+        this.annotation = document.createElement("span");
+        this.annotation.classList.add("annotation");
+        editor.graphs.appendChild(this.annotation);
     }
 
 
@@ -101,25 +103,29 @@ export class SplineDrawer {
 
 
     /**
-     * Position label around.
+     * Position annotation label around.
      *
      * @param {Array} pos Position to move to (data space).
      * @param {String} location Label location identifier.
      */
-    position_label(pos, location = "ur") {
-        const labelBbox = this.label.getBBox();
+    position_annotation(pos, location = "ur", offset=10) {
         const pt = this.editor.transform_point(pos);
-        if (location.startsWith("u")) {
-            this.label.setAttribute("y", pt[1] - labelBbox.height);
+        let [x, y] = pt;
+        const bbox = this.annotation.getBoundingClientRect();
+        if (location.endsWith("l")) {
+            x -= bbox.width + offset;
         } else {
-            this.label.setAttribute("y", pt[1] + labelBbox.height);
+            x += offset;
         }
 
-        if (location.endsWith("r")) {
-            this.label.setAttribute("x", pt[0]);
+        if (location.startsWith("u")) {
+            y -= bbox.height + offset;
         } else {
-            this.label.setAttribute("x", pt[0] - labelBbox.width);
+            y += offset;
         }
+
+        this.annotation.style.left = x + "px";
+        this.annotation.style.top = y + "px";
     }
 
 
@@ -158,10 +164,8 @@ export class SplineDrawer {
 
                 on_drag(end);
                 workingCopy.restrict_to_bbox(limits);
-
-                this.label.setAttribute("visibility", "visible");
-                this.position_label(end, labelLocation);
-
+                this.annotation.style.visibility = "visible";
+                this.position_annotation(end, labelLocation);
                 this.draw();
             },
             evt => {
@@ -169,8 +173,9 @@ export class SplineDrawer {
                 if (arrays_equal(start, end)) {
                     return;
                 }
+
                 this.editor.spline_changed(workingCopy);
-                this.label.setAttribute("visibility", "hidden");
+                this.annotation.style.visibility = "hidden";
                 start = null;
                 clear_array(yValues);
                 limits.reset();
@@ -271,7 +276,6 @@ export class SplineDrawer {
             return;
         }
 
-
         // Control points
         assert(wc.degree <= Degree.CUBIC, "Spline degree not supported!");
         const cps = [];
@@ -311,13 +315,12 @@ export class SplineDrawer {
                             slope = wc.get_derivative_at_knot(seg + 1, LEFT);
                         }
 
-                        this.label.innerHTML = "Slope: " + format_number(slope);
+                        this.annotation.innerHTML = "Slope: " + format_number(slope);
                     },
                     wc,
                 );
             });
         });
-
 
         // Knots
         const knots = arange(wc.n_segments + 1);
@@ -330,8 +333,8 @@ export class SplineDrawer {
                 pos => {
                     this.editor.spline_changing(pos[1]);
                     wc.position_knot(knot, pos, this.editor.c1);
-                    const txt = "Time: " + format_number(pos[0]) + " s, " + format_number(pos[1]) + " m";
-                    this.label.innerHTML = txt;
+                    const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
+                    this.annotation.innerHTML = txt;
                 },
                 wc,
                 knot < wc.n_segments ? "ur" : "ul",
@@ -348,6 +351,7 @@ export class SplineDrawer {
 
         this.draw();
     }
+
 
     /**
      * Draw the current state (update all SVG elements).
