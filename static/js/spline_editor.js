@@ -233,7 +233,8 @@ class Editor extends CurverBase {
             this.stop_spline_playback();
             this.draw_current_spline();
         });
-        this.add_button("save", "Save motion").addEventListener("click", async evt => {
+        this.saveBtn = this.add_button("save", "Save motion");
+        this.saveBtn.addEventListener("click", async evt => {
             if (!this.history.length) {
                 return;
             }
@@ -389,6 +390,7 @@ class Editor extends CurverBase {
      * / redo buttons according to history.
      */
     update_ui() {
+        this.saveBtn.disabled = !(this.history.length > 1);
         this.undoBtn.disabled = !this.history.undoable;
         this.redoBtn.disabled = !this.history.redoable;
 
