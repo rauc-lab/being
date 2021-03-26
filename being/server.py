@@ -1,7 +1,8 @@
 """Web server back end."""
-import logging
-import json
 import asyncio
+import json
+import logging
+import math
 
 from aiohttp import web
 
@@ -202,6 +203,10 @@ def being_controller(being) -> web.RouteTableDef:
         try:
             mp = being.motionPlayers[id]
             data = await request.json()
+            pos = data['position']
+            if pos is None or not math.isfinite(pos):
+                return web.HTTPBadRequest(text=f'Invalid value {pos} for live preview!')
+
             mp.live_preview(data['position'])
             return json_response()
         except IndexError:
