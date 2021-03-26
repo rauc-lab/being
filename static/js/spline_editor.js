@@ -302,27 +302,25 @@ class Editor extends CurverBase {
         addEventListener("keydown", evt => {
             // Otherwise we trigger last buttons in focus
             document.activeElement.blur();
-        });
-        addEventListener("keyup", evt => {
-            if (modifier_key_pressed(evt)) {
-                return;
+
+            if ((evt.metaKey || evt.ctrlKey) && evt.key === 'u') {
+                toggle_button(this.snapBtn);
             }
 
-            switch(evt.key) {
-                case " ":
+            this.update_ui();
+        });
+
+        addEventListener("keyup", evt => {
+            if (!modifier_key_pressed(evt)) {
+                if (evt.key === " ") {
                     this.toggle_playback();
-                    break;
-                case "r":
+                } else if (evt.key === "r") {
                     this.toggle_recording();
-                    break;
-                case "l":
+                } else if (evt.key === "l") {
                     this.transport.toggle_looping();
-                    break;
-                case "c":
+                } else if (evt.key === "c") {
                     toggle_button(this.c1Btn);
-                    break;
-                default:
-                    return;
+                }
             }
 
             this.update_ui();
