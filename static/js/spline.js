@@ -84,6 +84,12 @@ export class BPoly {
 
         this.order = c.length;
         this.degree = c.length - 1;
+        const shape = array_shape(c);
+        if (shape.length == 2) {
+            this.ndim = 1;
+        } else if (shape.length === 3) {
+            this.ndim = shape[2];
+        }
     }
 
 
@@ -352,6 +358,31 @@ export class BPoly {
             "axis": 0,
             "knots": this.x,
             "coefficients": this.c,
+        }
+    }
+
+
+    restrict_to_bbox(bbox) {
+        const [xmin, ymin] = bbox.ll;
+        const [xmax, ymax] = bbox.ur;
+        this.x.forEach((knot, i) => {
+            this.x[i] = clip(knot, xmin, xmax);
+        });
+
+        if (this.ndim === 1) {
+            this.c.forEach((coeffs, row) => {
+                coeffs.forEach((coeff, col) => {
+                    this.c[row][col] = clip(coeff, ymin, ymax);
+                });
+            });
+        } else if (this.ndim >= 1) {
+            this.c.forEach((coeffs, row) => {
+                coeffs.forEach((coeff, col) => {
+                    coeff.forEach((val, nr) => {
+                        this.c[row][col][nr] = clip(val, ymin, ymax);
+                    });
+                });
+            });
         }
     }
 }

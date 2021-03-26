@@ -190,6 +190,30 @@ class Editor extends CurverBase {
         this.add_space_to_toolbar();
 
 
+        // Zoom buttons
+        this.add_button("zoom_in", "Zoom in").addEventListener("click", evt => {
+            zoom_bbox_in_place(this.viewport, ZOOM_FACTOR_PER_STEP);
+            this.update_trafo();
+            this.draw();
+        });
+        this.add_button("zoom_out", "Zoom out").addEventListener("click", evt => {
+            zoom_bbox_in_place(this.viewport, 1 / ZOOM_FACTOR_PER_STEP);
+            this.update_trafo();
+            this.draw();
+        });
+        this.add_button("zoom_out_map", "Reset zoom").addEventListener("click", evt => {
+            if (!this.history.length) return;
+
+            const current = this.history.retrieve();
+            const bbox = current.bbox();
+            bbox.expand_by_bbox(DEFAULT_DATA_BBOX);
+            this.viewport = current.bbox();
+            this.update_trafo();
+            this.draw();
+        });
+        this.add_space_to_toolbar();
+
+
         // Motor selection
         const select = this.add_select();
         select.addEventListener("change", evt => {
@@ -222,7 +246,7 @@ class Editor extends CurverBase {
 
 
         // Tool adjustments
-        this.snapBtn = this.add_button("vertical_align_center", "Snap to grid");
+        this.snapBtn = this.add_button("grid_3x3", "Snap to grid");  // TODO: Or vertical_align_center?
         switch_button_on(this.snapBtn);
         this.snapBtn.addEventListener("click", evt => {
             toggle_button(this.snapBtn);
@@ -231,34 +255,15 @@ class Editor extends CurverBase {
         this.c1Btn.addEventListener("click", evt => {
             toggle_button(this.c1Btn);
         });
+        this.limitBtn = this.add_button("fence", "Limit motion to selected motor");
+        switch_button_on(this.limitBtn);
+        this.limitBtn.addEventListener("click", evt => {
+            toggle_button(this.limitBtn);
+        });
         this.livePreviewBtn = this.add_button("precision_manufacturing", "Toggle live preview of knot position on the motor");
         switch_button_on(this.livePreviewBtn);
         this.livePreviewBtn.addEventListener("click", evt => {
             toggle_button(this.livePreviewBtn);
-        });
-        this.add_space_to_toolbar();
-
-
-        // Zoom buttons
-        this.add_button("zoom_in", "Zoom in").addEventListener("click", evt => {
-            zoom_bbox_in_place(this.viewport, ZOOM_FACTOR_PER_STEP);
-            this.update_trafo();
-            this.draw();
-        });
-        this.add_button("zoom_out", "Zoom out").addEventListener("click", evt => {
-            zoom_bbox_in_place(this.viewport, 1 / ZOOM_FACTOR_PER_STEP);
-            this.update_trafo();
-            this.draw();
-        });
-        this.add_button("zoom_out_map", "Reset zoom").addEventListener("click", evt => {
-            if (!this.history.length) return;
-
-            const current = this.history.retrieve();
-            const bbox = current.bbox();
-            bbox.expand_by_bbox(DEFAULT_DATA_BBOX);
-            this.viewport = current.bbox();
-            this.update_trafo();
-            this.draw();
         });
         this.add_space_to_toolbar();
 
@@ -449,6 +454,21 @@ class Editor extends CurverBase {
 
 
     /**
+     * Get current boundaries for spline when limits activated.
+     *
+     * @returns {BBox} Boundaries bounding box
+     */
+    limits() {
+        if (is_checked(this.limitBtn)) {
+            const motor = this.motorSelector.selected_motor_info();
+            return new BBox([0, 0], [Infinity, motor.length]);
+        } else {
+            return new BBox([0, -Infinity], [Infinity, Infinity]);
+        }
+    }
+
+
+    /**
      * Load spline into spline editor.
      * Recalculate bounding box
      */
@@ -497,8 +517,8 @@ class Editor extends CurverBase {
         this.stop_spline_playback();
         this.line.data.clear();
         if (position !== null && is_checked(this.livePreviewBtn)) {
-            const id = this.motorSelector.selected_index;
-            this.api.live_preview(position, id);
+            const motor = this.motorSelector.selected_motor_info();
+            this.api.live_preview(position, motor.id);
         }
     }
 
@@ -507,6 +527,8 @@ class Editor extends CurverBase {
      * Notify spline editor that with the new current state of the spline.
      */
     spline_changed(workingCopy) {
+        const boundaries = this.limits();
+        workingCopy.restrict_to_bbox(boundaries);
         this.history.capture(workingCopy);
         this.draw_current_spline();
     }
@@ -517,10 +539,10 @@ class Editor extends CurverBase {
      */
     async play_current_spline() {
         const spline = this.history.retrieve();
-        const id = this.motorSelector.selected_index;
+        const motor = this.motorSelector.selected_motor_info();
         const loop = this.transport.looping;
         const offset = this.transport.position;
-        const startTime = await this.api.play_spline(spline, id, loop, offset);
+        const startTime = await this.api.play_spline(spline, motor.id, loop, offset);
         this.transport.startTime = startTime + INTERVAL;
         this.transport.play();
         this.update_ui();
@@ -636,11 +658,8 @@ class Editor extends CurverBase {
             this.update_ui();
         }
 
-        if (this.motorSelector.unselected) {
-            return;
-        }
-
-        const actualValue = msg.values[this.motorSelector.actualValueIndex];
+        const motor = this.motorSelector.selected_motor_info();
+        const actualValue = msg.values[motor.actualValueIndex];
         if (this.transport.paused) {
             this.line.data.popleft();
         } else {

@@ -1,7 +1,7 @@
 "use strict";
 import { BBox } from "/static/js/bbox.js";
 import { make_draggable } from "/static/js/draggable.js";
-import { arange } from "/static/js/math.js";
+import { arange, clip } from "/static/js/math.js";
 import { KNOT, FIRST_CP, SECOND_CP, Degree, LEFT, RIGHT } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
 import { assert, arrays_equal, clear_array } from "/static/js/utils.js";
@@ -37,7 +37,6 @@ function snap_to_value(value, grid, threshold=.001) {
 }
 
 
-
 /**
  * Nice float formatting with max precision and "0" for small numbers.
  */
@@ -47,6 +46,21 @@ function format_number(number, smallest=1e-10) {
     }
 
     return number.toPrecision(PRECISION);
+}
+
+
+/**
+ * Clip point so that it lies within bounding box.
+ *
+ * @param {Array} pt 2D point to clip.
+ * @param {BBox} bbox Bounding box to use to restrict the point.
+ * @returns Clipped point.
+ */
+function clip_point(pt, bbox) {
+    return [
+        clip(pt[0], bbox.ll[0], bbox.ur[0]),
+        clip(pt[1], bbox.ll[1], bbox.ur[1]),
+    ];
 }
 
 
@@ -97,6 +111,7 @@ export class SplineDrawer {
         /** Start position of drag motion. */
         let start = null;
         let yValues = [];
+        let boundaries = new BBox();
 
         make_draggable(
             ele,
@@ -105,32 +120,35 @@ export class SplineDrawer {
                 yValues = new Set(workingCopy.c.flat());
                 yValues.add(0.0);
                 this.editor.spline_changing();
+                boundaries = this.editor.limits();
             },
             evt => {
-                const end = this.editor.mouse_coordinates(evt);
+                let end = this.editor.mouse_coordinates(evt);
+                end = clip_point(end, boundaries);
                 if (this.editor.snap_to_grid & !evt.shiftKey) {
                     end[1] = snap_to_value(end[1], yValues, 0.001);
                 }
 
                 on_drag(end);
+                workingCopy.restrict_to_bbox(boundaries);
+                this.draw();
 
                 // Position label
                 this.label.setAttribute("visibility", "visible");
-                const bbox = this.label.getBBox();
+                const labelBbox = this.label.getBBox();
                 const pt = this.editor.transform_point(end);
                 if (labelLocation.startsWith("u")) {
-                    this.label.setAttribute("y", pt[1] - bbox.height);
+                    this.label.setAttribute("y", pt[1] - labelBbox.height);
                 } else {
-                    this.label.setAttribute("y", pt[1] + bbox.height);
+                    this.label.setAttribute("y", pt[1] + labelBbox.height);
                 }
 
                 if (labelLocation.endsWith("r")) {
                     this.label.setAttribute("x", pt[0]);
                 } else {
-                    this.label.setAttribute("x", pt[0] - bbox.width);
+                    this.label.setAttribute("x", pt[0] - labelBbox.width);
                 }
 
-                this.draw();
             },
             evt => {
                 const end = this.editor.mouse_coordinates(evt);
@@ -141,6 +159,7 @@ export class SplineDrawer {
                 this.label.setAttribute("visibility", "hidden");
                 start = null;
                 clear_array(yValues);
+                let bbox = new BBox();
             }
         );
     }
