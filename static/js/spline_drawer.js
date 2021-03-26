@@ -37,6 +37,19 @@ function snap_to_value(value, grid, threshold=.001) {
 }
 
 
+
+/**
+ * Nice float formatting with max precision and "0" for small numbers.
+ */
+function format_number(number, smallest=1e-10) {
+    if (Math.abs(number) < smallest) {
+        return "0";
+    }
+
+    return number.toPrecision(PRECISION);
+}
+
+
 export class SplineDrawer {
     constructor(editor, container) {
         this.editor = editor;
@@ -80,7 +93,7 @@ export class SplineDrawer {
      * @param on_drag On drag motion callback. Will be called with a relative
      * delta array.
      */
-    make_draggable(ele, on_drag, workingCopy) {
+    make_draggable(ele, on_drag, workingCopy, labelLocation = "ur") {
         /** Start position of drag motion. */
         let start = null;
         let yValues = [];
@@ -100,10 +113,23 @@ export class SplineDrawer {
                 }
 
                 on_drag(end);
+
+                // Position label
                 this.label.setAttribute("visibility", "visible");
+                const bbox = this.label.getBBox();
                 const pt = this.editor.transform_point(end);
-                this.label.setAttribute("x", pt[0] + 15);
-                this.label.setAttribute("y", pt[1] - 15);
+                if (labelLocation.startsWith("u")) {
+                    this.label.setAttribute("y", pt[1] - bbox.height);
+                } else {
+                    this.label.setAttribute("y", pt[1] + bbox.height);
+                }
+
+                if (labelLocation.endsWith("r")) {
+                    this.label.setAttribute("x", pt[0]);
+                } else {
+                    this.label.setAttribute("x", pt[0] - bbox.width);
+                }
+
                 this.draw();
             },
             evt => {
@@ -252,7 +278,7 @@ export class SplineDrawer {
                             slope = wc.get_derivative_at_knot(seg + 1, LEFT);
                         }
 
-                        this.label.innerHTML = slope.toPrecision(PRECISION);
+                        this.label.innerHTML = format_number(slope);
                     },
                     wc,
                 );
@@ -271,9 +297,10 @@ export class SplineDrawer {
                 pos => {
                     this.editor.spline_changing(pos[1]);
                     wc.position_knot(knot, pos, this.editor.c1);
-                    this.label.innerHTML = pos[0].toPrecision(PRECISION) + ", " + pos[1].toPrecision(PRECISION);
+                    this.label.innerHTML = format_number(pos[0]) + ", " + format_number(pos[1]);
                 },
                 wc,
+                knot < wc.n_segments ? "ur" : "ul",
             );
             circle.addEventListener("dblclick", evt => {
                 evt.stopPropagation();
