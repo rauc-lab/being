@@ -4,9 +4,10 @@
  */
 import {array_shape, array_min, array_max} from "/static/js/math.js";
 import {deep_copy, last_element} from "/static/js/utils.js";
+import {ONE_D} from "/static/js/constants.js";
 import {BBox} from "/static/js/bbox.js";
 import {assert, searchsorted} from "/static/js/utils.js";
-import {clip} from "/static/js/math.js";
+import {clip, floor_division} from "/static/js/math.js";
 
 
 /** Named indices for BPoly coefficents matrix */
@@ -23,7 +24,6 @@ export const Order = Object.freeze({
     "CONSTANT": 1,
 });
 
-
 /** Spline degree */
 export const Degree = Object.freeze({
     "CUBIC": 3,
@@ -31,7 +31,6 @@ export const Degree = Object.freeze({
     "LINEAR": 1,
     "CONSTANT": 0,
 });
-
 
 export const LEFT = "left";
 export const RIGHT = "right";
@@ -61,12 +60,12 @@ export function spline_degree(spline) {
  */
 export function smooth_out_spline(spline) {
     const degree = spline.degree;
-    for (let seg = 0; seg < spline.n_segments; seg++) {
-        if (seg > 0) {
-            spline.c[KNOT + degree][seg - 1] = spline.c[KNOT][seg];
-        }
+    for (let seg = 1; seg < spline.n_segments; seg++) {
+        //spline.c[KNOT + degree][seg - 1] = spline.c[KNOT][seg];
+        spline.c[KNOT][seg] = spline.c[KNOT + degree][seg - 1];
     }
 }
+
 
 /**
  * JS BPoly wrapper.
@@ -85,11 +84,7 @@ export class BPoly {
         this.order = c.length;
         this.degree = c.length - 1;
         const shape = array_shape(c);
-        if (shape.length == 2) {
-            this.ndim = 1;
-        } else if (shape.length === 3) {
-            this.ndim = shape[2];
-        }
+        this.ndim = shape.length === 2 ? ONE_D : shape[2];
     }
 
 
@@ -204,6 +199,7 @@ export class BPoly {
             return this.degree * (this.c[knot][seg] - this.c[knot-1][seg]) / dx;
         }
     }
+
 
     /**
      * Adjust control points for a given dervative value.
@@ -330,16 +326,41 @@ export class BPoly {
 
 
     /**
+     * Check if we are dealing with the last spline knot.
+     *
+     * @param {Number} knotNr Knot number.
+     * @returns If we are dealing with the last knot of the spline.
+     */
+    _is_last_knot(knotNr) {
+        return (knotNr === this.n_segments);
+    }
+
+
+    /**
      * Remove knot from spline.
      *
      * @param {Number} knotNr Knot number to remove.
      */
     remove_knot(knotNr) {
+        if (this._is_last_knot(knotNr)) {
+            this.x.pop();
+            this.c.forEach(row => { row.pop(); });
+            return;
+        }
+
+        // Prepare continuity / copy parts of the coeffs from seg -> seg-1 before deleting col seg.
+        const seg = knotNr;
+        const half = floor_division(this.order, 2);
+        for (let i=half; i<this.order; i++) {
+            this.c[i][seg-1] = this.c[i][seg];
+        }
+
         this.x.splice(knotNr, 1);
         this.c.forEach(row => {
-            row.splice(knotNr, 1);
+            row.splice(seg, 1);
         });
     }
+
 
     /**
      * Create a copy for the spline (deep copy).
@@ -347,6 +368,7 @@ export class BPoly {
     copy() {
         return new BPoly(deep_copy(this.c), deep_copy(this.x), this.extrapolate, this.axis);
     }
+
 
     /**
      * Convert BPoly instance to dict representation.
@@ -362,6 +384,11 @@ export class BPoly {
     }
 
 
+    /**
+     * Restrict all knots and control points to a bounding box.
+     *
+     * @param {Bbox} bbox Limits bounding box.
+     */
     restrict_to_bbox(bbox) {
         const [xmin, ymin] = bbox.ll;
         const [xmax, ymax] = bbox.ur;

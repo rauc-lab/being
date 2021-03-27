@@ -73,6 +73,14 @@ export function polar_to_cartesian(pt) {
 }
 
 
+/**
+ * Perform floor division between two number.
+ */
+export function floor_division(number, divisor) {
+    return Math.floor(number / divisor);
+}
+
+
 /* Numpy style array helpers */
 
 
