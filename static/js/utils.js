@@ -148,3 +148,26 @@ export function is_valid_filename(fnm) {
 
     return rg1.test(fnm) && !rg2.test(fnm) && !rg3.test(fnm);
 }
+
+
+/**
+ * Insert item in array at index.
+ *
+ * @param {Array} array 
+ * @param {Number} index 
+ * @param {object} item Object to insert.
+ */
+ export function insert_in_array(array, index, item) {
+    array.splice(index, 0, item)
+}
+
+
+/**
+ * Remove item from array at index.
+ *
+ * @param {Array} array 
+ * @param {Number} index Index to remove.
+ */
+export function remove_from_array(array, index) {
+    array.splice(index, 1);
+}

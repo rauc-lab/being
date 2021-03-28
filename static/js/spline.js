@@ -6,8 +6,8 @@ import {array_shape, array_min, array_max} from "/static/js/math.js";
 import {deep_copy, last_element} from "/static/js/utils.js";
 import {ONE_D} from "/static/js/constants.js";
 import {BBox} from "/static/js/bbox.js";
-import {assert, searchsorted} from "/static/js/utils.js";
-import {clip, floor_division} from "/static/js/math.js";
+import {assert, searchsorted, insert_in_array, remove_from_array} from "/static/js/utils.js";
+import {clip, floor_division } from "/static/js/math.js";
 
 
 /** Named indices for BPoly coefficents matrix */
@@ -54,16 +54,28 @@ export function spline_degree(spline) {
 
 
 /**
- * Assure c0 continuity in spline coefficient matrix.
+ * Duplicate entry in array at index.
  *
- * @param {Spline} spline
+ * @param {Array} array 
+ * @param {Number} index 
  */
-export function smooth_out_spline(spline) {
-    const degree = spline.degree;
-    for (let seg = 1; seg < spline.n_segments; seg++) {
-        //spline.c[KNOT + degree][seg - 1] = spline.c[KNOT][seg];
-        spline.c[KNOT][seg] = spline.c[KNOT + degree][seg - 1];
-    }
+function duplicate_entry_in_array(array, index) {
+    index = clip(index, 0, array.length - 1);
+    const cpy = deep_copy(array[index]);
+    insert_in_array(array, index, cpy);
+}
+
+
+/**
+ * Duplicate column in matrix.
+ *
+ * @param {Array} mtrx At least 2d array.
+ * @param {Number} col Column number.
+ */
+function duplicate_column_in_matrix(mtrx, col) {
+    mtrx.forEach(row => {
+        duplicate_entry_in_array(row, col);
+    });
 }
 
 
@@ -186,6 +198,7 @@ export class BPoly {
             if (dx === 0) {
                 return 0.;
             }
+
             return this.degree * (this.c[FIRST_CP][seg] - this.c[KNOT][seg]) / dx;
         } else if (side === LEFT) {
             assert(0 < nr && nr <= this.n_segments);
@@ -296,8 +309,9 @@ export class BPoly {
     /**
      * Bézier control point.
      *
-     * @param seg Segment index.
-     * @param nr Control point index. E.g. for cubic 0 -> left knot, 1 -> First control point, etc...
+     * @param {Number} seg Segment index.
+     * @param {Number} nr Control point index. E.g. for cubic 0 -> left knot, 1
+     *     -> First control point, etc...
      */
     point(seg, nr=0) {
         if (seg === this.x.length - 1) {
@@ -315,13 +329,35 @@ export class BPoly {
      * @param {Array} pos Knot x, y position.
      */
     insert_knot(pos) {
-        const index = searchsorted(this.x, pos[0]);
-        this.x.splice(index, 0, pos[0]);
-        this.c.forEach(row => {
-            row.splice(index, 0, pos[1]);
-        });
-
-        smooth_out_spline(this);
+        const x = this.x;
+        const c = this.c;
+        const index = searchsorted(x, pos[0]);
+        const nextKnot = KNOT + this.degree;
+        const seg = index - 1;
+        const length = x.length;
+        insert_in_array(x, index, pos[0]);
+        duplicate_column_in_matrix(c, index);
+        if (seg === -1) {
+            // Before first segment
+            c[KNOT][0] = pos[1];
+            c[FIRST_CP][0] = pos[1];
+            c[SECOND_CP][0] = c[KNOT][1];
+            c[nextKnot][0] = c[KNOT][1];
+        } else if (seg === length - 1) {
+            // After last segment
+            c[KNOT][seg] = c[nextKnot][seg-1];
+            c[FIRST_CP][seg] = c[nextKnot][seg-1];
+            c[SECOND_CP][seg] = pos[1];
+            c[nextKnot][seg] = pos[1];
+        } else {
+            // Somewhere inbetween segments
+            c[SECOND_CP][seg] = pos[1];
+            c[nextKnot][seg] = pos[1];
+            c[KNOT][seg+1] = pos[1];
+            c[FIRST_CP][seg+1] = pos[1];
+            c[SECOND_CP][seg+1] = c[KNOT][seg+2];
+            c[nextKnot][seg+1] = c[KNOT][seg+2];
+        }
     }
 
 
@@ -344,20 +380,23 @@ export class BPoly {
     remove_knot(knotNr) {
         if (this._is_last_knot(knotNr)) {
             this.x.pop();
-            this.c.forEach(row => { row.pop(); });
+            this.c.forEach(row => {
+                row.pop();
+            });
             return;
         }
 
-        // Prepare continuity / copy parts of the coeffs from seg -> seg-1 before deleting col seg.
+        // Prepare continuity / copy parts of the coefficients from seg ->
+        // seg-1 before deleting col seg.
         const seg = knotNr;
         const half = floor_division(this.order, 2);
         for (let i=half; i<this.order; i++) {
             this.c[i][seg-1] = this.c[i][seg];
         }
 
-        this.x.splice(knotNr, 1);
+        remove_from_array(this.x, knotNr);
         this.c.forEach(row => {
-            row.splice(seg, 1);
+            remove_from_array(row, seg);
         });
     }
 
