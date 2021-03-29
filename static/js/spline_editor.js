@@ -161,7 +161,6 @@ class Editor extends CurverBase {
             await this.api.save_spline(spline, name);
             this.history.clear();
             this.history.capture(spline);
-            this.history.isUnsaved = false;
             const selectedSpline = this.splineList.splines.filter(sp => sp.filename === this.splineList.selected)[0]
             selectedSpline.content = spline;
             this.update_ui();
@@ -473,7 +472,6 @@ class Editor extends CurverBase {
     load_spline(spline) {
         this.history.clear();
         this.history.capture(spline);
-        this.history.isUnsaved = false;
 
         // Calc viewport
         const bbox = spline.bbox();

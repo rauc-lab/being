@@ -10,7 +10,6 @@ export class History {
     constructor(maxlen = 20) {
         this.past = new Deque(0, maxlen);
         this.future = new Deque(0, maxlen);
-        this.isUnsaved = false
     }
 
 
@@ -39,10 +38,17 @@ export class History {
 
 
     /**
+     * Do we have unsaved changes?
+     */
+    get savable() {
+        return this.length > 1;
+    }
+
+
+    /**
      * Capture a new state and add it to the history. Will clear off head.
      */
     capture(state) {
-        this.isUnsaved = true
         this.future.clear();
         this.past.push(state);
     }

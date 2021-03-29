@@ -91,12 +91,10 @@ export class SplineList {
             entry.classList.add("noselect")
             entry.id = spline.filename
             entry.addEventListener("click", evt => {
-
-                if (this.editor.history.isUnsaved && this.editor.history.undoable) {
-                    if (!confirm("Discard unsaved editing?")) {
-                        return
-                    }
+                if (this.editor.history.savable && !confirm("Discard unsaved edits?")) {
+                    return
                 }
+
                 if (evt.currentTarget.id !== this.selected) {
                     if (!this.preSelectVisibility) {
                         this.visibles.delete(this.selected)
@@ -276,7 +274,6 @@ export class SplineList {
         this.editor.history.clear()
         const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
         this.editor.load_spline(selectedSpline.content)
-        this.editor.history.isUnsaved = false
         const currentSpline = this.editor.history.retrieve();
         const bbox = currentSpline.bbox();
         bbox.expand_by_point([0., 0]);
