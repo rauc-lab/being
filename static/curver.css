@@ -36,14 +36,6 @@ svg circle {
   /* width: inherit; */
 }
 
-div.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-div.toolbar:empty {
-  visibility: hidden;
-}
 
 .btn-black {
   outline: none;
@@ -52,15 +44,7 @@ div.toolbar:empty {
   background: none;
 }
 
-div.toolbar > * {
-  border: 2px solid black;
-  margin: -2px -2px 0 0;
-}
 
-.space {
-  display: inline-block;
-  width: 18px;
-}
 
 .material-icons {
   font-family: "Material Icons";
@@ -85,22 +69,6 @@ div.toolbar > * {
 
   /* Support for IE. */
   font-feature-settings: "liga";
-}
-
-/** Button effects */
-
-div.toolbar button:active {
-  background: black;
-  color: white;
-}
-
-.material-icons[checked] {
-  background: black;
-  color: white;
-}
-
-button.material-icons:disabled {
-  color: silver;
 }
 
 .main {
@@ -170,37 +138,8 @@ span.spline-checkbox {
   }
 }
 
-/** Label and select */
-
-div.toolbar select {
-  font-size: 18px; /* Preferred icon size */
-  border: none;  /* Looks better on Safari / Chrome but worse on Firefox. Need some styling of the arrow box... */
-  background: transparent;
-	background-image: url("data:image/svg+xml;utf8,<svg fill='black' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
-	background-repeat: no-repeat;
-	appearance: none;
-	-webkit-appearance: none;
-	-moz-appearance: none;
-	background-position-x: 100%;
-	background-position-y: 50%;
-	padding-right: 1rem;
-	padding-left: .25rem;
-}
-
 .noselect {
   user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
-}
-
-button.record[checked] {
-  background-color: white;
-  color: black;
-  animation: pulsating-red 2s infinite;
-}
-
-@keyframes pulsating-red {
-  0% { background-color: white; }
-  40% { background-color: red; }
-  100% { background-color: white; }
 }
 
 .nonvalid {

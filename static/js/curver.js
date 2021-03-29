@@ -133,9 +133,12 @@ export class CurverBase extends HTMLElement {
         this.attachShadow({ mode: "open" });
 
         // Apply external styles to the shadow dom
-        const link = document.createElement("link");
-        link.setAttribute("rel", "stylesheet");
-        link.setAttribute("href", "static/curver.css");
+        ["static/curver.css", "static/toolbar.css"].forEach(fp => {
+            const link = document.createElement("link");
+            link.setAttribute("rel", "stylesheet");
+            link.setAttribute("href", fp);
+            this.shadowRoot.append(link);
+        });
 
         this.main = document.createElement("div")
         this.main.classList.add("main")
@@ -167,7 +170,7 @@ export class CurverBase extends HTMLElement {
 
         this.main.append(this.toolbar, this.graphs)
 
-        this.shadowRoot.append(link, this.main);
+        this.shadowRoot.append(this.main);
     }
 
 
