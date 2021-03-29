@@ -33,7 +33,7 @@ const ZOOM_FACTOR_PER_STEP = 1.5;
 /** Default data bbox size. */
 const DEFAULT_DATA_BBOX = new BBox([0, 0], [1, 0.04]);
 
-
+/** Min height of spline drawing area (y directions) */
 const MIN_HEIGHT = 0.010;
 
 
@@ -66,16 +66,6 @@ function scale_spline(spline, factor) {
 function stretch_spline(spline, factor) {
     const stretchedKnots = multiply_scalar(factor, spline.x);
     return new BPoly(spline.c, stretchedKnots);
-}
-
-
-/**
- * Check if any modifier key was pressed from keyboard event.
- *
- * @returns {Boolean}
- */
-function modifier_key_pressed(evt) {
-    return evt.metaKey || evt.shiftKey || evt.ctrlKey || evt.altKey;
 }
 
 
@@ -145,7 +135,7 @@ class Editor extends CurverBase {
     /**
      * If snap to grid is enabled.
      */
-    get snap_to_grid() {
+    get snapping_to_grid() {
         return is_checked(this.snapBtn);
     }
 
@@ -177,15 +167,11 @@ class Editor extends CurverBase {
         });
         this.undoBtn = this.add_button("undo", "Undo last action");
         this.undoBtn.addEventListener("click", evt => {
-            this.history.undo();
-            this.stop_spline_playback();
-            this.draw_current_spline();
+            this.undo();
         });
-        this.redoBtn = this.add_button("redo", "Redo last action")
+        this.redoBtn = this.add_button("redo", "Redo last action");
         this.redoBtn.addEventListener("click", evt => {
-            this.history.redo();
-            this.stop_spline_playback();
-            this.draw_current_spline();
+            this.redo();
         });
         this.add_space_to_toolbar();
 
@@ -314,26 +300,37 @@ class Editor extends CurverBase {
      */
     setup_keyboard_shortcuts() {
         addEventListener("keydown", evt => {
-            // Otherwise we trigger last buttons in focus
-            document.activeElement.blur();
-
-            if ((evt.metaKey || evt.ctrlKey) && evt.key === 'u') {
-                toggle_button(this.snapBtn);
-            }
-
-            this.update_ui();
-        });
-
-        addEventListener("keyup", evt => {
-            if (!modifier_key_pressed(evt)) {
-                if (evt.key === " ") {
-                    this.toggle_playback();
-                } else if (evt.key === "r") {
-                    this.toggle_recording();
-                } else if (evt.key === "l") {
-                    this.transport.toggle_looping();
-                } else if (evt.key === "c") {
-                    toggle_button(this.c1Btn);
+            document.activeElement.blur();  // Otherwise we trigger last buttons in focus
+            const ctrlOrMeta = evt.ctrlKey || evt.metaKey;
+            if (ctrlOrMeta && !evt.shiftKey) {
+                switch (evt.key) {
+                    case "u":
+                        toggle_button(this.snapBtn);
+                        break;
+                    case "z":
+                        this.undo();
+                        break;
+                }
+            } else if (ctrlOrMeta && evt.shiftKey) {
+                switch (evt.key) {
+                    case "z":
+                        this.redo();
+                        break;
+                }
+            } else {
+                switch (evt.key) {
+                    case " ":
+                        this.toggle_playback();
+                        break;
+                    case "r":
+                        this.toggle_recording();
+                        break;
+                    case "l":
+                        this.transport.toggle_looping();
+                        break;
+                    case "c":
+                        toggle_button(this.c1Btn);
+                        break;
                 }
             }
 
@@ -645,6 +642,30 @@ class Editor extends CurverBase {
         await this.api.create_spline();
         this.update_ui();
         this.splineList.reload_spline_list();
+    }
+
+
+    /**
+     * Undo latest editing step.
+     */
+    undo() {
+        if (this.history.undoable) {
+            this.history.undo();
+            this.stop_spline_playback();
+            this.draw_current_spline();
+        }
+    }
+
+
+    /**
+     * Redo latest editing step.
+     */
+    redo() {
+        if (this.history.redoable) {
+            this.history.redo();
+            this.stop_spline_playback();
+            this.draw_current_spline();
+        }
     }
 
 

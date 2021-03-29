@@ -158,7 +158,7 @@ export class SplineDrawer {
             evt => {
                 let end = this.editor.mouse_coordinates(evt);
                 end = clip_point(end, limits);
-                if (this.editor.snap_to_grid & !evt.shiftKey) {
+                if (this.editor.snapping_to_grid & !evt.shiftKey) {
                     end[1] = snap_to_value(end[1], yValues, 0.001);
                 }
 
