@@ -2,13 +2,16 @@
 
 
 /**
- * Shape of array.
+ * Shape of an array.
+ *
+ * @param {Array} array to determine shape from.
+ * @returns {Array} Shape of array.
  */
- export function array_shape(arr) {
+ export function array_shape(array) {
     let shape = [];
-    while (arr instanceof Array) {
-        shape.push(arr.length);
-        arr = arr[0];
+    while (array instanceof Array) {
+        shape.push(array.length);
+        array = array[0];
     }
 
     return shape;
@@ -45,7 +48,7 @@ export function array_reshape(array, shape) {
 
 /**
  * Array minimum value.
- * @param arr - Flat input array.
+ * @param {Array} arr Flat input array.
  * @returns Minimum value.
  */
 export function array_min(arr) {
@@ -55,7 +58,7 @@ export function array_min(arr) {
 
 /**
  * Array maximum value.
- * @param arr - Flat input array.
+ * @param {Array} arr Flat input array.
  * @returns Maximum value.
  */
 export function array_max(arr) {
@@ -64,12 +67,15 @@ export function array_max(arr) {
 
 
 /**
- * Create zeros array in arbitrary dimensions.
+ * Create zeros array for a given shape.
+ *
+ * @param {Array} shape Input shape
+ * @returns {Array} Zero array of given shape
  */
-export function array_zeros(shape) {
+export function zeros(shape) {
     let array = [];
     for (let i = 0; i < shape[0]; i++) {
-        array.push(shape.length === 1 ? 0 : array_zeros(shape.slice(1)));
+        array.push(shape.length === 1 ? 0 : zeros(shape.slice(1)));
     }
 
     return array;
