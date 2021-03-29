@@ -1,5 +1,5 @@
 "use strict";
-import { array_shape } from "/static/js/math.js";
+import { array_shape } from "/static/js/array.js";
 import { last_element } from "/static/js/utils.js";
 // TODO: Should we change serialization of splines? knots -> x, coefficients ->
 // c? Same as like within Python / Scipy?

@@ -2,7 +2,7 @@
 /**
  * Spline stuff. Some constants and BPoly wrapper.
  */
-import {array_shape, array_min, array_max} from "/static/js/math.js";
+import {array_shape, array_min, array_max} from "/static/js/array.js";
 import {deep_copy, last_element} from "/static/js/utils.js";
 import {ONE_D} from "/static/js/constants.js";
 import {BBox} from "/static/js/bbox.js";

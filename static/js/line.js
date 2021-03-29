@@ -1,5 +1,5 @@
 import { BBox } from "/static/js/bbox.js";
-import { array_min, array_max } from "/static/js/math.js";
+import { array_min, array_max } from "/static/js/array.js";
 import { Deque } from "/static/js/deque.js";
 
 

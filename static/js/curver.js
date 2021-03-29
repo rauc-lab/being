@@ -4,7 +4,8 @@
  */
 import { BBox } from "/static/js/bbox.js";
 import { tick_space, } from "/static/js/layout.js";
-import { divide_arrays, clip } from "/static/js/math.js";
+import { divide_arrays} from "/static/js/array.js";
+import { clip } from "/static/js/math.js";
 import { create_element } from "/static/js/svg.js";
 import { cycle, add_option } from "/static/js/utils.js";
 
