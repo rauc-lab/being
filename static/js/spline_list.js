@@ -22,7 +22,8 @@ export class SplineList {
                 spline.content = BPoly.from_object(spline.content)
             })
             this.populate(res)
-        })
+            this.editor.resize();
+        });
     }
 
 
@@ -30,17 +31,13 @@ export class SplineList {
      * Build node and attach to parent (editor)
      */
     add_spline_list() {
-        const container = document.createElement("div")
-        container.classList.add("spline-list")
-
-        const title = document.createElement("h2")
-        title.appendChild(document.createTextNode("Motions"))
-        container.appendChild(title)
+        const container = this.editor.motionListDiv;
 
         this.splineListDiv = document.createElement("div")
-        this.splineListDiv.style.borderBottom = "2px solid black"
+        //this.splineListDiv.style.borderBottom = "2px solid black"
         this.splineListDiv.style.paddingBottom = "5px"
         container.appendChild(this.splineListDiv)
+        container.appendChild(document.createElement("hr"));
 
         const newBtnContainer = document.createElement("div")
         newBtnContainer.id = "spline-list-toolbar"
@@ -51,6 +48,7 @@ export class SplineList {
         this.addSplineButton = this.editor.add_button("add_box", "Create new spline")
         this.addSplineButton.addEventListener("click", async evt => {
             this.editor.create_new_spline();
+            this.reload_spline_list();
         });
         newBtnContainer.appendChild(this.addSplineButton)
 
@@ -75,14 +73,9 @@ export class SplineList {
             })
         })
         newBtnContainer.appendChild(this.duplSplineButton)
-
-        // insert after css link
-        this.editor.shadowRoot.insertBefore(container, this.editor.shadowRoot.childNodes[1])
     }
 
-
     update_spline_list() {
-
         remove_all_children(this.splineListDiv)
 
         this.splines.forEach(spline => {
@@ -243,6 +236,7 @@ export class SplineList {
         this.editor.backgroundDrawer.draw()
     }
 
+
     update_spline_list_selection() {
         let entries = this.editor.shadowRoot.querySelectorAll(".spline-list-entry")
         entries.forEach(entry => {
@@ -281,6 +275,7 @@ export class SplineList {
         this.dataBbox = bbox;
         this.viewport = this.dataBbox.copy();
     }
+
 
     populate(splines) {
         this.splines = splines

@@ -37,11 +37,8 @@ const MIN_VIEWPORT = new BBox([Infinity, -0.001], [-Infinity, 0.001]);
  */
 export class CurverBase extends HTMLElement {
     constructor(auto = true) {
-        console.log("CurverBase.constructor");
         super();
         this.auto = auto;
-        this.width = 1;
-        this.height = 1;
         this.viewport = MIN_VIEWPORT.copy();
         this.trafo = new DOMMatrix();
         this.trafoInv = new DOMMatrix();
@@ -78,9 +75,7 @@ export class CurverBase extends HTMLElement {
         }
 
         const btn = document.createElement("button");
-        btn.classList.add("mdc-icon-button");
         btn.classList.add("material-icons");
-        btn.classList.add("btn-black");
         btn.innerHTML = innerHTML;
         btn.title = title;
         btn.id = id;
@@ -121,7 +116,8 @@ export class CurverBase extends HTMLElement {
             add_option(select, opt);
         });
         container.appendChild(select);
-        this.toolbar.appendChild(container);
+        //this.toolbar.appendChild(container);
+        this.toolbar.appendChild(select);
         return select;
     }
 
@@ -133,20 +129,29 @@ export class CurverBase extends HTMLElement {
         this.attachShadow({ mode: "open" });
 
         // Apply external styles to the shadow dom
-        ["static/curver.css", "static/toolbar.css"].forEach(fp => {
+        ["static/open_sans.css", "static/curver.css", "static/toolbar.css"].forEach(fp => {
             const link = document.createElement("link");
             link.setAttribute("rel", "stylesheet");
             link.setAttribute("href", fp);
             this.shadowRoot.append(link);
         });
 
-        this.main = document.createElement("div")
-        this.main.classList.add("main")
-        this.main.id = "main"
+        // ? Mistery unknown area
+        const title = document.createElement("div");
+        title.classList.add("title");
+        title.innerHTML = "Motion Editor";
 
-        // Toolbar
+        // Motion list
+        this.motionListDiv = document.createElement("div");
+        this.motionListDiv.classList.add("motion-list");
+
+        // Toolbar area
         this.toolbar = document.createElement("div");
         this.toolbar.classList.add("toolbar");
+
+        // Graph area
+        this.graph = document.createElement("div");
+        this.graph.classList.add("graph");
 
         // Canvas
         this.canvas = document.createElement("canvas");
@@ -157,20 +162,12 @@ export class CurverBase extends HTMLElement {
         // SVG
         this.svg = create_element("svg");
         this.backgroundGroup = this.svg.appendChild(create_element("g"));
-        this.backgroundGroup.id = "background-splines"
         this.transportGroup = this.svg.appendChild(create_element("g"));
-        this.transportGroup.id = "cursor"
         this.splineGroup = this.svg.appendChild(create_element("g"));
-        this.splineGroup.id = "selected-spline"
 
-        this.graphs = document.createElement("div")
-        this.graphs.classList.add("graphDiv")
-        this.graphs.appendChild(this.canvas)
-        this.graphs.appendChild(this.svg)
+        this.graph.append(this.canvas, this.svg);
 
-        this.main.append(this.toolbar, this.graphs)
-
-        this.shadowRoot.append(this.main);
+        this.shadowRoot.append(title, this.motionListDiv, this.toolbar, this.graph);
     }
 
 
@@ -194,7 +191,9 @@ export class CurverBase extends HTMLElement {
      * Update viewport transformation.
      */
     update_trafo() {
-        const [sx, sy] = divide_arrays([this.width - 2 * MARGIN, this.height - 2 * MARGIN], this.viewport.size);
+        const width = this.graph.clientWidth;
+        const height = this.graph.clientHeight;
+        const [sx, sy] = divide_arrays([width - 2 * MARGIN, height - 2 * MARGIN], this.viewport.size);
         if (!isFinite(sx) || !isFinite(sy) || sx === 0 || sy === 0)
             return
 
@@ -216,18 +215,16 @@ export class CurverBase extends HTMLElement {
      * `this.resize.bind(this)`.
      */
     resize() {
-        //console.log("CurverBase.resize");
-        this.canvas.width = this.width = this.shadowRoot.getElementById("main").clientWidth;
-        this.canvas.height = this.height = this.clientHeight - this.toolbar.offsetHeight;
-        this.graphs.style.height = this.height + "px"
+        this.canvas.width = this.graph.clientWidth;
+        this.canvas.height = this.graph.clientHeight;
 
         // Flip y-axis
-        //const mtrx = [1, 0, 0, -1, 0, this.height];
+        //const mtrx = [1, 0, 0, -1, 0, this.canvas.height];
         //this.ctx.setTransform(...mtrx);
         this.ctmInv = this.svg.getScreenCTM().inverse();
 
-        //this.draw();
         this.update_trafo();
+        this.draw_lines();
     }
 
 
@@ -295,9 +292,9 @@ export class CurverBase extends HTMLElement {
         origin.y = Math.round(origin.y);
 
         ctx.moveTo(MARGIN, origin.y);
-        ctx.lineTo(this.width - MARGIN, origin.y);
+        ctx.lineTo(this.canvas.width - MARGIN, origin.y);
         ctx.moveTo(origin.x, MARGIN);
-        ctx.lineTo(origin.x, this.height - MARGIN);
+        ctx.lineTo(origin.x, this.canvas.height - MARGIN);
         ctx.stroke();
 
         // Draw ticks
@@ -307,23 +304,20 @@ export class CurverBase extends HTMLElement {
         ctx.textBaseline = "top";   // top, middle, bottom
         tick_space(this.viewport.ll[0], this.viewport.ur[0]).forEach(x => {
             const pt = (new DOMPoint(x, 0)).matrixTransform(this.trafo);
-            ctx.fillText(x, pt.x, clip(pt.y + offset, 0, this.height - MARGIN));
+            ctx.fillText(x, pt.x, clip(pt.y + offset, 0, this.canvas.height - MARGIN));
         });
         ctx.textAlign = "right";
         ctx.textBaseline = "middle";   // top, middle, bottom
         tick_space(this.viewport.ll[1], this.viewport.ur[1]).forEach(y => {
             const pt = (new DOMPoint(0, y)).matrixTransform(this.trafo);
-            ctx.fillText(y, clip(pt.x - offset, MARGIN, this.width), pt.y);
+            ctx.fillText(y, clip(pt.x - offset, MARGIN, this.canvas.width), pt.y);
         });
 
         ctx.restore();
     }
 
-
-    /**
-     * Draw single frame.
-     */
     draw_lines() {
+        //console.log("CurverBase.draw()");
         if (this.auto) {
             this.update_bbox();
             this.update_trafo();

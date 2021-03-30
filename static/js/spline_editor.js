@@ -340,18 +340,10 @@ class Editor extends CurverBase {
 
 
     /**
-     * Trigger viewport resize and redraw.
-     */
-    resize() {
-        super.resize();
-        this.draw();
-    }
-
-
-    /**
      * Draw spline editor stuff.
      */
     draw() {
+        this.draw_lines();
         this.drawer.draw();
         this.backgroundDrawer.draw()
         this.transport.draw_cursor();
@@ -379,7 +371,7 @@ class Editor extends CurverBase {
                 // Affine image transformation with `mid` as "focal point"
                 const end = [evt.clientX, evt.clientY];
                 const delta = subtract_arrays(end, start);
-                const shift = -delta[0] / this.width * orig.width;
+                const shift = -delta[0] / this.canvas.width * orig.width;
                 const factor = Math.exp(-0.01 * delta[1]);
                 this.viewport.left = factor * (orig.left - mid + shift) + mid;
                 this.viewport.right = factor * (orig.right - mid + shift) + mid;
@@ -665,6 +657,11 @@ class Editor extends CurverBase {
             this.stop_spline_playback();
             this.draw_current_spline();
         }
+    }
+
+    resize() {
+        super.resize();
+        this.draw();
     }
 
 

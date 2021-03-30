@@ -74,7 +74,7 @@ export class SplineDrawer {
 
         this.annotation = document.createElement("span");
         this.annotation.classList.add("annotation");
-        editor.graphs.appendChild(this.annotation);
+        editor.graph.appendChild(this.annotation);
     }
 
 

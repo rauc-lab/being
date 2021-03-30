@@ -1,155 +1,134 @@
 @font-face {
-  font-family: "Material Icons";
-  font-style: normal;
-  font-weight: 400;
-  src: local("Material Icons"), local("MaterialIcons-Regular"),
-    url(/static/font/material-icons.woff2) format("woff2");
+    font-family: "Material Icons";
+    font-style: normal;
+    font-weight: 400;
+    src: local("Material Icons"), local("MaterialIcons-Regular"), url("/static/font/material-icons.woff2") format("woff2");
+}
+
+.material-icons {
+    font-family: "Material Icons";
 }
 
 :host {
-  display: flex;
-  font-size: 18px;
-  flex-direction: row;
-  position: relative;
-  width: 300px;
-  height: 150px;
-  box-sizing: border-box;
-}
-
-canvas,
-svg {
-  cursor: move;
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  left: 0;
-  top: 0;
-}
-
-svg circle {
-  cursor: pointer;
-}
-
-.graphDiv {
-  position: relative;
-  overflow: hidden;
-  /* width: inherit; */
-}
-
-
-.btn-black {
-  outline: none;
-  cursor: pointer;
-  border: none;
-  background: none;
-}
-
-
-
-.material-icons {
-  font-family: "Material Icons";
-  font-weight: normal;
-  font-style: normal;
-  font-size: 24px; /* Preferred icon size */
-  display: inline-block;
-  line-height: 1;
-  text-transform: none;
-  letter-spacing: normal;
-  word-wrap: normal;
-  white-space: nowrap;
-  direction: ltr;
-
-  /* Support for all WebKit browsers. */
-  -webkit-font-smoothing: antialiased;
-  /* Support for Safari and Chrome. */
-  text-rendering: optimizeLegibility;
-
-  /* Support for Firefox. */
-  -moz-osx-font-smoothing: grayscale;
-
-  /* Support for IE. */
-  font-feature-settings: "liga";
-}
-
-.main {
-  width: 100%;
-}
-
-h2 {
-  padding: 0;
-  margin: 0;
-}
-
-div.spline-list-entry:hover {
-  cursor: pointer;
-}
-
-/** Edit filename */
-div.spline-list-entry span + span:hover {
-  cursor: text;
-}
-
-div.spline-list-entry span + span {
-  caret-color: silver;
-}
-
-div.spline-list-entry[checked] {
-  background: black;
-  color: white;
-}
-
-div.spline-list-entry {
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  padding: 10px;
-}
-
-.truncate {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-span.spline-checkbox {
-  width: 24px;
-  height: 24px;
-  margin-right: 8px;
-  flex-shrink: 0;
-}
-
-#spline-list-toolbar {
-  margin-top: 5px;
-  margin-bottom: 20px;
-}
-
-.spline-list {
-  width:20%;
-}
-
-/* Media queries here */
-@media screen and (max-width: 800px) {
-  :host {
+    display: flex;
     flex-direction: column;
-  }
+    box-sizing: border-box;
+    border: 2px solid black;
+    border-width: 2px 0 0 2px;
+}
 
-  .spline-list  {
+:host > * {
+    border: 2px solid black;
+    border-width: 0 2px 2px 0;
+}
+
+@media screen and (min-width: 800px) {
+    :host {
+        display: grid;
+        grid-template-rows: 30px auto;
+        grid-template-columns: 25% auto;
+        grid-auto-flow: column;
+    }
+}
+
+.graph {
+    position: relative;
+    flex-basis: 60vh;
+}
+
+.graph canvas,
+.graph svg {
+    position: absolute;
+    left: 0;
+    top: 0;
     width: 100%;
-  }
+    height: 100%;
 }
 
-.noselect {
-  user-select: none; /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
+.graph svg { cursor: move; }
+.graph svg circle { cursor: pointer; }
+
+.graph .annotation {
+    position: absolute;
+    visibility: hidden;
+    box-shadow: 0 0 10px 10px rgba(255, 255, 255, .666);
+    background-color: rgba(255, 255, 255, .666);
 }
 
-.nonvalid {
-  color:red;
-  border: 2px solid red;
+.title {
+    font-family: "OpenSans-Bold";
+    display: flex;
+    align-items: center;
 }
 
-.annotation {
-  position : absolute;
-  visibility : hidden;
-  box-shadow: 0 0 10px 10px rgba(255, 255, 255, .666);
-  background-color: rgba(255, 255, 255, .666);
+.motion-list hr {
+    border: none;
+    border-top: 1px solid black;
+    border-bottom: 1px solid black;
+    margin: 0 4px;
+}
+
+.motion-list > div:first-child {
+  max-height: 60vh;
+  overflow: scroll;
+}
+
+.motion-list div.spline-list-entry:hover {
+    cursor: pointer;
+}
+
+.motion-list div.spline-list-entry span+span:hover {
+    cursor: text;
+}
+
+.motion-list div.spline-list-entry span+span {
+    caret-color: silver;
+}
+
+.motion-list div.spline-list-entry[checked] {
+    background: black;
+    color: white;
+}
+
+.motion-list div.spline-list-entry {
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    padding: 10px;
+}
+
+.motion-list .truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.motion-list span.spline-checkbox {
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+.motion-list #spline-list-toolbar {
+    margin-top: 5px;
+    margin-bottom: 20px;
+}
+
+.motion-list #spline-list-toolbar button {
+    font-size: 24px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    outline: none;
+}
+
+.motion-list .noselect {
+    user-select: none;
+    /* Non-prefixed version, currently supported by Chrome, Edge, Opera and Firefox */
+}
+
+.motion-list .nonvalid {
+    color: red;
+    border: 2px solid red;
 }

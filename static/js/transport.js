@@ -102,7 +102,7 @@ export class Transport {
         setattr(this.cursor, "x1", x);
         setattr(this.cursor, "y1", 0);
         setattr(this.cursor, "x2", x);
-        setattr(this.cursor, "y2", this.editor.height);
+        setattr(this.cursor, "y2", this.editor.canvas.height);
     }
 
     /**

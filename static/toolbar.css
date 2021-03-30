@@ -1,60 +1,69 @@
 div.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-div.toolbar:empty {
-  visibility: hidden;
+    display: flex;
+    flex-flow: row wrap;
+    border-bottom: none;
+    border-left: none;
+    border-width: 0 2px 0 0;
+    z-index: 666;
 }
 
 div.toolbar > * {
-  border: 2px solid black;
-  margin: -2px -2px 0 0;
+    height: 32px;
+    margin: -2px 0 0 -2px;
+    border: 2px solid black;
+    outline: none;
+    cursor: pointer;
+    background: white;
 }
 
 
-.space {
-  display: inline-block;
-  width: 18px;
+div.toolbar button {
+    font-size: 24px;
+    width: 48px;
 }
 
 div.toolbar button:active {
-  background: black;
-  color: white;
+    background: black;
+    color: white;
 }
 
-.material-icons[checked] {
-  background: black;
-  color: white;
+div.toolbar button[checked] {
+    background: black;
+    color: white;
 }
 
-button.material-icons:disabled {
-  color: silver;
+div.toolbar button:disabled {
+    color: silver;
 }
 
-div.toolbar select {
-  font-size: 18px; /* Preferred icon size */
-  border: none;  /* Looks better on Safari / Chrome but worse on Firefox. Need some styling of the arrow box... */
-  background: transparent;
-	background-image: url("data:image/svg+xml;utf8,<svg fill='black' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
-	background-repeat: no-repeat;
-	appearance: none;
-	-webkit-appearance: none;
-	-moz-appearance: none;
-	background-position-x: 100%;
-	background-position-y: 50%;
-	padding-right: 1rem;
-	padding-left: .25rem;
-}
-
-button.record[checked] {
-  background-color: white;
-  color: black;
-  animation: pulsating-red 2s infinite;
+div.toolbar button.record[checked] {
+    background-color: white;
+    color: black;
+    animation: pulsating-red 2s infinite;
 }
 
 @keyframes pulsating-red {
-  0% { background-color: white; }
-  40% { background-color: red; }
-  100% { background-color: white; }
+    0% { background-color: white; }
+    40% { background-color: red; }
+    100% { background-color: white; }
+}
+
+div.toolbar .space {
+    display: inline-block;
+    width: 18px;
+    height: 28px;  /* TODO: WHY?! */
+}
+
+div.toolbar select {
+    font-size: 20px;
+    border-radius: 0;
+  	background-image: url("data:image/svg+xml;utf8,<svg fill='black' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
+  	background-repeat: no-repeat;
+  	appearance: none;
+  	-webkit-appearance: none;
+  	-moz-appearance: none;
+  	background-position-x: 100%;
+  	background-position-y: 50%;
+  	padding-right: 1rem;
+  	padding-left: .25rem;
 }
