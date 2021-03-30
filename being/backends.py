@@ -1,7 +1,14 @@
-"""Backend resources."""
+"""Backend resources.
+
+TODO: Finish Audio Backend.
+TODO: VideoBackend.
+"""
 import contextlib
+import logging
 import sys
 from typing import List, ForwardRef
+
+from being.rpi_gpio import GPIO
 
 try:
     import pyaudio
@@ -104,4 +111,13 @@ if pyaudio:
             self.pa.terminate()
 
 
-# TODO: VideoBackend
+class Rpi(SingleInstanceCache, contextlib.AbstractContextManager):
+    def __init__(self):
+        self.logger = logging.getLogger(str(self))
+        self.gpio = GPIO
+
+    def __enter__(self):
+        GPIO.setmode(GPIO.BCM)
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        GPIO.cleanup()
