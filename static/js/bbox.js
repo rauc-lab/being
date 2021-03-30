@@ -36,7 +36,6 @@ export class BBox {
         return this.ur[1] - this.ll[1];
     }
 
-
     /**
      * Get leftmost x value.
      */
@@ -51,14 +50,12 @@ export class BBox {
         this.ll[0] = pos;
     }
 
-
     /**
      * Get rightmost x value.
      */
     get right() {
         return this.ur[0];
     }
-
 
     /**
      * Set rightmost x value.

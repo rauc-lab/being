@@ -132,7 +132,6 @@ class Editor extends CurverBase {
         return !is_checked(this.c1Btn);
     }
 
-
     /**
      * If snap to grid is enabled.
      */
@@ -140,6 +139,10 @@ class Editor extends CurverBase {
         return is_checked(this.snapBtn);
     }
 
+    resize() {
+        super.resize();
+        this.draw();
+    }
 
     /**
      * Populate toolbar with buttons and motor selection. Wire up event listeners.
@@ -294,7 +297,6 @@ class Editor extends CurverBase {
         });
     }
 
-
     /**
      * Register key event listeners for shortcuts.
      */
@@ -338,7 +340,6 @@ class Editor extends CurverBase {
         });
     }
 
-
     /**
      * Draw spline editor stuff.
      */
@@ -348,7 +349,6 @@ class Editor extends CurverBase {
         this.backgroundDrawer.draw()
         this.transport.draw_cursor();
     }
-
 
     /**
      * Setup drag event handlers for moving horizontally and zooming vertically.
@@ -385,7 +385,6 @@ class Editor extends CurverBase {
             },
         );
     }
-
 
     /**
      * Update UI elements. Mostly buttons at this time. Disabled state of undo
@@ -441,7 +440,6 @@ class Editor extends CurverBase {
         }
     }
 
-
     /**
      * Get current boundaries for spline when limits activated.
      *
@@ -456,7 +454,6 @@ class Editor extends CurverBase {
         }
     }
 
-
     /**
      * Load spline into spline editor.
      * Recalculate bounding box
@@ -467,6 +464,8 @@ class Editor extends CurverBase {
 
         // Calc viewport
         const bbox = spline.bbox();
+        if (bbox.ll[1] > 0) { bbox.ll[1] = 0; }
+        if (bbox.ur[1] < 0) { bbox.ur[1] = 0; }
         if (bbox.height < MIN_HEIGHT) {
             bbox.ll[1] -= .5 * MIN_HEIGHT;
             bbox.ur[1] += .5 * MIN_HEIGHT;
@@ -475,7 +474,6 @@ class Editor extends CurverBase {
 
         this.draw_current_spline();
     }
-
 
     /**
      * Draw current version of spline from history.
@@ -497,7 +495,6 @@ class Editor extends CurverBase {
         this.update_ui();
     }
 
-
     /**
      * Notify spline editor that the spline working copy is going to change.
      */
@@ -510,7 +507,6 @@ class Editor extends CurverBase {
         }
     }
 
-
     /**
      * Notify spline editor that with the new current state of the spline.
      */
@@ -520,7 +516,6 @@ class Editor extends CurverBase {
         this.history.capture(workingCopy);
         this.draw_current_spline();
     }
-
 
     /**
      * Start playback of current spline in back end.
@@ -536,7 +531,6 @@ class Editor extends CurverBase {
         this.update_ui();
     }
 
-
     /**
      * Stop all spline playback in back end.
      */
@@ -548,7 +542,6 @@ class Editor extends CurverBase {
         }
     }
 
-
     /**
      * Toggle spline playback of current spline.
      */
@@ -559,7 +552,6 @@ class Editor extends CurverBase {
             this.play_current_spline();
         }
     }
-
 
     /**
      * Start recording trajectory. Disables motors in back end.
@@ -573,7 +565,6 @@ class Editor extends CurverBase {
         await this.api.disable_motors();
         this.update_ui();
     }
-
 
     /**
      * Stop trajectory recording, re-enable motors and fit smoothing spline
@@ -593,8 +584,6 @@ class Editor extends CurverBase {
         this.update_ui();
     }
 
-
-
     /**
      * Toggle trajectory recording.
      */
@@ -605,7 +594,6 @@ class Editor extends CurverBase {
             this.start_recording();
         }
     }
-
 
     /**
      * Insert new knot into current spline.
@@ -625,7 +613,6 @@ class Editor extends CurverBase {
         this.spline_changed(newSpline);
     }
 
-
     /**
      * Create a new spline.
      */
@@ -634,7 +621,6 @@ class Editor extends CurverBase {
         this.update_ui();
         this.splineList.reload_spline_list();
     }
-
 
     /**
      * Undo latest editing step.
@@ -647,7 +633,6 @@ class Editor extends CurverBase {
         }
     }
 
-
     /**
      * Redo latest editing step.
      */
@@ -658,12 +643,6 @@ class Editor extends CurverBase {
             this.draw_current_spline();
         }
     }
-
-    resize() {
-        super.resize();
-        this.draw();
-    }
-
 
     /**
      * Process new data message from backend.

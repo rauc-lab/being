@@ -47,7 +47,6 @@ export class CurverBase extends HTMLElement {
         this.init_elements();
     }
 
-
     connectedCallback() {
         addEventListener("resize", evt => this.resize());
         this.resize();
@@ -58,7 +57,6 @@ export class CurverBase extends HTMLElement {
             this.run();
         }, 100);
     }
-
 
     /**
      * Add a new material icon button to toolbar (or any other parent_
@@ -83,7 +81,6 @@ export class CurverBase extends HTMLElement {
         return btn;
     }
 
-
     /**
      * Add a spacing element to the toolbar.
      */
@@ -94,7 +91,6 @@ export class CurverBase extends HTMLElement {
         return span;
     }
 
-
     /**
      * Add a select element to the toolbar. 
      *
@@ -102,12 +98,12 @@ export class CurverBase extends HTMLElement {
      * @param {String} options Select options.
      */
     add_select(options = [], name = "") {
-        const container = document.createElement("div");
+        //const container = document.createElement("div");
         if (name !== "") {
             const label = document.createElement("label");
             label.innerHTML = name;
             label.setAttribute("for", name);
-            container.appendChild(label);
+            //container.appendChild(label);
         }
 
         const select = document.createElement("select");
@@ -115,12 +111,11 @@ export class CurverBase extends HTMLElement {
         options.forEach(opt => {
             add_option(select, opt);
         });
-        container.appendChild(select);
+        //container.appendChild(select);
         //this.toolbar.appendChild(container);
         this.toolbar.appendChild(select);
         return select;
     }
-
 
     /**
      * Initialize DOM elements with shadow root.
@@ -170,11 +165,9 @@ export class CurverBase extends HTMLElement {
         this.shadowRoot.append(title, this.motionListDiv, this.toolbar, this.graph);
     }
 
-
     reset_viewport() {
         this.viewport = MIN_VIEWPORT.copy();
     }
-
 
     /**
      * Update viewport bounding box.
@@ -185,7 +178,6 @@ export class CurverBase extends HTMLElement {
             this.viewport.expand_by_bbox(line.calc_bbox());
         });
     }
-
 
     /**
      * Update viewport transformation.
@@ -208,7 +200,6 @@ export class CurverBase extends HTMLElement {
         //this.svg.g.setAttribute("transform", this.trafo.toString());  // Sadly not working because of skewed aspect ratio :(
     }
 
-
     /**
      * Resize elements. Mainly because of canvas because of lacking support for
      * relative sizes. Can be used as event handler with
@@ -227,7 +218,6 @@ export class CurverBase extends HTMLElement {
         this.draw_lines();
     }
 
-
     /**
      * Coordinates of mouse event inside canvas / SVG data space.
      *
@@ -241,7 +231,6 @@ export class CurverBase extends HTMLElement {
         return [pt.x, pt.y]
     }
 
-
     /**
      * Transform a data point -> view space.
      */
@@ -249,7 +238,6 @@ export class CurverBase extends HTMLElement {
         const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
         return [ptHat.x, ptHat.y];
     }
-
 
     /**
      * Transform multiple data point into view space.
@@ -261,7 +249,6 @@ export class CurverBase extends HTMLElement {
         });
     }
 
-
     /**
      * Clear canvas.
      */
@@ -271,7 +258,6 @@ export class CurverBase extends HTMLElement {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.restore();
     }
-
 
     /**
      * Draw axis and tick labels.
@@ -330,7 +316,6 @@ export class CurverBase extends HTMLElement {
         });
     }
 
-
     /**
      * Render continuous frames.
      */
@@ -338,7 +323,6 @@ export class CurverBase extends HTMLElement {
         this.draw_lines();
         window.requestAnimationFrame(now => this.render(now));
     }
-
 
     /**
      * Start rendering.
