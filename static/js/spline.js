@@ -99,7 +99,6 @@ export class BPoly {
         this.ndim = shape.length === 2 ? ONE_D : shape[2];
     }
 
-
     /**
      * Construct from BPoly object.
      */
@@ -107,14 +106,12 @@ export class BPoly {
         return new BPoly(dct.coefficients, dct.knots, dct.extrapolate, dct.axis)
     }
 
-
     /**
      * Start time of spline.
      */
     get start() {
         return this.x[0];
     }
-
 
     /**
      * End time of spline.
@@ -130,14 +127,12 @@ export class BPoly {
         return this.end - this.start;
     }
 
-
     /**
      * Number of segments in the spline.
      */
     get n_segments() {
         return this.x.length - 1;
     }
-
 
     /**
      * Minimum value of the spline. Not the global maximum!
@@ -146,14 +141,12 @@ export class BPoly {
         return array_min(this.c.flat());
     }
 
-
     /**
      * Maximum value of the spline. Not the global minimum!
      */
     get max() {
         return array_max(this.c.flat());
     }
-
 
     /**
      * Calculate bounding box of spline (approximately).
@@ -162,14 +155,12 @@ export class BPoly {
         return new BBox([this.start, this.min], [this.end, this.max]);
     }
 
-
     /**
      * Segment width.
      */
     _dx(seg) {
         return this.x[seg+1] - this.x[seg];
     }
-
 
     /**
      * X position of a given Bézier control point.
@@ -182,7 +173,6 @@ export class BPoly {
         const alpha = nr / this.degree;
         return (1 - alpha) * this.x[seg] + alpha * this.x[seg+1];
     }
-
 
     /**
      * Get first derative value at knot position.
@@ -213,7 +203,6 @@ export class BPoly {
         }
     }
 
-
     /**
      * Adjust control points for a given dervative value.
      *
@@ -233,7 +222,6 @@ export class BPoly {
             this.c[knot-1][seg] = this.c[knot][seg] - this._dx(seg) * value / this.degree;
         }
     }
-
 
     /**
      * Move knot to another position.
@@ -277,7 +265,6 @@ export class BPoly {
         }
     }
 
-
     /**
      * Move control point around (only vertically).
      *
@@ -305,7 +292,6 @@ export class BPoly {
         }
     }
 
-
     /**
      * Bézier control point.
      *
@@ -321,7 +307,6 @@ export class BPoly {
 
         return [this._x(seg, nr), this.c[nr][seg]];
     }
-
 
     /**
      * Insert new knot into the spline.
@@ -355,11 +340,12 @@ export class BPoly {
             c[nextKnot][seg] = pos[1];
             c[KNOT][seg+1] = pos[1];
             c[FIRST_CP][seg+1] = pos[1];
-            c[SECOND_CP][seg+1] = c[KNOT][seg+2];
-            c[nextKnot][seg+1] = c[KNOT][seg+2];
+            if (seg + 2 < c[KNOT].length) {
+                c[SECOND_CP][seg+1] = c[KNOT][seg+2];
+                c[nextKnot][seg+1] = c[KNOT][seg+2];
+            }
         }
     }
-
 
     /**
      * Check if we are dealing with the last spline knot.
@@ -370,7 +356,6 @@ export class BPoly {
     _is_last_knot(knotNr) {
         return (knotNr === this.n_segments);
     }
-
 
     /**
      * Remove knot from spline.
@@ -400,14 +385,12 @@ export class BPoly {
         });
     }
 
-
     /**
      * Create a copy for the spline (deep copy).
      */
     copy() {
         return new BPoly(deep_copy(this.c), deep_copy(this.x), this.extrapolate, this.axis);
     }
-
 
     /**
      * Convert BPoly instance to dict representation.
@@ -421,7 +404,6 @@ export class BPoly {
             "coefficients": this.c,
         }
     }
-
 
     /**
      * Restrict all knots and control points to a bounding box.
