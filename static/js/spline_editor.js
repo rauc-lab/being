@@ -322,6 +322,7 @@ class Editor extends CurverBase {
             } else {
                 switch (evt.key) {
                     case " ":
+                        evt.preventDefault();
                         this.toggle_playback();
                         break;
                     case "r":
