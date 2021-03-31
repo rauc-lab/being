@@ -172,6 +172,9 @@ def being_object_hook(dct):
     if msgType in NAMED_TUPLE_LOOKUP:
         return named_tuple_from_dict(dct)
 
+    if msgType == set.__name__:
+        return set(dct['values'])
+
     return dct
 
 
@@ -199,6 +202,9 @@ class BeingEncoder(json.JSONEncoder):
         objType = type(o)
         if objType in ENUM_LOOKUP.values():
             return enum_to_dict(o)
+
+        if objType is set:
+            return {'type': set.__name__, 'values': list(o)}
 
         return json.JSONEncoder.default(self, o)
 

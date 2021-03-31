@@ -94,6 +94,12 @@ class TestSerialization(unittest.TestCase):
 
         ENUM_LOOKUP.pop('Foo')
 
+    def test_a_set_mapps_back_to_itself(self):
+        x = {1, 2, 'Hello, world!'}
+        y = loads(dumps(x))
+
+        self.assertEqual(x, y)
+
 
 class TestFlyByDecoder(unittest.TestCase):
     def test_doc_example(self):
