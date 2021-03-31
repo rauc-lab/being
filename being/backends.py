@@ -67,8 +67,11 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         for drive in self.drives:
             drive.enable()
 
-    def send_sync(self):
-        """Send out sync message."""
+    def update(self):
+        """Custom update method so that we can include CanBackend in execOrder
+        for sending out sync messages at the end of the cycle for driving the
+        PDO communication.
+        """
         self.send_message(0x80, [])
 
     def __enter__(self):

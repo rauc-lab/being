@@ -35,11 +35,11 @@ class Being:
         self.motors = list(filter_by_type(self.execOrder, _MotorBase))
         self.motionPlayers = list(filter_by_type(self.execOrder, MotionPlayer))
         self.clock = Clock.single_instance_setdefault()
-        if self.network:
+        self.valueOutputs = list(value_outputs(self.execOrder))
+        if self.network is not None:
+            self.execOrder.append(self.network)
             home_motors(self.motors)
             self.network.enable_drives()
-
-        self.valueOutputs = list(value_outputs(self.execOrder))
 
     def capture_value_outputs(self):
         """Capture current values of all value outputs."""
@@ -51,9 +51,6 @@ class Being:
     def single_cycle(self):
         """Execute single cycle of block networks."""
         execute(self.execOrder)
-        if self.network is not None:
-            self.network.send_sync()
-
         self.clock.step()
 
     def run(self):
