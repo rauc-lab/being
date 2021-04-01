@@ -102,8 +102,8 @@ class Behavior(Block):
             motionPlayer (MotionPlayer): To couple with behavior.
         """
         self.motionPlayer = motionPlayer
-        #self.mcOut.connect(motionPlayer.mcIn)
-        motionPlayer.feedbackOut.connect(self.feedbackIn)
+        self.mcOut.connect(motionPlayer.mcIn)
+        #motionPlayer.feedbackOut.connect(self.feedbackIn)
 
     def sensor_triggered(self) -> bool:
         """Check if sensor got triggered."""
