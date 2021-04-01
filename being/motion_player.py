@@ -8,12 +8,13 @@ TODO:
 """
 from typing import NamedTuple
 
-from scipy.interpolate import PPoly, BPoly
+from scipy.interpolate import BPoly
 
 from being.block import Block
 from being.clock import Clock
-from being.spline import Spline, shift_spline, sample_spline
+from being.spline import Spline, sample_spline
 from being.content import Content
+from being.behavior_tree import SUCCESS
 
 
 """
@@ -64,18 +65,19 @@ class MotionPlayer(Block):
     """
 
     def __init__(self, clock=None, content=None):
-        super().__init__()
         if clock is None:
             clock = Clock.single_instance_setdefault()
 
         if content is None:
             content = Content.single_instance_setdefault()
 
+        super().__init__()
+        self.add_message_input('mcIn')
+        self.add_value_output('setpointPosition')
+        self.add_message_output('feedbackOut')
+
         self.clock = clock
         self.content = content
-        self.add_message_input()
-        self.add_value_output()
-
         self.spline = None
         self.startTime = 0
         self.looping = False
@@ -90,6 +92,7 @@ class MotionPlayer(Block):
         self.spline = None
         self.startTime = 0
         self.looping = False
+        self.feedbackOut.send(SUCCESS)
 
     def play_spline(self, spline: Spline, loop=False, offset=0):
         """Play a spline directly.
@@ -128,5 +131,9 @@ class MotionPlayer(Block):
 
         if self.playing:
             now = self.clock.now()
-            sample = sample_spline(self.spline, (now - self.startTime), loop=self.looping)
+            t = now - self.startTime
+            sample = sample_spline(self.spline, t, loop=self.looping)
             self.output.value = sample
+
+            if not self.looping and t >= self.spline.x[-1]:
+                self.stop()
