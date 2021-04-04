@@ -1,4 +1,6 @@
 """Web socket proxy."""
+import asyncio
+import collections
 import logging
 import enum
 
@@ -69,3 +71,27 @@ class WebSocket(PubSub):
     def route(self):
         """Route for web socket handler."""
         return web.get(self.address, self.handle_web_socket)
+
+
+class Broker:
+
+    """Web socket worker.
+
+    Message queue to separate synchronous code from asynchronous. Web socket
+    worker will periodically send all buffered messages via async send call.
+    """
+
+    def __init__(self, ws: WebSocket):
+        self.ws = ws
+        self.queue = collections.deque(maxlen=50)
+
+    def post(self, msg):
+        self.queue.append(msg)
+
+    async def run(self):
+        while True:
+            while self.queue:
+                obj = self.queue.popleft()
+                await self.ws.send_json(obj)
+
+            await asyncio.sleep(.1)

@@ -1,6 +1,12 @@
 try:
     import RPi.GPIO as GPIO
 except ImportError:
+    import logging
+
+
+    LOGGER = logging.getLogger(__name__)
+
+
     class GPIO:
 
         """Dummy GPIO in order to mock missing RPI.GPIO if on non Raspberry PI
@@ -21,16 +27,16 @@ except ImportError:
 
         @staticmethod
         def setup(*args, **kwargs):
-            print(f'setup({args}, {kwargs})')
+            LOGGER.debug('setup(%s, %s)', args, kwargs)
 
         @staticmethod
         def add_event_detect(*args, **kwargs):
-            print(f'add_event_detect({args}, {kwargs})')
+            LOGGER.debug('add_event_detect(%s, %s)', args, kwargs)
 
         @staticmethod
         def cleanup(*args, **kwargs):
-            print(f'cleanup({args}, {kwargs})')
+            LOGGER.debug('cleanup(%s, %s)', args, kwargs)
 
         @staticmethod
         def setmode(*args, **kwargs):
-            print(f'setmode({args}, {kwargs})')
+            LOGGER.debug('setmode(%s, %s)', args, kwargs)

@@ -9,8 +9,9 @@ from typing import NamedTuple, List
 
 from being.block import Block
 from being.clock import Clock
-from being.motion_player import MotionCommand
-from being.serialization import register_named_tuple
+from being.motion_player import MotionPlayer, MotionCommand
+from being.pubsub import PubSub
+from being.serialization import register_named_tuple, register_enum
 
 
 class State(enum.Enum):
@@ -22,10 +23,20 @@ class State(enum.Enum):
     EXCITED = 2
 
 
-# For comforts / declutter
+register_enum(State)
+
+
+# For comforts / de-clutter
 SLEEPING = State.SLEEPING
 CHILLED = State.CHILLED
 EXCITED = State.EXCITED
+
+
+class Event(enum.Enum):
+
+    """Behavior event."""
+
+    STATE_CHANGED = 0
 
 
 class Params(NamedTuple):
@@ -42,8 +53,14 @@ class Params(NamedTuple):
     excitedMotions: list
 
     @classmethod
-    def default(cls, attentionSpan=10., sleepyMotions=None, chilledMotions=None, excitedMotions=None):
-        """Constructor with defaults."""
+    def default(
+        cls,
+        attentionSpan=10.,
+        sleepyMotions=None,
+        chilledMotions=None,
+        excitedMotions=None,
+    ):
+        """Construct Params instance with default values."""
         if sleepyMotions is None:
             sleepyMotions = []
 
@@ -59,7 +76,7 @@ class Params(NamedTuple):
 register_named_tuple(Params)
 
 
-class Behavior(Block):
+class Behavior(Block, PubSub):
 
     """Simple 3x state finite state machine behavior engine for ECAL workshop.
     Based on modified Anima II/III behavior engine. The three states are:
@@ -76,6 +93,7 @@ class Behavior(Block):
 
     Extra Params class for JSON serialization / API.
     """
+
     def __init__(self, params=None, clock=None):
         if params is None:
             params = Params.default()
@@ -84,22 +102,24 @@ class Behavior(Block):
             clock = Clock.single_instance_setdefault()
 
         super().__init__()
+        PubSub.__init__(self, Event)
         self.add_message_input('sensorIn')
         self.add_message_output('mcOut')
         self.add_message_input('feedbackIn')
 
+        self.motionPlayer = None
         self.params = params
         self.clock = clock
         self.state = State.SLEEPING
-        self.lastStateChange = 0
+        self.lastChanged = 0.
         self.logger = logging.getLogger(str(self))
 
-    def associate(self, motionPlayer):
+    def associate(self, motionPlayer: MotionPlayer):
         """Associate behavior engine with motion player block (connect
         bi-directional).
 
         Args:
-            motionPlayer (MotionPlayer): To couple with behavior.
+            motionPlayer: To couple with behavior.
         """
         self.motionPlayer = motionPlayer
         self.mcOut.connect(motionPlayer.mcIn)
@@ -108,7 +128,7 @@ class Behavior(Block):
     def sensor_triggered(self) -> bool:
         """Check if sensor got triggered."""
         triggered = False
-        for msg in self.sensorIn.receive():
+        for _ in self.sensorIn.receive():
             triggered = True
 
         return triggered
@@ -143,13 +163,14 @@ class Behavior(Block):
             return
 
         self.logger.info('Changed to state %s', newState)
+        self.publish(Event.STATE_CHANGED, newState=newState)
         self.state = newState
-        self.lastStateChange = self.clock.now()
+        self.lastChanged = self.clock.now()
 
     def update(self):
         triggered = self.sensor_triggered()
         playing = self.motion_playing()
-        passed = self.clock.now() - self.lastStateChange
+        passed = self.clock.now() - self.lastChanged
         attentionLost = (passed > self.params.attentionSpan)
 
         if self.state is SLEEPING:

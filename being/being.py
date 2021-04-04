@@ -3,6 +3,7 @@ import asyncio
 import time
 
 from being.backends import CanBackend
+from being.behavior import Event, Behavior
 from being.clock import Clock
 from being.config import INTERVAL
 from being.connectables import ValueOutput
@@ -12,7 +13,7 @@ from being.motion_player import MotionPlayer
 from being.motor import home_motors, _MotorBase
 from being.server import WEB_SOCKET_ADDRESS, init_web_server, run_web_server
 from being.utils import filter_by_type
-from being.web_socket import WebSocket
+from being.web_socket import WebSocket, Broker
 
 
 def value_outputs(blocks):
@@ -23,7 +24,11 @@ def value_outputs(blocks):
 
 class Being:
 
-    """Being core."""
+    """Being core.
+
+    Main application-like object. Container for being components. Block network
+    graph and additional components (some back ends, clock, motors...).
+    """
 
     def __init__(self, blocks):
         """Args:
@@ -75,7 +80,7 @@ def awake(*blocks, web=True):
     if not web:
         return being.run()
 
-    asyncio.run( _awake_web(being) )
+    asyncio.run(_awake_web(being))
 
 
 async def _awake_web(being):
@@ -83,10 +88,15 @@ async def _awake_web(being):
     ws = WebSocket(WEB_SOCKET_ADDRESS)
     app = init_web_server(being=being)
     app.router.add_get(WEB_SOCKET_ADDRESS, ws.handle_web_socket)
-
+    broker = Broker(ws)
+    for behavior in filter_by_type(being.execOrder, Behavior):
+        behavior.subscribe(Event.STATE_CHANGED, lambda newState: broker.post({
+            'type': 'behavior-update',
+            'state': newState,
+        }))
 
     async def run_async():
-        """Run being async."""
+        """Run being async loop."""
         time_func = asyncio.get_running_loop().time
         while True:
             now = time_func()
@@ -101,7 +111,7 @@ async def _awake_web(being):
 
 
     await asyncio.gather(
-        #being.run_async(),
         run_async(),
         run_web_server(app),
+        broker.run(),
     )
