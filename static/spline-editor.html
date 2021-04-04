@@ -11,11 +11,18 @@
     <link href="static/font/OpenSans-Regular.ttf" type="font/ttf">
     <script type="module" src="static/js/live_plotter.js"></script>
     <script type="module" src="static/js/spline_editor.js"></script>
+    <script type="module" src="static/js/behavior.js"></script>
     <style>
         #editor {
             /*
             min-height: 90vh;
             */
+        }
+
+        .behavior {
+            display: flex;
+            flex-flow: row nowrap;
+            justify-content: space-between;
         }
     </style>
 </head>
@@ -30,6 +37,9 @@
     </nav>
 
     <h1>Behavior</h1>
+
+    <being-widget></being-widget>
+    <being-behavior></being-behavior>
 
     <p>Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy
     eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam

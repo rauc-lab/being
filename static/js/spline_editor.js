@@ -149,11 +149,11 @@ class Editor extends CurverBase {
      */
     setup_toolbar_elements() {
         // Editing history buttons
-        this.newBtn = this.add_button("add_box", "Create new spline");
+        this.newBtn = this.add_button_to_toolbar("add_box", "Create new spline");
         this.newBtn.addEventListener("click", evt => {
             this.create_new_spline();
         });
-        this.saveBtn = this.add_button("save", "Save motion");
+        this.saveBtn = this.add_button_to_toolbar("save", "Save motion");
         this.saveBtn.addEventListener("click", async evt => {
             if (!this.history.length) {
                 return;
@@ -168,11 +168,11 @@ class Editor extends CurverBase {
             selectedSpline.content = spline;
             this.update_ui();
         });
-        this.undoBtn = this.add_button("undo", "Undo last action");
+        this.undoBtn = this.add_button_to_toolbar("undo", "Undo last action");
         this.undoBtn.addEventListener("click", evt => {
             this.undo();
         });
-        this.redoBtn = this.add_button("redo", "Redo last action");
+        this.redoBtn = this.add_button_to_toolbar("redo", "Redo last action");
         this.redoBtn.addEventListener("click", evt => {
             this.redo();
         });
@@ -180,17 +180,17 @@ class Editor extends CurverBase {
 
 
         // Zoom buttons
-        this.add_button("zoom_in", "Zoom in").addEventListener("click", evt => {
+        this.add_button_to_toolbar("zoom_in", "Zoom in").addEventListener("click", evt => {
             zoom_bbox_in_place(this.viewport, ZOOM_FACTOR_PER_STEP);
             this.update_trafo();
             this.draw();
         });
-        this.add_button("zoom_out", "Zoom out").addEventListener("click", evt => {
+        this.add_button_to_toolbar("zoom_out", "Zoom out").addEventListener("click", evt => {
             zoom_bbox_in_place(this.viewport, 1 / ZOOM_FACTOR_PER_STEP);
             this.update_trafo();
             this.draw();
         });
-        this.add_button("zoom_out_map", "Reset zoom").addEventListener("click", evt => {
+        this.add_button_to_toolbar("zoom_out_map", "Reset zoom").addEventListener("click", evt => {
             if (!this.history.length) return;
 
             const current = this.history.retrieve();
@@ -204,7 +204,7 @@ class Editor extends CurverBase {
 
 
         // Motor selection
-        const select = this.add_select();
+        const select = this.add_select_to_toolbar();
         select.addEventListener("change", evt => {
             this.stop_spline_playback();
         });
@@ -212,11 +212,11 @@ class Editor extends CurverBase {
 
 
         // Transport buttons
-        this.playPauseBtn = this.add_button("play_arrow", "Play / pause motion playback");
-        this.recBtn = this.add_button("fiber_manual_record", "Record motion");
+        this.playPauseBtn = this.add_button_to_toolbar("play_arrow", "Play / pause motion playback");
+        this.recBtn = this.add_button_to_toolbar("fiber_manual_record", "Record motion");
         this.recBtn.classList.add("record");
-        this.stopBtn = this.add_button("stop", "Stop spline playback");
-        this.loopBtn = this.add_button("loop", "Loop spline motion");
+        this.stopBtn = this.add_button_to_toolbar("stop", "Stop spline playback");
+        this.loopBtn = this.add_button_to_toolbar("loop", "Loop spline motion");
         this.playPauseBtn.addEventListener("click", async evt => {
             this.toggle_playback();
         });
@@ -235,21 +235,21 @@ class Editor extends CurverBase {
 
 
         // Tool adjustments
-        this.snapBtn = this.add_button("grid_3x3", "Snap to grid");  // TODO: Or vertical_align_center?
+        this.snapBtn = this.add_button_to_toolbar("grid_3x3", "Snap to grid");  // TODO: Or vertical_align_center?
         switch_button_on(this.snapBtn);
         this.snapBtn.addEventListener("click", evt => {
             toggle_button(this.snapBtn);
         });
-        this.c1Btn = this.add_button("timeline", "Break continous knot transitions");
+        this.c1Btn = this.add_button_to_toolbar("timeline", "Break continous knot transitions");
         this.c1Btn.addEventListener("click", evt => {
             toggle_button(this.c1Btn);
         });
-        this.limitBtn = this.add_button("fence", "Limit motion to selected motor");
+        this.limitBtn = this.add_button_to_toolbar("fence", "Limit motion to selected motor");
         switch_button_on(this.limitBtn);
         this.limitBtn.addEventListener("click", evt => {
             toggle_button(this.limitBtn);
         });
-        this.livePreviewBtn = this.add_button("precision_manufacturing", "Toggle live preview of knot position on the motor");
+        this.livePreviewBtn = this.add_button_to_toolbar("precision_manufacturing", "Toggle live preview of knot position on the motor");
         switch_button_on(this.livePreviewBtn);
         this.livePreviewBtn.addEventListener("click", evt => {
             toggle_button(this.livePreviewBtn);
@@ -258,7 +258,7 @@ class Editor extends CurverBase {
 
 
         // Scaling and stretching spline
-        this.add_button("compress", "Scale down position (1/2x)").addEventListener("click", evt => {
+        this.add_button_to_toolbar("compress", "Scale down position (1/2x)").addEventListener("click", evt => {
             if (!this.history.length) {
                 return;
             }
@@ -268,7 +268,7 @@ class Editor extends CurverBase {
             this.spline_changed(newSpline);
 
         });
-        this.add_button("expand", "Scale up position (2x)").addEventListener("click", evt => {
+        this.add_button_to_toolbar("expand", "Scale up position (2x)").addEventListener("click", evt => {
             if (!this.history.length) {
                 return;
             }
@@ -277,7 +277,7 @@ class Editor extends CurverBase {
             const newSpline = scale_spline(this.history.retrieve(), 2.0);
             this.spline_changed(newSpline);
         });
-        this.add_button("directions_run", "Speed up motion").addEventListener("click", evt => {
+        this.add_button_to_toolbar("directions_run", "Speed up motion").addEventListener("click", evt => {
             if (!this.history.length) {
                 return;
             }
@@ -286,7 +286,7 @@ class Editor extends CurverBase {
             const newSpline = stretch_spline(this.history.retrieve(), 0.5);
             this.spline_changed(newSpline);
         });
-        this.add_button("hiking", "Slow down motion").addEventListener("click", evt => {
+        this.add_button_to_toolbar("hiking", "Slow down motion").addEventListener("click", evt => {
             if (!this.history.length) {
                 return;
             }

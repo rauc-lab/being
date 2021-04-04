@@ -2,12 +2,13 @@
 /**
  * Curver base class for live plotter and spline editor.
  */
+import { Widget } from "/static/js/widget.js";
 import { BBox } from "/static/js/bbox.js";
 import { tick_space, } from "/static/js/layout.js";
 import { divide_arrays} from "/static/js/array.js";
 import { clip } from "/static/js/math.js";
 import { create_element } from "/static/js/svg.js";
-import { cycle, add_option } from "/static/js/utils.js";
+import { cycle } from "/static/js/utils.js";
 
 
 /** Default line colors */
@@ -35,7 +36,7 @@ const MIN_VIEWPORT = new BBox([Infinity, -0.001], [-Infinity, 0.001]);
 /**
  * Curver base class for Plotter and Editor.
  */
-export class CurverBase extends HTMLElement {
+export class CurverBase extends Widget {
     constructor(auto = true) {
         super();
         this.auto = auto;
@@ -58,73 +59,13 @@ export class CurverBase extends HTMLElement {
         }, 100);
     }
 
-    /**
-     * Add a new material icon button to toolbar (or any other parent_
-     * element).
-     *
-     * @param innerHTML Inner HTML text
-     * @param title Tooltip
-     * @param id Button ID.
-     * @param parent_ Parent HTML element to append the new button to.
-     */
-    add_button(innerHTML, title = "", id = "", parent_ = null) {
-        if (parent_ === null) {
-            parent_ = this.toolbar;
-        }
-
-        const btn = document.createElement("button");
-        btn.classList.add("material-icons");
-        btn.innerHTML = innerHTML;
-        btn.title = title;
-        btn.id = id;
-        parent_.appendChild(btn);
-        return btn;
-    }
-
-    /**
-     * Add a spacing element to the toolbar.
-     */
-    add_space_to_toolbar() {
-        const span = document.createElement("span");
-        span.classList.add("space");
-        this.toolbar.appendChild(span);
-        return span;
-    }
-
-    /**
-     * Add a select element to the toolbar. 
-     *
-     * @param {String} name Select name and label.
-     * @param {String} options Select options.
-     */
-    add_select(options = [], name = "") {
-        //const container = document.createElement("div");
-        if (name !== "") {
-            const label = document.createElement("label");
-            label.innerHTML = name;
-            label.setAttribute("for", name);
-            //container.appendChild(label);
-        }
-
-        const select = document.createElement("select");
-        select.setAttribute("name", name);
-        options.forEach(opt => {
-            add_option(select, opt);
-        });
-        //container.appendChild(select);
-        //this.toolbar.appendChild(container);
-        this.toolbar.appendChild(select);
-        return select;
-    }
 
     /**
      * Initialize DOM elements with shadow root.
      */
     init_elements() {
-        this.attachShadow({ mode: "open" });
-
         // Apply external styles to the shadow dom
-        ["static/open_sans.css", "static/curver.css", "static/toolbar.css"].forEach(fp => {
+        ["static/open_sans.css", "static/curver.css"].forEach(fp => {
             const link = document.createElement("link");
             link.setAttribute("rel", "stylesheet");
             link.setAttribute("href", fp);
@@ -141,8 +82,8 @@ export class CurverBase extends HTMLElement {
         this.motionListDiv.classList.add("motion-list");
 
         // Toolbar area
-        this.toolbar = document.createElement("div");
-        this.toolbar.classList.add("toolbar");
+        //this.toolbar = document.createElement("div");
+        //this.toolbar.classList.add("toolbar");
 
         // Graph area
         this.graph = document.createElement("div");
@@ -162,7 +103,9 @@ export class CurverBase extends HTMLElement {
 
         this.graph.append(this.canvas, this.svg);
 
-        this.shadowRoot.append(title, this.motionListDiv, this.toolbar, this.graph);
+        this.shadowRoot.insertBefore(title, this.toolbar);
+        this.shadowRoot.insertBefore(this.motionListDiv, this.toolbar);
+        this.shadowRoot.append(this.graph);
     }
 
     reset_viewport() {

@@ -2,6 +2,7 @@
 import { remove_all_children, is_valid_filename } from "/static/js/utils.js";
 import { BPoly } from "/static/js/spline.js";
 import { Api } from "/static/js/api.js";
+import { create_button } from "/static/js/widget.js";
 
 
 export class SplineList {
@@ -45,14 +46,14 @@ export class SplineList {
         newBtnContainer.style.display = "flex"
         newBtnContainer.style.justifyContent = "center"
 
-        this.addSplineButton = this.editor.add_button("add_box", "Create new spline")
+        this.addSplineButton = create_button("add_box", "Create new spline")
         this.addSplineButton.addEventListener("click", async evt => {
             this.editor.create_new_spline();
             this.reload_spline_list();
         });
         newBtnContainer.appendChild(this.addSplineButton)
 
-        this.delSplineButton = this.editor.add_button("delete", "Delete selected motion")
+        this.delSplineButton = create_button("delete", "Delete selected motion")
         this.delSplineButton.addEventListener("click", evt => {
             if (confirm("Delete motion " + this.selected + " permanently ?")) {
                 this.api.delete_spline(this.selected).then(resp => {
@@ -66,7 +67,7 @@ export class SplineList {
         });
         newBtnContainer.appendChild(this.delSplineButton)
 
-        this.duplSplineButton = this.editor.add_button("file_copy", "Duplicate motion file")
+        this.duplSplineButton = create_button("file_copy", "Duplicate motion file")
         this.duplSplineButton.addEventListener("click", evt => {
             this.api.duplicate_spline(this.selected).then(() => {
                 this.reload_spline_list()
