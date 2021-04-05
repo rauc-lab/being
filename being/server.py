@@ -5,11 +5,12 @@ import logging
 import math
 
 from aiohttp import web
+from scipy.interpolate import BPoly
 
 from being.content import Content
 from being.serialization import dumps, loads, spline_from_dict
 from being.spline import fit_spline
-from being.utils import random_name, empty_spline, any_item
+from being.utils import any_item
 
 
 API_PREFIX = '/api'
@@ -27,14 +28,16 @@ def respond_ok():
     return web.Response()
 
 
-def json_response(thing=None):
-    """aiohttp web.json_response but with our custom JSON serialization /
-    dumps.
-    """
-    if thing is None:
-        thing = {}
+def json_response(obj=None):
+    """aiohttp web.json_response but with our custom JSON serialization dumps.
 
-    return web.json_response(thing, dumps=dumps)
+    Args:
+        obj: Object to JSON serialize and pack in a response.
+    """
+    if obj is None:
+        obj = {}
+
+    return web.json_response(obj, dumps=dumps)
 
 
 def file_response_handler(filepath):
@@ -45,6 +48,20 @@ def file_response_handler(filepath):
 def json_response_handler(data):
     """Create anonymous JSON response handler function for some data."""
     return lambda request: json_response(data)
+
+
+def find_free_name(content, default='Untitled'):
+    """Find free name in content."""
+    names = list(content._sorted_names())
+    if default not in names:
+        return default
+
+    for number in range(1, 100):
+        name = f'{default} {number}'
+        if name not in names:
+            return name
+
+    raise RuntimeError('Can not find any free name!')
 
 
 def content_controller(content: Content) -> web.RouteTableDef:
@@ -74,14 +91,9 @@ def content_controller(content: Content) -> web.RouteTableDef:
 
     @routes.post('/motions')
     async def create_motion(request):
-
-        rnd_name = random_name()
-        while content.motion_exists(rnd_name):
-            rnd_name = random_name()
-
-        spline = empty_spline()
-
-        content.save_motion(spline, rnd_name)
+        name = find_free_name(content)
+        spline = BPoly([[0], [0], [0], [0]], [0., 1.])
+        content.save_motion(spline, name)
         return json_response(spline)
 
     @routes.put('/motions/{name}')
@@ -91,15 +103,15 @@ def content_controller(content: Content) -> web.RouteTableDef:
             return web.HTTPNotFound(text='This motion does not exist!')
 
         try:
-            if "rename" in request.query:
-                new_name = request.query["rename"]
+            if 'rename' in request.query:
+                new_name = request.query['rename']
                 if content.motion_exists(new_name):
-                    return web.HTTPNotAcceptable(text="Another file with the same name already exists")
+                    return web.HTTPNotAcceptable(text='Another file with the same name already exists')
                 try:
                     content.rename_motion(name, new_name)
                     return json_response(content.load_motion(new_name))
                 except:
-                    return web.HTTPError(text="Renaming failed!")
+                    return web.HTTPError(text='Renaming failed!')
 
             else:
                 spline = await request.json(loads=loads)
@@ -107,7 +119,7 @@ def content_controller(content: Content) -> web.RouteTableDef:
                     content.save_motion(spline, name)
                     return json_response(spline)
                 except:
-                    return web.HTTPError(text="Saving spline failed!")
+                    return web.HTTPError(text='Saving spline failed!')
 
         except json.JSONDecodeError as err:
             return web.HTTPNotAcceptable(text='Failed deserializing JSON spline!')
@@ -175,7 +187,7 @@ def being_controller(being) -> web.RouteTableDef:
             LOGGER.error(err)
             LOGGER.debug('id: %d', id)
             LOGGER.debug('dct: %s', dct)
-            return web.HTTPBadRequest(text='fSomething went wrong with the spline. Raw data was: {dct}!')
+            return web.HTTPBadRequest(text=f'Something went wrong with the spline. Raw data was: {dct}!')
 
     @routes.post('/motors/{id}/stop')
     async def stop_spline_playback(request):
@@ -190,7 +202,7 @@ def being_controller(being) -> web.RouteTableDef:
 
     @routes.post('/motors/stop')
     async def stop_all_spline_playbacks(request):
-        """Stop all spline playbacks aka. stop all motion players."""
+        """Stop all spline playbacks aka. Stop all motion players."""
         for mp in being.motionPlayers:
             mp.stop()
 
@@ -214,14 +226,14 @@ def being_controller(being) -> web.RouteTableDef:
         except KeyError:
             return web.HTTPBadRequest(text='Could not parse spline!')
 
-    @routes.put("/motors/disenable")
+    @routes.put('/motors/disenable')
     def disenable_drives(request):
         if being.network:
             being.network.engage_drives()
 
         return respond_ok()
 
-    @routes.put("/motors/enable")
+    @routes.put('/motors/enable')
     def enable_drives(request):
         for motor in being.motors:
             motor._update_state()

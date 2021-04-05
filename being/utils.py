@@ -4,40 +4,10 @@ import glob
 import os
 import weakref
 from typing import Dict, List, Generator
-from random import choices
 
 
 Filepath = str
-RANDOM_WORDS = ['deep', 'pumped', 'purple', 'scary', 'unequaled', 'serious',
-                'uninterested', 'peaceful', 'unknown', 'spurious', 'compact',
-                'finish', 'blue', 'highway', 'movie', 'folklore',
-                'prove', 'uncertainty',
-                ]
 
-
-def random_name():
-    twoWords = choices(RANDOM_WORDS, k=2)
-    return '_'.join(twoWords)
-
-
-def empty_spline():
-    """ Empty spline with two knots (line) """
-    return {
-        "type": "BPoly",
-        "extrapolate": False,
-        "axis": 0,
-        "knots": [
-            0.0,
-            1
-        ],
-        "coefficients":
-        [
-            [0],
-            [0],
-            [0],
-            [0]
-        ],
-    }
 
 
 def filter_by_type(sequence, type_) -> Generator:
@@ -48,9 +18,9 @@ def filter_by_type(sequence, type_) -> Generator:
     )
 
 
-def rootname(p: str) -> str:
+def rootname(path: str) -> str:
     """Get 'root' part of path (filename without ext)."""
-    filename = os.path.basename(p)
+    filename = os.path.basename(path)
     root, ext = os.path.splitext(filename)
     return root
 
@@ -90,6 +60,11 @@ def read_file(filepath):
 def write_file(filepath, data):
     with open(filepath, 'w') as file:
         file.write(data)
+
+
+def any_item(iterable):
+    """Pick first element of iterable."""
+    return next(iter(iterable))
 
 
 class SingleInstanceCache:
@@ -167,8 +142,3 @@ class IdAware:
         self.id = cls.COUNTERS[cls]
         cls.COUNTERS[cls] += 1
         return self
-
-
-def any_item(iterable):
-    """Pick first element of iterable."""
-    return next(iter(iterable))
