@@ -79,6 +79,7 @@ class TestSerialization(unittest.TestCase):
 
         self.assertEqual(dct, {
             'type': Foo.__name__,
+            'members': list(Foo.__members__),
             'value': foo.value,
         })
 
