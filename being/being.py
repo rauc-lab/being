@@ -41,10 +41,19 @@ class Being:
         self.motionPlayers = list(filter_by_type(self.execOrder, MotionPlayer))
         self.clock = Clock.single_instance_setdefault()
         self.valueOutputs = list(value_outputs(self.execOrder))
+        self.behaviors = list(filter_by_type(self.execOrder, Behavior))
         if self.network is not None:
             self.execOrder.append(self.network)
             home_motors(self.motors)
             self.network.enable_drives()
+
+    def start_behaviors(self):
+        for behavior in self.behaviors:
+            behavior.play()
+
+    def pause_behaviors(self):
+        for behavior in self.behaviors:
+            behavior.pause()
 
     def capture_value_outputs(self):
         """Capture current values of all value outputs."""
@@ -88,14 +97,8 @@ async def _awake_web(being):
     ws = WebSocket(WEB_SOCKET_ADDRESS)
     app = init_web_server(being=being)
     app.router.add_get(WEB_SOCKET_ADDRESS, ws.handle_web_socket)
-    broker = Broker(ws)
-    for behavior in filter_by_type(being.execOrder, Behavior):
-        behavior.subscribe(Event.STATE_CHANGED, lambda newState: broker.post({
-            'type': 'behavior-update',
-            'state': newState,
-        }))
 
-    async def run_async():
+    async def run_being():
         """Run being async loop."""
         time_func = asyncio.get_running_loop().time
         while True:
@@ -109,9 +112,16 @@ async def _awake_web(being):
             then = time_func()
             await asyncio.sleep(max(0, INTERVAL - (then - now)))
 
+    coros = [run_being(), run_web_server(app)]
 
-    await asyncio.gather(
-        run_async(),
-        run_web_server(app),
-        broker.run(),
-    )
+    # TODO: For now we only support 1x behavior instance. Needs to be expanded for the future
+    if len(being.behaviors) >= 1:
+        behavior = being.behaviors[0]
+        broker = Broker(ws)
+        behavior.subscribe(Event.STATE_CHANGED, lambda newState: broker.post_json({
+            'type': 'behavior-update',
+            'state': newState,
+        }))
+        coros.append(broker.run())
+
+    await asyncio.gather(*coros)

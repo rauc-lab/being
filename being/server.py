@@ -7,6 +7,7 @@ import math
 from aiohttp import web
 from scipy.interpolate import BPoly
 
+from being.behavior import State
 from being.content import Content
 from being.serialization import dumps, loads, spline_from_dict
 from being.spline import fit_spline
@@ -98,30 +99,30 @@ def content_controller(content: Content) -> web.RouteTableDef:
 
     @routes.put('/motions/{name}')
     async def update_motion(request):
-        name = request.match_info['name']
-        if not content.motion_exists(name):
+        oldName = request.match_info['name']
+        if not content.motion_exists(oldName):
             return web.HTTPNotFound(text='This motion does not exist!')
 
         try:
             if 'rename' in request.query:
-                new_name = request.query['rename']
-                if content.motion_exists(new_name):
-                    return web.HTTPNotAcceptable(text='Another file with the same name already exists')
+                newName = request.query['rename']
+                if content.motion_exists(newName):
+                    return web.HTTPNotAcceptable(text=f'Another file with the same name {oldName} already exists')
                 try:
-                    content.rename_motion(name, new_name)
-                    return json_response(content.load_motion(new_name))
+                    content.rename_motion(oldName, newName)
+                    return json_response(content.load_motion(newName))
                 except:
                     return web.HTTPError(text='Renaming failed!')
 
             else:
                 spline = await request.json(loads=loads)
                 try:
-                    content.save_motion(spline, name)
+                    content.save_motion(spline, oldName)
                     return json_response(spline)
                 except:
                     return web.HTTPError(text='Saving spline failed!')
 
-        except json.JSONDecodeError as err:
+        except json.JSONDecodeError:
             return web.HTTPNotAcceptable(text='Failed deserializing JSON spline!')
 
     @routes.delete('/motions/{name}')
@@ -246,6 +247,39 @@ def being_controller(being) -> web.RouteTableDef:
     return routes
 
 
+def behavior_controller(behavior):
+    routes = web.RouteTableDef()
+
+    def infos():
+        """Capture current behavior infos."""
+        return {
+            'active': behavior.active,
+            'state': behavior.state,
+        }
+
+
+    @routes.get('/behavior/states')
+    def get_states(request):
+        stateNames = list(State.__members__)
+        return json_response(stateNames)
+
+    @routes.get('/behavior')
+    def get_info(request):
+        return json_response(infos())
+
+    @routes.put('/behavior/play')
+    def play(request):
+        behavior.play()
+        return json_response(infos())
+
+    @routes.put('/behavior/pause')
+    def play(request):
+        behavior.pause()
+        return json_response(infos())
+
+    return routes
+
+
 def misc_controller():
     """All other APIs which are not directly related to being, content,
     etc...
@@ -291,6 +325,10 @@ def init_web_server(being=None, content=None) -> web.Application:
 
     if content:
         api.add_routes(content_controller(content))
+
+    if len(being.behaviors) >= 1:
+        behavior = being.behaviors[0]
+        api.add_routes(behavior_controller(behavior))
 
     app.add_subapp(API_PREFIX, api)
     # app.router.add_get('/data-stream', handle_web_socket)

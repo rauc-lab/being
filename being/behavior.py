@@ -107,6 +107,7 @@ class Behavior(Block, PubSub):
         self.add_message_output('mcOut')
         self.add_message_input('feedbackIn')
 
+        self.active = True
         self.motionPlayer = None
         self.params = params
         self.clock = clock
@@ -124,6 +125,12 @@ class Behavior(Block, PubSub):
         self.motionPlayer = motionPlayer
         self.mcOut.connect(motionPlayer.mcIn)
         #motionPlayer.feedbackOut.connect(self.feedbackIn)
+
+    def play(self):
+        self.active = True
+
+    def pause(self):
+        self.active = False
 
     def sensor_triggered(self) -> bool:
         """Check if sensor got triggered."""
@@ -172,6 +179,9 @@ class Behavior(Block, PubSub):
         playing = self.motion_playing()
         passed = self.clock.now() - self.lastChanged
         attentionLost = (passed > self.params.attentionSpan)
+
+        if not self.active:
+            return
 
         if self.state is SLEEPING:
             if triggered:

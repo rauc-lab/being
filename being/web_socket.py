@@ -79,16 +79,26 @@ class Broker:
 
     Message queue to separate synchronous code from asynchronous. Web socket
     worker will periodically send all buffered messages via async send call.
+
+    Attributes:
+        ws (WebSocket): Web socket instance.
+        queue (deque): Message buffer.
     """
 
     def __init__(self, ws: WebSocket):
         self.ws = ws
-        self.queue = collections.deque(maxlen=50)
+        self.queue = collections.deque(maxlen=100)
 
-    def post(self, msg):
+    def post_json(self, msg):
+        """Post JSON message. Will be send out at a later time (if borker is running).
+
+        Args:
+            obj: JSON serializable object.
+        """
         self.queue.append(msg)
 
     async def run(self):
+        """Start broker."""
         while True:
             while self.queue:
                 obj = self.queue.popleft()
