@@ -14,7 +14,18 @@ class SensorEvent(NamedTuple):
 
 
 class SensorGpio(Block):
-    def __init__(self, channel, edge=GPIO.RISING, pull_up_down=GPIO.PUD_DOWN, bouncetime=.01, rpi=None):
+    def __init__(self, channel: int, edge=GPIO.RISING, pull_up_down=GPIO.PUD_DOWN, bouncetime=.01, rpi=None):
+        """Arguments according to RPi.GPIO.
+
+        Args:
+            channel: Raspberry PI GPIO number.
+
+        Kwargs:
+            edge: Rising or falling edge.
+            pull_up_down: Pull up termination or not.
+            bouncetime: Edge detection bounce time in seconds.
+            rpi: Raspberry PI backend (DI).
+        """
         super().__init__()
         self.channel = channel
         if rpi is None:
@@ -36,4 +47,3 @@ class SensorGpio(Block):
         while self.queue:
             evt = self.queue.popleft()
             self.output.send(evt)
-
