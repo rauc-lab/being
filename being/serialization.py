@@ -119,6 +119,7 @@ def enum_to_dict(obj) -> OrderedDict:
     """Convert enum instance to dct representation."""
     return OrderedDict([
         ('type', type(obj).__name__),
+        ('members', list(type(obj).__members__)),
         ('value', obj.value),
     ])
 
