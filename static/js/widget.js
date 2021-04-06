@@ -1,3 +1,10 @@
+/**
+ * Create new HTML button (material-icons class).
+ *
+ * @param {String} innerHTML Inner HTML of button.
+ * @param {String} title Tooltip for button
+ * @returns HTMLButton
+ */
 export function create_button(innerHTML, title = "") {
     const btn = document.createElement("button");
     btn.classList.add("material-icons");
@@ -74,4 +81,4 @@ export class Widget extends HTMLElement {
     }
 }
 
-//customElements.define("being-widget", Widget);
+customElements.define("being-widget", Widget);

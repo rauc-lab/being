@@ -29,6 +29,7 @@
 
 <body>
     <nav>
+        Being
         <ul>
             <li><a href="#settings">Behavior</a></li>
             <li><a href="#editor">Editor</a></li>
@@ -38,42 +39,16 @@
 
     <h1>Behavior</h1>
 
-    <being-widget></being-widget>
-    <being-behavior></being-behavior>
+    <being-behavior id="behavior">
+    </being-behavior>
 
-    <p>Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy
-    eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam
-    voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet
-    clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit
-    amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
-    nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed
-    diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum.
-    Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor
-    sit amet.</p>
-    
     <h1>Spline Editor</h1>
-
-    <p>Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy
-    eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam
-    voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet
-    clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit
-    amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
-    nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed
-    diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum.
-    Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor
-    sit amet.</p>
 
     <being-editor id="editor"></being-editor>
 
-    <p>Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy
-    eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam
-    voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet
-    clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit
-    amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam
-    nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed
-    diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum.
-    Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor
-    sit amet.</p>
+    <h1>Spline Editor</h1>
+
+    A console should appear here soon.
 
     <script type="module">
         import { ready } from "/static/js/utils.js";
@@ -84,12 +59,13 @@
 
         async function main() {
             const editor = document.getElementById("editor");
+            const behavior = document.getElementById("behavior");
             receive_from_websocket(WS_ADDRESS, {
                 "output-values": [
                     msg => editor.new_data(msg),
                 ],
                 "behavior-update": [
-                    msg => console.log(msg),
+                    msg => behavior.new_data(msg),
                 ],
             });
         }

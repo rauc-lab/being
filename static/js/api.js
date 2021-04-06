@@ -143,4 +143,8 @@ export class Api {
     async fetch_splines() {
         return get_json("/api/motions");
     }
+
+    async fetch_behavior_states() {
+        return get_json(API + "/behavior/states");
+    }
 }

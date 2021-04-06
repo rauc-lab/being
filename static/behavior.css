@@ -1,0 +1,62 @@
+:host {
+    display: block;
+    border: 2px solid black;
+}
+
+.toolbar {
+    border-bottom: 2px solid black;
+}
+
+.states {
+    display: flex;
+    flex-flow: column nowrap;
+    justify-content: space-between;
+    overflow: auto;
+}
+
+.state.selected {
+    box-shadow: 0 0 1em black;
+}
+
+.state {
+    display: inline-block;
+    border: 2px solid black;
+}
+
+.state span {
+    font-weight: bold;
+}
+
+.state ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.state li label {
+    display: inline-block;
+    width: 100%;
+    cursor: pointer;
+}
+
+.state li input[type="checkbox"]:checked + label {
+    background: black;
+    color: white;
+}
+
+
+@media screen and (min-width: 800px) {
+    .states {
+        flex-flow: row nowrap;
+    }
+
+    .state {
+        margin: 1em;
+        padding: 1em;
+        border-width: 2px;
+    }
+
+    .state ul {
+        border: 2px solid black;
+    }
+}
