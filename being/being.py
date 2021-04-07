@@ -13,7 +13,7 @@ from being.motion_player import MotionPlayer
 from being.motor import home_motors, _MotorBase
 from being.server import WEB_SOCKET_ADDRESS, init_web_server, run_web_server
 from being.utils import filter_by_type
-from being.web_socket import WebSocket, Broker
+from being.web_socket import WebSocket
 
 
 def value_outputs(blocks):
@@ -94,9 +94,10 @@ def awake(*blocks, web=True):
 
 async def _awake_web(being):
     """Run being with web server."""
-    ws = WebSocket(WEB_SOCKET_ADDRESS)
+    ws = WebSocket()
     app = init_web_server(being=being)
     app.router.add_get(WEB_SOCKET_ADDRESS, ws.handle_web_socket)
+    app.on_shutdown.append(ws.close_all)
 
     async def run_being():
         """Run being async loop."""
@@ -117,14 +118,13 @@ async def _awake_web(being):
     # TODO: For now we only support 1x behavior instance. Needs to be expanded for the future
     if len(being.behaviors) >= 1:
         behavior = being.behaviors[0]
-        broker = Broker(ws)
 
         def inform_front_end(newState):
             dct = behavior.infos()
             dct['type'] = 'behavior-update'
-            broker.post_json(dct)
+            ws.send_json_buffered(dct)
 
         behavior.subscribe(Event.STATE_CHANGED, inform_front_end)
-        coros.append(broker.run())
+        coros.append(ws.run_broker())
 
     await asyncio.gather(*coros)

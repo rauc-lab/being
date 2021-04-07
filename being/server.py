@@ -265,7 +265,7 @@ def behavior_controller(behavior):
         return json_response(behavior.infos())
 
     @routes.put('/behavior/pause')
-    def play(request):
+    def pause(request):
         behavior.pause()
         return json_response(behavior.infos())
 
