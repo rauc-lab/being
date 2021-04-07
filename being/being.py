@@ -3,7 +3,7 @@ import asyncio
 import time
 
 from being.backends import CanBackend
-from being.behavior import Event, Behavior
+from being.behavior import Behavior
 from being.clock import Clock
 from being.config import INTERVAL, API_PREFIX, WEB_SOCKET_ADDRESS
 from being.connectables import ValueOutput

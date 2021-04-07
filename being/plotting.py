@@ -1,7 +1,6 @@
 """Plotting util."""
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import pyplot as plt
 from scipy.interpolate import PPoly
 
 from being.block import Block
@@ -9,6 +8,7 @@ from being.clock import Clock
 
 from being.constants import ONE_D
 from being.resources import add_callback
+
 
 DEFAULT_COLORS = [
     dct['color'] for dct in plt.rcParams['axes.prop_cycle']

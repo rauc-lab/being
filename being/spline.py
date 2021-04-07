@@ -13,7 +13,6 @@ from typing import Sequence
 from enum import IntEnum
 
 import numpy as np
-from numpy import ndarray
 from scipy.interpolate import PPoly, BPoly, splrep, splprep
 
 from being.constants import ONE_D, TWO_D
@@ -31,8 +30,14 @@ class Degree(IntEnum):
     CUBIC = 3
 
 
-def build_spline(accelerations: Sequence, knots: Sequence, x0: float = 0.,
-        v0: float = 0., extrapolate: bool = False, axis: int = 0) -> PPoly:
+def build_spline(
+    accelerations: Sequence,
+    knots: Sequence,
+    x0: float = 0.,
+    v0: float = 0.,
+    extrapolate: bool = False,
+    axis: int = 0,
+    ) -> PPoly:
     """Build quadratic position spline from acceleration segments. Also include
     initial velocity and position.
 
@@ -110,9 +115,13 @@ def smoothing_factor(smoothing: float, length: int) -> float:
     return smoothing * length
 
 
-def smoothing_spline(x: Sequence, y: Sequence, degree: Degree = Degree.CUBIC,
-        smoothing: float = 1e-3, periodic: bool = False,
-        extrapolate: bool = False,
+def smoothing_spline(
+    x: Sequence,
+    y: Sequence,
+    degree: Degree = Degree.CUBIC,
+    smoothing: float = 1e-3,
+    periodic: bool = False,
+    extrapolate: bool = False,
     ) -> PPoly:
     """Fit smoothing spline through uni- or multivariate data points.
 
@@ -159,8 +168,14 @@ def smoothing_spline(x: Sequence, y: Sequence, degree: Degree = Degree.CUBIC,
     return ppoly
 
 
-def optimal_trajectory_spline(xEnd: float, vEnd: float = 0., x0: float = 0.,
-        v0: float = 0., maxSpeed: float = 1., maxAcc: float = 1.) -> PPoly:
+def optimal_trajectory_spline(
+    xEnd: float,
+    vEnd: float = 0.,
+    x0: float = 0.,
+    v0: float = 0.,
+    maxSpeed: float = 1.,
+    maxAcc: float = 1.,
+    ) -> PPoly:
     """Build spline following the optimal trajectory.
 
     Kwargs:
@@ -178,23 +193,6 @@ def optimal_trajectory_spline(xEnd: float, vEnd: float = 0., x0: float = 0.,
     durations, accelerations = zip(*profiles)
     knots = np.r_[0., np.cumsum(durations)]
     return build_spline(accelerations, knots, x0=x0, v0=v0)
-
-
-def bezier_control_points(spline: Spline) -> ndarray:
-    """Bézier control points for a given spline."""
-    if isinstance(spline, PPoly):
-        spline = BPoly.from_power_basis(spline)
-
-    spline = remove_duplicates(spline)
-    order, nSegments = spline.c.shape[:2]
-    cps = np.zeros((nSegments, order, 2))
-    for seg in range(nSegments):
-        x0 = spline.x[seg]
-        x1 = spline.x[seg + 1]
-        cps[seg, :, 0] = np.linspace(x0, x1, num=order)
-        cps[seg, :, 1] = spline.c[:, seg]
-
-    return cps
 
 
 def sample_spline(spline: Spline, t, loop: bool = False):

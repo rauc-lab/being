@@ -1,8 +1,8 @@
 """Web socket proxy."""
 import asyncio
-import weakref
 import collections
 import logging
+import weakref
 
 import aiohttp
 from aiohttp import web
