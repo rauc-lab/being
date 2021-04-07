@@ -266,15 +266,8 @@ export class SplineList {
 
 
     init_spline_selection() {
-        this.editor.history.clear()
         const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
         this.editor.load_spline(selectedSpline.content)
-        const currentSpline = this.editor.history.retrieve();
-        const bbox = currentSpline.bbox();
-        bbox.expand_by_point([0., 0]);
-        bbox.expand_by_point([0., .04]);
-        this.dataBbox = bbox;
-        this.viewport = this.dataBbox.copy();
     }
 
 
