@@ -14,13 +14,14 @@
     overflow: auto;
 }
 
-.state.selected {
-    box-shadow: 0 0 1em black;
-}
-
 .state {
     display: inline-block;
     border: 2px solid black;
+    transition: box-shadow 0.3s ease-in-out;
+}
+
+.state.selected {
+    box-shadow: 0 0 1em black;
 }
 
 .state span {

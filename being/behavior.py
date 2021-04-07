@@ -5,13 +5,13 @@ To be expanded with a proper behavior tree engine (to be discussed).
 import enum
 import logging
 import random
-from typing import NamedTuple, List
+from typing import List
 
 from being.block import Block
 from being.clock import Clock
 from being.motion_player import MotionPlayer, MotionCommand
 from being.pubsub import PubSub
-from being.serialization import register_named_tuple, register_enum
+from being.serialization import register_enum
 
 
 class State(enum.Enum):
@@ -39,41 +39,23 @@ class Event(enum.Enum):
     STATE_CHANGED = 0
 
 
-class Params(NamedTuple):
+def create_params(attentionSpan=10., sleepingMotions=None, chilledMotions=None, excitedMotions=None):
+    """Create behavior params dictionary."""
+    if sleepingMotions is None:
+        sleepingMotions = []
 
-    """Behavior parameters.
+    if chilledMotions is None:
+        chilledMotions = []
 
-    Done in this relatively clumsy why so that we can serialize those parameters
-    and exchange them with the front end (JSON / API).
-    """
+    if excitedMotions is None:
+        excitedMotions = []
 
-    attentionSpan: float
-    sleepyMotions: list
-    chilledMotions: list
-    excitedMotions: list
-
-    @classmethod
-    def default(
-        cls,
-        attentionSpan=10.,
-        sleepyMotions=None,
-        chilledMotions=None,
-        excitedMotions=None,
-    ):
-        """Construct Params instance with default values."""
-        if sleepyMotions is None:
-            sleepyMotions = []
-
-        if chilledMotions is None:
-            chilledMotions = []
-
-        if excitedMotions is None:
-            excitedMotions = []
-
-        return cls(attentionSpan, sleepyMotions, chilledMotions, excitedMotions)
-
-
-register_named_tuple(Params)
+    return {
+        'attentionSpan': attentionSpan,
+        'sleepingMotions': sleepingMotions,
+        'chilledMotions': chilledMotions,
+        'excitedMotions': excitedMotions,
+    }
 
 
 class Behavior(Block, PubSub):
@@ -96,7 +78,7 @@ class Behavior(Block, PubSub):
 
     def __init__(self, params=None, clock=None):
         if params is None:
-            params = Params.default()
+            params = create_params()
 
         if clock is None:
             clock = Clock.single_instance_setdefault()
@@ -180,7 +162,7 @@ class Behavior(Block, PubSub):
         triggered = self.sensor_triggered()
         playing = self.motion_playing()
         passed = self.clock.now() - self.lastChanged
-        attentionLost = (passed > self.params.attentionSpan)
+        attentionLost = (passed > self.params['attentionSpan'])
 
         if not self.active:
             return
@@ -188,24 +170,24 @@ class Behavior(Block, PubSub):
         if self.state is SLEEPING:
             if triggered:
                 self.change_state(EXCITED)
-                self.play_random_motion(self.params.excitedMotions)
+                self.play_random_motion(self.params['excitedMotions'])
             elif not playing:
-                self.play_random_motion(self.params.sleepyMotions)
+                self.play_random_motion(self.params['sleepingMotions'])
 
         elif self.state is CHILLED:
             if triggered:
                 self.change_state(EXCITED)
-                self.play_random_motion(self.params.excitedMotions)
+                self.play_random_motion(self.params['excitedMotions'])
             elif attentionLost and not playing:
                 self.change_state(SLEEPING)
-                self.play_random_motion(self.params.sleepyMotions)
+                self.play_random_motion(self.params['sleepingMotions'])
             elif not playing:
-                self.play_random_motion(self.params.chilledMotions)
+                self.play_random_motion(self.params['chilledMotions'])
 
         elif self.state is EXCITED:
             if not playing:
                 self.change_state(CHILLED)
-                self.play_random_motion(self.params.chilledMotions)
+                self.play_random_motion(self.params['chilledMotions'])
 
     def infos(self):
         return {

@@ -269,6 +269,19 @@ def behavior_controller(behavior):
         behavior.pause()
         return json_response(behavior.infos())
 
+    @routes.get('/behavior/params')
+    def get_params(request):
+        return json_response(behavior.params)
+
+    @routes.put('/behavior/params')
+    async def set_params(request):
+        try:
+            params = await request.json()
+            behavior.params = params
+            return json_response(behavior.params)
+        except json.JSONDecodeError:
+            return web.HTTPNotAcceptable(text=f'Failed deserializing JSON behavior params!')
+
     return routes
 
 
