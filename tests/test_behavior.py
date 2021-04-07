@@ -2,7 +2,7 @@ import unittest
 
 from scipy.interpolate import CubicSpline
 
-from being.behavior import Behavior, Params, SLEEPING, CHILLED, EXCITED
+from being.behavior import SLEEPING, CHILLED, EXCITED, Behavior, create_params
 from being.clock import Clock
 from being.connectables import MessageInput
 from being.motion_player import MotionPlayer
@@ -38,9 +38,9 @@ class TestBehavior(unittest.TestCase):
     def setUp(self):
         self.clock = Clock(interval=0.5)
         self.motionPlayer = MotionPlayer(clock=self.clock, content=DummyContent())
-        params = Params(
+        params = create_params(
             attentionSpan=5.,
-            sleepyMotions=[SLEEPY_MOTION],
+            sleepingMotions=[SLEEPY_MOTION],
             chilledMotions=[CHILLED_MOTION],
             excitedMotions=[EXCITED_MOTION],
         )
