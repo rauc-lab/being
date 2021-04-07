@@ -5,13 +5,13 @@ import time
 from being.backends import CanBackend
 from being.behavior import Event, Behavior
 from being.clock import Clock
-from being.config import INTERVAL
+from being.config import INTERVAL, API_PREFIX, WEB_SOCKET_ADDRESS
 from being.connectables import ValueOutput
 from being.execution import execute, block_network_graph
 from being.graph import topological_sort
 from being.motion_player import MotionPlayer
 from being.motor import home_motors, _MotorBase
-from being.server import WEB_SOCKET_ADDRESS, init_web_server, run_web_server
+from being.server import init_web_server, run_web_server, init_api
 from being.utils import filter_by_type
 from being.web_socket import WebSocket
 
@@ -75,6 +75,20 @@ class Being:
             then = time.perf_counter()
             time.sleep(max(0, INTERVAL - (then - now)))
 
+    async def _run_web(self, ws):
+        """Run being inside async loop."""
+        time_func = asyncio.get_running_loop().time
+        while True:
+            now = time_func()
+            self.single_cycle()
+            await ws.send_json({
+                'type': 'output-values',
+                'timestamp': self.clock.now(),
+                'values': self.capture_value_outputs()
+            })
+            then = time_func()
+            await asyncio.sleep(max(0, INTERVAL - (then - now)))
+
 
 def awake(*blocks, web=True):
     """Run being block network.
@@ -94,37 +108,14 @@ def awake(*blocks, web=True):
 
 async def _awake_web(being):
     """Run being with web server."""
+    app = init_web_server()
     ws = WebSocket()
-    app = init_web_server(being=being)
     app.router.add_get(WEB_SOCKET_ADDRESS, ws.handle_web_socket)
     app.on_shutdown.append(ws.close_all)
-
-    async def run_being():
-        """Run being async loop."""
-        time_func = asyncio.get_running_loop().time
-        while True:
-            now = time_func()
-            being.single_cycle()
-            await ws.send_json({
-                'type': 'output-values',
-                'timestamp': being.clock.now(),
-                'values': being.capture_value_outputs()
-            })
-            then = time_func()
-            await asyncio.sleep(max(0, INTERVAL - (then - now)))
-
-    coros = [run_being(), run_web_server(app)]
-
-    # TODO: For now we only support 1x behavior instance. Needs to be expanded for the future
-    if len(being.behaviors) >= 1:
-        behavior = being.behaviors[0]
-
-        def inform_front_end(newState):
-            dct = behavior.infos()
-            dct['type'] = 'behavior-update'
-            ws.send_json_buffered(dct)
-
-        behavior.subscribe(Event.STATE_CHANGED, inform_front_end)
-        coros.append(ws.run_broker())
-
-    await asyncio.gather(*coros)
+    api = init_api(being, ws)
+    app.add_subapp(API_PREFIX, api)
+    await asyncio.gather(*[
+        being._run_web(ws),
+        run_web_server(app),
+        ws.run_broker(),
+    ])

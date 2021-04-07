@@ -7,18 +7,13 @@ import math
 from aiohttp import web
 from scipy.interpolate import BPoly
 
-from being.behavior import State
+from being.behavior import State, Event
 from being.content import Content
 from being.serialization import dumps, loads, spline_from_dict
 from being.spline import fit_spline
 from being.utils import any_item
+from being.web_socket import WebSocket
 
-
-API_PREFIX = '/api'
-"""API route prefix."""
-
-WEB_SOCKET_ADDRESS = '/stream'
-"""Web socket URL."""
 
 LOGGER = logging.getLogger(__name__)
 """Server module logger."""
@@ -247,8 +242,16 @@ def being_controller(being) -> web.RouteTableDef:
     return routes
 
 
-def behavior_controller(behavior):
+def behavior_controller(behavior, ws: WebSocket) -> web.RouteTableDef:
+    # TODO: For now we only support 1x behavior instance. Needs to be expanded for the future
     routes = web.RouteTableDef()
+
+    def inform_front_end(newState):
+        dct = behavior.infos()
+        dct['type'] = 'behavior-update'
+        ws.send_json_buffered(dct)
+
+    behavior.subscribe(Event.STATE_CHANGED, inform_front_end)
 
     @routes.get('/behavior/states')
     def get_states(request):
@@ -285,7 +288,7 @@ def behavior_controller(behavior):
     return routes
 
 
-def misc_controller():
+def misc_controller() -> web.RouteTableDef:
     """All other APIs which are not directly related to being, content,
     etc...
     """
@@ -304,39 +307,32 @@ def misc_controller():
     return routes
 
 
-def init_web_server(being=None, content=None) -> web.Application:
+def init_api(being, ws: WebSocket) -> web.Application:
+    """Initialize and setup Rest-like API subapp."""
+    content = Content.single_instance_setdefault()
+    api = web.Application()
+    api.add_routes(misc_controller())
+    api.add_routes(content_controller(content))
+    api.add_routes(being_controller(being))
+    if len(being.behaviors) >= 1:
+        behavior = being.behaviors[0]
+        api.add_routes(behavior_controller(behavior, ws))
+
+    return api
+
+
+def init_web_server() -> web.Application:
     """Initialize aiohttp web server application and setup some routes.
 
     Returns:
         app: Application instance.
     """
-    if content is None:
-        content = Content.single_instance_setdefault()
-
     app = web.Application()
     app.router.add_static(prefix='/static', path='./static', show_index=True)
-
-    # Pages
+    app.router.add_get('/favicon.ico', file_response_handler('static/favicon.ico'))
     app.router.add_get('/', file_response_handler('static/index.html'))
     app.router.add_get('/spline-editor', file_response_handler('static/spline-editor.html'))
-    app.router.add_get('/favicon.ico', file_response_handler('static/favicon.ico'))
     app.router.add_get('/web-socket-test', file_response_handler('static/web-socket-test.html'))
-
-    # Rest API
-    api = web.Application()
-    api.add_routes(misc_controller())
-    if being:
-        api.add_routes(being_controller(being))
-
-    if content:
-        api.add_routes(content_controller(content))
-
-    if len(being.behaviors) >= 1:
-        behavior = being.behaviors[0]
-        api.add_routes(behavior_controller(behavior))
-
-    app.add_subapp(API_PREFIX, api)
-    # app.router.add_get('/data-stream', handle_web_socket)
     return app
 
 
