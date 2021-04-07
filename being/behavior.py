@@ -105,7 +105,7 @@ class Behavior(Block, PubSub):
         PubSub.__init__(self, Event)
         self.add_message_input('sensorIn')
         self.add_message_output('mcOut')
-        self.add_message_input('feedbackIn')
+        #self.add_message_input('feedbackIn')
 
         self.active = True
         self.motionPlayer = None
@@ -113,7 +113,8 @@ class Behavior(Block, PubSub):
         self.clock = clock
         self.state = State.SLEEPING
         self.lastChanged = 0.
-        self.logger = logging.getLogger(str(self))
+        self.lastPlayed = ''
+        self.logger = logging.getLogger('Behavior')
 
     def associate(self, motionPlayer: MotionPlayer):
         """Associate behavior engine with motion player block (connect
@@ -160,9 +161,10 @@ class Behavior(Block, PubSub):
             return
 
         motion = random.choice(motions)
+        self.lastPlayed = motion
         self.logger.info('Playing motion %r', motion)
         mc = MotionCommand(motion)
-        self.output.send(mc)
+        self.mcOut.send(mc)
 
     def change_state(self, newState: State):
         """Change state of behavior to `newState`."""
@@ -204,3 +206,10 @@ class Behavior(Block, PubSub):
             if not playing:
                 self.change_state(CHILLED)
                 self.play_random_motion(self.params.chilledMotions)
+
+    def infos(self):
+        return {
+            'active': self.active,
+            'state': self.state,
+            'lastPlayed': self.lastPlayed,
+        }

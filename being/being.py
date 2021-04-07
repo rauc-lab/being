@@ -118,10 +118,13 @@ async def _awake_web(being):
     if len(being.behaviors) >= 1:
         behavior = being.behaviors[0]
         broker = Broker(ws)
-        behavior.subscribe(Event.STATE_CHANGED, lambda newState: broker.post_json({
-            'type': 'behavior-update',
-            'state': newState,
-        }))
+
+        def inform_front_end(newState):
+            dct = behavior.infos()
+            dct['type'] = 'behavior-update'
+            broker.post_json(dct)
+
+        behavior.subscribe(Event.STATE_CHANGED, inform_front_end)
         coros.append(broker.run())
 
     await asyncio.gather(*coros)

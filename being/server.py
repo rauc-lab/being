@@ -250,14 +250,6 @@ def being_controller(being) -> web.RouteTableDef:
 def behavior_controller(behavior):
     routes = web.RouteTableDef()
 
-    def infos():
-        """Capture current behavior infos."""
-        return {
-            'active': behavior.active,
-            'state': behavior.state,
-        }
-
-
     @routes.get('/behavior/states')
     def get_states(request):
         stateNames = list(State.__members__)
@@ -265,17 +257,17 @@ def behavior_controller(behavior):
 
     @routes.get('/behavior')
     def get_info(request):
-        return json_response(infos())
+        return json_response(behavior.infos())
 
     @routes.put('/behavior/play')
     def play(request):
         behavior.play()
-        return json_response(infos())
+        return json_response(behavior.infos())
 
     @routes.put('/behavior/pause')
     def play(request):
         behavior.pause()
-        return json_response(infos())
+        return json_response(behavior.infos())
 
     return routes
 

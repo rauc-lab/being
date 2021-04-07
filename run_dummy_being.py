@@ -2,11 +2,20 @@ import time
 import logging
 
 from being.being import awake
-from being.behavior import Behavior
+from being.behavior import Behavior, Params
 from being.motion_player import MotionPlayer
 from being.motor import DummyMotor, Motor
 from being.block import Block
 from being.logging import suppress_other_loggers
+
+
+
+MOTIONS = [
+    'Untitled 1', 'Untitled', 'deep_uncertainty', 'peaceful_blue',
+    'prove_pumped', 'pumped_highway', 'serious_peaceful',
+    'uncertainty_uncertainty', 'unequaled_folklore', 'unequaled_serious',
+    'uninterested_unequaled', 'unknown_deep',
+]
 
 
 logging.basicConfig(level=0)
@@ -17,7 +26,7 @@ class DummySensor(Block):
     def __init__(self):
         super().__init__()
         self.add_message_output()
-        self.interval = 5;
+        self.interval = 10;
         self.nextUpd = -1
 
     def update(self):
@@ -30,7 +39,8 @@ class DummySensor(Block):
 
 
 sensor = DummySensor()
-behavior = Behavior()
+params = Params(2.5, MOTIONS, MOTIONS, MOTIONS)
+behavior = Behavior(params)
 mp = MotionPlayer()
 behavior.associate(mp)
 mp | DummyMotor()

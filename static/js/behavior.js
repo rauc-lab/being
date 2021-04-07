@@ -60,9 +60,11 @@ class Behavior extends Widget {
         container.appendChild(nowPlayingLabel);
         nowPlayingLabel.innerHTML = "Now playing: ";
 
-        const nowPlayingDiv = document.createElement("span");
-        container.appendChild(nowPlayingDiv);
-        nowPlayingDiv.innerHTML = "Some motion";
+        const nowPlayingSpan = document.createElement("span");
+        container.appendChild(nowPlayingSpan);
+        nowPlayingSpan.classList.add("now-playing");
+        nowPlayingSpan.innerHTML = "";
+        this.nowPlayingSpan = nowPlayingSpan;
 
         const statesDiv = document.createElement("div");
         container.appendChild(statesDiv);
@@ -125,6 +127,7 @@ class Behavior extends Widget {
 
     new_data(msg) {
         if (msg.type === "behavior-update") {
+            this.nowPlayingSpan.innerHTML = msg.lastPlayed;
             this.mark_active_state(msg.state.value);
         }
     }
