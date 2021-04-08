@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import math
+from typing import ForwardRef, Callable
 
 from aiohttp import web
 from scipy.interpolate import BPoly
@@ -17,6 +18,8 @@ from being.web_socket import WebSocket
 
 LOGGER = logging.getLogger(__name__)
 """Server module logger."""
+
+Being = ForwardRef('Being')
 
 
 def respond_ok():
@@ -142,8 +145,18 @@ def serialize_motion_players(being):
         }
 
 
-def being_controller(being) -> web.RouteTableDef:
-    """API routes for being object."""
+# pylint: disable=invalid-name
+# pause_behavior is a Callable -> snake_case
+def being_controller(
+    being: Being,
+    pause_behavior: Callable = lambda: None,
+    ) -> web.RouteTableDef:
+    """API routes for being object.
+
+    Args:
+        being: Being instance to wrap up in API.
+        pause_behavior: Callback when to pause behavior playback.
+    """
     routes = web.RouteTableDef()
 
     @routes.get('/motors')
@@ -161,6 +174,7 @@ def being_controller(being) -> web.RouteTableDef:
             dct = await request.json()
             spline = spline_from_dict(dct['spline'])
             startTime = mp.play_spline(spline, loop=dct['loop'], offset=dct['offset'])
+            pause_behavior()
             return json_response({
                 'startTime': startTime,
             })
@@ -294,15 +308,22 @@ def init_api(being, ws: WebSocket) -> web.Application:
     api = web.Application()
     api.add_routes(misc_controller())
     api.add_routes(content_controller(content))
-    api.add_routes(being_controller(being))
 
     content.subscribe(CONTENT_CHANGED, lambda: ws.send_json_buffered(content.dict_motions_2()))
 
     if len(being.behaviors) >= 1:
         behavior = being.behaviors[0]
         api.add_routes(behavior_controller(behavior))
-        behavior.subscribe(STATE_CHANGED, lambda _: ws.send_json_buffered(behavior.infos()))
+        behavior.subscribe(STATE_CHANGED, lambda: ws.send_json_buffered(behavior.infos()))
 
+        def pause_behavior():
+            behavior.pause()
+            ws.send_json_buffered(behavior.infos())
+    else:
+        def pause_behavior():
+            pass
+
+    api.add_routes(being_controller(being, pause_behavior))
     return api
 
 

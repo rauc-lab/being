@@ -181,7 +181,7 @@ class Behavior(Block, PubSub):
             return
 
         self.logger.info('Changed to state %s', newState)
-        self.publish(STATE_CHANGED, newState=newState)
+        self.publish(STATE_CHANGED)
         self.state = newState
         self.lastChanged = self.clock.now()
 
