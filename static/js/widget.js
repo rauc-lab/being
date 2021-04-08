@@ -27,11 +27,16 @@ export class Widget extends HTMLElement {
         this.toolbar = root.appendChild(toolbar);
     }
 
-    _append_link(filepath) {
+    /**
+     * Add CSS stylesheet link to shadowroot.
+     *
+     * @param {String} href Path to CSS stylesheet.
+     */
+    _append_link(href) {
         const link = document.createElement("link");
         this.shadowRoot.appendChild(link);
         link.setAttribute("rel", "stylesheet");
-        link.setAttribute("href", filepath);
+        link.setAttribute("href", href);
     }
 
     /**

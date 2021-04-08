@@ -148,6 +148,10 @@ class Editor extends CurverBase {
      * Populate toolbar with buttons and motor selection. Wire up event listeners.
      */
     setup_toolbar_elements() {
+        const listBtn = this.add_button_to_toolbar("list");
+
+        this.add_space_to_toolbar();
+
         // Editing history buttons
         this.newBtn = this.add_button_to_toolbar("add_box", "Create new spline");
         this.newBtn.addEventListener("click", evt => {

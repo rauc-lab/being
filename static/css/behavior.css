@@ -13,7 +13,7 @@
     transition: box-shadow 0.3s ease-in-out;
 }
 
-.state.selected { box-shadow: 0 0 1em black; }
+.state.selected { box-shadow: 0 0 1em #888; }
 
 .state span { font-weight: bold; }
 
@@ -49,6 +49,8 @@
     .state ul {
         border: 2px solid black;
     }
+
+    .state.selected { box-shadow: 0 0 1em black; }
 }
 
 .now-playing { font-family: "Courier New", Courier, monospace; }
