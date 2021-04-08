@@ -160,8 +160,9 @@ def being_controller(being) -> web.RouteTableDef:
             mp = being.motionPlayers[id]
             dct = await request.json()
             spline = spline_from_dict(dct['spline'])
+            startTime = mp.play_spline(spline, loop=dct['loop'], offset=dct['offset'])
             return json_response({
-                'startTime': mp.play_spline(spline, loop=dct['loop'], offset=dct['offset']),
+                'startTime': startTime,
             })
         except IndexError:
             return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
@@ -243,14 +244,13 @@ def behavior_controller(behavior) -> web.RouteTableDef:
     def get_info(request):
         return json_response(behavior.infos())
 
-    @routes.put('/behavior/play')
-    def play(request):
-        behavior.play()
-        return json_response(behavior.infos())
+    @routes.put('/behavior/toggle_playback')
+    def toggle_playback(request):
+        if behavior.active:
+            behavior.pause()
+        else:
+            behavior.play()
 
-    @routes.put('/behavior/pause')
-    def pause(request):
-        behavior.pause()
         return json_response(behavior.infos())
 
     @routes.get('/behavior/params')

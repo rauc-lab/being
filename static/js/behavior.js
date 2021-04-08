@@ -2,9 +2,7 @@ import { Widget } from "/static/js/widget.js";
 import { Api } from "/static/js/api.js";
 import { remove_all_children } from "/static/js/utils.js";
 import { round } from "/static/js/math.js";
-
-import { API } from "/static/js/config.js";
-import { put, post, delete_fetch, get_json, post_json, put_json } from "/static/js/fetching.js";
+import { toggle_button } from "/static/js/button.js";
 
 
 /** Maximum attnetion span in seconds */
@@ -51,6 +49,10 @@ class Behavior extends Widget {
         this.shadowRoot.appendChild(link);
 
         this.playPauseBtn = this.add_button_to_toolbar("play_arrow");
+        this.playPauseBtn.addEventListener("click", async evt => {
+            const infos = await this.api.toggle_behavior_playback();
+            this.update_ui(infos);
+        });
 
         const container = document.createElement("div");
         container.classList.add("container");
@@ -189,12 +191,7 @@ class Behavior extends Widget {
      * @param {Object} infos Behavior info object.
      */
     update_ui(infos) {
-        if (infos.active) {
-            this.playPauseBtn.innerHTML = "pause";
-        } else {
-            this.playPauseBtn.innerHTML = "play_arrow";
-        }
-
+        this.playPauseBtn.innerHTML = infos.active ? "pause" : "play_arrow";
         this.nowPlayingSpan.innerHTML = infos.lastPlayed;
         this.update_attention_span_slider(infos.params.attentionSpan);
         this.statesDiv.childNodes.forEach(stateDiv => {
@@ -204,7 +201,7 @@ class Behavior extends Widget {
                 cb.checked = motions.includes(cb.name);
             });
         });
-        this.mark_active_state(infos.state.value);
+        this.mark_active_state(infos.active ? infos.state.value : -1);
     }
 
     /**

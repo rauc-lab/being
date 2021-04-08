@@ -151,8 +151,6 @@ export class Api {
         return get_json(API + "/motions2");
     }
 
-
-
     async load_behavior_states() {
         return get_json(API + "/behavior/states");
     }
@@ -165,14 +163,7 @@ export class Api {
         return put_json(API + "/behavior/params", params);
     }
 
-    /*
-
-
-
+    async toggle_behavior_playback() {
+        return put_json(API + "/behavior/toggle_playback");
     }
-
-    async get_behavior_params() {
-        return get_json(API + "/behavior/params");
-    }
-    */
 }

@@ -101,11 +101,13 @@ class Behavior(Block, PubSub):
         self.logger = logging.getLogger('Behavior')
 
     @property
-    def params(self):
+    def params(self) -> dict:
+        """Get current behavior params."""
         return self._params
 
     @params.setter
-    def params(self, params):
+    def params(self, params: dict):
+        """Update behavior params."""
         self._params = params
         self._purge_params()
 
@@ -121,10 +123,14 @@ class Behavior(Block, PubSub):
         #motionPlayer.feedbackOut.connect(self.feedbackIn)
 
     def play(self):
+        """Start behavior playback."""
         self.active = True
 
     def pause(self):
+        """Pause behavior playback."""
         self.active = False
+        self.lastPlayed = ''
+        self.motionPlayer.stop()
 
     def sensor_triggered(self) -> bool:
         """Check if sensor got triggered."""
