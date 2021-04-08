@@ -65,7 +65,7 @@ export class CurverBase extends Widget {
      */
     init_elements() {
         // Apply external styles to the shadow dom
-        ["static/open_sans.css", "static/curver.css"].forEach(fp => {
+        ["static/css/open_sans.css", "static/css/curver.css"].forEach(fp => {
             const link = document.createElement("link");
             link.setAttribute("rel", "stylesheet");
             link.setAttribute("href", fp);

@@ -20,7 +20,7 @@ export class Widget extends HTMLElement {
         const root = this.attachShadow({ mode: "open" });
         const link = document.createElement("link");
         link.setAttribute("rel", "stylesheet");
-        link.setAttribute("href", "static/toolbar.css");
+        link.setAttribute("href", "static/css/toolbar.css");
         root.appendChild(link);
 
         const toolbar = document.createElement("div");

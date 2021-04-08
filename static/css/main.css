@@ -1,6 +1,6 @@
 @font-face {
   font-family: open-sans;
-  src: url(font/OpenSans-Regular.ttf) format("truetype");
+  src: url("../font/OpenSans-Regular.ttf") format("truetype");
 }
 
 @font-face {
@@ -8,7 +8,7 @@
   font-style: normal;
   font-weight: 400;
   src: local("Material Icons"), local("MaterialIcons-Regular"),
-    url(font/material-icons.woff2) format("woff2");
+    url("../font/material-icons.woff2") format("woff2");
 }
 
 body {

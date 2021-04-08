@@ -45,7 +45,7 @@ class Behavior extends Widget {
     init_elements() {
         const link = document.createElement("link");
         link.setAttribute("rel", "stylesheet");
-        link.setAttribute("href", "static/behavior.css");
+        link.setAttribute("href", "static/css/behavior.css");
         this.shadowRoot.appendChild(link);
 
         this.playPauseBtn = this.add_button_to_toolbar("play_arrow");
