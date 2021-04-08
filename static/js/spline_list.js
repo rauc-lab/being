@@ -13,25 +13,25 @@ export class SplineList {
         this.selected = null
         this.api = new Api();
 
-        this.add_spline_list()
+        this.init_elements()
     }
 
-
-    reload_spline_list() {
-        this.api.fetch_splines().then(res => {
-            this.splines = res.forEach(spline => {
-                spline.content = BPoly.from_object(spline.content)
-            })
-            this.populate(res)
-            this.editor.resize();
-        });
+    /**
+     * Load splines from back end and display in spline list.
+     */
+    async reload_spline_list() {
+        const res = await this.api.fetch_splines();
+        res.forEach(spline => {
+            spline.content = BPoly.from_object(spline.content)
+        })
+        this.populate(res);
+        this.editor.resize();
     }
-
 
     /**
      * Build node and attach to parent (editor)
      */
-    add_spline_list() {
+    init_elements() {
         const container = this.editor.motionListDiv;
 
         this.splineListDiv = document.createElement("div")
@@ -97,7 +97,7 @@ export class SplineList {
                     this.preSelectVisibility = this.visibles.has(this.selected)
                     // this.visibles.add(evt.currentTarget.id)
                     this.update_spline_list_selection()
-                    this.init_spline_selection()
+                    this.draw_selected_spline()
                     const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
                     this.editor.load_spline(selectedSpline.content)
                     this.draw_background_splines()
@@ -239,7 +239,7 @@ export class SplineList {
 
 
     update_spline_list_selection() {
-        let entries = this.editor.shadowRoot.querySelectorAll(".spline-list-entry")
+        const entries = this.editor.shadowRoot.querySelectorAll(".spline-list-entry")
         entries.forEach(entry => {
             entry.removeAttribute("checked")
             entry.querySelector(".spline-checkbox").innerHTML = ""
@@ -253,24 +253,36 @@ export class SplineList {
                 this.selected = spline_fd
                 this.preSelectVisibility = false;
             }
-            this.init_spline_selection()
+            this.draw_selected_spline()
         }
 
-        this.editor.shadowRoot.getElementById(this.selected).setAttribute("checked", "")
-        this.visibles.forEach(filename => {
-            const parent = this.editor.shadowRoot.getElementById(filename)
-            const checkbox = parent.querySelector(".spline-checkbox")
-            checkbox.innerHTML = "visibility";
-        })
+        if (this.selected !== null) {
+            this.editor.shadowRoot.getElementById(this.selected).setAttribute("checked", "")
+            this.visibles.forEach(filename => {
+                const parent = this.editor.shadowRoot.getElementById(filename)
+                const checkbox = parent.querySelector(".spline-checkbox")
+                checkbox.innerHTML = "visibility";
+            })
+        }
     }
 
-
-    init_spline_selection() {
-        const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0]
-        this.editor.load_spline(selectedSpline.content)
+    /**
+     * Draw the currently selected spline in editor panel (if any).
+     */
+    draw_selected_spline() {
+        for (const sp of this.splines) {
+            if (sp.filename === this.selected) {
+                this.editor.load_spline(sp.content);
+                break;
+            }
+        }
     }
 
-
+    /**
+     * Populate spline list with splines.
+     *
+     * @param {Array} splines Array of spline like objects (filename and content).
+     */
     populate(splines) {
         this.splines = splines
         this.update_spline_list()
