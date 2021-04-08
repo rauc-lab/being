@@ -10,6 +10,7 @@ from being.logging import suppress_other_loggers
 
 
 
+"""
 MOTIONS = [
     'deep_uncertainty',
     'peaceful_blue',
@@ -22,6 +23,7 @@ MOTIONS = [
     'uninterested_unequaled',
     'unknown_deep',
 ]
+"""
 
 
 logging.basicConfig(level=0)
@@ -45,7 +47,7 @@ class DummySensor(Block):
 
 
 sensor = DummySensor()
-params = create_params(2.5, ['uncertainty_uncertainty'], ['unequaled_serious'], ['deep_uncertainty'])
+params = create_params(2.5)
 behavior = Behavior(params)
 mp = MotionPlayer()
 behavior.associate(mp)

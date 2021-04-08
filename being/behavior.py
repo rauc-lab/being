@@ -132,6 +132,7 @@ class Behavior(Block, PubSub):
         self.active = False
         self.lastPlayed = ''
         self.motionPlayer.stop()
+        self.state = SLEEPING
         self.publish(BEHAVIOR_CHANGED)
 
     def sensor_triggered(self) -> bool:
@@ -176,6 +177,7 @@ class Behavior(Block, PubSub):
         self.logger.info('Playing motion %r', motion)
         mc = MotionCommand(motion)
         self.mcOut.send(mc)
+        self.publish(BEHAVIOR_CHANGED)
 
     def change_state(self, newState: State):
         """Change state of behavior to `newState`."""
