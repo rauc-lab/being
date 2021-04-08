@@ -226,15 +226,15 @@ class Behavior extends Widget {
      *
      * @param {Object} msg Received message to process.
      */
-    async new_data(msg) {
-        if (msg.type === "behavior-update") {
-            this.update_ui(msg);
-        } else if (msg.type === "motions") {
-            const names = Object.keys(msg.splines);
-            this.populate_motions(names);
-            const infos = await this.api.load_behavior_infos();
-            this.update_ui(infos);
-        }
+    async behavior_message(msg) {
+        this.update_ui(msg);
+    }
+
+    async motions_message(msg) {
+        const names = Object.keys(msg.splines);
+        this.populate_motions(names);
+        const infos = await this.api.load_behavior_infos();
+        this.update_ui(infos);
     }
 }
 

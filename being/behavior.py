@@ -33,7 +33,7 @@ CHILLED = State.CHILLED
 EXCITED = State.EXCITED
 
 
-STATE_CHANGED = 'STATE_CHANGED'
+BEHAVIOR_CHANGED = 'BEHAVIOR_CHANGED'
 
 
 def create_params(attentionSpan=10., sleepingMotions=None, chilledMotions=None, excitedMotions=None):
@@ -84,7 +84,7 @@ class Behavior(Block, PubSub):
             content = Content.single_instance_setdefault()
 
         super().__init__()
-        PubSub.__init__(self, events=[STATE_CHANGED])
+        PubSub.__init__(self, events=[BEHAVIOR_CHANGED])
         self.add_message_input('sensorIn')
         self.add_message_output('mcOut')
         #self.add_message_input('feedbackIn')
@@ -125,12 +125,14 @@ class Behavior(Block, PubSub):
     def play(self):
         """Start behavior playback."""
         self.active = True
+        self.publish(BEHAVIOR_CHANGED)
 
     def pause(self):
         """Pause behavior playback."""
         self.active = False
         self.lastPlayed = ''
         self.motionPlayer.stop()
+        self.publish(BEHAVIOR_CHANGED)
 
     def sensor_triggered(self) -> bool:
         """Check if sensor got triggered."""
@@ -181,7 +183,7 @@ class Behavior(Block, PubSub):
             return
 
         self.logger.info('Changed to state %s', newState)
-        self.publish(STATE_CHANGED)
+        self.publish(BEHAVIOR_CHANGED)
         self.state = newState
         self.lastChanged = self.clock.now()
 

@@ -669,6 +669,13 @@ class Editor extends CurverBase {
             this.recordedTrajectory.push([t, actualValue]);
         }
     }
+
+    behavior_message(infos) {
+        if (infos.active) {
+            this.transport.stop();
+            this.update_ui();
+        }
+    }
 }
 
 customElements.define("being-editor", Editor);
