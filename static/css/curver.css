@@ -1,33 +1,22 @@
-@font-face {
-    font-family: "Material Icons";
-    font-style: normal;
-    font-weight: 400;
-    src: local("Material Icons"), local("MaterialIcons-Regular"), url("/static/font/material-icons.woff2") format("woff2");
-}
-
-.material-icons {
-    font-family: "Material Icons";
-}
-
-:host {
+.container {
     display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
-    border: 2px solid black;
-    border-width: 2px 0 0 2px;
+    flex-flow: column nowrap;
 }
 
-:host > * {
-    border: 2px solid black;
-    border-width: 0 2px 2px 0;
-}
+.container > * { border-top: 2px solid black; }
 
 @media screen and (min-width: 800px) {
-    :host {
-        display: grid;
-        grid-template-rows: 30px auto;
-        grid-template-columns: 25% auto;
-        grid-auto-flow: column;
+    .container {
+        flex-direction: row;
+    }
+
+    .motion-list {
+        border-right: 2px solid black;
+        min-width: 20%;
+    }
+
+    .graph {
+        flex-grow: 1;
     }
 }
 
@@ -47,6 +36,7 @@
 }
 
 .graph svg { cursor: move; }
+
 .graph svg circle { cursor: pointer; }
 
 .graph .annotation {
@@ -54,12 +44,6 @@
     visibility: hidden;
     box-shadow: 0 0 10px 10px rgba(255, 255, 255, .666);
     background-color: rgba(255, 255, 255, .666);
-}
-
-.title {
-    font-family: "OpenSans-Bold";
-    display: flex;
-    align-items: center;
 }
 
 .motion-list hr {

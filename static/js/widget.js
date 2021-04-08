@@ -18,16 +18,21 @@ export class Widget extends HTMLElement {
     constructor() {
         super();
         const root = this.attachShadow({ mode: "open" });
-        const link = document.createElement("link");
-        link.setAttribute("rel", "stylesheet");
-        link.setAttribute("href", "static/css/toolbar.css");
-        root.appendChild(link);
+
+        this._append_link("static/css/widget.css");
+        this._append_link("static/css/toolbar.css");
 
         const toolbar = document.createElement("div");
         toolbar.classList.add("toolbar");
         this.toolbar = root.appendChild(toolbar);
     }
 
+    _append_link(filepath) {
+        const link = document.createElement("link");
+        this.shadowRoot.appendChild(link);
+        link.setAttribute("rel", "stylesheet");
+        link.setAttribute("href", filepath);
+    }
 
     /**
      * Add a new material icon button to toolbar (or any other parent_

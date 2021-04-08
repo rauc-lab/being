@@ -72,40 +72,33 @@ export class CurverBase extends Widget {
             this.shadowRoot.append(link);
         });
 
-        // ? Mistery unknown area
-        const title = document.createElement("div");
-        title.classList.add("title");
-        title.innerHTML = "Motion Editor";
+        this.container = document.createElement("div");
+        this.container.classList.add("container");
+        this.shadowRoot.appendChild(this.container);
 
         // Motion list
         this.motionListDiv = document.createElement("div");
+        this.container.appendChild(this.motionListDiv);
         this.motionListDiv.classList.add("motion-list");
-
-        // Toolbar area
-        //this.toolbar = document.createElement("div");
-        //this.toolbar.classList.add("toolbar");
 
         // Graph area
         this.graph = document.createElement("div");
+        this.container.appendChild(this.graph);
         this.graph.classList.add("graph");
 
         // Canvas
         this.canvas = document.createElement("canvas");
+        this.graph.appendChild(this.canvas);
         this.ctx = this.canvas.getContext("2d");
         this.ctx.lineCap = "round";  //"butt" || "round" || "square";
         this.ctx.lineJoin = "round";  //"bevel" || "round" || "miter";
 
         // SVG
         this.svg = create_element("svg");
+        this.graph.appendChild(this.svg);
         this.backgroundGroup = this.svg.appendChild(create_element("g"));
         this.transportGroup = this.svg.appendChild(create_element("g"));
         this.splineGroup = this.svg.appendChild(create_element("g"));
-
-        this.graph.append(this.canvas, this.svg);
-
-        this.shadowRoot.insertBefore(title, this.toolbar);
-        this.shadowRoot.insertBefore(this.motionListDiv, this.toolbar);
-        this.shadowRoot.append(this.graph);
     }
 
     reset_viewport() {

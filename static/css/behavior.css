@@ -1,32 +1,21 @@
-:host {
-    display: block;
-    border: 2px solid black;
-}
-
-.toolbar {
-    border-bottom: 2px solid black;
-}
+.container { border-top: 2px solid black; }
 
 .states {
     display: flex;
     flex-flow: column nowrap;
     justify-content: space-between;
-    overflow: auto;
 }
 
 .state {
     display: inline-block;
     border: 2px solid black;
+    border-width: 2px 0 0px 0;
     transition: box-shadow 0.3s ease-in-out;
 }
 
-.state.selected {
-    box-shadow: 0 0 1em black;
-}
+.state.selected { box-shadow: 0 0 1em black; }
 
-.state span {
-    font-weight: bold;
-}
+.state span { font-weight: bold; }
 
 .state ul {
     list-style: none;
@@ -62,6 +51,4 @@
     }
 }
 
-.now-playing {
-    font-family: "Courier New", Courier, monospace;
-}
+.now-playing { font-family: "Courier New", Courier, monospace; }

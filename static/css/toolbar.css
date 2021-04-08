@@ -1,12 +1,3 @@
-@font-face {
-    font-family: "Material Icons";
-    font-style: normal;
-    font-weight: 400;
-    src: local("Material Icons"), local("MaterialIcons-Regular"), url("/static/font/material-icons.woff2") format("woff2");
-}
-
-.material-icons { font-family: "Material Icons"; }
-
 div.toolbar {
     display: flex;
     flex-flow: row wrap;
@@ -14,6 +5,7 @@ div.toolbar {
     border-left: none;
     border-width: 0 2px 0 0;
     z-index: 666;
+    margin-bottom: -2px;
 }
 
 div.toolbar > * {
@@ -41,9 +33,7 @@ div.toolbar button[checked] {
     color: white;
 }
 
-div.toolbar button:disabled {
-    color: silver;
-}
+div.toolbar button:disabled { color: silver; }
 
 div.toolbar button.record[checked] {
     background-color: white;
