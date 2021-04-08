@@ -302,7 +302,9 @@ class Editor extends CurverBase {
      */
     setup_keyboard_shortcuts() {
         addEventListener("keydown", evt => {
-            document.activeElement.blur();  // Otherwise we trigger last buttons in focus
+            if (document.activeElement !== document.body) {
+                return;
+            }
             const ctrlOrMeta = evt.ctrlKey || evt.metaKey;
             if (ctrlOrMeta && !evt.shiftKey) {
                 switch (evt.key) {
