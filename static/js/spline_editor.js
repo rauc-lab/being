@@ -37,6 +37,8 @@ const DEFAULT_DATA_BBOX = new BBox([0, 0], [1, 0.04]);
 /** Min height of spline drawing area (y directions) */
 const MIN_HEIGHT = 0.010;
 
+const FOLDED = 'folded';
+
 
 /**
  * Zoom / scale bounding box in place.
@@ -148,7 +150,12 @@ class Editor extends CurverBase {
      * Populate toolbar with buttons and motor selection. Wire up event listeners.
      */
     setup_toolbar_elements() {
-        const listBtn = this.add_button_to_toolbar("list");
+        this.listBtn = this.add_button_to_toolbar("list", "Toggle spline list");
+        this.listBtn.addEventListener("click", evt => {
+            this.motionListDiv.toggleAttribute(FOLDED);
+            this.update_ui();
+            this.resize();
+        });
 
         this.add_space_to_toolbar();
 
@@ -398,6 +405,12 @@ class Editor extends CurverBase {
      * / redo buttons according to history.
      */
     update_ui() {
+        if (this.motionListDiv.hasAttribute(FOLDED)) {
+            switch_button_off(this.listBtn);
+        } else {
+            switch_button_on(this.listBtn);
+        }
+
         this.saveBtn.disabled = !(this.history.length > 1);
         this.undoBtn.disabled = !this.history.undoable;
         this.redoBtn.disabled = !this.history.redoable;

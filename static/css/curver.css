@@ -5,6 +5,10 @@
 
 .container > * { border-top: 2px solid black; }
 
+.motion-list { flex-grow: 1; }
+
+.graph { flex-grow: 4; }
+
 @media screen and (min-width: 800px) {
     .container {
         flex-direction: row;
@@ -12,11 +16,24 @@
 
     .motion-list {
         border-right: 2px solid black;
-        min-width: 20%;
     }
+    .motion-list[folded] {
+        background-color: red;
+        border-right: none;
+        width: 0;
+        max-width: 0;
+        overflow: hidden;
+    }
+}
 
-    .graph {
-        flex-grow: 1;
+@media screen and (max-width: 800px) {
+    .motion-list[folded] {
+        background: green;
+        height: 0;
+        max-height: 0;
+        overflow: hidden;
+        border-top: none;
+        border-bottom: none;
     }
 }
 
