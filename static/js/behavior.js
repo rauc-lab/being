@@ -209,7 +209,7 @@ class Behavior extends Widget {
      */
     async emit_params() {
         const params = {};
-        params.attentionSpan = this.attentionSpanSlider.value / N_TICKS;
+        params.attentionSpan = this.attentionSpanSlider.value / N_TICKS * MAX_ATTENTION_SPAN;
         this.statesDiv.childNodes.forEach(stateDiv => {
             const key = stateDiv.getAttribute("name").toLowerCase() + "Motions";
             params[key] = [];
