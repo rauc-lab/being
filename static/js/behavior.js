@@ -230,7 +230,7 @@ class Behavior extends Widget {
         this.update_ui(msg);
     }
 
-    async motions_message(msg) {
+    async content_message(msg) {
         const names = Object.keys(msg.splines);
         this.populate_motions(names);
         const infos = await this.api.load_behavior_infos();
