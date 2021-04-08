@@ -311,6 +311,7 @@ def init_api(being, ws: WebSocket) -> web.Application:
         behavior = being.behaviors[0]
         api.add_routes(behavior_controller(behavior))
         behavior.subscribe(BEHAVIOR_CHANGED, lambda: ws.send_json_buffered(behavior.infos()))
+        content.subscribe(CONTENT_CHANGED, behavior._purge_params)
 
     api.add_routes(being_controller(being))
     return api
