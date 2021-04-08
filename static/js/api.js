@@ -144,15 +144,35 @@ export class Api {
         return get_json(API + "/motions");
     }
 
-    async fetch_behavior_states() {
+
+
+
+    async load_motions() {
+        return get_json(API + "/motions2");
+    }
+
+
+
+    async load_behavior_states() {
         return get_json(API + "/behavior/states");
+    }
+
+    async load_behavior_infos() {
+        return get_json(API + "/behavior");
     }
 
     async send_behavior_params(params) {
         return put_json(API + "/behavior/params", params);
     }
 
+    /*
+
+
+
+    }
+
     async get_behavior_params() {
         return get_json(API + "/behavior/params");
     }
+    */
 }

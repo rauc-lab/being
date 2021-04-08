@@ -7,8 +7,8 @@ import math
 from aiohttp import web
 from scipy.interpolate import BPoly
 
-from being.behavior import State, Event
-from being.content import Content
+from being.behavior import STATE_CHANGED, State
+from being.content import CONTENT_CHANGED, Content
 from being.serialization import dumps, loads, spline_from_dict
 from being.spline import fit_spline
 from being.utils import any_item
@@ -46,20 +46,6 @@ def json_response_handler(data):
     return lambda request: json_response(data)
 
 
-def find_free_name(content, default='Untitled'):
-    """Find free name in content."""
-    names = list(content._sorted_names())
-    if default not in names:
-        return default
-
-    for number in range(1, 100):
-        name = f'{default} {number}'
-        if name not in names:
-            return name
-
-    raise RuntimeError('Can not find any free name!')
-
-
 def content_controller(content: Content) -> web.RouteTableDef:
     """Controller for content model. Build Rest API routes. Wrap content
     instance in API.
@@ -76,6 +62,10 @@ def content_controller(content: Content) -> web.RouteTableDef:
     async def get_all_motions(request):
         return json_response(content.dict_motions())
 
+    @routes.get('/motions2')
+    async def get_all_motions_2(request):
+        return json_response(content.dict_motions_2())
+
     @routes.get('/motions/{name}')
     async def get_motion_by_name(request):
         name = request.match_info['name']
@@ -87,38 +77,36 @@ def content_controller(content: Content) -> web.RouteTableDef:
 
     @routes.post('/motions')
     async def create_motion(request):
-        name = find_free_name(content)
+        name = content.find_free_name('Untitled')
         spline = BPoly([[0], [0], [0], [0]], [0., 1.])
         content.save_motion(spline, name)
         return json_response(spline)
 
     @routes.put('/motions/{name}')
     async def update_motion(request):
-        oldName = request.match_info['name']
-        if not content.motion_exists(oldName):
+        name = request.match_info['name']
+        if not content.motion_exists(name):
             return web.HTTPNotFound(text='This motion does not exist!')
 
+        if 'rename' in request.query:
+            if not content.motion_exists(name):
+                return web.HTTPNotFound(text=f'Motion {name!r} does not exist!')
+
+            newName = request.query['rename']
+            if content.motion_exists(newName):
+                return web.HTTPNotAcceptable(text=f'Another file with the same name {name} already exists!')
+
+            content.rename_motion(name, newName)
+            return json_response(content.load_motion(newName))
+
         try:
-            if 'rename' in request.query:
-                newName = request.query['rename']
-                if content.motion_exists(newName):
-                    return web.HTTPNotAcceptable(text=f'Another file with the same name {oldName} already exists')
-                try:
-                    content.rename_motion(oldName, newName)
-                    return json_response(content.load_motion(newName))
-                except:
-                    return web.HTTPError(text='Renaming failed!')
-
-            else:
-                spline = await request.json(loads=loads)
-                try:
-                    content.save_motion(spline, oldName)
-                    return json_response(spline)
-                except:
-                    return web.HTTPError(text='Saving spline failed!')
-
+            spline = await request.json(loads=loads)
+            content.save_motion(spline, name)
+            return json_response(content.load_motion(newName))
         except json.JSONDecodeError:
             return web.HTTPNotAcceptable(text='Failed deserializing JSON spline!')
+        except:
+            return web.HTTPError(text='Saving spline failed!')
 
     @routes.delete('/motions/{name}')
     async def delete_motion(request):
@@ -242,16 +230,9 @@ def being_controller(being) -> web.RouteTableDef:
     return routes
 
 
-def behavior_controller(behavior, ws: WebSocket) -> web.RouteTableDef:
+def behavior_controller(behavior) -> web.RouteTableDef:
     # TODO: For now we only support 1x behavior instance. Needs to be expanded for the future
     routes = web.RouteTableDef()
-
-    def inform_front_end(newState):
-        dct = behavior.infos()
-        dct['type'] = 'behavior-update'
-        ws.send_json_buffered(dct)
-
-    behavior.subscribe(Event.STATE_CHANGED, inform_front_end)
 
     @routes.get('/behavior/states')
     def get_states(request):
@@ -281,7 +262,7 @@ def behavior_controller(behavior, ws: WebSocket) -> web.RouteTableDef:
         try:
             params = await request.json()
             behavior.params = params
-            return json_response(behavior.params)
+            return json_response(behavior.infos())
         except json.JSONDecodeError:
             return web.HTTPNotAcceptable(text=f'Failed deserializing JSON behavior params!')
 
@@ -314,9 +295,13 @@ def init_api(being, ws: WebSocket) -> web.Application:
     api.add_routes(misc_controller())
     api.add_routes(content_controller(content))
     api.add_routes(being_controller(being))
+
+    content.subscribe(CONTENT_CHANGED, lambda: ws.send_json_buffered(content.dict_motions_2()))
+
     if len(being.behaviors) >= 1:
         behavior = being.behaviors[0]
-        api.add_routes(behavior_controller(behavior, ws))
+        api.add_routes(behavior_controller(behavior))
+        behavior.subscribe(STATE_CHANGED, lambda _: ws.send_json_buffered(behavior.infos()))
 
     return api
 

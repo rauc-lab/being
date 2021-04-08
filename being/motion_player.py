@@ -30,7 +30,7 @@ class Urgency(Enum):
 """
 
 
-def constant_spline(position=0) -> BPoly:
+def constant_spline(position=0, duration=1.) -> BPoly:
     """Create a constant spline for a given position which extrapolates
     indefinitely.
 
@@ -40,7 +40,7 @@ def constant_spline(position=0) -> BPoly:
     Returns:
         Constant spline.
     """
-    return BPoly(c=[[position]], x=[0., 1.], extrapolate=True)
+    return BPoly(c=[[position]], x=[0., duration], extrapolate=True)
 
 
 class MotionCommand(NamedTuple):
@@ -128,7 +128,7 @@ class MotionPlayer(Block):
             spline = self.content.load_motion(mc.name)
         except FileNotFoundError:
             self.logger.error('Motion %r does not exist!', mc.name)
-            spline = constant_spline(self.output.value)
+            spline = constant_spline(self.output.value, duration=5.)
 
         return self.play_spline(spline, mc.loop)
 

@@ -9,6 +9,7 @@ from typing import List
 
 from being.block import Block
 from being.clock import Clock
+from being.content import Content
 from being.motion_player import MotionPlayer, MotionCommand
 from being.pubsub import PubSub
 from being.serialization import register_enum
@@ -32,11 +33,7 @@ CHILLED = State.CHILLED
 EXCITED = State.EXCITED
 
 
-class Event(enum.Enum):
-
-    """Behavior event."""
-
-    STATE_CHANGED = 0
+STATE_CHANGED = 'STATE_CHANGED'
 
 
 def create_params(attentionSpan=10., sleepingMotions=None, chilledMotions=None, excitedMotions=None):
@@ -76,27 +73,41 @@ class Behavior(Block, PubSub):
     Extra Params class for JSON serialization / API.
     """
 
-    def __init__(self, params=None, clock=None):
+    def __init__(self, params=None, clock=None, content=None):
         if params is None:
             params = create_params()
 
         if clock is None:
             clock = Clock.single_instance_setdefault()
 
+        if content is None:
+            content = Content.single_instance_setdefault()
+
         super().__init__()
-        PubSub.__init__(self, Event)
+        PubSub.__init__(self, events=[STATE_CHANGED])
         self.add_message_input('sensorIn')
         self.add_message_output('mcOut')
         #self.add_message_input('feedbackIn')
 
+        self._params = params
+        self.clock = clock
+        self.content = content
+
         self.active = True
         self.motionPlayer = None
-        self.params = params
-        self.clock = clock
         self.state = State.SLEEPING
         self.lastChanged = 0.
         self.lastPlayed = ''
         self.logger = logging.getLogger('Behavior')
+
+    @property
+    def params(self):
+        return self._params
+
+    @params.setter
+    def params(self, params):
+        self._params = params
+        self._purge_params()
 
     def associate(self, motionPlayer: MotionPlayer):
         """Associate behavior engine with motion player block (connect
@@ -122,6 +133,16 @@ class Behavior(Block, PubSub):
             triggered = True
 
         return triggered
+
+    def _purge_params(self):
+        """Check with content and remove all non existing motion names from _params."""
+        existing = list(self.content._sorted_names())
+        for key in ['sleepingMotions', 'chilledMotions', 'excitedMotions']:
+            self._params[key] = [
+                name
+                for name in self._params[key]
+                if name in existing
+            ]
 
     def motion_playing(self) -> bool:
         """Check if associated motionPlayer is playing a motion at the moment or
@@ -154,7 +175,7 @@ class Behavior(Block, PubSub):
             return
 
         self.logger.info('Changed to state %s', newState)
-        self.publish(Event.STATE_CHANGED, newState=newState)
+        self.publish(STATE_CHANGED, newState=newState)
         self.state = newState
         self.lastChanged = self.clock.now()
 
@@ -162,7 +183,7 @@ class Behavior(Block, PubSub):
         triggered = self.sensor_triggered()
         playing = self.motion_playing()
         passed = self.clock.now() - self.lastChanged
-        attentionLost = (passed > self.params['attentionSpan'])
+        attentionLost = (passed > self._params['attentionSpan'])
 
         if not self.active:
             return
@@ -170,28 +191,30 @@ class Behavior(Block, PubSub):
         if self.state is SLEEPING:
             if triggered:
                 self.change_state(EXCITED)
-                self.play_random_motion(self.params['excitedMotions'])
+                self.play_random_motion(self._params['excitedMotions'])
             elif not playing:
-                self.play_random_motion(self.params['sleepingMotions'])
+                self.play_random_motion(self._params['sleepingMotions'])
 
         elif self.state is CHILLED:
             if triggered:
                 self.change_state(EXCITED)
-                self.play_random_motion(self.params['excitedMotions'])
+                self.play_random_motion(self._params['excitedMotions'])
             elif attentionLost and not playing:
                 self.change_state(SLEEPING)
-                self.play_random_motion(self.params['sleepingMotions'])
+                self.play_random_motion(self._params['sleepingMotions'])
             elif not playing:
-                self.play_random_motion(self.params['chilledMotions'])
+                self.play_random_motion(self._params['chilledMotions'])
 
         elif self.state is EXCITED:
             if not playing:
                 self.change_state(CHILLED)
-                self.play_random_motion(self.params['chilledMotions'])
+                self.play_random_motion(self._params['chilledMotions'])
 
     def infos(self):
         return {
+            'type': 'behavior-update',
             'active': self.active,
             'state': self.state,
             'lastPlayed': self.lastPlayed,
+            'params': self._params,
         }
