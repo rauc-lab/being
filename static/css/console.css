@@ -1,0 +1,9 @@
+:host ul {
+    margin: 0;
+    padding: 0 1em 1em 1em;
+    font-family: monospace;
+    height: 30vh;
+    overflow: hidden;
+    overflow-y: scroll;
+    list-style: none;
+}

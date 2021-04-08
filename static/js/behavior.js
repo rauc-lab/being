@@ -2,7 +2,6 @@ import { Widget } from "/static/js/widget.js";
 import { Api } from "/static/js/api.js";
 import { remove_all_children } from "/static/js/utils.js";
 import { round } from "/static/js/math.js";
-import { toggle_button } from "/static/js/button.js";
 
 
 /** Maximum attnetion span in seconds */

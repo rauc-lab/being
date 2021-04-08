@@ -12,6 +12,7 @@
     <script type="module" src="static/js/live_plotter.js"></script>
     <script type="module" src="static/js/spline_editor.js"></script>
     <script type="module" src="static/js/behavior.js"></script>
+    <script type="module" src="static/js/console.js"></script>
 </head>
 
 <body>
@@ -35,7 +36,7 @@
 
     <h1>Console</h1>
 
-    A console should appear here soon.
+    <being-console id="console"></being-console>
 
     <script type="module">
         import { ready } from "/static/js/utils.js";
@@ -47,6 +48,8 @@
         async function main() {
             const editor = document.getElementById("editor");
             const behavior = document.getElementById("behavior");
+            const console = document.getElementById("console");
+
             receive_from_websocket(WS_ADDRESS, {
                 "output-values": [
                     msg => editor.new_data(msg),
@@ -57,6 +60,9 @@
                 ],
                 "motions": [
                     msg => behavior.content_message(msg),
+                ],
+                "log": [
+                    msg => console.new_log_messages(msg),
                 ],
             });
         }
