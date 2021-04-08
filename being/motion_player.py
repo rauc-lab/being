@@ -6,16 +6,17 @@ TODO:
     clock. Or a phasor?
   - Slow and fast crossover between splines?
 """
-import logging
 from typing import NamedTuple
 
 from scipy.interpolate import BPoly
 
+from being.behavior_tree import SUCCESS
 from being.block import Block
 from being.clock import Clock
-from being.spline import Spline, sample_spline
 from being.content import Content
-from being.behavior_tree import SUCCESS
+from being.logging import get_logger
+from being.spline import Spline, sample_spline
+
 
 
 """
@@ -82,7 +83,7 @@ class MotionPlayer(Block):
         self.spline = None
         self.startTime = 0
         self.looping = False
-        self.logger = logging.getLogger(str(self))
+        self.logger = get_logger(str(self))
 
     @property
     def playing(self) -> bool:
@@ -126,6 +127,7 @@ class MotionPlayer(Block):
         """
         try:
             spline = self.content.load_motion(mc.name)
+            self.logger.info('Playing motion %r', mc.name)
         except FileNotFoundError:
             self.logger.error('Motion %r does not exist!', mc.name)
             spline = constant_spline(self.output.value, duration=5.)
@@ -144,3 +146,6 @@ class MotionPlayer(Block):
 
             if not self.looping and t >= self.spline.x[-1]:
                 self.stop()
+
+    def __str__(self):
+        return type(self).__name__

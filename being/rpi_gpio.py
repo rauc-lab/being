@@ -1,10 +1,10 @@
 try:
     import RPi.GPIO as GPIO
 except ImportError:
-    import logging
+    from being.logging import get_logger
 
 
-    LOGGER = logging.getLogger(__name__)
+    LOGGER = get_logger(__name__)
 
 
     class GPIO:

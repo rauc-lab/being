@@ -3,20 +3,22 @@ import asyncio
 import json
 import logging
 import math
-from typing import ForwardRef, Callable
+from typing import ForwardRef
 
 from aiohttp import web
 from scipy.interpolate import BPoly
 
 from being.behavior import BEHAVIOR_CHANGED, State
 from being.content import CONTENT_CHANGED, Content
+from being.logging import get_logger
 from being.serialization import dumps, loads, spline_from_dict
 from being.spline import fit_spline
 from being.utils import any_item
 from being.web_socket import WebSocket
+from being.logging import BEING_LOGGERS
 
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 """Server module logger."""
 
 Being = ForwardRef('Being')
@@ -298,6 +300,27 @@ def misc_controller() -> web.RouteTableDef:
     return routes
 
 
+def wire_being_loggers_to_web_socket(ws: WebSocket):
+    """Add custom logging handler to all being loggers which emits log records
+    via web socket to the front end.
+
+    Args:
+        ws: Web socket.
+    """
+    class WsHandler(logging.Handler):
+        def emit(self, record):
+            ws.send_json_buffered({
+                'type': 'log',
+                'level': record.levelno,
+                'name': record.name,
+                'message': self.format(record),
+            })
+
+    handler = WsHandler()
+    for logger in BEING_LOGGERS:
+        logger.addHandler(WsHandler())
+
+
 def init_api(being, ws: WebSocket) -> web.Application:
     """Initialize and setup Rest-like API subapp."""
     content = Content.single_instance_setdefault()
@@ -314,6 +337,7 @@ def init_api(being, ws: WebSocket) -> web.Application:
         content.subscribe(CONTENT_CHANGED, behavior._purge_params)
 
     api.add_routes(being_controller(being))
+    wire_being_loggers_to_web_socket(ws)
     return api
 
 

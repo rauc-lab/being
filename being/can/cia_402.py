@@ -4,7 +4,6 @@ Trimmed down version of canopen.BaseNode402. Statusword & controlword always via
 SDO, rest via PDO. Support for CYCLIC_SYNCHRONOUS_POSITION.
 """
 import contextlib
-import logging
 from enum import auto, IntEnum, Enum
 from typing import List, Dict, Set, Tuple, ForwardRef, Generator
 from collections import deque, defaultdict
@@ -22,6 +21,7 @@ from being.can.definitions import (
 )
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.config import SI_2_FAULHABER
+from being.logging import get_logger
 
 
 State = ForwardRef('State')
@@ -238,7 +238,7 @@ class CiA402Node(RemoteNode):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.logger = logging.getLogger(str(self))
+        self.logger = get_logger(str(self))
 
     @property
     def position(self):

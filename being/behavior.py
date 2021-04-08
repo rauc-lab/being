@@ -3,13 +3,13 @@
 To be expanded with a proper behavior tree engine (to be discussed).
 """
 import enum
-import logging
 import random
 from typing import List
 
 from being.block import Block
 from being.clock import Clock
 from being.content import Content
+from being.logging import get_logger
 from being.motion_player import MotionPlayer, MotionCommand
 from being.pubsub import PubSub
 from being.serialization import register_enum
@@ -98,7 +98,7 @@ class Behavior(Block, PubSub):
         self.state = State.SLEEPING
         self.lastChanged = 0.
         self.lastPlayed = ''
-        self.logger = logging.getLogger('Behavior')
+        self.logger = get_logger('Behavior')
 
     @property
     def params(self) -> dict:

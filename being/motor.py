@@ -1,5 +1,4 @@
 """Motor block."""
-import logging
 import time
 
 from typing import Optional, Iterable
@@ -18,13 +17,14 @@ from being.can.definitions import (
     TARGET_VELOCITY,
     TransmissionType,
 )
-from being.config import SI_2_FAULHABER, INTERVAL
 from being.can.nmt import PRE_OPERATIONAL
+from being.config import SI_2_FAULHABER, INTERVAL
 from being.connectables import ValueInput, ValueOutput
 from being.constants import INF
 from being.error import BeingError
-from being.kinematics import kinematic_filter
 from being.kinematics import State as KinematicState
+from being.kinematics import kinematic_filter
+from being.logging import get_logger
 from being.math import sign
 from being.resources import register_resource
 
@@ -159,7 +159,7 @@ class Motor(_MotorBase):
         self.length = length
         #self.direction = sign(direction)
         self.network = network
-        self.logger = logging.getLogger(str(self))
+        self.logger = get_logger(str(self))
 
         self.targetPosition, = self.inputs = [ValueInput(owner=self)]
         self.actualPosition, = self.outputs = [ValueOutput(owner=self)]

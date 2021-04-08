@@ -1,13 +1,13 @@
 """Content manager. Manages spline motions in content directory. Motion model."""
 import os
 import glob
-import logging
 import shutil
 from typing import List, Generator
 
+from being.logging import get_logger
 from being.pubsub import PubSub
-from being.spline import BPoly
 from being.serialization import loads, dumps
+from being.spline import BPoly
 from being.utils import rootname, read_file, write_file, SingleInstanceCache
 
 
@@ -32,7 +32,7 @@ class Content(PubSub, SingleInstanceCache):
     def __init__(self, directory: str = DEFAULT_DIRECTORY):
         super().__init__(events=[CONTENT_CHANGED])
         self.directory = directory
-        self.logger = logging.getLogger(str(self))
+        self.logger = get_logger(str(self))
         os.makedirs(self.directory, exist_ok=True)
 
     def _fullpath(self, name: str) -> str:

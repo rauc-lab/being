@@ -4,7 +4,6 @@ TODO: Finish Audio Backend.
 TODO: VideoBackend.
 """
 import contextlib
-import logging
 import sys
 from typing import List, ForwardRef
 
@@ -17,6 +16,7 @@ except ImportError:
 
 import canopen
 from being.utils import SingleInstanceCache, filter_by_type
+from being.logging import get_logger
 
 
 CiA402Node = ForwardRef('CiA402Node')
@@ -116,7 +116,7 @@ if pyaudio:
 
 class Rpi(SingleInstanceCache, contextlib.AbstractContextManager):
     def __init__(self):
-        self.logger = logging.getLogger(str(self))
+        self.logger = get_logger(str(self))
         self.gpio = GPIO
 
     def __enter__(self):

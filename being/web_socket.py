@@ -1,13 +1,13 @@
 """Web socket proxy."""
 import asyncio
 import collections
-import logging
 import weakref
 
 import aiohttp
 from aiohttp import web
 
 from being.serialization import dumps
+from being.logging import get_logger
 
 
 class WebSocket:
@@ -23,7 +23,7 @@ class WebSocket:
     def __init__(self):
         self.sockets = weakref.WeakSet()
         self.queue = collections.deque(maxlen=100)
-        self.logger = logging.getLogger('WebSocket')
+        self.logger = get_logger('WebSocket')
 
     async def handle_web_socket(self, request):
         """Aiohttp web socket handler."""
