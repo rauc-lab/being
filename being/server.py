@@ -102,7 +102,7 @@ def content_controller(content: Content) -> web.RouteTableDef:
         try:
             spline = await request.json(loads=loads)
             content.save_motion(spline, name)
-            return json_response(content.load_motion(newName))
+            return json_response(content.load_motion(name))
         except json.JSONDecodeError:
             return web.HTTPNotAcceptable(text='Failed deserializing JSON spline!')
         except:
