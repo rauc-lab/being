@@ -168,13 +168,13 @@ def being_controller(
     @routes.post('/motors/{id}/play')
     async def start_spline_playback(request):
         """Start spline playback for a received spline from front end."""
+        pause_behavior()
         id = int(request.match_info['id'])
         try:
             mp = being.motionPlayers[id]
             dct = await request.json()
             spline = spline_from_dict(dct['spline'])
             startTime = mp.play_spline(spline, loop=dct['loop'], offset=dct['offset'])
-            pause_behavior()
             return json_response({
                 'startTime': startTime,
             })
@@ -210,6 +210,7 @@ def being_controller(
     @routes.put('/motors/{id}/livePreview')
     async def live_preview(request):
         """Live preview of position value for motor."""
+        pause_behavior()
         id = int(request.match_info['id'])
         try:
             mp = being.motionPlayers[id]
@@ -227,6 +228,7 @@ def being_controller(
 
     @routes.put('/motors/disenable')
     def disenable_drives(request):
+        pause_behavior()
         if being.network:
             being.network.engage_drives()
 
