@@ -180,15 +180,15 @@ class Behavior(Block, PubSub):
             return
 
         self.logger.info('Changed to state %s', newState.name)
-        self.publish(BEHAVIOR_CHANGED)
         self.state = newState
         self.lastChanged = self.clock.now()
+        self.publish(BEHAVIOR_CHANGED)
 
     def update(self):
         triggered = self.sensor_triggered()
         playing = self.motion_playing()
         passed = self.clock.now() - self.lastChanged
-        attentionLost = (passed > self._params['attentionSpan'])
+        attentionLost = (passed >= self._params['attentionSpan'])
 
         if not self.active:
             return
@@ -212,7 +212,11 @@ class Behavior(Block, PubSub):
 
         elif self.state is STATE_2:
             if not playing:
-                self.change_state(STATE_1)
+                if self._params['attentionSpan'] > 0:
+                    self.change_state(STATE_1)
+                else:
+                    self.change_state(STATE_0)
+
                 self.play_random_motion_for_current_state()
 
     def infos(self):

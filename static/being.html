@@ -46,7 +46,7 @@
         const host = window.location.host;
         const editor = document.getElementById("editor");
         const behavior = document.getElementById("behavior");
-        const console = document.getElementById("console");
+        const terminal = document.getElementById("console");
 
         receive_from_websocket(WS_ADDRESS, {
             "output-values": [
@@ -60,7 +60,10 @@
                 msg => behavior.content_message(msg),
             ],
             "log": [
-                msg => console.new_log_messages(msg),
+                msg => terminal.new_log_messages(msg),
+            ],
+            "sensor-message": [
+                () => behavior.pulse_led(),
             ],
         });
     </script>

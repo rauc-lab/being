@@ -15,7 +15,12 @@
 
 .state.selected { box-shadow: 0 0 1em #888; }
 
-.state span { font-weight: bold; }
+.state div.title { font-weight: bold; }
+
+.state div.infos {
+    font-size: 0.76em;
+    font-style: italic;
+}
 
 .state ul {
     list-style: none;
@@ -54,3 +59,26 @@
 }
 
 .now-playing { font-family: "Courier New", Courier, monospace; }
+
+span.led {
+    display: inline-block;
+    background-color: black;
+    opacity: 0;
+    width: .5em;
+    height: .5em;
+    border-radius: 50%;
+    margin-left: .25em;
+}
+
+span.led.pulsing {
+    animation-name: pulse;
+    animation-duration: 2s;
+    animation-fill-mode: both;
+    animation-direction: normal;
+    animation-iteration-count: 1;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; transform: scale(0, 0); }
+    100% { opacity: 0; transform: scale(2, 2); }
+}

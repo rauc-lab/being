@@ -1,36 +1,19 @@
 import time
 import logging
 
-from being.being import awake
 from being.behavior import Behavior, create_params
-from being.motion_player import MotionPlayer
-from being.motor import DummyMotor, Motor
-from being.block import Block
+from being.being import awake
 from being.logging import suppress_other_loggers
-
-
-
-"""
-MOTIONS = [
-    'deep_uncertainty',
-    'peaceful_blue',
-    'prove_pumped',
-    'pumped_highway',
-    'serious_peaceful',
-    'uncertainty_uncertainty',
-    'unequaled_folklore',
-    'unequaled_serious',
-    'uninterested_unequaled',
-    'unknown_deep',
-]
-"""
+from being.motion_player import MotionPlayer
+from being.motor import DummyMotor
+from being.sensors import Sensor
 
 
 logging.basicConfig(level=0)
 suppress_other_loggers()
 
 
-class DummySensor(Block):
+class DummySensor(Sensor):
     def __init__(self):
         super().__init__()
         self.add_message_output()
@@ -52,8 +35,5 @@ behavior = Behavior(params)
 mp = MotionPlayer()
 behavior.associate(mp)
 mp | DummyMotor()
-
-#behavior.input.push('asdf')
 sensor | behavior
-
 awake(behavior)

@@ -13,7 +13,11 @@ class SensorEvent(NamedTuple):
     timestamp: float
 
 
-class SensorGpio(Block):
+class Sensor(Block):
+    pass
+
+
+class SensorGpio(Sensor):
     def __init__(self, channel: int, edge=GPIO.RISING, pull_up_down=GPIO.PUD_DOWN, bouncetime=.01, rpi=None):
         """Arguments according to RPi.GPIO.
 

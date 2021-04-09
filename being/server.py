@@ -3,19 +3,23 @@ import asyncio
 import json
 import logging
 import math
+import types
 from typing import ForwardRef
 
 from aiohttp import web
 from scipy.interpolate import BPoly
 
 from being.behavior import BEHAVIOR_CHANGED, State
+from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
+from being.logging import BEING_LOGGERS
 from being.logging import get_logger
+from being.sensors import Sensor
 from being.serialization import dumps, loads, spline_from_dict
 from being.spline import fit_spline
 from being.utils import any_item
+from being.utils import filter_by_type
 from being.web_socket import WebSocket
-from being.logging import BEING_LOGGERS
 
 
 LOGGER = get_logger(__name__)
@@ -321,6 +325,26 @@ def wire_being_loggers_to_web_socket(ws: WebSocket):
         logger.addHandler(handler)
 
 
+def patch_sensor_to_web_socket(sensor, ws):
+    """Route sensor output messages to web socket."""
+    # MessageOutput can only connect to an instance of MessageInput. No
+    # subclassing possible. Let us monkey patch the push method of a dummy
+    # instance of MessageInput instead.
+    # TODO(atheler): For the future, and more sensors, probably best to
+    # introduce some kind of phantom block with multiple message inputs. Or
+    # adding this functionality to the being instance itself.
+    dummy = MessageInput()
+
+    def push(self, message):
+        ws.send_json_buffered({
+            'type': 'sensor-message',
+            'event': message,
+        })
+
+    dummy.push = types.MethodType(push, dummy)
+    sensor.output.connect(dummy)
+
+
 def init_api(being, ws: WebSocket) -> web.Application:
     """Initialize and setup Rest-like API subapp."""
     content = Content.single_instance_setdefault()
@@ -328,16 +352,26 @@ def init_api(being, ws: WebSocket) -> web.Application:
     api.add_routes(misc_controller())
     api.add_routes(content_controller(content))
 
+    # Content
     content.subscribe(CONTENT_CHANGED, lambda: ws.send_json_buffered(content.dict_motions_2()))
 
+    # Behavior
     if len(being.behaviors) >= 1:
         behavior = being.behaviors[0]
         api.add_routes(behavior_controller(behavior))
         behavior.subscribe(BEHAVIOR_CHANGED, lambda: ws.send_json_buffered(behavior.infos()))
         content.subscribe(CONTENT_CHANGED, behavior._purge_params)
 
+    # Being
     api.add_routes(being_controller(being))
     wire_being_loggers_to_web_socket(ws)
+
+    # Patch sensor events
+    sensors = list(filter_by_type(being.execOrder, Sensor))
+    if len(sensors) > 0:
+        sensor = sensors[0]
+        patch_sensor_to_web_socket(sensor, ws)
+
     return api
 
 

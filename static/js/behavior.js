@@ -17,13 +17,9 @@ const N_TICKS = 1000;
 const BEHAVIOR_TEMPLATE = document.createElement("template");
 BEHAVIOR_TEMPLATE.innerHTML = `
 <div class="container">
-    <label>Attention Span: </label>
-    <input id="attentionSpanSlider" type="range" name="attentionSpan" min="0" max="1000">
-    <span id="attentionSpanSpan">2.5 sec</span>
-    <br>
+    <div id="statesDiv" class="states"></div>
     <label>Now playing: </label>
     <span id="nowPlayingSpan" class="now-playing"></span>
-    <div id="statesDiv" class="states"></div>
 </div>
 `;
 
@@ -36,8 +32,40 @@ class Behavior extends Widget {
         this.nowPlayingSpan = null;
         this.statesDiv = null;
         this.attentionSpanSpan = null;
+        this.led = null;
         this.init_elements();
         this.load();
+    }
+
+    /**
+     * Build DOM elements.
+     */
+    init_elements() {
+        this.playPauseBtn = this.add_button_to_toolbar("play_arrow");
+        this.playPauseBtn.addEventListener("click", async () => {
+            const infos = await this.api.toggle_behavior_playback();
+            this.update_ui(infos);
+        });
+
+        this._append_link("static/css/behavior.css");
+        this.add_template(BEHAVIOR_TEMPLATE);
+
+        this.statesDiv = this.shadowRoot.getElementById("statesDiv");
+        this.nowPlayingSpan = this.shadowRoot.getElementById("nowPlayingSpan");
+
+        const slider = document.createElement("input");
+        this.attentionSpanSlider = slider;
+        slider.setAttribute("type", "range");
+        slider.setAttribute("min", 0);
+        slider.setAttribute("max", N_TICKS);
+        slider.setAttribute("name", "attentionSpan");
+        slider.addEventListener("change", () => {
+            this.emit_params();
+        });
+
+        this.attentionSpanSpan = document.createElement("span");
+        this.led = document.createElement("span");
+        this.led.classList.add("led");
     }
 
     /**
@@ -56,41 +84,46 @@ class Behavior extends Widget {
     }
 
     /**
-     * Build DOM elements.
-     */
-    init_elements() {
-        this.playPauseBtn = this.add_button_to_toolbar("play_arrow");
-        this.playPauseBtn.addEventListener("click", async () => {
-            const infos = await this.api.toggle_behavior_playback();
-            this.update_ui(infos);
-        });
-
-        this._append_link("static/css/behavior.css");
-        this.add_template(BEHAVIOR_TEMPLATE);
-
-        this.attentionSpanSlider = this.shadowRoot.getElementById("attentionSpanSlider");
-        this.nowPlayingSpan = this.shadowRoot.getElementById("nowPlayingSpan");
-        this.statesDiv = this.shadowRoot.getElementById("statesDiv");
-        this.attentionSpanSpan = this.shadowRoot.getElementById("attentionSpanSpan");
-    }
-
-    /**
      * Populate box for each state.
      *
      * @param {Array} stateNames Array of state names.
      */
     populate_states(stateNames) {
         remove_all_children(this.statesDiv);
-        stateNames.forEach(name => {
+        stateNames.forEach((name, nr) => {
             const stateDiv = document.createElement("div");
             stateDiv.setAttribute("name", name);
             this.statesDiv.appendChild(stateDiv);
             stateDiv.classList.add("state");
 
-            const span = document.createElement("span");
-            span.innerHTML = name;
-            stateDiv.appendChild(span);
+            // State name / title
+            const stateNameDiv = document.createElement("div");
+            stateDiv.appendChild(stateNameDiv);
+            stateNameDiv.classList.add("title");
+            stateNameDiv.innerHTML = name;
 
+            // State specific infos / params
+            const div = document.createElement("div");
+            div.classList.add("infos");
+            stateDiv.appendChild(div);
+
+            switch(nr) {
+                case 0:
+                    div.append("Default Fallback");
+                    break;
+                case 1:
+                    div.append("Min. Duration:");
+                    div.appendChild(this.attentionSpanSlider);
+                    div.appendChild(this.attentionSpanSpan);
+                    break;
+                case 2:
+                    div.append("Triggered:");
+                    div.appendChild(this.led);
+                    break;
+                default:
+            }
+
+            // Init motion list
             const ul = document.createElement("ul");
             stateDiv.appendChild(ul);
         });
@@ -156,6 +189,15 @@ class Behavior extends Widget {
         const value = duration / MAX_ATTENTION_SPAN * N_TICKS;
         this.attentionSpanSlider.value = value;
         this.attentionSpanSpan.innerHTML = round(duration, 1) + " sec";
+    }
+
+    /**
+     * Trigger LED pulse animation for one cycle.
+     */
+    pulse_led() {
+        this.led.classList.remove("pulsing");
+        this.led.offsetWidth;  // https://css-tricks.com/restart-css-animation/
+        this.led.classList.add("pulsing");
     }
 
     /**
