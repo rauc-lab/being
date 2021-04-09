@@ -12,7 +12,7 @@ const Transitions = {
     PAUSED: [PLAYING, RECORDING],
     PLAYING: [PAUSED],
     RECORDING: [PAUSED],
-}
+};
 
 
 /**
@@ -20,7 +20,7 @@ const Transitions = {
  * looping, playing, cursor drawing.
  */
 export class Transport {
-    constructor(editor, looping=true) {
+    constructor(editor, looping = true) {
         this.editor = editor;
         this.state = PAUSED;
         this.looping = looping;

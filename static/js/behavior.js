@@ -48,7 +48,7 @@ class Behavior extends Widget {
         this.shadowRoot.appendChild(link);
 
         this.playPauseBtn = this.add_button_to_toolbar("play_arrow");
-        this.playPauseBtn.addEventListener("click", async evt => {
+        this.playPauseBtn.addEventListener("click", async () => {
             const infos = await this.api.toggle_behavior_playback();
             this.update_ui(infos);
         });
@@ -73,7 +73,7 @@ class Behavior extends Widget {
 
         const span = document.createElement("span");
         container.appendChild(span);
-        span.update = evt => {
+        span.update = () => {
             const seconds = slider.value / N_TICKS * MAX_ATTENTION_SPAN;
             span.innerHTML = round(seconds, 1) + " sec";
         };
@@ -146,7 +146,7 @@ class Behavior extends Widget {
                 cb.setAttribute("id", id);
                 cb.setAttribute("name", name);
                 cb.hidden = true;
-                cb.addEventListener("input", evt => {
+                cb.addEventListener("input", () => {
                     this.emit_params();
                 });
 

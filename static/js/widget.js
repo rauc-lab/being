@@ -1,3 +1,6 @@
+import { add_option } from "/static/js/utils.js";
+
+
 /**
  * Create new HTML button (material-icons class).
  *
@@ -45,10 +48,8 @@ export class Widget extends HTMLElement {
      *
      * @param innerHTML Inner HTML text
      * @param title Tooltip
-     * @param id Button ID.
-     * @param parent_ Parent HTML element to append the new button to.
      */
-     add_button_to_toolbar(innerHTML, title = "") {
+    add_button_to_toolbar(innerHTML, title = "") {
         const btn = create_button(innerHTML, title);
         this.toolbar.appendChild(btn);
         return btn;
@@ -67,8 +68,8 @@ export class Widget extends HTMLElement {
     /**
      * Add a select element to the toolbar. 
      *
-     * @param {String} name Select name and label.
      * @param {String} options Select options.
+     * @param {String} name Select name and label.
      */
     add_select_to_toolbar(options = [], name = "") {
         //const container = document.createElement("div");

@@ -77,7 +77,6 @@ export class SplineDrawer {
         editor.graph.appendChild(this.annotation);
     }
 
-
     /**
      * Calcualte data bounding box of drawn splines.
      */
@@ -90,18 +89,17 @@ export class SplineDrawer {
         return bbox;
     }
 
-
     /**
      * Clear everything from SplineDrawer.
      */
     clear() {
         while (this.container.hasChildNodes()) {
-            this.container.removeChild(this.container.firstChild)
+            this.container.removeChild(this.container.firstChild);
         }
+
         clear_array(this.splines);
         clear_array(this.elements);
     }
-
 
     /**
      * Position annotation label around.
@@ -128,7 +126,6 @@ export class SplineDrawer {
         this.annotation.style.left = x + "px";
         this.annotation.style.top = y + "px";
     }
-
 
     /**
      * Make something draggable inside data space. Wraps default
@@ -184,32 +181,30 @@ export class SplineDrawer {
         );
     }
 
-
     /**
      * Initialize an SVG path element and adds it to the SVG parent element.
      * data_source callback needs to deliver the 2-4 Bézier control points.
      */
     init_path(data_source, strokeWidth = 1, color = "black") {
-        const path = create_element('path');
+        const path = create_element("path");
         setattr(path, "stroke", color);
         setattr(path, "stroke-width", strokeWidth);
         setattr(path, "fill", "transparent");
-        this.container.appendChild(path)
+        this.container.appendChild(path);
         this.elements.push(path);
         path.draw = () => {
             setattr(path, "d", path_d(this.editor.transform_points(data_source())));
         };
 
-        return path
+        return path;
     }
-
 
     /**
      * Initialize an SVG circle element and adds it to the SVG parent element.
      * data_source callback needs to deliver the center point of the circle.
      */
     init_circle(data_source, radius = 1, color = "black") {
-        const circle = create_element('circle');
+        const circle = create_element("circle");
         setattr(circle, "r", radius);
         setattr(circle, "fill", color);
         this.container.appendChild(circle);
@@ -222,7 +217,6 @@ export class SplineDrawer {
 
         return circle;
     }
-
 
     /**
      * Initialize an SVG line element and adds it to the SVG parent element.
@@ -247,7 +241,6 @@ export class SplineDrawer {
 
         return line;
     }
-
 
     /**
      * Draw spline. Initializes SVG elements. If interactive also paint knots,
@@ -352,7 +345,6 @@ export class SplineDrawer {
 
         this.draw();
     }
-
 
     /**
      * Draw the current state (update all SVG elements).

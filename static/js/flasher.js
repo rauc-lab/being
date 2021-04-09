@@ -28,5 +28,5 @@ export function Flasher(print_func=console.log) {
      */
     this.reset = function() {
         alreadyFlashed.clear();
-    }
+    };
 }

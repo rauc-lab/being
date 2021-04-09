@@ -7,7 +7,7 @@
  * @param {Array} array to determine shape from.
  * @returns {Array} Shape of array.
  */
- export function array_shape(array) {
+export function array_shape(array) {
     let shape = [];
     while (array instanceof Array) {
         shape.push(array.length);
@@ -30,19 +30,19 @@ export function array_ndims(arr) {
  * Reshape array. Taken from math.js _reshape.
  */
 export function array_reshape(array, shape) {
-    let tmpArray = array
-    let tmpArray2
+    let tmpArray = array;
+    let tmpArray2;
     for (let sizeIndex = shape.length - 1; sizeIndex > 0; sizeIndex--) {
-        const size = shape[sizeIndex]
-        tmpArray2 = []
-        const length = tmpArray.length / size
+        const size = shape[sizeIndex];
+        tmpArray2 = [];
+        const length = tmpArray.length / size;
         for (let i = 0; i < length; i++) {
-            tmpArray2.push(tmpArray.slice(i * size, (i + 1) * size))
+            tmpArray2.push(tmpArray.slice(i * size, (i + 1) * size));
         }
-        tmpArray = tmpArray2
+        tmpArray = tmpArray2;
     }
 
-    return tmpArray
+    return tmpArray;
 }
 
 

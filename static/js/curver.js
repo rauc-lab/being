@@ -13,16 +13,16 @@ import { cycle } from "/static/js/utils.js";
 
 /** Default line colors */
 const COLORS = [
-    '#1f77b4',
-    '#ff7f0e',
-    '#2ca02c',
-    '#d62728',
-    '#9467bd',
-    '#8c564b',
-    '#e377c2',
-    '#7f7f7f',
-    '#bcbd22',
-    '#17becf',
+    "#1f77b4",
+    "#ff7f0e",
+    "#2ca02c",
+    "#d62728",
+    "#9467bd",
+    "#8c564b",
+    "#e377c2",
+    "#7f7f7f",
+    "#bcbd22",
+    "#17becf",
 ];
 
 /** View port margin on all sides */
@@ -49,7 +49,7 @@ export class CurverBase extends Widget {
     }
 
     connectedCallback() {
-        addEventListener("resize", evt => this.resize());
+        addEventListener("resize", () => this.resize());
         this.resize();
         //this.run();
         //setTimeout(() => this.resize(), 1);
@@ -122,8 +122,9 @@ export class CurverBase extends Widget {
         const width = this.graph.clientWidth;
         const height = this.graph.clientHeight;
         const [sx, sy] = divide_arrays([width - 2 * MARGIN, height - 2 * MARGIN], this.viewport.size);
-        if (!isFinite(sx) || !isFinite(sy) || sx === 0 || sy === 0)
-            return
+        if (!isFinite(sx) || !isFinite(sy) || sx === 0 || sy === 0) {
+            return;
+        }
 
         this.trafo = DOMMatrix.fromMatrix({
             a: sx,
@@ -164,7 +165,7 @@ export class CurverBase extends Widget {
         const x = evt.clientX - rect.left;
         const y = evt.clientY - rect.top;
         const pt = (new DOMPoint(x, y)).matrixTransform(this.trafoInv);
-        return [pt.x, pt.y]
+        return [pt.x, pt.y];
     }
 
     /**
@@ -255,15 +256,15 @@ export class CurverBase extends Widget {
     /**
      * Render continuous frames.
      */
-    render(now) {
+    render() {
         this.draw_lines();
-        window.requestAnimationFrame(now => this.render(now));
+        window.requestAnimationFrame(() => this.render());
     }
 
     /**
      * Start rendering.
      */
     run() {
-        requestAnimationFrame(now => this.render(now));
+        requestAnimationFrame(() => this.render());
     }
 }

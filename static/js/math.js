@@ -2,6 +2,7 @@
 /**
  * All kinds of math helpers. Also some numpy flavored array functions.
  */
+import { TAU } from "/static/js/constants.js";
 
 
 /**
@@ -16,7 +17,7 @@ export function clip(value, lower=0, upper=1) {
  * Round number to given decimal places.
  */
 export function round(number, ndigits=0) {
-    const shift = Math.pow(10, ndigits)
+    const shift = Math.pow(10, ndigits);
     return Math.round(number * shift) / shift;
 }
 

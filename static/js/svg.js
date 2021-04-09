@@ -55,8 +55,8 @@ export function path_d(cps) {
 /**
  * Draw path from control points onto SVG.
  */
-export function draw_path(svg, cps, strokeWidth = 1, color = 'black') {
-    const path = create_element('path');
+export function draw_path(svg, cps, strokeWidth = 1, color = "black") {
+    const path = create_element("path");
     setattr(path, "d", path_d(cps));
     setattr(path, "stroke", color);
     setattr(path, "stroke-width", strokeWidth);
@@ -69,9 +69,9 @@ export function draw_path(svg, cps, strokeWidth = 1, color = 'black') {
 /**
  * Draw circle onto SVG.
  */
-export function draw_circle(svg, center, radius = 1, color = 'red') {
+export function draw_circle(svg, center, radius = 1, color = "red") {
     const [cx, cy] = center;
-    const circle = create_element('circle');
+    const circle = create_element("circle");
     setattr(circle, "cx", cx);
     setattr(circle, "cy", cy);
     setattr(circle, "r", radius);
@@ -84,7 +84,7 @@ export function draw_circle(svg, center, radius = 1, color = 'red') {
 /**
  * Draw line onto SVG.
  */
-export function draw_line(svg, start, end, strokeWidth = 1, color = 'black') {
+export function draw_line(svg, start, end, strokeWidth = 1, color = "black") {
     const [x1, y1] = start;
     const [x2, y2] = end;
     const line = create_element("line");

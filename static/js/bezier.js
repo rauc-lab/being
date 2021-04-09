@@ -63,13 +63,12 @@ export function bpoly_to_bezier(spline) {
     for (let seg = 0; seg < nSegments; seg++) {
         let x0 = spline.knots[seg];
         let x1 = spline.knots[seg + 1];
-        let dx = (x1 - x0) / (order - 1)
+        let dx = (x1 - x0) / (order - 1);
         for (let n = 0; n < degree; n++) {
-            cps.push([x0 + n * dx, c[n][seg]])
+            cps.push([x0 + n * dx, c[n][seg]]);
         }
     }
 
     cps.push([last_element(x), c[degree][nSegments - 1]]);
     return cps;
 }
-

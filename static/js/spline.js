@@ -103,7 +103,7 @@ export class BPoly {
      * Construct from BPoly object.
      */
     static from_object(dct) {
-        return new BPoly(dct.coefficients, dct.knots, dct.extrapolate, dct.axis)
+        return new BPoly(dct.coefficients, dct.knots, dct.extrapolate, dct.axis);
     }
 
     /**
@@ -402,7 +402,7 @@ export class BPoly {
             "axis": 0,
             "knots": this.x,
             "coefficients": this.c,
-        }
+        };
     }
 
     /**

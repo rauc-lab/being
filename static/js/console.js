@@ -80,12 +80,12 @@ class Console extends Widget {
     }
 
     connectedCallback() {
-        this.addEventListener("mouseover", evt => {
+        this.addEventListener("mouseover", () => {
             this.blockedUntil = Infinity;
         });
-        this.addEventListener("mouseleave", evt => {
+        this.addEventListener("mouseleave", () => {
             this.blockedUntil = time() + 2;
-        })
+        });
     }
 
     get auto_scrolling() {

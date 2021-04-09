@@ -42,10 +42,10 @@ class Plotter extends CurverBase {
     /**
      * Record selected signal 
      */
-    record_signal(el) {
+    record_signal() {
         this.recBtn.toggleAttribute("checked");
     }
 }
 
 
-customElements.define('being-plotter', Plotter);
+customElements.define("being-plotter", Plotter);

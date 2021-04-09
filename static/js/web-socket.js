@@ -12,7 +12,7 @@ import {MS} from "/static/js/constants.js";
  */
 export function receive_from_websocket(url, callbacks, reconnectTimeout=1.) {
     const sock = new WebSocket(url);
-    sock.onopen = function(evt) {
+    sock.onopen = function() {
         console.log("Open socket connection", url);
     };
     sock.onmessage = function(evt) {

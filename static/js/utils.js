@@ -68,7 +68,7 @@ export function cycle(sequence) {
             idx += 1;
             return pick;
         }
-    }
+    };
 }
 
 
@@ -145,7 +145,6 @@ export function is_valid_filename(fnm) {
     var rg1 = /^[^\\/:\*\?"<>\|]+$/; // forbidden characters \ / : * ? " < > |
     var rg2 = /^\./; // cannot start with dot (.)
     var rg3 = /^(nul|prn|con|lpt[0-9]|com[0-9])(\.|$)/i; // forbidden file names
-
     return rg1.test(fnm) && !rg2.test(fnm) && !rg3.test(fnm);
 }
 
@@ -157,8 +156,8 @@ export function is_valid_filename(fnm) {
  * @param {Number} index 
  * @param {object} item Object to insert.
  */
- export function insert_in_array(array, index, item) {
-    array.splice(index, 0, item)
+export function insert_in_array(array, index, item) {
+    array.splice(index, 0, item);
 }
 
 

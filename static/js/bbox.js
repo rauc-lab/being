@@ -108,7 +108,7 @@ export class BBox {
         return [
             clip(pt[0], this.ll[0], this.ur[0]),
             clip(pt[1], this.ll[1], this.ur[1]),
-        ]
+        ];
     }
 
     /**

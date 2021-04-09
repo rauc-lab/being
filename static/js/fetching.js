@@ -21,7 +21,7 @@ export function post(url) {
 
 // delete is a reseverd JS keyword
 export function delete_fetch(url) {
-    return fetch(url, {method: "DELETE"})
+    return fetch(url, {method: "DELETE"});
 }
 
 

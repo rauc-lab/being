@@ -7,7 +7,7 @@ import { Deque } from "/static/js/deque.js";
  * Line artist. Contains data ring buffer and knows how to draw itself.
  */
 export class Line {
-    constructor(ctx, color = COLORS[0], maxlen = 1000, lineWidth = 2) {
+    constructor(ctx, color = "#000000", maxlen = 1000, lineWidth = 2) {
         this.ctx = ctx;
         this.data = new Deque(0, maxlen);
         this.color = color;
@@ -74,8 +74,9 @@ export class Line {
      * Draw line. Transforms have to be set from the outside.
      */
     draw() {
-        if (this.data.length < 2)
-            return
+        if (this.data.length < 2) {
+            return;
+        }
 
         const ctx = this.ctx;
         ctx.beginPath();
