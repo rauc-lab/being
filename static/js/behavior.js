@@ -13,6 +13,20 @@ const MAX_ATTENTION_SPAN = 30.;
 /** Number of tick of attention span slider. */
 const N_TICKS = 1000;
 
+/** @const {HTMLElement} - Main template for behavior widget. */
+const BEHAVIOR_TEMPLATE = document.createElement("template");
+BEHAVIOR_TEMPLATE.innerHTML = `
+<div class="container">
+    <label>Attention Span: </label>
+    <input id="attentionSpanSlider" type="range" name="attentionSpan" min="0" max="1000">
+    <span id="attentionSpanSpan">2.5 sec</span>
+    <br>
+    <label>Now playing: </label>
+    <span id="nowPlayingSpan" class="now-playing"></span>
+    <div id="statesDiv" class="states"></div>
+</div>
+`;
+
 
 class Behavior extends Widget {
     constructor() {
@@ -22,9 +36,6 @@ class Behavior extends Widget {
         this.nowPlayingSpan = null;
         this.statesDiv = null;
         this.attentionSpanSpan = null;
-    }
-
-    connectedCallback() {
         this.init_elements();
         this.load();
     }
@@ -48,62 +59,19 @@ class Behavior extends Widget {
      * Build DOM elements.
      */
     init_elements() {
-        const link = document.createElement("link");
-        link.setAttribute("rel", "stylesheet");
-        link.setAttribute("href", "static/css/behavior.css");
-        this.shadowRoot.appendChild(link);
-
         this.playPauseBtn = this.add_button_to_toolbar("play_arrow");
         this.playPauseBtn.addEventListener("click", async () => {
             const infos = await this.api.toggle_behavior_playback();
             this.update_ui(infos);
         });
 
-        const container = document.createElement("div");
-        container.classList.add("container");
-        this.shadowRoot.appendChild(container);
+        this._append_link("static/css/behavior.css");
+        this.add_template(BEHAVIOR_TEMPLATE);
 
-        // Attention span
-        const label = document.createElement("label");
-        container.appendChild(label);
-        container.setAttribute("for", "attentionSpan");
-        label.innerHTML = "Attention Span:";
-
-        const slider = document.createElement("input");
-        container.appendChild(slider);
-        slider.setAttribute("type", "range");
-        slider.setAttribute("name", "attentionSpan");
-        slider.setAttribute("min", 0);
-        slider.setAttribute("max", N_TICKS);
-        this.attentionSpanSlider = slider;
-
-        const span = document.createElement("span");
-        container.appendChild(span);
-        span.update = () => {
-            const seconds = slider.value / N_TICKS * MAX_ATTENTION_SPAN;
-            span.innerHTML = round(seconds, 1) + " sec";
-        };
-        slider.addEventListener("input", span.update);
-        span.update();
-        this.attentionSpanSpan = span;
-
-        // States
-        container.appendChild(document.createElement("br"));
-
-        const nowPlayingLabel = document.createElement("label");
-        container.appendChild(nowPlayingLabel);
-        nowPlayingLabel.innerHTML = "Now playing: ";
-
-        const nowPlayingSpan = document.createElement("span");
-        container.appendChild(nowPlayingSpan);
-        nowPlayingSpan.classList.add("now-playing");
-        nowPlayingSpan.innerHTML = "";
-        this.nowPlayingSpan = nowPlayingSpan;
-
-        const statesDiv = document.createElement("div");
-        container.appendChild(statesDiv);
-        statesDiv.classList.add("states");
-        this.statesDiv = statesDiv;
+        this.attentionSpanSlider = this.shadowRoot.getElementById("attentionSpanSlider");
+        this.nowPlayingSpan = this.shadowRoot.getElementById("nowPlayingSpan");
+        this.statesDiv = this.shadowRoot.getElementById("statesDiv");
+        this.attentionSpanSpan = this.shadowRoot.getElementById("attentionSpanSpan");
     }
 
     /**
@@ -187,7 +155,7 @@ class Behavior extends Widget {
     update_attention_span_slider(duration) {
         const value = duration / MAX_ATTENTION_SPAN * N_TICKS;
         this.attentionSpanSlider.value = value;
-        this.attentionSpanSpan.update();
+        this.attentionSpanSpan.innerHTML = round(duration, 1) + " sec";
     }
 
     /**

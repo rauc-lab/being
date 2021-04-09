@@ -79,6 +79,14 @@ export class Widget extends HTMLElement {
         this.toolbar.appendChild(select);
         return select;
     }
+
+    /**
+     * Add a HTML template to shadow root.
+     * @param {HTMLElement} template to add.
+     */
+    add_template(template) {
+        this.shadowRoot.appendChild(template.content.cloneNode(true));
+    }
 }
 
 customElements.define("being-widget", Widget);
