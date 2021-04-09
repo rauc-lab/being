@@ -3,8 +3,8 @@
 To be expanded with a proper behavior tree engine (to be discussed).
 """
 import enum
+import os
 import random
-from typing import List
 
 from being.block import Block
 from being.clock import Clock
@@ -12,7 +12,8 @@ from being.content import Content
 from being.logging import get_logger
 from being.motion_player import MotionPlayer, MotionCommand
 from being.pubsub import PubSub
-from being.serialization import register_enum
+from being.serialization import register_enum, loads, dumps
+from being.utils import read_file, write_file
 
 
 class State(enum.Enum):
@@ -37,7 +38,7 @@ BEHAVIOR_CHANGED = 'BEHAVIOR_CHANGED'
 
 
 def create_params(attentionSpan=10., motions=None):
-    """Create behavior params dictionary."""
+    """Create default behavior params dictionary."""
     if motions is None:
         motions = [[] for _ in State]
 
@@ -91,6 +92,25 @@ class Behavior(Block, PubSub):
         self.lastChanged = 0.
         self.lastPlayed = ''
         self.logger = get_logger('Behavior')
+        self.filepath = ''
+
+    @classmethod
+    def from_config(cls, filepath: str, *args, **kwargs):
+        """Create behavior instance with params from config file. Remembers
+        filepath and save each change of params to disk.
+
+        Args:
+            filepath: JSON config file.
+        """
+        if os.path.exists(filepath):
+            params = loads(read_file(filepath))
+        else:
+            params = create_params()
+
+        self = cls(*args, **kwargs)
+        self.filepath = filepath
+        self.params = params
+        return self
 
     @property
     def params(self) -> dict:
@@ -102,6 +122,8 @@ class Behavior(Block, PubSub):
         """Update behavior params."""
         self._params = params
         self._purge_params()
+        if self.filepath:
+            write_file(self.filepath, dumps(self._params, indent=4))
 
     def associate(self, motionPlayer: MotionPlayer):
         """Associate behavior engine with motion player block (connect
@@ -137,8 +159,6 @@ class Behavior(Block, PubSub):
 
     def _purge_params(self):
         """Check with content and remove all non existing motion names from _params."""
-        print('_purge_params()')
-        print('self._params:', self._params)
         existing = list(self.content._sorted_names())
         for i, names in enumerate(self._params['motions']):
             self._params['motions'][i] = [

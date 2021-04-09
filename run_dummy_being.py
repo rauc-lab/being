@@ -1,7 +1,7 @@
 import time
 import logging
 
-from being.behavior import Behavior, create_params
+from being.behavior import Behavior
 from being.being import awake
 from being.logging import suppress_other_loggers
 from being.motion_player import MotionPlayer
@@ -30,8 +30,7 @@ class DummySensor(Sensor):
 
 
 sensor = DummySensor()
-params = create_params(2.5)
-behavior = Behavior(params)
+behavior = Behavior.from_config('behavior.json')
 mp = MotionPlayer()
 behavior.associate(mp)
 mp | DummyMotor()
