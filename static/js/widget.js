@@ -10,10 +10,9 @@ export class Widget extends HTMLElement {
     constructor() {
         super();
         const root = this.attachShadow({ mode: "open" });
-
+        this._append_link("static/css/material_icons.css");
         this._append_link("static/css/widget.css");
         this._append_link("static/css/toolbar.css");
-
         const toolbar = document.createElement("div");
         toolbar.classList.add("toolbar");
         this.toolbar = root.appendChild(toolbar);
@@ -27,8 +26,9 @@ export class Widget extends HTMLElement {
     _append_link(href) {
         const link = document.createElement("link");
         this.shadowRoot.appendChild(link);
-        link.setAttribute("rel", "stylesheet");
         link.setAttribute("href", href);
+        link.setAttribute("type", "text/css");
+        link.setAttribute("rel", "stylesheet");
     }
 
     /**

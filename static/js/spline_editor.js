@@ -75,6 +75,7 @@ class Editor extends CurverBase {
     constructor() {
         const auto = false;
         super(auto);
+        this._append_link("static/css/spline_editor.css");
         this.history = new History();
         this.transport = new Transport(this);
         this.drawer = new SplineDrawer(this, this.splineGroup);

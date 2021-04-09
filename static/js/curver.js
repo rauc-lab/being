@@ -61,13 +61,7 @@ export class CurverBase extends Widget {
      * Initialize DOM elements with shadow root.
      */
     init_elements() {
-        // Apply external styles to the shadow dom
-        ["static/css/open_sans.css", "static/css/curver.css"].forEach(fp => {
-            const link = document.createElement("link");
-            link.setAttribute("rel", "stylesheet");
-            link.setAttribute("href", fp);
-            this.shadowRoot.append(link);
-        });
+        this._append_link("static/css/curver.css");
 
         this.container = document.createElement("div");
         this.container.classList.add("container");

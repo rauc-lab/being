@@ -1,0 +1,56 @@
+body {
+    font-family: "Open Sans", Verdana, Helvetica, Sans-Serif;
+    line-height: normal;
+}
+
+#wrapper { margin: 0 0.5em; }
+
+/** Fluid typography from https://css-tricks.com/snippets/css/fluid-typography/ */
+html { font-size: 16px; }
+@media screen and (min-width: 320px) { html { font-size: calc(16px + 6 * ((100vw - 320px) / 680)); } }
+@media screen and (min-width: 1000px) { html { font-size: 22px; } }
+
+nav {
+    display: flex;
+    flex-flow: row wrap;
+    align-items: stretch;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 666;
+    margin-top: 1em;
+}
+
+nav > * { margin: 0.5em 1em; }
+nav > span.filler { flex-grow: 1; }
+
+nav a:hover {
+    background-color: black;
+    color: white;
+}
+
+a.anchor {
+    display: block;
+    position: relative;
+    top: -1.5em;
+    visibility: hidden;
+}
+
+hr {
+    border: none;
+    border-bottom: 2px solid black;
+    height: 0;
+}
+
+nav a {
+    color: black;
+    text-transform: uppercase;
+    text-decoration: none;
+}
+
+h1 {
+    font-size: 1.5em;
+    margin-top: 0.6em;
+    margin-bottom: 0.2em;
+}
