@@ -1,4 +1,6 @@
-"use strict";
+/**
+ *  @module api Back end API definitions.
+ */
 import { BPoly } from "/static/js/spline.js";
 import { API } from "/static/js/config.js";
 import { put, post, delete_fetch, get_json, post_json, put_json } from "/static/js/fetching.js";

@@ -1,20 +1,22 @@
-"use strict";
 /**
- * All kind of constants.
+ * @module constants All kind of constants.
  */
 
 
-/** Milliseconds constants */
+/** @const {number} - Milliseconds constants */
 export const MS = 1000;
 
-/** One PI */
+/** @const {number} - One PI */
 export const PI = Math.PI;
 
-/** Two PI */
+/** @const {number}  - Two PI */
 export const TAU = 2.0 * PI;
 
-/** Left mouse button (evt.which) */
+/** @const {number} - Left mouse button (evt.which) */
 export const LEFT_MOUSE_BUTTON = 1;
 
+/** @const {number} - One dimension. */
 export const ONE_D = 1;
+
+/** @const {number} - Two dimension. */
 export const TWO_D = 2;

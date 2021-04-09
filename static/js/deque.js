@@ -2,8 +2,8 @@
  * Deque array type with maxlen and better clearer naming (from Pythons
  * collections.deque).
  *
- * TODO: extend() / extendleft() methods?
- * TODO: Better constructor signature? Empty length vs. iterable vs. single item?
+ * TODO(atheler): extend() / extendleft() methods?
+ * TODO(atheler): Better constructor signature? Empty length vs. iterable vs. single item?
  */
 export class Deque extends Array {
     constructor(iterable=0, maxlen=Infinity) {

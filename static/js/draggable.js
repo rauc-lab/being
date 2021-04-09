@@ -1,16 +1,16 @@
-"use strict";
+/**
+ * @module draggable Manage mouse events for draggable actions.
+ */
 import { LEFT_MOUSE_BUTTON } from "/static/js/constants.js";
 
 
 /**
  * Make some draggable by attaching the necessary event listeners.
- *
- * @param ele - HTML element to make draggable.
- * @param start_drag - On start drag callback.
- * @param drag - On dragging callback.
- * @param end_drag - On end drag callback.
- * @param mouseButton - On which mouse button to react to. Left mouse button by
- * default.
+ * @param ele HTML element to make draggable.
+ * @param start_drag On start drag callback.
+ * @param drag On dragging callback.
+ * @param end_drag On end drag callback.
+ * @param mouseButton On which mouse button to react to. Left mouse button by default.
  */
 export function make_draggable(ele, start_drag, drag, end_drag,
     mouseButton = LEFT_MOUSE_BUTTON) {
@@ -38,16 +38,15 @@ export function make_draggable(ele, start_drag, drag, end_drag,
 
     /**
      * Start drag movement.
-     *
-     * @param evt - Mouse event.
+     * @param {MouseEvent} evt Mouse event.
      */
     function start_drag_internal(evt) {
         if (evt.which !== mouseButton) {
             return;
         }
-        evt.stopPropagation();
 
-        //disable_drag_listeners();  // TODO: Do we need this?
+        evt.stopPropagation();
+        //disable_drag_listeners();  // TODO(atheler): Do we need this?
         enable_drag_listeners();
         start_drag(evt);
     }
@@ -57,8 +56,7 @@ export function make_draggable(ele, start_drag, drag, end_drag,
 
     /**
      * Drag element.
-     *
-     * @param evt - Mouse event.
+     * @param {MouseEvent} evt Mouse event.
      */
     function drag_internal(evt) {
         evt.preventDefault();
@@ -68,8 +66,7 @@ export function make_draggable(ele, start_drag, drag, end_drag,
 
     /**
      * Escape drag by hitting escape key.
-     *
-     * @param evt - Mouse event.
+     * @param {MouseEvent} evt Mouse event.
      */
     function escape_drag_internal(evt) {
         if (evt.key === "Escape") {
@@ -80,8 +77,7 @@ export function make_draggable(ele, start_drag, drag, end_drag,
 
     /**
      * End dragging of element.
-     *
-     * @param evt - Mouse event.
+     * @param {MouseEvent} evt Mouse event.
      */
     function end_drag_internal(evt) {
         disable_drag_listeners();

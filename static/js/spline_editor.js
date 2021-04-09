@@ -1,6 +1,5 @@
-"use strict";
 /**
- * Spline editor custom HTML element.
+ * @module spline_editor Spline editor custom HTML element.
  */
 import { BBox } from "/static/js/bbox.js";
 import { CurverBase } from "/static/js/curver.js";
@@ -23,22 +22,21 @@ import { Api } from "/static/js/api.js";
 /** Zero spline with duration 1.0 */
 //const ZERO_SPLINE = new BPoly([[0.], [0.], [0.], [0.], ], [0., 1.]);
 
-/** Magnification factor for one single click on the zoom buttons */
+/** @const {number} - Magnification factor for one single click on the zoom buttons */
 const ZOOM_FACTOR_PER_STEP = 1.5;
 
-/** Default data bbox size. */
+/** @const {BBox} - Default data bbox size. */
 const DEFAULT_DATA_BBOX = new BBox([0, 0], [1, 0.04]);
 
-/** Min height of spline drawing area (y directions) */
+/** @const {number} - Min height of spline drawing area (y directions) */
 const MIN_HEIGHT = 0.010;
 
-/** Folded motion / spline list HTML attribute */
+/** @const {string} - Folded motion / spline list HTML attribute */
 const FOLDED = "folded";
 
 
 /**
  * Zoom / scale bounding box in place.
- *
  * @param {Bbox} bbox Bounding box to scale.
  * @param {Number} factor Zoom factor.
  */

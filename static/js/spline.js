@@ -1,6 +1,5 @@
-"use strict";
 /**
- * Spline stuff. Some constants and BPoly wrapper.
+ * @module spline Spline stuff. Some constants and BPoly wrapper. Spline data container.
  */
 import {array_shape, array_min, array_max} from "/static/js/array.js";
 import {deep_copy, last_element} from "/static/js/utils.js";
@@ -10,13 +9,12 @@ import {assert, searchsorted, insert_in_array, remove_from_array} from "/static/
 import {clip, floor_division } from "/static/js/math.js";
 
 
-/** Named indices for BPoly coefficents matrix */
+/** @const {number} - Named indices for BPoly coefficents matrix */
 export const KNOT = 0;
 export const FIRST_CP = 1;
 export const SECOND_CP = 2;
 
-
-/** Spline orders */
+/** @const {object} - Spline order enum. */
 export const Order = Object.freeze({
     "CUBIC": 4,
     "QUADRATIC": 3,
@@ -24,7 +22,7 @@ export const Order = Object.freeze({
     "CONSTANT": 1,
 });
 
-/** Spline degree */
+/** @const {object} - Spline degree enum.*/
 export const Degree = Object.freeze({
     "CUBIC": 3,
     "QUADRATIC": 2,
@@ -32,7 +30,10 @@ export const Degree = Object.freeze({
     "CONSTANT": 0,
 });
 
+/** @const {string} - Left side of knot string literal. */
 export const LEFT = "left";
+
+/** @const {string} - Right side of knot string literal. */
 export const RIGHT = "right";
 
 
@@ -55,7 +56,6 @@ export function spline_degree(spline) {
 
 /**
  * Duplicate entry in array at index.
- *
  * @param {Array} array 
  * @param {Number} index 
  */
@@ -68,7 +68,6 @@ function duplicate_entry_in_array(array, index) {
 
 /**
  * Duplicate column in matrix.
- *
  * @param {Array} mtrx At least 2d array.
  * @param {Number} col Column number.
  */

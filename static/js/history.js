@@ -1,4 +1,6 @@
-"use strict";
+/**
+ * @module history Edit history class.
+ */
 import { Deque } from "/static/js/deque.js";
 import { last_element } from "/static/js/utils.js";
 
@@ -47,6 +49,7 @@ export class History {
 
     /**
      * Capture a new state and add it to the history. Will clear off head.
+     * @param {object} state State to caputre / add to history.
      */
     capture(state) {
         this.future.clear();

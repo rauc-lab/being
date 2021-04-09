@@ -1,4 +1,6 @@
-/* Numpy style array helpers */
+/**
+ * @module array Numpy style array helpers.
+ */
 
 
 /**

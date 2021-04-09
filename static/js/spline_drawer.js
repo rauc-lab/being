@@ -1,4 +1,6 @@
-"use strict";
+/**
+ * @module splien_drawer Component for drawing the actual splines inside the spline editor.
+ */
 import { BBox } from "/static/js/bbox.js";
 import { make_draggable } from "/static/js/draggable.js";
 import { arange } from "/static/js/array.js";
@@ -8,14 +10,13 @@ import { create_element, path_d, setattr } from "/static/js/svg.js";
 import { assert, arrays_equal, clear_array } from "/static/js/utils.js";
 
 
-/** Precision for label numbers */
+/** @const {number} - Precision for floating label numbers */
 const PRECISION = 3;
 
 
 /**
  * Try to snap value to array of grid values. Return value as if not close
  * enough to grid. Exclude value itself as grid line candidate.
- *
  * @param {Number} value Value to snap to grid.
  * @param {Array} grid Grid values.
  * @param {Number} threshold Distance attraction threshold.
@@ -52,7 +53,6 @@ function format_number(number, smallest=1e-10) {
 
 /**
  * Clip point so that it lies within bounding box.
- *
  * @param {Array} pt 2D point to clip.
  * @param {BBox} bbox Bounding box to use to restrict the point.
  * @returns Clipped point.
@@ -103,7 +103,6 @@ export class SplineDrawer {
 
     /**
      * Position annotation label around.
-     *
      * @param {Array} pos Position to move to (data space).
      * @param {String} location Label location identifier.
      */
@@ -132,7 +131,6 @@ export class SplineDrawer {
      * make_draggable. Handles mouse -> image space -> data space
      * transformation, calculates delta offset, triggers redraws. Mostly used
      * to drag SVG elements around.
-     *
      * @param ele Element to make draggable.
      * @param on_drag On drag motion callback. Will be called with a relative
      * delta array.

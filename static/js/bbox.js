@@ -1,4 +1,6 @@
-"use strict";
+/**
+ * @module bbox Bounding box class.
+ */
 import { clip } from "/static/js/math.js";
 import { deep_copy } from "/static/js/utils.js";
 

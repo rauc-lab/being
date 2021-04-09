@@ -1,3 +1,6 @@
+/**
+ * @module console Console web component widget.
+ */
 import { Widget } from "/static/js/widget.js";
 import { clip } from "/static/js/math.js";
 

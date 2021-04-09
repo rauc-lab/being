@@ -1,10 +1,27 @@
-"use strict";
 /**
- * Button helper stuff. Helper functions for using buttons as toggle buttons.
+ * @module button Button helper stuff. Helper functions for using buttons as
+ * toggle buttons.
  */
+
 
 /** Checked string literal */
 const CHECKED = "checked";
+
+
+/**
+ * Create new HTML button (material-icons class).
+ *
+ * @param {string} innerHTML Inner HTML of button.
+ * @param {string} title Tooltip for button
+ * @returns HTMLButton
+ */
+export function create_button(innerHTML, title = "") {
+    const btn = document.createElement("button");
+    btn.classList.add("material-icons");
+    btn.innerHTML = innerHTML;
+    btn.title = title;
+    return btn;
+}
 
 
 /**
@@ -47,12 +64,21 @@ export function is_checked(btn) {
 }
 
 
-
+/**
+ * Enable button.
+ *
+ * @param {object} btn HTML button.
+ */
 export function enable_button(btn) {
     btn.disabled = false;
 }
 
 
+/**
+ * Disable button.
+ *
+ * @param {object} btn HTML button.
+ */
 export function disable_button(btn) {
     btn.disabled = true;
 }

@@ -1,3 +1,6 @@
+/**
+ * @module line Plotting line artist.
+ */
 import { BBox } from "/static/js/bbox.js";
 import { array_min, array_max } from "/static/js/array.js";
 import { Deque } from "/static/js/deque.js";
@@ -14,14 +17,12 @@ export class Line {
         this.lineWidth = lineWidth;
     }
 
-
     /**
      * Get maxlen of buffer.
      */
     get maxlen() {
         return this.data.maxlen;
     }
-
 
     /**
      * Set maxlen of buffer and discard excess values.
@@ -32,7 +33,6 @@ export class Line {
         this.data.maxlen = maxlen;
     }
 
-
     /**
      * First data column.
      */
@@ -40,14 +40,12 @@ export class Line {
         return this.data.map(pt => pt[0]);
     }
 
-
     /**
      * Second data column.
      */
     get y_data() {
         return this.data.map(pt => pt[1]);
     }
-
 
     /**
      * Calculate line width of Line artist.
@@ -61,14 +59,12 @@ export class Line {
         return new BBox(ll, ur);
     }
 
-
     /**
      * Append new data point to data buffer.
      */
     append_data(pt) {
         this.data.append(pt);
     }
-
 
     /**
      * Draw line. Transforms have to be set from the outside.
@@ -97,7 +93,6 @@ export class Line {
         ctx.stroke();
         ctx.restore();
     }
-
 
     /**
      * Reset line data buffer.

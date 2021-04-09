@@ -1,12 +1,10 @@
-"use strict";
+/**
+ * @module svg Working with SVG element helpers.
+ */
 import {Order} from "/static/js/spline.js";
 
 
-/**
- * SVG name space string.
- * @constant
- * @type {string}
- */
+/** @const {string} SVG name space string. */
 const SVG_XML_NS = "http://www.w3.org/2000/svg";
 
 

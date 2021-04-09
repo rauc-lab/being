@@ -1,6 +1,5 @@
-"use strict";
 /**
- * Curver base class for live plotter and spline editor.
+ * @module curver Curver base class for live plotter and spline editor.
  */
 import { Widget } from "/static/js/widget.js";
 import { BBox } from "/static/js/bbox.js";
@@ -11,7 +10,7 @@ import { create_element } from "/static/js/svg.js";
 import { cycle } from "/static/js/utils.js";
 
 
-/** Default line colors */
+/** @const {array} - Default line colors */
 const COLORS = [
     "#1f77b4",
     "#ff7f0e",
@@ -25,11 +24,10 @@ const COLORS = [
     "#17becf",
 ];
 
-/** View port margin on all sides */
+/** @const {number} - View port margin on all sides */
 const MARGIN = 50;
 
-
-/** Minimum sized bounding box for viewport */
+/** @const {BBox} - Minimum sized bounding box for viewport */
 const MIN_VIEWPORT = new BBox([Infinity, -0.001], [-Infinity, 0.001]);
 
 
@@ -58,7 +56,6 @@ export class CurverBase extends Widget {
             this.run();
         }, 100);
     }
-
 
     /**
      * Initialize DOM elements with shadow root.
@@ -101,6 +98,9 @@ export class CurverBase extends Widget {
         this.splineGroup = this.svg.appendChild(create_element("g"));
     }
 
+    /**
+     * Reset viewport to MIN_VIEWPORT.
+     */
     reset_viewport() {
         this.viewport = MIN_VIEWPORT.copy();
     }
@@ -157,8 +157,8 @@ export class CurverBase extends Widget {
 
     /**
      * Coordinates of mouse event inside canvas / SVG data space.
-     *
      * @param {MouseEvent} evt Mouse event to transform into data space.
+     * @return {array} Coordinate point.
      */
     mouse_coordinates(evt) {
         const rect = this.canvas.getBoundingClientRect();
@@ -170,6 +170,8 @@ export class CurverBase extends Widget {
 
     /**
      * Transform a data point -> view space.
+     * @param {array} pt 2d data point.
+     * @return {array} Tranformed 2d point.
      */
     transform_point(pt) {
         const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
@@ -178,6 +180,8 @@ export class CurverBase extends Widget {
 
     /**
      * Transform multiple data point into view space.
+     * @param {array} pts Array of 2d data points.
+     * @return {array} Array of 2d transformed points.
      */
     transform_points(pts) {
         return pts.map(pt => {
@@ -198,6 +202,7 @@ export class CurverBase extends Widget {
 
     /**
      * Draw axis and tick labels.
+     * @param {string} color Axis and tick label color.
      */
     draw_axis_and_tick_labels(color = "silver") {
         const ctx = this.ctx;
@@ -239,6 +244,9 @@ export class CurverBase extends Widget {
         ctx.restore();
     }
 
+    /**
+     * Draw all line artists.
+     */
     draw_lines() {
         //console.log("CurverBase.draw()");
         if (this.auto) {

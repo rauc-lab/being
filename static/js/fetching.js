@@ -1,6 +1,5 @@
-"use strict";
 /**
- * Wrappers around fetch API. Replacing HTTP methods with functions as verbs. Also json variantes.
+ * @module fetching Wrapper verbs around standard fetch.
  */
 
 

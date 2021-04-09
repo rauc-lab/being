@@ -1,6 +1,5 @@
-"use strict";
 /**
- * All kinds of util. Lots from http://youmightnotneedjquery.com.
+ * @module utils All kinds of util. Lots from http://youmightnotneedjquery.com.
  */
 
 

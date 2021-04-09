@@ -1,12 +1,11 @@
-"use strict";
 /**
- * All kinds of math helpers. Also some numpy flavored array functions.
+ * @module math All kinds of math helpers.
  */
 import { TAU } from "/static/js/constants.js";
 
 
 /**
- * Clip value to [lower, upper] boundaries.
+ * Clip value to [lower, upper] boundaries. Note: No lower < upper validation!
  */
 export function clip(value, lower=0, upper=1) {
     return Math.max(lower, Math.min(upper, value));

@@ -1,8 +1,6 @@
-"use strict";
 /**
- * Live plotter custom HTML element.
+ * @module live_plotter Live plotter HTML web component widget.
  */
-
 import { CurverBase } from "/static/js/curver.js";
 import { Line } from "/static/js/line.js";
 
@@ -46,6 +44,5 @@ class Plotter extends CurverBase {
         this.recBtn.toggleAttribute("checked");
     }
 }
-
 
 customElements.define("being-plotter", Plotter);

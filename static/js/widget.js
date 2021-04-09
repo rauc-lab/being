@@ -1,20 +1,9 @@
-import { add_option } from "/static/js/utils.js";
-
-
 /**
- * Create new HTML button (material-icons class).
- *
- * @param {String} innerHTML Inner HTML of button.
- * @param {String} title Tooltip for button
- * @returns HTMLButton
+ * @module widget Base class for HTML web component. Simple HTMLElement with a
+ * toolbar div.
  */
-export function create_button(innerHTML, title = "") {
-    const btn = document.createElement("button");
-    btn.classList.add("material-icons");
-    btn.innerHTML = innerHTML;
-    btn.title = title;
-    return btn;
-}
+import { add_option } from "/static/js/utils.js";
+import { create_button } from "/static/js/button.js";
 
 
 export class Widget extends HTMLElement {

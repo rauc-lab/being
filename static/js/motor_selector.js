@@ -1,11 +1,14 @@
-"use strict";
+/**
+ * @module motor_selector Component around HTML select to keep track of the
+ * currently selected motor (or motion player behind the scenes).
+ */
 import { remove_all_children, add_option } from "/static/js/utils.js";
 
 
-/** Nothing selected in HTML select yet */
+/** @const {number} - Nothing selected in HTML select yet */
 export const NOTHING_SELECTED = -1;
 
-/** Default motor info dictionary if nothing is selected */
+/** @const {object} - Default motor info dictionary if nothing is selected */
 const DEFAULT_MOTOR_INFO = {
     "id": 0,
     "setpointValueIndex": 0,
@@ -15,14 +18,13 @@ const DEFAULT_MOTOR_INFO = {
 
 
 export class MotorSelector {
-    constructor(select=null) {
+    constructor(select = null) {
         this.select = select;
         this.motorInfos = [];
     }
 
     /**
      * Set select element (DI).
-     *
      * @param {HTMLElement} select HTML select element.
      */
     attach_select(select) {
@@ -31,7 +33,6 @@ export class MotorSelector {
 
     /**
      * Populate select with the currently available motors.
-     *
      * @param {Array} motorInfos List of motor info objects.
      */
     populate(motorInfos) {
@@ -44,7 +45,6 @@ export class MotorSelector {
 
     /**
      * Get motor info for currently selected motor.
-     *
      * @returns {object} Motor info dictionary.
      */
     selected_motor_info() {

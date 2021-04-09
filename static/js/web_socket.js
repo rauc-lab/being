@@ -1,4 +1,6 @@
-"use strict";
+/**
+ * @module web_socket Small web socket wrapper.
+ */
 import {MS} from "/static/js/constants.js";
 
 

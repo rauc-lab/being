@@ -1,13 +1,21 @@
-"use strict";
+/**
+ * @module transport Component for spline editor which manages transport state.
+ */
 import { create_element, setattr } from "/static/js/svg.js";
 
 
+// Note: We use string literals instead of the Object.freeze() enum trick so
+// that we can use the states inside the Transitions table.
+/** @const {string} Paused state. */
 export const PAUSED = "PAUSED";
+
+/** @const {string} Playing state. */
 export const PLAYING = "PLAYING";
+
+/** @const {string} Recording state. */
 export const RECORDING = "RECORDING";
 
-
-/** Valid state transitions. */
+/** @const {object} Valid / possible state transitions. */
 const Transitions = {
     PAUSED: [PLAYING, RECORDING],
     PLAYING: [PAUSED],
@@ -31,14 +39,23 @@ export class Transport {
         this._init_cursor();
     }
 
+    /**
+     * @returns Is paused.
+     */
     get paused() {
         return this.state === PAUSED;
     }
 
+    /**
+     * @returns Is playing.
+     */
     get playing() {
         return this.state === PLAYING;
     }
 
+    /**
+     * @returns Is recording.
+     */
     get recording() {
         return this.state === RECORDING;
     }
@@ -54,26 +71,42 @@ export class Transport {
         this.cursor = line;
     }
 
+    /**
+     * Change transport state (but only if valid transitions).
+     * @param {string} newState New state.
+     */
     _change_state(newState) {
         if (Transitions[this.state].includes(newState)) {
             this.state = newState;
         }
     }
 
+    /**
+     * Pause transport.
+     */
     pause() {
         this._change_state(PAUSED);
     }
 
+    /**
+     * Start playing transport.
+     */
     play() {
         this._change_state(PLAYING);
     }
 
+    /**
+     * Start recording transport.
+     */
     record() {
         this.startTime = this.latestTimestamp;
         this.duration = Infinity;
         this._change_state(RECORDING);
     }
 
+    /**
+     * Stop transport.
+     */
     stop() {
         this._change_state(PAUSED);
         this.rewind();
@@ -87,7 +120,7 @@ export class Transport {
     }
 
     /**
-     * Rewind cursor to the geginning.
+     * Rewind cursor to the beginning.
      */
     rewind() {
         this.position = 0;
