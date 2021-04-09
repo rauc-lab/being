@@ -318,7 +318,7 @@ def wire_being_loggers_to_web_socket(ws: WebSocket):
 
     handler = WsHandler()
     for logger in BEING_LOGGERS:
-        logger.addHandler(WsHandler())
+        logger.addHandler(handler)
 
 
 def init_api(being, ws: WebSocket) -> web.Application:

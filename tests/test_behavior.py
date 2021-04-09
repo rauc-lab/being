@@ -2,7 +2,7 @@ import unittest
 
 from scipy.interpolate import CubicSpline
 
-from being.behavior import SLEEPING, CHILLED, EXCITED, Behavior, create_params
+from being.behavior import STATE_0, STATE_1, STATE_2, Behavior, create_params
 from being.clock import Clock
 from being.connectables import MessageInput
 from being.motion_player import MotionPlayer
@@ -63,7 +63,7 @@ class TestBehavior(unittest.TestCase):
 
         self.step_one_cycle()
 
-        self.assertIs(self.behavior.state, SLEEPING)
+        self.assertIs(self.behavior.state, STATE_0)
 
         mc = self.latest_motion()
 
@@ -79,32 +79,32 @@ class TestBehavior(unittest.TestCase):
     def test_sleeping_being_stays_dormant(self):
         self.step_one_cycle()
 
-        self.assertEqual(self.behavior.state, SLEEPING)
+        self.assertEqual(self.behavior.state, STATE_0)
 
         self.step_one_cycle()
 
-        self.assertEqual(self.behavior.state, SLEEPING)
+        self.assertEqual(self.behavior.state, STATE_0)
 
     def test_sensor_trigger_excites_being(self):
         self.step_one_cycle()
 
-        self.assertIs(self.behavior.state, SLEEPING)
+        self.assertIs(self.behavior.state, STATE_0)
 
         self.behavior.sensorIn.push('Something moved...')
         self.step_one_cycle()
         mc = self.latest_motion()
 
-        self.assertIs(self.behavior.state, EXCITED)
+        self.assertIs(self.behavior.state, STATE_2)
         self.assertEqual(mc.name, EXCITED_MOTION)
 
-        self.behavior.change_state(CHILLED)
+        self.behavior.change_state(STATE_1)
 
-        self.assertIs(self.behavior.state, CHILLED)
+        self.assertIs(self.behavior.state, STATE_1)
 
         self.behavior.sensorIn.push('Yet again something moved...')
         self.step_one_cycle()
 
-        self.assertIs(self.behavior.state, EXCITED)
+        self.assertIs(self.behavior.state, STATE_2)
         self.assertEqual(mc.name, EXCITED_MOTION)
 
     def test_sleeping_being_continues_playing_new_sleepy_animations(self):
@@ -112,21 +112,21 @@ class TestBehavior(unittest.TestCase):
         self.step_one_cycle()
         mc = self.latest_motion()
 
-        self.assertEqual(self.behavior.state, SLEEPING)
+        self.assertEqual(self.behavior.state, STATE_0)
         self.assertEqual(mc.name, SLEEPY_MOTION)
 
         # Clock = 0.5
         self.step_one_cycle()
         mc = self.latest_motion()
 
-        self.assertIs(self.behavior.state, SLEEPING)
+        self.assertIs(self.behavior.state, STATE_0)
         self.assertIs(mc, None)
 
         # Clock = 1.0
         self.step_one_cycle()
         mc = self.latest_motion()
 
-        self.assertIs(self.behavior.state, SLEEPING)
+        self.assertIs(self.behavior.state, STATE_0)
         self.assertIs(mc, None)
 
         # Clock = 1.5
@@ -135,18 +135,18 @@ class TestBehavior(unittest.TestCase):
         self.step_one_cycle()
         mc = self.latest_motion()
 
-        self.assertIs(self.behavior.state, SLEEPING)
+        self.assertIs(self.behavior.state, STATE_0)
         self.assertIs(mc.name, SLEEPY_MOTION)
 
     def test_sleeping_being_stays_dormant_independent_of_attention_span(self):
         self.step_one_cycle()
 
-        self.assertIs(self.behavior.state, SLEEPING)
+        self.assertIs(self.behavior.state, STATE_0)
 
         for _ in range(100):
             self.step_one_cycle()
 
-        self.assertIs(self.behavior.state, SLEEPING)
+        self.assertIs(self.behavior.state, STATE_0)
 
     def let_motion_play_out(self, excpectedState):
         for _ in range(2):
@@ -157,49 +157,49 @@ class TestBehavior(unittest.TestCase):
             self.assertIs(mc, None)
 
     def test_chilled_being_with_attention_keeps_playing_chilled_animations(self):
-        self.behavior.change_state(CHILLED)
+        self.behavior.change_state(STATE_1)
 
         # Clock = 0.0
         self.step_one_cycle()
         mc = self.latest_motion()
 
-        self.assertIs(self.behavior.state, CHILLED)
+        self.assertIs(self.behavior.state, STATE_1)
         self.assertEqual(mc.name, CHILLED_MOTION)
 
-        self.let_motion_play_out(CHILLED)
+        self.let_motion_play_out(STATE_1)
 
         # Clock = 1.5
         self.step_one_cycle()
         mc = self.latest_motion()
 
-        self.assertIs(self.behavior.state, CHILLED)
+        self.assertIs(self.behavior.state, STATE_1)
         self.assertEqual(mc.name, CHILLED_MOTION)
 
-        self.let_motion_play_out(CHILLED)
+        self.let_motion_play_out(STATE_1)
 
         # Clock = 3.0
         self.step_one_cycle()
         mc = self.latest_motion()
 
-        self.assertIs(self.behavior.state, CHILLED)
+        self.assertIs(self.behavior.state, STATE_1)
         self.assertEqual(mc.name, CHILLED_MOTION)
 
-        self.let_motion_play_out(CHILLED)
+        self.let_motion_play_out(STATE_1)
 
         # Clock = 4.5
         self.step_one_cycle()
         mc = self.latest_motion()
 
-        self.assertIs(self.behavior.state, CHILLED)
+        self.assertIs(self.behavior.state, STATE_1)
         self.assertEqual(mc.name, CHILLED_MOTION)
 
-        self.let_motion_play_out(CHILLED)
+        self.let_motion_play_out(STATE_1)
 
         # Clock = 6.0 which is over attention span!
         self.step_one_cycle()
         mc = self.latest_motion()
 
-        self.assertIs(self.behavior.state, SLEEPING)
+        self.assertIs(self.behavior.state, STATE_0)
         self.assertEqual(mc.name, SLEEPY_MOTION)
 
     def test_excited_being_only_plays_one_excited_animation(self):
@@ -208,15 +208,15 @@ class TestBehavior(unittest.TestCase):
         self.step_one_cycle()
         mc = self.latest_motion()
 
-        self.assertIs(self.behavior.state, EXCITED)
+        self.assertIs(self.behavior.state, STATE_2)
         self.assertEqual(mc.name, EXCITED_MOTION)
 
-        self.let_motion_play_out(EXCITED)
+        self.let_motion_play_out(STATE_2)
 
         self.step_one_cycle()
         mc = self.latest_motion()
 
-        self.assertIs(self.behavior.state, CHILLED)
+        self.assertIs(self.behavior.state, STATE_1)
         self.assertEqual(mc.name, CHILLED_MOTION)
 
 

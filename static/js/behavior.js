@@ -29,6 +29,9 @@ class Behavior extends Widget {
         this.load();
     }
 
+    /**
+     * Load data from back end and populate HTML elements.
+     */
     async load() {
         const stateNames = await this.api.load_behavior_states();
         this.populate_states(stateNames);
@@ -196,11 +199,10 @@ class Behavior extends Widget {
         this.playPauseBtn.innerHTML = infos.active ? "pause" : "play_arrow";
         this.nowPlayingSpan.innerHTML = infos.lastPlayed;
         this.update_attention_span_slider(infos.params.attentionSpan);
-        this.statesDiv.childNodes.forEach(stateDiv => {
-            const key = stateDiv.getAttribute("name").toLowerCase() + "Motions";
-            const motions = infos.params[key];
+        this.statesDiv.childNodes.forEach((stateDiv, nr) => {
+            const names = infos.params.motions[nr];
             stateDiv.querySelectorAll("input[type='checkbox']").forEach(cb => {
-                cb.checked = motions.includes(cb.name);
+                cb.checked = names.includes(cb.name);
             });
         });
         this.mark_active_state(infos.active ? infos.state.value : -1);
@@ -212,12 +214,13 @@ class Behavior extends Widget {
     async emit_params() {
         const params = {};
         params.attentionSpan = this.attentionSpanSlider.value / N_TICKS * MAX_ATTENTION_SPAN;
-        this.statesDiv.childNodes.forEach(stateDiv => {
-            const key = stateDiv.getAttribute("name").toLowerCase() + "Motions";
-            params[key] = [];
+        params.motions = [];
+        this.statesDiv.childNodes.forEach((stateDiv, nr) => {
+            const selected = [];
             stateDiv.querySelectorAll("input[type='checkbox']:checked").forEach(cb => {
-                params[key].push(cb.name);
+                selected.push(cb.name);
             });
+            params.motions.push(selected);
         });
         const infos = await this.api.send_behavior_params(params);
         this.update_ui(infos);

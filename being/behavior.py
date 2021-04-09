@@ -19,39 +19,31 @@ class State(enum.Enum):
 
     """Behavior states."""
 
-    SLEEPING = 0
-    CHILLED = 1
-    EXCITED = 2
+    STATE_0 = 0
+    STATE_1 = 1
+    STATE_2 = 2
 
 
 register_enum(State)
 
 
 # For comforts / de-clutter
-SLEEPING = State.SLEEPING
-CHILLED = State.CHILLED
-EXCITED = State.EXCITED
+STATE_0 = State.STATE_0
+STATE_1 = State.STATE_1
+STATE_2 = State.STATE_2
 
 
 BEHAVIOR_CHANGED = 'BEHAVIOR_CHANGED'
 
 
-def create_params(attentionSpan=10., sleepingMotions=None, chilledMotions=None, excitedMotions=None):
+def create_params(attentionSpan=10., motions=None):
     """Create behavior params dictionary."""
-    if sleepingMotions is None:
-        sleepingMotions = []
-
-    if chilledMotions is None:
-        chilledMotions = []
-
-    if excitedMotions is None:
-        excitedMotions = []
+    if motions is None:
+        motions = [[] for _ in State]
 
     return {
         'attentionSpan': attentionSpan,
-        'sleepingMotions': sleepingMotions,
-        'chilledMotions': chilledMotions,
-        'excitedMotions': excitedMotions,
+        'motions': motions,
     }
 
 
@@ -59,14 +51,14 @@ class Behavior(Block, PubSub):
 
     """Simple 3x state finite state machine behavior engine for ECAL workshop.
     Based on modified Anima II/III behavior engine. The three states are:
-      1) SLEEPING
-      2) CHILLED
-      3) EXCITED
+      1) STATE_0
+      2) STATE_1
+      3) STATE_2
 
-    Sensor trigger transitions SLEEPING / CHILLED -> EXCITED and fire one
-    animation playback. After this single animation behavior will go to CHILLED
+    Sensor trigger transitions STATE_0 / STATE_1 -> STATE_2 and fire one
+    animation playback. After this single animation behavior will go to STATE_1
     where it will stay for at least `params.attentionSpan` many seconds. After
-    that it will transition to SLEEPING state.
+    that it will transition to STATE_0 state.
 
     Animations are chosen randomly from supplied animation from params.
 
@@ -95,7 +87,7 @@ class Behavior(Block, PubSub):
 
         self.active = True
         self.motionPlayer = None
-        self.state = State.SLEEPING
+        self.state = State.STATE_0
         self.lastChanged = 0.
         self.lastPlayed = ''
         self.logger = get_logger('Behavior')
@@ -132,7 +124,7 @@ class Behavior(Block, PubSub):
         self.active = False
         self.lastPlayed = ''
         self.motionPlayer.stop()
-        self.state = SLEEPING
+        self.state = STATE_0
         self.publish(BEHAVIOR_CHANGED)
 
     def sensor_triggered(self) -> bool:
@@ -145,11 +137,13 @@ class Behavior(Block, PubSub):
 
     def _purge_params(self):
         """Check with content and remove all non existing motion names from _params."""
+        print('_purge_params()')
+        print('self._params:', self._params)
         existing = list(self.content._sorted_names())
-        for key in ['sleepingMotions', 'chilledMotions', 'excitedMotions']:
-            self._params[key] = [
+        for i, names in enumerate(self._params['motions']):
+            self._params['motions'][i] = [
                 name
-                for name in self._params[key]
+                for name in names
                 if name in existing
             ]
 
@@ -165,17 +159,18 @@ class Behavior(Block, PubSub):
         # motionPlayer, even though it's ugly...
         return self.motionPlayer.playing
 
-    def play_random_motion(self, motions: List[str]):
+    def play_random_motion_for_current_state(self):
         """Pick a random motion name from `motions` and fire a non-looping
         motion command to the motionPlayer.
         """
-        if len(motions) == 0:
+        names = self._params['motions'][self.state.value]
+        if len(names) == 0:
             return
 
-        motion = random.choice(motions)
-        self.lastPlayed = motion
-        self.logger.info('Playing motion %r', motion)
-        mc = MotionCommand(motion)
+        name = random.choice(names)
+        self.lastPlayed = name
+        self.logger.info('Playing motion %r', name)
+        mc = MotionCommand(name)
         self.mcOut.send(mc)
         self.publish(BEHAVIOR_CHANGED)
 
@@ -184,7 +179,7 @@ class Behavior(Block, PubSub):
         if newState is self.state:
             return
 
-        self.logger.info('Changed to state %s', newState)
+        self.logger.info('Changed to state %s', newState.name)
         self.publish(BEHAVIOR_CHANGED)
         self.state = newState
         self.lastChanged = self.clock.now()
@@ -198,27 +193,27 @@ class Behavior(Block, PubSub):
         if not self.active:
             return
 
-        if self.state is SLEEPING:
+        if self.state is STATE_0:
             if triggered:
-                self.change_state(EXCITED)
-                self.play_random_motion(self._params['excitedMotions'])
+                self.change_state(STATE_2)
+                self.play_random_motion_for_current_state()
             elif not playing:
-                self.play_random_motion(self._params['sleepingMotions'])
+                self.play_random_motion_for_current_state()
 
-        elif self.state is CHILLED:
+        elif self.state is STATE_1:
             if triggered:
-                self.change_state(EXCITED)
-                self.play_random_motion(self._params['excitedMotions'])
+                self.change_state(STATE_2)
+                self.play_random_motion_for_current_state()
             elif attentionLost and not playing:
-                self.change_state(SLEEPING)
-                self.play_random_motion(self._params['sleepingMotions'])
+                self.change_state(STATE_0)
+                self.play_random_motion_for_current_state()
             elif not playing:
-                self.play_random_motion(self._params['chilledMotions'])
+                self.play_random_motion_for_current_state()
 
-        elif self.state is EXCITED:
+        elif self.state is STATE_2:
             if not playing:
-                self.change_state(CHILLED)
-                self.play_random_motion(self._params['chilledMotions'])
+                self.change_state(STATE_1)
+                self.play_random_motion_for_current_state()
 
     def infos(self):
         return {
