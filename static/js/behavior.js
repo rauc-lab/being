@@ -33,6 +33,7 @@ class Behavior extends Widget {
         this.statesDiv = null;
         this.attentionSpanSpan = null;
         this.led = null;
+
         this.init_elements();
         this.load();
     }
@@ -62,8 +63,8 @@ class Behavior extends Widget {
         slider.addEventListener("change", () => {
             this.emit_params();
         });
-
         this.attentionSpanSpan = document.createElement("span");
+        this.attentionSpanSpan.style = "display: inline-block; min-width: 3.5em; text-align: right;"
         this.led = document.createElement("span");
         this.led.classList.add("led");
     }
