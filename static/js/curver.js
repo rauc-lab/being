@@ -30,6 +30,24 @@ const MARGIN = 50;
 /** @const {BBox} - Minimum sized bounding box for viewport */
 const MIN_VIEWPORT = new BBox([Infinity, -0.001], [-Infinity, 0.001]);
 
+/** @const {HTMLElement} - Curver base template */
+const CURVER_TEMPLATE = document.createElement("template");
+CURVER_TEMPLATE.innerHTML = `
+<div class="container">
+    <div id="motion-list"></div>
+    <div id="graph">
+        <canvas id="canvas">
+            Your browser doesn't support the HTML5 canvas tag.
+        </canvas>
+        <svg id="svg" xmlns="http://www.w3.org/2000/svg">
+            <g id="main"></g>
+            <g id="cursor"></g>
+            <g id="background"></g>
+        </svg>
+    </div>
+</div>
+`;
+
 
 /**
  * Curver base class for Plotter and Editor.
@@ -62,34 +80,19 @@ export class CurverBase extends Widget {
      */
     init_elements() {
         this._append_link("static/css/curver.css");
+        this.add_template(CURVER_TEMPLATE);
 
-        this.container = document.createElement("div");
-        this.container.classList.add("container");
-        this.shadowRoot.appendChild(this.container);
+        this.graph = this.shadowRoot.getElementById("graph");
+        this.canvas = this.shadowRoot.getElementById("canvas");
+        this.svg = this.shadowRoot.getElementById("svg");
+        this.splineGroup = this.shadowRoot.getElementById("main")
+        this.transportGroup = this.shadowRoot.getElementById("cursor")
+        this.backgroundGroup = this.shadowRoot.getElementById("background")
+        this.motionListDiv = this.shadowRoot.getElementById("motion-list")
 
-        // Motion list
-        this.motionListDiv = document.createElement("div");
-        this.container.appendChild(this.motionListDiv);
-        this.motionListDiv.classList.add("motion-list");
-
-        // Graph area
-        this.graph = document.createElement("div");
-        this.container.appendChild(this.graph);
-        this.graph.classList.add("graph");
-
-        // Canvas
-        this.canvas = document.createElement("canvas");
-        this.graph.appendChild(this.canvas);
         this.ctx = this.canvas.getContext("2d");
         this.ctx.lineCap = "round";  //"butt" || "round" || "square";
         this.ctx.lineJoin = "round";  //"bevel" || "round" || "miter";
-
-        // SVG
-        this.svg = create_element("svg");
-        this.graph.appendChild(this.svg);
-        this.backgroundGroup = this.svg.appendChild(create_element("g"));
-        this.transportGroup = this.svg.appendChild(create_element("g"));
-        this.splineGroup = this.svg.appendChild(create_element("g"));
     }
 
     /**

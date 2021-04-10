@@ -5,19 +5,19 @@
 
 .container > * { border-top: 2px solid black; }
 
-.motion-list { flex-grow: 1; }
+#motion-list { flex-grow: 1; }
 
-.graph { flex-grow: 4; }
+#graph { flex-grow: 4; }
 
 @media screen and (min-width: 800px) {
     .container {
         flex-direction: row;
     }
 
-    .motion-list {
+    #motion-list {
         border-right: 2px solid black;
     }
-    .motion-list[folded] {
+    #motion-list[folded] {
         background-color: red;
         border-right: none;
         width: 0;
@@ -27,7 +27,7 @@
 }
 
 @media screen and (max-width: 800px) {
-    .motion-list[folded] {
+    #motion-list[folded] {
         background: green;
         height: 0;
         max-height: 0;
@@ -37,14 +37,14 @@
     }
 }
 
-.graph {
+#graph {
     position: relative;
     flex-basis: 60vh;
     min-height: 60vh;
 }
 
-.graph canvas,
-.graph svg {
+#graph canvas,
+#graph svg {
     position: absolute;
     left: 0;
     top: 0;
@@ -52,6 +52,6 @@
     height: 100%;
 }
 
-.graph svg { cursor: move; }
+#graph svg { cursor: move; }
 
-.graph svg circle { cursor: pointer; }
+#graph svg circle { cursor: pointer; }
