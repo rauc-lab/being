@@ -3,12 +3,15 @@ import asyncio
 import json
 import logging
 import math
+import os
 import types
 from typing import ForwardRef
 
 from aiohttp import web
 from scipy.interpolate import BPoly
 
+
+from being import ROOT_DIR
 from being.behavior import BEHAVIOR_CHANGED, State
 from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
@@ -26,6 +29,26 @@ LOGGER = get_logger(__name__)
 """Server module logger."""
 
 Being = ForwardRef('Being')
+
+
+def resolve_path(path: str) -> str:
+    """Resolve path relative to current root directory.
+
+    Args:
+        path: Path to resolve.
+
+    Returns:
+        Absolute path.
+    """
+    # TODO(atheler): Dirty hack but did not find a way to serve the static
+    # directory via aiohttp. Tried moving static/ -> being/static/, pkgutil,
+    # include_package_data, ...
+    #
+    # Some links:
+    #   - https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
+    #   - https://setuptools.readthedocs.io/en/latest/userguide/datafiles.html
+    # ...
+    return os.path.join(ROOT_DIR, path)
 
 
 def respond_ok():
@@ -384,11 +407,27 @@ def init_web_server() -> web.Application:
         app: Application instance.
     """
     app = web.Application()
-    app.router.add_static(prefix='/static', path='./static', show_index=True)
-    app.router.add_get('/favicon.ico', file_response_handler('static/favicon.ico'))
-    app.router.add_get('/', file_response_handler('static/index.html'))
-    app.router.add_get('/being', file_response_handler('static/being.html'))
-    app.router.add_get('/web-socket-test', file_response_handler('static/web-socket-test.html'))
+    app.router.add_static(
+        prefix='/static',
+        path=resolve_path('static'),
+        show_index=True,
+    )
+    app.router.add_get(
+        '/favicon.ico',
+        file_response_handler(resolve_path('static/favicon.ico')),
+    )
+    app.router.add_get(
+        '/',
+        file_response_handler(resolve_path('static/index.html')),
+    )
+    app.router.add_get(
+        '/being',
+        file_response_handler(resolve_path('static/being.html')),
+    )
+    app.router.add_get(
+        '/web-socket-test',
+        file_response_handler(resolve_path('static/web-socket-test.html')),
+    )
     return app
 
 

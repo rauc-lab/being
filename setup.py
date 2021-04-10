@@ -1,3 +1,9 @@
+"""
+Possible resoruces:
+  - https://packaging.python.org/guides/distributing-packages-using-setuptools/
+"""
+import glob
+
 from setuptools import setup, find_packages
 
 import being
@@ -42,10 +48,18 @@ setup(
     long_description=longDescription,
     #long_description_content_type='text/rst',  # TODO: Does not work
     name='being',
+    packages=find_packages('being', 'tests'),
     package_data={
+        '': [
+            'MANIFEST.in',
+            'README.rst',
+        ],
         'being.can': ['eds_files/*.eds'],
     },
-    packages=find_packages(),
+    data_files=[
+        ('static', glob.glob('static/*')),
+    ],
+    include_package_data=True,
     test_suite='tests',
     version=being.__version__,
 )
