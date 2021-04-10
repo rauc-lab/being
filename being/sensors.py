@@ -39,7 +39,7 @@ class SensorGpio(Sensor):
         self.clock = Clock.single_instance_setdefault()
         self.add_message_output()
         rpi.gpio.setup(self.channel, GPIO.IN, pull_up_down=pull_up_down)
-        rpi.gpio.add_event_detect(self.channel, edge, callback=self.callback, bouncetime=1000*bouncetime)
+        rpi.gpio.add_event_detect(self.channel, edge, callback=self.callback, bouncetime=int(1000*bouncetime))
         self.queue = collections.deque(maxlen=50)
 
     def callback(self, channel):
