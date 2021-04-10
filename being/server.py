@@ -364,6 +364,8 @@ def init_api(being, ws: WebSocket) -> web.Application:
 
     # Being
     api.add_routes(being_controller(being))
+
+    logging.basicConfig(level=20)
     wire_being_loggers_to_web_socket(ws)
 
     # Patch sensor events

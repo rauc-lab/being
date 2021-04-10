@@ -189,7 +189,7 @@ class Behavior(Block, PubSub):
 
         name = random.choice(names)
         self.lastPlayed = name
-        self.logger.info('Playing motion %r', name)
+        #self.logger.info('Playing motion %r', name)
         mc = MotionCommand(name)
         self.mcOut.send(mc)
         self.publish(BEHAVIOR_CHANGED)
