@@ -37,11 +37,7 @@ setup(
         'Topic :: System :: Hardware :: Hardware Drivers',
     ],
     description='Robotic core for the PATHOS project.',
-    install_requires=[
-        'setuptools',
-        'numpy',
-        'scipy',
-    ],
+    #install_requires=['setuptools', 'numpy', 'scipy', ],
     keywords='Poetic animatronics robotic framework',
     long_description=longDescription,
     #long_description_content_type='text/rst',  # TODO: Does not work
