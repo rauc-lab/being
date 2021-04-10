@@ -48,7 +48,7 @@ setup(
     long_description=longDescription,
     #long_description_content_type='text/rst',  # TODO: Does not work
     name='being',
-    packages=find_packages('being', 'tests'),
+    packages=find_packages(),
     package_data={
         '': [
             'MANIFEST.in',
@@ -58,6 +58,7 @@ setup(
     },
     data_files=[
         ('static', glob.glob('static/*')),
+        ('scripts', glob.glob('scripts/*.py')),
     ],
     include_package_data=True,
     test_suite='tests',
