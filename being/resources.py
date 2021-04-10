@@ -35,5 +35,5 @@ def manage_resources():
     return EXIT_STACK
 
 
-def add_callback(callback, /, *args, **kwargs):
+def add_callback(callback, *args, **kwargs):
     EXIT_STACK.callback(callback, *args, **kwargs)
