@@ -6,7 +6,6 @@ import { BBox } from "/static/js/bbox.js";
 import { tick_space, } from "/static/js/layout.js";
 import { divide_arrays} from "/static/js/array.js";
 import { clip } from "/static/js/math.js";
-import { create_element } from "/static/js/svg.js";
 import { cycle } from "/static/js/utils.js";
 
 
@@ -40,9 +39,9 @@ CURVER_TEMPLATE.innerHTML = `
             Your browser doesn't support the HTML5 canvas tag.
         </canvas>
         <svg id="svg" xmlns="http://www.w3.org/2000/svg">
-            <g id="main"></g>
-            <g id="cursor"></g>
             <g id="background"></g>
+            <g id="cursor"></g>
+            <g id="main"></g>
         </svg>
     </div>
 </div>
