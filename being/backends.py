@@ -7,6 +7,7 @@ import contextlib
 import sys
 from typing import List, ForwardRef
 
+from being.config import DEFAULT_CAN_BITRATE
 from being.rpi_gpio import GPIO
 
 try:
@@ -22,7 +23,7 @@ from being.logging import get_logger
 CiA402Node = ForwardRef('CiA402Node')
 
 
-# Default CAN args
+# Default system dependent CAN bus parameters
 if sys.platform == 'darwin':
     _BUS_TYPE = 'pcan'
     _CHANNEL = 'PCAN_USBBUS1'
@@ -35,7 +36,7 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
 
     """CANopen network wrapper. Automatic connect during __enter__."""
 
-    def __init__(self, bitrate=1000000, bustype=_BUS_TYPE, channel=_CHANNEL):
+    def __init__(self, bitrate=DEFAULT_CAN_BITRATE, bustype=_BUS_TYPE, channel=_CHANNEL):
         super().__init__(bus=None)
         self.bitrate = bitrate
         self.bustype = bustype

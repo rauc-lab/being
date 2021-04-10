@@ -12,3 +12,4 @@ API_PREFIX = '/api'
 
 WEB_SOCKET_ADDRESS = '/stream'
 """Web socket URL."""
+DEFAULT_CAN_BITRATE = 1000000
