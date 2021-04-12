@@ -6,6 +6,7 @@ from being.backends import AudioBackend
 from being.block import Block
 from being.config import INTERVAL
 from being.constants import TAU
+from being.math import linear_mapping
 from being.resources import register_resource
 
 
@@ -52,7 +53,8 @@ class Trafo(Block):
     def from_ranges(cls, inRange=(0., 1.), outRange=(0., 1.)):
         # TODO: Make me! Calculate scale, offset from (xMin, xMax) and (yMin,
         # yMax).
-        pass
+        scale, offset = linear_mapping(inRange, outRange)
+        return cls(scale, offset)
 
     def update(self):
         self.output.value = self.scale * self.input.value + self.offset

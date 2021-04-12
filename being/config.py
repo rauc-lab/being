@@ -12,4 +12,6 @@ API_PREFIX = '/api'
 
 WEB_SOCKET_ADDRESS = '/stream'
 """Web socket URL."""
+
 DEFAULT_CAN_BITRATE = 1000000
+"""Default bitrate (bit / sec) for CAN interface."""

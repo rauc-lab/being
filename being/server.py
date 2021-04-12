@@ -259,9 +259,6 @@ def being_controller(being: Being) -> web.RouteTableDef:
 
     @routes.put('/motors/enable')
     def enable_drives(request):
-        for motor in being.motors:
-            motor._update_state()
-
         if being.network:
             being.network.enable_drives()
 

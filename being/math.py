@@ -2,6 +2,8 @@
 import math
 from typing import Tuple
 
+import numpy as np
+
 
 def clip(number: float, lower: float, upper: float) -> float:
     """Clip `number` to the closed interval [`lower`, `upper`].
@@ -44,3 +46,21 @@ def solve_quadratic_equation(a: float, b: float, c: float) -> Tuple[float, float
     x0 = (-b + discriminant**.5) / (2 * a)
     x1 = (-b - discriminant**.5) / (2 * a)
     return x0, x1
+
+
+def linear_mapping(xRange, yRange):
+    """Get linear coefficients for y = a * x + b.
+
+    Args:
+        xRange (tuple): Input range (xmin, xmax).
+        yRange (tuple): Output range (xmin, xmax).
+
+    Returns:
+        tuple: Linear coefficients a, b.
+    """
+    xmin, xmax = xRange
+    ymin, ymax = yRange
+    return np.linalg.solve([
+        [xmin, 1.],
+        [xmax, 1.],
+    ], [ymin, ymax])

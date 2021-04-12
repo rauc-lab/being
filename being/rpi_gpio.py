@@ -5,6 +5,7 @@ except ImportError:
 
 
     LOGGER = get_logger(__name__)
+    LOGGER.warn('RPi.GPIO is not installed. Will continue with dummy Rpi.GPIO!')
 
 
     class GPIO:

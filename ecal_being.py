@@ -13,7 +13,7 @@ with manage_resources():
     sensor = SensorGpio(channel=6)
     behavior = Behavior.from_config('behavior.json')
     mp = MotionPlayer()
-    motor = Motor(nodeId=9, length=0.107)
+    motor = Motor(nodeId=9, length=0.100)
 
     # Make block connections
     sensor.output.connect(behavior.input)

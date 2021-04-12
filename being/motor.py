@@ -113,12 +113,8 @@ class _MotorBase(Block):
         self.add_value_input()
         self.add_value_output()
 
-    def _update_state(self):
-        """Update kinematic state from actual position."""
-
     def home(self):
         yield DONE_HOMING
-
 
 
 class Motor(_MotorBase):
@@ -164,13 +160,47 @@ class Motor(_MotorBase):
         self.targetPosition, = self.inputs = [ValueInput(owner=self)]
         self.actualPosition, = self.outputs = [ValueOutput(owner=self)]
 
-        self.state = KinematicState(position=node.position)
         self.node = node
 
+        self.setup_node()
         self.setup_pdos()
+
         node.nmt.state = PRE_OPERATIONAL
         node.set_state(State402.READY_TO_SWITCH_ON)
         node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
+
+    def setup_node(self, maxSpeed: float = 1., maxAcc: float = 1.):
+        """Configure Faulhaber node (some settings via SDO).
+
+        Kwargs:
+            maxSpeed: Maximum speed.
+            maxAcc: Maximum acceleration.
+        """
+        generalSettings = self.node.sdo['General Settings']
+        generalSettings['Pure Sinus Commutation'].raw = 1
+        #generalSettings['Activate Position Limits in Velocity Mode'].raw = 1
+        #generalSettings['Activate Position Limits in Position Mode'].raw = 1
+
+        filterSettings = self.node.sdo['Filter Settings']
+        filterSettings['Sampling Rate'].raw = 4
+        filterSettings['Gain Scheduling Velocity Controller'].raw = 1
+
+        velocityController = self.node.sdo['Velocity Control Parameter Set']
+        velocityController['Proportional Term POR'].raw = 44
+        velocityController['Integral Term I'].raw = 50
+
+        posController = self.node.sdo['Position Control Parameter Set']
+        posController['Proportional Term PP'].raw = 15
+        posController['Derivative Term PD'].raw = 10
+
+        curController = self.node.sdo['Current Control Parameter Set']
+        curController['Continuous Current Limit'].raw = 1000 * 0.550  # [mA]
+        curController['Peak Current Limit'].raw = 1000 * 1.640  # [mA]
+        curController['Integral Term CI'].raw = 3
+
+        self.node.sdo['Max Profile Velocity'].raw = 1000 * maxSpeed  # [mm / s]
+        self.node.sdo['Profile Acceleration'].raw = 1000 * maxAcc  # [mm / s^2]
+        self.node.sdo['Profile Deceleration'].raw = 1000 * maxAcc  # [mm / s^2]
 
     def setup_pdos(self):
         """Configure PDOs of node. We only use 'Position Actual Value' and
@@ -213,9 +243,6 @@ class Motor(_MotorBase):
                 rx.enabled = False
 
             rx.save()
-
-    def _update_state(self):
-        self.state = KinematicState(position=self.node.position)
 
     def home(self, speed: int = 100, deadCycles: int = 20):
         """Crude homing procedure. Move with PROFILED_VELOCITY operation mode
@@ -298,17 +325,8 @@ class Motor(_MotorBase):
             #raise DriveError(msg)
             self.logger.error('DriveError: %s', msg)
 
-        # Kinematic filter input target position
-        self.state = kinematic_filter(
-            self.input.value,
-            dt=INTERVAL,
-            state=self.state,
-            maxSpeed=1.,
-            maxAcc=1.,
-        )
-
         # Set target position
-        soll = SI_2_FAULHABER * self.state.position
+        soll = SI_2_FAULHABER * self.input.value
         self.node.pdo['Target Position'].raw = soll
         self.node.rpdo[1].transmit()
 
