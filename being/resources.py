@@ -7,6 +7,12 @@ from typing import ContextManager
 EXIT_STACK = contextlib.ExitStack()
 """Global exit stack for all resources in being."""
 
+_ALREADY_REGISTERED = set()
+"""Set of already registered memory addresses. We can not keep track of already
+registered resources by inspecting EXIT_STACK._exit_callbacks because of method
+re-mappings.
+"""
+
 
 def register_resource(resource: ContextManager, duplicates=False):
     """Register context manager in global being exit stack.
@@ -17,11 +23,14 @@ def register_resource(resource: ContextManager, duplicates=False):
     Kwargs:
         duplicates: Skip duplicate entries.
     """
-    if resource in EXIT_STACK._exit_callbacks:
-        warnings.warn(f'{resource} already in exit stack!')
-        if not duplicates:
+    addr = id(resource)
+    if addr in _ALREADY_REGISTERED:
+        if duplicates:
+            warnings.warn(f'{resource} already in exit stack!')
+        else:
             return
 
+    _ALREADY_REGISTERED.add(addr)
     EXIT_STACK.enter_context(resource)
 
 

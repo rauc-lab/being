@@ -35,6 +35,7 @@ STILL_HOMING = True
 DONE_HOMING = False
 """Indicates that homing job has finished."""
 
+
 FAULHABER_ERRORS = {
     0x0001: 'Continuous Over Current',
     0x0002: 'Deviation',
@@ -72,7 +73,7 @@ def _move(node, speed: int):
     node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
 
 
-def home_motors(motors: Iterable, interval: float = .01, timeout: float = 4., **kwargs):
+def home_motors(motors: Iterable, interval: float = .01, timeout: float = 5., **kwargs):
     """Home multiple motors in parallel. This operation will block for time of
     homing.
 
@@ -86,7 +87,8 @@ def home_motors(motors: Iterable, interval: float = .01, timeout: float = 4., **
     """
     homingJobs = [mot.home(**kwargs) for mot in motors]
     starTime = time.perf_counter()
-    while any(map(next, homingJobs)):
+
+    while any([next(job) == STILL_HOMING for job in homingJobs]):
         passed = time.perf_counter() - starTime
         if passed > timeout:
             raise RuntimeError(f'Could not home all motors before timeout {timeout} sec.!')
@@ -192,6 +194,9 @@ class Motor(_MotorBase):
         posController = self.node.sdo['Position Control Parameter Set']
         posController['Proportional Term PP'].raw = 15
         posController['Derivative Term PD'].raw = 10
+        # Some softer params from pygmies
+        #posController['Proportional Term PP'].raw = 8
+        #posController['Derivative Term PD'].raw = 14
 
         curController = self.node.sdo['Current Control Parameter Set']
         curController['Continuous Current Limit'].raw = 1000 * 0.550  # [mA]

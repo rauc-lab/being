@@ -2,6 +2,7 @@
  * @module transport Component for spline editor which manages transport state.
  */
 import { create_element, setattr } from "/static/js/svg.js";
+import { mod } from "/static/js/math.js";
 
 
 // Note: We use string literals instead of the Object.freeze() enum trick so
@@ -145,7 +146,7 @@ export class Transport {
         this.latestTimestamp = timestamp;
         let pos = timestamp - this.startTime;
         if (this.looping) {
-            pos %= this.duration;
+            pos = mod(pos, this.duration);
         }
 
         if (this.state !== PAUSED) {

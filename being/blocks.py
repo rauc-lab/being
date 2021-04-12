@@ -68,7 +68,7 @@ class Mic(Block):
     # TODO: Make me!
 
     def __init__(self, audioBackend=None):
-        if not audioBackend:
+        if audioBackend is None:
             audioBackend = AudioBackend.single_instance_setdefault()
             register_resource(audioBackend, duplicates=False)
 
