@@ -60,13 +60,20 @@ class Behavior extends Widget {
         slider.setAttribute("min", 0);
         slider.setAttribute("max", N_TICKS);
         slider.setAttribute("name", "attentionSpan");
+
+        this.attentionSpanSpan = document.createElement("span");
+        this.attentionSpanSpan.style = "display: inline-block; min-width: 3.5em; text-align: right;"
+
+        this.led = document.createElement("span");
+        this.led.classList.add("led");
+
         slider.addEventListener("change", () => {
             this.emit_params();
         });
-        this.attentionSpanSpan = document.createElement("span");
-        this.attentionSpanSpan.style = "display: inline-block; min-width: 3.5em; text-align: right;"
-        this.led = document.createElement("span");
-        this.led.classList.add("led");
+        slider.addEventListener("input", () => {
+            const duration = slider.value * MAX_ATTENTION_SPAN / N_TICKS;
+            this.update_attention_span_label(duration);
+        });
     }
 
     /**
@@ -181,6 +188,10 @@ class Behavior extends Widget {
         });
     }
 
+    update_attention_span_label(duration) {
+        this.attentionSpanSpan.innerHTML = round(duration, 1) + " sec";
+    }
+
     /**
      * Update attention span elements.
      *
@@ -189,7 +200,6 @@ class Behavior extends Widget {
     update_attention_span_slider(duration) {
         const value = duration / MAX_ATTENTION_SPAN * N_TICKS;
         this.attentionSpanSlider.value = value;
-        this.attentionSpanSpan.innerHTML = round(duration, 1) + " sec";
     }
 
     /**
@@ -210,6 +220,7 @@ class Behavior extends Widget {
         this.playPauseBtn.innerHTML = infos.active ? "pause" : "play_arrow";
         this.nowPlayingSpan.innerHTML = infos.lastPlayed;
         this.update_attention_span_slider(infos.params.attentionSpan);
+        this.update_attention_span_label(infos.params.attentionSpan);
         this.statesDiv.childNodes.forEach((stateDiv, nr) => {
             const names = infos.params.motions[nr];
             stateDiv.querySelectorAll("input[type='checkbox']").forEach(cb => {
