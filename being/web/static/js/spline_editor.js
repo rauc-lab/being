@@ -301,6 +301,24 @@ class Editor extends CurverBase {
             const newSpline = stretch_spline(this.history.retrieve(), 2.0);
             this.spline_changed(newSpline);
         });
+        this.add_button_to_toolbar("first_page", "Move to the left. Remove delay at the beginning.").addEventListener("click", () => {
+            if (!this.history.length) {
+                return;
+            }
+
+            const spline = this.history.retrieve();
+            const startOffset = spline.x[0];
+            if (startOffset === 0) {
+                return;
+            }
+
+            this.spline_changing();
+            const newSpline = spline.copy();
+            newSpline.x.forEach((knot, nr) => {
+                newSpline.x[nr] = knot - startOffset;
+            });
+            this.spline_changed(newSpline);
+        });
     }
 
     /**
