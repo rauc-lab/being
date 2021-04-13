@@ -1,17 +1,24 @@
-"""Sine movement on the Faulhaber demo script."""
+#!/usr/local/python3
+"""Slow Sine movement on the motors."""
 from being.being import awake
 from being.blocks import Sine, Trafo
 from being.motor import Motor
 from being.resources import manage_resources
 
 
-ROD_LENGTH = 0.04
-"""Rod length of Faulhaber linear drive in meter."""
+# Params
+MOTOR_IDS = [8, 9]
+ROD_LENGTH = .1
+FREQUENCY = .05
 
 
 with manage_resources():
-    motor = Motor(nodeId=8, length=ROD_LENGTH)
-    sine = Sine(frequency=.1)
-    trafo = Trafo(scale=.5 * ROD_LENGTH, offset=.5 * ROD_LENGTH)
-    sine | trafo | motor
-    awake(motor)
+    sine = Sine(FREQUENCY)
+    trafo = Trafo.from_ranges(inRange=[-1, 1.], outRange=[0, ROD_LENGTH])
+    sine | trafo
+    trafo.scale /= 2
+    for nodeId in MOTOR_IDS:
+        mot = Motor(nodeId, length=ROD_LENGTH)
+        trafo | mot
+
+    awake(sine)
