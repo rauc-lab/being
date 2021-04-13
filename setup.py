@@ -49,18 +49,11 @@ setup(
     #long_description_content_type='text/rst',  # TODO: Does not work
     name='being',
     packages=find_packages(),
-    package_data={
-        '': [
-            'MANIFEST.in',
-            'README.rst',
-        ],
-        'being.can': ['eds_files/*.eds'],
-    },
     data_files=[
-        ('static', glob.glob('static/*')),
         ('scripts', glob.glob('scripts/*.py')),
     ],
     include_package_data=True,
     test_suite='tests',
     version=being.__version__,
+    #project_urls={}  # TODO(atheler)
 )

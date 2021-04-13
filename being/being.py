@@ -11,9 +11,9 @@ from being.execution import execute, block_network_graph
 from being.graph import topological_sort
 from being.motion_player import MotionPlayer
 from being.motor import home_motors, _MotorBase
-from being.server import init_web_server, run_web_server, init_api
+from being.web.server import init_web_server, run_web_server, init_api
 from being.utils import filter_by_type
-from being.web_socket import WebSocket
+from being.web.web_socket import WebSocket
 
 
 def value_outputs(blocks):

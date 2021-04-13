@@ -1,81 +1,24 @@
-"""Web server back end."""
-import asyncio
+"""API calls / controller for communication between front end and being components."""
 import json
-import logging
 import math
-import os
-import types
 from typing import ForwardRef
 
 from aiohttp import web
 from scipy.interpolate import BPoly
 
-
-from being import ROOT_DIR
-from being.behavior import BEHAVIOR_CHANGED, State
-from being.connectables import MessageInput
-from being.content import CONTENT_CHANGED, Content
-from being.logging import BEING_LOGGERS
+from being.behavior import State
+from being.content import Content
 from being.logging import get_logger
-from being.sensors import Sensor
-from being.serialization import dumps, loads, spline_from_dict
+from being.serialization import loads, spline_from_dict
 from being.spline import fit_spline
 from being.utils import any_item
-from being.utils import filter_by_type
-from being.web_socket import WebSocket
+from being.web.responses import respond_ok, json_response
 
 
 LOGGER = get_logger(__name__)
-"""Server module logger."""
+"""API module logger."""
 
 Being = ForwardRef('Being')
-
-
-def resolve_path(path: str) -> str:
-    """Resolve path relative to current root directory.
-
-    Args:
-        path: Path to resolve.
-
-    Returns:
-        Absolute path.
-    """
-    # TODO(atheler): Dirty hack but did not find a way to serve the static
-    # directory via aiohttp. Tried moving static/ -> being/static/, pkgutil,
-    # include_package_data, ...
-    #
-    # Some links:
-    #   - https://stackoverflow.com/questions/6028000/how-to-read-a-static-file-from-inside-a-python-package
-    #   - https://setuptools.readthedocs.io/en/latest/userguide/datafiles.html
-    # ...
-    return os.path.join(ROOT_DIR, path)
-
-
-def respond_ok():
-    """Return with status ok."""
-    return web.Response()
-
-
-def json_response(obj=None):
-    """aiohttp web.json_response but with our custom JSON serialization dumps.
-
-    Args:
-        obj: Object to JSON serialize and pack in a response.
-    """
-    if obj is None:
-        obj = {}
-
-    return web.json_response(obj, dumps=dumps)
-
-
-def file_response_handler(filepath):
-    """Create anonymous file response handler for a file."""
-    return lambda request: web.FileResponse(filepath)
-
-
-def json_response_handler(data):
-    """Create anonymous JSON response handler function for some data."""
-    return lambda request: json_response(data)
 
 
 def content_controller(content: Content) -> web.RouteTableDef:
@@ -268,6 +211,7 @@ def being_controller(being: Being) -> web.RouteTableDef:
 
 
 def behavior_controller(behavior) -> web.RouteTableDef:
+    """API routes for being behavior."""
     # TODO: For now we only support 1x behavior instance. Needs to be expanded for the future
     routes = web.RouteTableDef()
 
@@ -322,124 +266,3 @@ def misc_controller() -> web.RouteTableDef:
             return web.HTTPBadRequest(text='Wrong trajectory data format. Has to be 2d!')
 
     return routes
-
-
-def wire_being_loggers_to_web_socket(ws: WebSocket):
-    """Add custom logging handler to all being loggers which emits log records
-    via web socket to the front end.
-
-    Args:
-        ws: Web socket.
-    """
-    class WsHandler(logging.Handler):
-        def emit(self, record):
-            ws.send_json_buffered({
-                'type': 'log',
-                'level': record.levelno,
-                'name': record.name,
-                'message': self.format(record),
-            })
-
-    handler = WsHandler()
-    for logger in BEING_LOGGERS:
-        logger.addHandler(handler)
-
-
-def patch_sensor_to_web_socket(sensor, ws):
-    """Route sensor output messages to web socket."""
-    # MessageOutput can only connect to an instance of MessageInput. No
-    # subclassing possible. Let us monkey patch the push method of a dummy
-    # instance of MessageInput instead.
-    # TODO(atheler): For the future, and more sensors, probably best to
-    # introduce some kind of phantom block with multiple message inputs. Or
-    # adding this functionality to the being instance itself.
-    dummy = MessageInput()
-
-    def push(self, message):
-        ws.send_json_buffered({
-            'type': 'sensor-message',
-            'event': message,
-        })
-
-    dummy.push = types.MethodType(push, dummy)
-    sensor.output.connect(dummy)
-
-
-def init_api(being, ws: WebSocket) -> web.Application:
-    """Initialize and setup Rest-like API subapp."""
-    content = Content.single_instance_setdefault()
-    api = web.Application()
-    api.add_routes(misc_controller())
-    api.add_routes(content_controller(content))
-
-    # Content
-    content.subscribe(CONTENT_CHANGED, lambda: ws.send_json_buffered(content.dict_motions_2()))
-
-    # Behavior
-    if len(being.behaviors) >= 1:
-        behavior = being.behaviors[0]
-        api.add_routes(behavior_controller(behavior))
-        behavior.subscribe(BEHAVIOR_CHANGED, lambda: ws.send_json_buffered(behavior.infos()))
-        content.subscribe(CONTENT_CHANGED, behavior._purge_params)
-
-    # Being
-    api.add_routes(being_controller(being))
-
-    logging.basicConfig(level=20)
-    wire_being_loggers_to_web_socket(ws)
-
-    # Patch sensor events
-    sensors = list(filter_by_type(being.execOrder, Sensor))
-    if len(sensors) > 0:
-        sensor = sensors[0]
-        patch_sensor_to_web_socket(sensor, ws)
-
-    return api
-
-
-def init_web_server() -> web.Application:
-    """Initialize aiohttp web server application and setup some routes.
-
-    Returns:
-        app: Application instance.
-    """
-    app = web.Application()
-    app.router.add_static(
-        prefix='/static',
-        path=resolve_path('static'),
-        show_index=True,
-    )
-    app.router.add_get(
-        '/favicon.ico',
-        file_response_handler(resolve_path('static/favicon.ico')),
-    )
-    app.router.add_get(
-        '/',
-        file_response_handler(resolve_path('static/index.html')),
-    )
-    app.router.add_get(
-        '/being',
-        file_response_handler(resolve_path('static/being.html')),
-    )
-    app.router.add_get(
-        '/web-socket-test',
-        file_response_handler(resolve_path('static/web-socket-test.html')),
-    )
-    return app
-
-
-async def run_web_server(app: web.Application):
-    """Run aiohttp web server app asynchronously (new in version 3.0.0).
-
-    Args:
-        app (?): Aiohttp web application.
-    """
-    runner = web.AppRunner(app)
-    LOGGER.info('Setting up runner')
-    await runner.setup()
-    site = web.TCPSite(runner)
-    LOGGER.info(f'Starting site at:\n{site.name}')
-    await site.start()
-
-    while True:
-        await asyncio.sleep(3600)  # sleep forever
