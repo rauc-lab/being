@@ -7,6 +7,7 @@ import types
 from aiohttp import web
 
 from being.behavior import BEHAVIOR_CHANGED
+from being.config import  CONFIG
 from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
 from being.logging import BEING_LOGGERS
@@ -138,7 +139,11 @@ async def run_web_server(app: web.Application):
     runner = web.AppRunner(app)
     LOGGER.info('Setting up runner')
     await runner.setup()
-    site = web.TCPSite(runner)
+    site = web.TCPSite(
+        runner,
+        host=CONFIG['Web']['HOST'],
+        port=CONFIG['Web']['PORT'],
+    )
     LOGGER.info(f'Starting site at:\n{site.name}')
     await site.start()
 

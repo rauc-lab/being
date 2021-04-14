@@ -105,9 +105,9 @@ def awake(*blocks, web=True):
     Kwargs:
         web: Run with web server.
     """
+    setup_logging()
     being = Being(blocks)
     if not web:
-        setup_logging()
         return being.run()
 
     asyncio.run(_awake_web(being))
@@ -121,7 +121,6 @@ async def _awake_web(being):
     app.on_shutdown.append(ws.close_all)
     api = init_api(being, ws)
     app.add_subapp(API_PREFIX, api)
-    setup_logging()
     await asyncio.gather(*[
         being._run_web(ws),
         run_web_server(app),
