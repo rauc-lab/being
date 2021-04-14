@@ -1,27 +1,31 @@
 """Loading configurations and default configuration values."""
 import configparser
 import json
+import logging
 import os
 from typing import Union
 
 
-CONFIG: dict = {}
+CONFIG = {
+    'General': {
+        'INTERVAL': .010,  # Main loop interval in seconds.
+        'CONTENT_DIRECTORY': 'content',  # Default directory for motions / splines
+    },
+    'Can': {
+        'DEFAULT_CAN_BITRATE': 1000000,  # Default bitrate (bit / sec) for CAN interface.
+        'SI_2_FAULHABER': 1e6,  # Unit conversion for Lineare DC-Servomotoren Serie LM 0830 ... 01.
+    },
+    'Web': {
+        'API_PREFIX': '/api',  # API route prefix.
+        'WEB_SOCKET_ADDRESS': '/stream',  # Web socket URL.
+    },
+    'Logging': {
+        'LEVEL': logging.DEBUG,
+        'DIRECTORY': None,
+        'FILENAME': 'being.log',
+    }
+}
 """Global configuration object."""
-
-DEFAULT_CONFIGS = """
-[General]
-INTERVAL = .010  #Main loop interval in seconds.
-CONTENT_DIRECTORY = "content"
-
-[Can]
-DEFAULT_CAN_BITRATE = 1000000  #Default bitrate (bit / sec) for CAN interface.
-SI_2_FAULHABER = 1e6  #Unit conversion for Lineare DC-Servomotoren Serie LM 0830 ... 01.
-
-
-[Web]
-API_PREFIX = "/api"  #API route prefix.
-WEB_SOCKET_ADDRESS = "/stream"  #Web socket URL.
-"""
 
 
 def parse_string(string: str) -> Union[str, object]:
@@ -83,7 +87,6 @@ def _update_recursively(dct: dict, **kwargs):
             dct[key] = value
 
 
-CONFIG = parse_config(DEFAULT_CONFIGS)
 for fp in [
     os.path.join(os.getcwd(), 'being.ini'),
 ]:

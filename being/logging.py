@@ -1,5 +1,9 @@
 import logging
+import logging.handlers
+import os
 from typing import Optional
+
+from being.config import CONFIG
 
 
 BEING_LOGGERS = set()
@@ -11,6 +15,11 @@ DEFAULT_EXCLUDES = [
     'can',
     'canopen',
 ]
+
+
+LEVEL = CONFIG['Logging']['LEVEL']
+DIRECTORY = CONFIG['Logging']['DIRECTORY']
+FILENAME = CONFIG['Logging']['FILENAME']
 
 
 def suppress_other_loggers(*excludes):
@@ -29,8 +38,36 @@ def get_logger(name: Optional[str] = None):
     loggers (via evil global variable BEING_LOGGERS).
 
     Args:
-        name: Looger name. None for root logger.
+        name: Logger name. None for root logger.
     """
     logger = logging.getLogger(name)
     BEING_LOGGERS.add(logger)
     return logger
+
+
+def setup_logging():
+    """Setup being loggers."""
+    logging.root.setLevel(LEVEL)
+    formatter = logging.Formatter(
+        fmt='%(asctime)s.%(msecs)03d -%(levelname)5s - %(name)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+    )
+
+    # Normal stream handler
+    sh = logging.StreamHandler()
+    sh.setLevel(LEVEL)
+    sh.setFormatter(formatter)
+    logging.root.addHandler(sh)
+
+    if DIRECTORY is not None:
+        # Rotary log file handler
+        os.makedirs(DIRECTORY, exist_ok=True)
+        fh = logging.handlers.TimedRotatingFileHandler(
+            filename=os.path.join(DIRECTORY, FILENAME),
+            when='midnight',
+            interval=1,
+            backupCount=10,
+        )
+        fh.setLevel(LEVEL)
+        fh.setFormatter(formatter)
+        logging.root.addHandler(fh)

@@ -4,6 +4,7 @@ import glob
 import shutil
 from typing import List, Generator
 
+from being.config import CONFIG
 from being.logging import get_logger
 from being.pubsub import PubSub
 from being.serialization import loads, dumps
@@ -17,7 +18,7 @@ CONTENT_CHANGED = 'CONTENT_CHANGED'
 NameGenerator = Generator[str, None, None]
 """Motion names generator."""
 
-DEFAULT_DIRECTORY = 'content'
+DEFAULT_DIRECTORY = CONFIG['General']['CONTENT_DIRECTORY']
 """Default content directory."""
 
 

@@ -9,10 +9,11 @@ from being.config import CONFIG
 from being.connectables import ValueOutput
 from being.execution import execute, block_network_graph
 from being.graph import topological_sort
+from being.logging import setup_logging
 from being.motion_player import MotionPlayer
 from being.motor import home_motors, _MotorBase
-from being.web.server import init_web_server, run_web_server, init_api
 from being.utils import filter_by_type
+from being.web.server import init_web_server, run_web_server, init_api
 from being.web.web_socket import WebSocket
 
 
@@ -106,6 +107,7 @@ def awake(*blocks, web=True):
     """
     being = Being(blocks)
     if not web:
+        setup_logging()
         return being.run()
 
     asyncio.run(_awake_web(being))
@@ -119,6 +121,7 @@ async def _awake_web(being):
     app.on_shutdown.append(ws.close_all)
     api = init_api(being, ws)
     app.add_subapp(API_PREFIX, api)
+    setup_logging()
     await asyncio.gather(*[
         being._run_web(ws),
         run_web_server(app),
