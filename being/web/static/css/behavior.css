@@ -1,4 +1,6 @@
-.container { border-top: 2px solid black; }
+.container {
+    border-top: 2px solid black;
+}
 
 .states {
     display: flex;
@@ -8,37 +10,20 @@
 
 .state {
     display: inline-block;
-    border: 2px solid black;
-    border-width: 2px 0 0px 0;
+    border: 0px solid black;
+    border-top-width: 2px;
     transition: box-shadow 0.3s ease-in-out;
+    flex-basis: 30%;
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+.state:first-child {
+    border-top-width: 0px;
 }
 
-.state.selected { box-shadow: 0 0 1em #888; }
-
-.state div.title { font-weight: bold; }
-
-.state div.infos {
-    font-size: 0.76em;
-    font-style: italic;
+.state.selected {
+    box-shadow: 0 0 0em #888;
 }
-
-.state ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.state li label {
-    display: inline-block;
-    width: 100%;
-    cursor: pointer;
-}
-
-.state li input[type="checkbox"]:checked + label {
-    background: black;
-    color: white;
-}
-
 
 @media screen and (min-width: 800px) {
     .states {
@@ -48,24 +33,66 @@
     .state {
         margin: 1em;
         padding: 1em;
-        border-width: 2px;
+        border-width: 2px !important;
     }
 
     .state ul {
         border: 2px solid black;
     }
 
-    .state.selected { box-shadow: 0 0 1em black; }
+    .state.selected {
+        box-shadow: 0 0 1em black;
+    }
 }
 
-.now-playing { font-family: "Courier New", Courier, monospace; }
+.state .title {
+    font-weight: bold;
+    margin-right: 1em;
+}
+
+span.now-playing {
+    font-style: italic;
+}
+
+.state ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    margin-top: 1em;
+}
+
+.state ul li input[type="checkbox"]:checked + label {
+    background: black;
+    color: white;
+}
+
+.state li label {
+    display: inline-block;
+    width: 100%;
+    cursor: pointer;
+    /*
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    */
+}
+
+.state.selected ul li label.now-playing-motion {
+    animation: now-playing-pulse 2s infinite;
+}
+
+@keyframes now-playing-pulse {
+    0% { background: black; color: white; }
+    33% { background: #ccc; color: #000; }
+    100% { background: black; color: white; }
+}
 
 span.led {
     display: inline-block;
     background-color: black;
     opacity: 0;
-    width: .5em;
-    height: .5em;
+    width: 0.5em;
+    height: 0.5em;
     border-radius: 50%;
     margin-left: .25em;
 }

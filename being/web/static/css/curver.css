@@ -3,11 +3,17 @@
     flex-flow: column nowrap;
 }
 
-.container > * { border-top: 2px solid black; }
+.container > * {
+    border-top: 2px solid black;
+}
 
-#motion-list { flex-grow: 1; }
+#motion-list {
+    flex-grow: 1;
+}
 
-#graph { flex-grow: 4; }
+#graph {
+    flex-grow: 4;
+}
 
 @media screen and (min-width: 800px) {
     .container {
@@ -52,6 +58,10 @@
     height: 100%;
 }
 
-#graph svg { cursor: move; }
+#graph svg {
+    cursor: move;
+}
 
-#graph svg circle { cursor: pointer; }
+#graph svg circle {
+    cursor: pointer;
+}

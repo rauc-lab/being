@@ -18,8 +18,6 @@ const BEHAVIOR_TEMPLATE = document.createElement("template");
 BEHAVIOR_TEMPLATE.innerHTML = `
 <div class="container">
     <div id="statesDiv" class="states"></div>
-    <label>Now playing: </label>
-    <span id="nowPlayingSpan" class="now-playing"></span>
 </div>
 `;
 
@@ -52,7 +50,16 @@ class Behavior extends Widget {
         this.add_template(BEHAVIOR_TEMPLATE);
 
         this.statesDiv = this.shadowRoot.getElementById("statesDiv");
-        this.nowPlayingSpan = this.shadowRoot.getElementById("nowPlayingSpan");
+
+        const label = document.createElement("label");
+        this.toolbar.appendChild(label);
+        label.innerHTML = "Now playing: ";
+        label.style.marginLeft = "0.5em";
+        label.style.marginRight = "0.5em";
+
+        this.nowPlayingSpan = document.createElement("span");
+        this.nowPlayingSpan.classList.add("now-playing");
+        this.toolbar.appendChild(this.nowPlayingSpan);
 
         const slider = document.createElement("input");
         this.attentionSpanSlider = slider;
@@ -105,13 +112,13 @@ class Behavior extends Widget {
             stateDiv.classList.add("state");
 
             // State name / title
-            const stateNameDiv = document.createElement("div");
+            const stateNameDiv = document.createElement("span");
             stateDiv.appendChild(stateNameDiv);
             stateNameDiv.classList.add("title");
             stateNameDiv.innerHTML = name;
 
             // State specific infos / params
-            const div = document.createElement("div");
+            const div = document.createElement("span");
             div.classList.add("infos");
             stateDiv.appendChild(div);
 
@@ -223,8 +230,16 @@ class Behavior extends Widget {
         this.update_attention_span_label(infos.params.attentionSpan);
         this.statesDiv.childNodes.forEach((stateDiv, nr) => {
             const names = infos.params.motions[nr];
-            stateDiv.querySelectorAll("input[type='checkbox']").forEach(cb => {
+            const ul = stateDiv.querySelector("ul");
+            ul.querySelectorAll("input[type='checkbox']").forEach(cb => {
                 cb.checked = names.includes(cb.name);
+            });
+            ul.querySelectorAll("label").forEach(label => {
+                if (label.innerHTML === infos.lastPlayed) {
+                    label.classList.add("now-playing-motion");
+                } else {
+                    label.classList.remove("now-playing-motion");
+                }
             });
         });
         this.mark_active_state(infos.active ? infos.state.value : -1);

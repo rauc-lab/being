@@ -6,9 +6,13 @@ div.toolbar {
     border-width: 0 2px 0 0;
     z-index: 666;
     margin-bottom: -2px;
+    align-items: center;
 }
 
-div.toolbar > * {
+div.toolbar > button,
+div.toolbar > select,
+div.toolbar > div
+ {
     height: 32px;
     margin: -2px 0 0 -2px;
     border: 2px solid black;
@@ -32,18 +36,8 @@ div.toolbar button[checked] {
     color: white;
 }
 
-div.toolbar button:disabled { color: silver; }
-
-div.toolbar button.record[checked] {
-    background-color: white;
-    color: black;
-    animation: pulsating-red 2s infinite;
-}
-
-@keyframes pulsating-red {
-    0% { background-color: white; }
-    40% { background-color: red; }
-    100% { background-color: white; }
+div.toolbar button:disabled {
+    color: silver;
 }
 
 div.toolbar .space {

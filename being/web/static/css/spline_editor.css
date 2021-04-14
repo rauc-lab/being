@@ -20,8 +20,8 @@
 }
 
 #motion-list > div:first-child {
-  max-height: 60vh;
-  overflow: scroll;
+    max-height: 60vh;
+    overflow: scroll;
 }
 
 #motion-list div.spline-list-entry:hover {
@@ -82,4 +82,16 @@
 #motion-list .nonvalid {
     color: red;
     border: 2px solid red;
+}
+
+div.toolbar button.record[checked] {
+    background-color: white;
+    color: black;
+    animation: pulsating-red 2s infinite;
+}
+
+@keyframes pulsating-red {
+    0% { background-color: white; }
+    40% { background-color: red; }
+    100% { background-color: white; }
 }
