@@ -20,7 +20,7 @@ import { Api } from "/static/js/api.js";
 
 
 /** Zero spline with duration 1.0 */
-//const ZERO_SPLINE = new BPoly([[0.], [0.], [0.], [0.], ], [0., 1.]);
+const ZERO_SPLINE = new BPoly([[0.], [0.], [0.], [0.], ], [0., 1.]);
 
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
 const ZOOM_FACTOR_PER_STEP = 1.5;
@@ -318,6 +318,10 @@ class Editor extends CurverBase {
                 newSpline.x[nr] = knot - startOffset;
             });
             this.spline_changed(newSpline);
+        });
+        this.add_button_to_toolbar("clear", "Reset current motion.").addEventListener("click", () => {
+            this.spline_changing();
+            this.spline_changed(ZERO_SPLINE.copy());
         });
     }
 
