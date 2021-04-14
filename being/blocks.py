@@ -4,10 +4,13 @@ import math
 
 from being.backends import AudioBackend
 from being.block import Block
-from being.config import INTERVAL
+from being.config import CONFIG
 from being.constants import TAU
 from being.math import linear_mapping
 from being.resources import register_resource
+
+
+INTERVAL = CONFIG['General']['INTERVAL']
 
 
 class Sine(Block):

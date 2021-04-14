@@ -20,12 +20,13 @@ from being.can.definitions import (
     SUPPORTED_DRIVE_MODES,
 )
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
-from being.config import SI_2_FAULHABER
+from being.config import CONFIG
 from being.logging import get_logger
 
 
 State = ForwardRef('State')
 Edge = Tuple[State, State]
+SI_2_FAULHABER = CONFIG['Can']['SI_2_FAULHABER']
 
 
 class State(Enum):

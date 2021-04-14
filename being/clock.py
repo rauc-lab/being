@@ -1,5 +1,8 @@
-from being.config import INTERVAL
+from being.config import CONFIG
 from being.utils import SingleInstanceCache
+
+
+INTERVAL = CONFIG['General']['INTERVAL']
 
 
 class Clock(SingleInstanceCache):

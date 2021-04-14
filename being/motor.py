@@ -18,7 +18,7 @@ from being.can.definitions import (
     TransmissionType,
 )
 from being.can.nmt import PRE_OPERATIONAL
-from being.config import SI_2_FAULHABER, INTERVAL
+from being.config import CONFIG
 from being.connectables import ValueInput, ValueOutput
 from being.constants import INF
 from being.error import BeingError
@@ -51,6 +51,10 @@ FAULHABER_ERRORS = {
     0x2000: 'PDO Length Exceeded',
     0x4000: 'PDO not processes due to length error',
 }
+
+
+SI_2_FAULHABER = CONFIG['Can']['SI_2_FAULHABER']
+INTERVAL = CONFIG['General']['INTERVAL']
 
 
 class DriveError(BeingError):

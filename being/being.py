@@ -5,7 +5,7 @@ import time
 from being.backends import CanBackend
 from being.behavior import Behavior
 from being.clock import Clock
-from being.config import INTERVAL, API_PREFIX, WEB_SOCKET_ADDRESS
+from being.config import CONFIG
 from being.connectables import ValueOutput
 from being.execution import execute, block_network_graph
 from being.graph import topological_sort
@@ -14,6 +14,11 @@ from being.motor import home_motors, _MotorBase
 from being.web.server import init_web_server, run_web_server, init_api
 from being.utils import filter_by_type
 from being.web.web_socket import WebSocket
+
+
+INTERVAL = CONFIG['General']['INTERVAL']
+API_PREFIX = CONFIG['Web']['API_PREFIX']
+WEB_SOCKET_ADDRESS = CONFIG['Web']['WEB_SOCKET_ADDRESS']
 
 
 def value_outputs(blocks):

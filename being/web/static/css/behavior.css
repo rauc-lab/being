@@ -17,6 +17,7 @@
     flex-grow: 1;
     flex-shrink: 1;
 }
+
 .state:first-child {
     border-top-width: 0px;
 }

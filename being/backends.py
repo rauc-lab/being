@@ -8,7 +8,7 @@ import sys
 import warnings
 from typing import List, ForwardRef
 
-from being.config import DEFAULT_CAN_BITRATE
+from being.config import CONFIG
 from being.rpi_gpio import GPIO
 
 try:
@@ -23,6 +23,7 @@ from being.logging import get_logger
 
 
 CiA402Node = ForwardRef('CiA402Node')
+DEFAULT_CAN_BITRATE = CONFIG['Can']['DEFAULT_CAN_BITRATE']
 
 
 # Default system dependent CAN bus parameters
