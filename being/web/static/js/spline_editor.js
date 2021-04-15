@@ -7,7 +7,7 @@ import { make_draggable } from "/static/js/draggable.js";
 import { History } from "/static/js/history.js";
 import { clip } from "/static/js/math.js";
 import { subtract_arrays, array_reshape, multiply_scalar, array_shape } from "/static/js/array.js";
-import { BPoly } from "/static/js/spline.js";
+import { COEFFICIENTS_DEPTH, BPoly } from "/static/js/spline.js";
 import { clear_array } from "/static/js/utils.js";
 import { Line } from "/static/js/line.js";
 import { PAUSED, PLAYING, RECORDING, Transport } from "/static/js/transport.js";
@@ -21,6 +21,7 @@ import { Api } from "/static/js/api.js";
 
 /** Zero spline with duration 1.0 */
 const ZERO_SPLINE = new BPoly([[0.], [0.], [0.], [0.], ], [0., 1.]);
+
 
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
 const ZOOM_FACTOR_PER_STEP = 1.5;
@@ -52,7 +53,7 @@ function zoom_bbox_in_place(bbox, factor) {
  */
 function scale_spline(spline, factor) {
     const shape = array_shape(spline.c);
-    const scaledCoeffs = array_reshape(multiply_scalar(factor, spline.c.flat()), shape);
+    const scaledCoeffs = array_reshape(multiply_scalar(factor, spline.c.flat(COEFFICIENTS_DEPTH)), shape);
     return new BPoly(scaledCoeffs, spline.x);
 }
 
@@ -319,7 +320,7 @@ class Editor extends CurverBase {
             });
             this.spline_changed(newSpline);
         });
-        this.add_button_to_toolbar("clear", "Reset current motion.").addEventListener("click", () => {
+        this.add_button_to_toolbar("clear", "Reset current motion").addEventListener("click", () => {
             this.spline_changing();
             this.spline_changed(ZERO_SPLINE.copy());
         });

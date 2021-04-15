@@ -2,6 +2,8 @@
  * @module array Numpy style array helpers.
  */
 
+import {assert, arrays_equal} from "/static/js/utils.js";
+
 
 /**
  * Shape of an array.
@@ -140,3 +142,16 @@ export function subtract_arrays(minuend, subtrahend) {
 export function transpose_array(arr) {
     return arr[0].map((_, colIndex) => arr.map(row => row[colIndex]));
 }
+
+
+export function array_full(shape, fillValue) {
+    const n = shape.reduce((acc, val) => {
+        return acc * val;
+    });
+    const raw = Array(n).fill(fillValue);
+    return array_reshape(raw, shape);
+}
+
+
+assert(arrays_equal( array_full([3], 1), [1, 1, 1]));
+assert(arrays_equal( array_full([1, 3], 1), [[1, 1, 1]]));

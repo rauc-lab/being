@@ -5,7 +5,7 @@ import { BBox } from "/static/js/bbox.js";
 import { make_draggable } from "/static/js/draggable.js";
 import { arange } from "/static/js/array.js";
 import { clip } from "/static/js/math.js";
-import { KNOT, FIRST_CP, SECOND_CP, Degree, LEFT, RIGHT } from "/static/js/spline.js";
+import { COEFFICIENTS_DEPTH, KNOT, FIRST_CP, SECOND_CP, Degree, LEFT, RIGHT } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
 import { assert, arrays_equal, clear_array } from "/static/js/utils.js";
 
@@ -146,7 +146,7 @@ export class SplineDrawer {
             ele,
             evt => {
                 start = this.editor.mouse_coordinates(evt);
-                yValues = new Set(workingCopy.c.flat());
+                yValues = new Set(workingCopy.c.flat(COEFFICIENTS_DEPTH));
                 yValues.add(0.0);
                 this.editor.spline_changing();
                 limits = this.editor.limits();
