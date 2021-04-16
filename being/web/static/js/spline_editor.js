@@ -6,7 +6,7 @@ import { CurverBase } from "/static/js/curver.js";
 import { make_draggable } from "/static/js/draggable.js";
 import { History } from "/static/js/history.js";
 import { clip } from "/static/js/math.js";
-import { subtract_arrays, array_reshape, multiply_scalar, array_shape } from "/static/js/array.js";
+import { subtract_arrays, array_reshape, multiply_scalar, array_shape, zeros } from "/static/js/array.js";
 import { COEFFICIENTS_DEPTH, BPoly } from "/static/js/spline.js";
 import { clear_array } from "/static/js/utils.js";
 import { Line } from "/static/js/line.js";
@@ -19,9 +19,8 @@ import { toggle_button, switch_button_on, switch_button_off, is_checked, enable_
 import { Api } from "/static/js/api.js";
 
 
-/** Zero spline with duration 1.0 */
-const ZERO_SPLINE = new BPoly([[0.], [0.], [0.], [0.], ], [0., 1.]);
-
+/** @const {BPoly} - Zero spline with duration 1.0 */
+const ZERO_SPLINE = new BPoly(zeros([4, 1, 1]), [0., 1.]);
 
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
 const ZOOM_FACTOR_PER_STEP = 1.5;
@@ -86,15 +85,13 @@ class Editor extends CurverBase {
         this.recordedTrajectory = [];
         this.api = new Api();
 
-        // Single actual value line
-        const color = this.colorPicker.next();
-        this.line = new Line(this.ctx, color, this.maxlen);
-        this.lines.push(this.line);
-
         this.setup_toolbar_elements();
 
         // Initial data
         this.api.get_motor_infos().then(infos => {
+            infos.forEach(mot => {
+                this.init_plotting_lines(mot.ndim);
+            });
             this.motorSelector.populate(infos);
         });
         this.splineList.reload_spline_list();
@@ -135,6 +132,13 @@ class Editor extends CurverBase {
      */
     get snapping_to_grid() {
         return is_checked(this.snapBtn);
+    }
+
+    init_plotting_lines(n) {
+        while (this.lines.length < n) {
+            const color = this.colorPicker.next();
+            this.lines.push(new Line(this.ctx, color, this.maxlen));
+        }
     }
 
     resize() {
@@ -485,9 +489,10 @@ class Editor extends CurverBase {
      * @returns {BBox} Boundaries bounding box
      */
     limits() {
+        // TODO(atheler): Support for multiple and different motor lengths
         if (is_checked(this.limitBtn)) {
             const motor = this.motorSelector.selected_motor_info();
-            return new BBox([0, 0], [Infinity, motor.length]);
+            return new BBox([0, 0], [Infinity, motor.lengths[0]]);
         } else {
             return new BBox([0, -Infinity], [Infinity, Infinity]);
         }
@@ -526,7 +531,9 @@ class Editor extends CurverBase {
 
         const duration = current.end;
         this.transport.duration = duration;
-        this.line.maxlen = .8 * duration / INTERVAL;
+        this.lines.forEach(line => {
+            line.maxlen = .8 * duration / INTERVAL;
+        });
 
         this.drawer.clear();
         this.drawer.draw_spline(current);
@@ -539,7 +546,7 @@ class Editor extends CurverBase {
      */
     spline_changing(position = null) {
         this.stop_spline_playback();
-        this.line.data.clear();
+        this.lines.forEach(line => line.data.clear());
         if (position !== null && is_checked(this.livePreviewBtn)) {
             const motor = this.motorSelector.selected_motor_info();
             this.api.live_preview(position, motor.id);
@@ -597,8 +604,10 @@ class Editor extends CurverBase {
      */
     async start_recording() {
         this.transport.record();
-        this.line.data.clear();
-        this.line.data.maxlen = Infinity;
+        this.lines.forEach(line => {
+            line.data.clear();
+            line.data.maxlen = Infinity;
+        });
         this.auto = true;
         this.drawer.clear();
         await this.api.disable_motors();
@@ -694,11 +703,13 @@ class Editor extends CurverBase {
         }
 
         const motor = this.motorSelector.selected_motor_info();
-        const actualValue = msg.values[motor.actualValueIndex];
         if (this.transport.paused) {
-            this.line.data.popleft();
+            this.lines.forEach(line => line.data.popleft());
         } else {
-            this.line.append_data([t, actualValue]);
+            motor.actualValueIndices.forEach((idx, nr) => {
+                const actualValue = msg.values[idx];
+                this.lines[nr].append_data([t, actualValue]);
+            });
         }
 
         if (this.transport.recording) {

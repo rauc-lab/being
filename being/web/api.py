@@ -9,6 +9,7 @@ from scipy.interpolate import BPoly
 from being.behavior import State
 from being.content import Content
 from being.logging import get_logger
+from being.motor import _MotorBase
 from being.serialization import loads, spline_from_dict
 from being.spline import fit_spline
 from being.utils import any_item
@@ -104,16 +105,35 @@ def content_controller(content: Content) -> web.RouteTableDef:
     return routes
 
 
+def connected_motors(motionPlayer):
+    for output in motionPlayer.positionOutpus:
+        for input_ in output.outgoingConnections:
+            if isinstance(input_.owner, _MotorBase):
+                yield input_.owner
+
+
 def serialize_motion_players(being):
     """Return list of motion player / motors informations."""
     for nr, mp in enumerate(being.motionPlayers):
-        input_ = any_item(mp.output.outgoingConnections)
-        motor = input_.owner
+        setpointOutputs = []
+        actualOutputs = []
+        motors = []
+        lengths = []
+        for output in mp.positionOutputs:
+            for input_ in output.outgoingConnections:
+                if isinstance(input_.owner, _MotorBase):
+                    mot = input_.owner
+                    motors.append(mot)
+                    actualOutputs.append(mot.output)
+                    setpointOutputs.append(mot.input.incomingConnection)
+                    lengths.append(mot.length)
+                    break
+
         yield {
             'id': nr,
-            'setpointValueIndex': being.valueOutputs.index(mp.output),
-            'actualValueIndex': being.valueOutputs.index(motor.output),
-            'length': motor.length,
+            'actualValueIndices': [being.valueOutputs.index(out) for out in actualOutputs],
+            'lengths': lengths,
+            'ndim': mp.ndim,
         }
 
 

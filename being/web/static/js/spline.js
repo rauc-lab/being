@@ -112,7 +112,7 @@ export class BPoly {
     constructor(c, x, extrapolate=false, axis=0) {
         c = _vectorize_coefficients(c);
         const shape = array_shape(c);
-        //assert(shape.length === 3, "Coefficients c have the wrong shape " + shape);
+        assert(shape.length === 3, "Coefficients c have the wrong shape " + shape);
         assert(shape[1] === x.length - 1, "Mismatching coefficients and knots!");
         this.c = c;
         this.x = x;
@@ -430,22 +430,12 @@ export class BPoly {
      * Convert BPoly instance to dict representation.
      */
     to_dict() {
-        let c = [];
-        if (this.ndim === 1) {
-            c = this.c.map(row => {
-                return row.map(values => {
-                    return values[0];
-                });
-            });
-        } else {
-            c = this.c;
-        }
         return {
             "type": "BPoly",
             "extrapolate": this.extrapolate,
             "axis": 0,
             "knots": this.x,
-            "coefficients": c,
+            "coefficients": this.c,
         };
     }
 

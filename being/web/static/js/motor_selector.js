@@ -2,7 +2,7 @@
  * @module motor_selector Component around HTML select to keep track of the
  * currently selected motor (or motion player behind the scenes).
  */
-import { remove_all_children, add_option } from "/static/js/utils.js";
+import {remove_all_children, add_option} from "/static/js/utils.js";
 
 
 /** @const {number} - Nothing selected in HTML select yet */
@@ -11,9 +11,9 @@ export const NOTHING_SELECTED = -1;
 /** @const {object} - Default motor info dictionary if nothing is selected */
 const DEFAULT_MOTOR_INFO = {
     "id": 0,
-    "setpointValueIndex": 0,
-    "actualValueIndex": 0,
-    "length": Infinity,
+    "actualValueIndices": [0],
+    "length": [Infinity],
+    "ndim": 1,
 };
 
 

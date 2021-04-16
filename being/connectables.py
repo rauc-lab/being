@@ -106,7 +106,7 @@ def break_connection(output: OutputBase, input_: InputBase):
     input_.incomingConnection = None
 
 
-def is_connected(output: OutputBase, input_: InputBase) ->bool:
+def is_connected(output: OutputBase, input_: InputBase) -> bool:
     """Check if output is connected to input_."""
     if not is_valid_connection(output, input_):
         return False

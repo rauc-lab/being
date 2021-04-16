@@ -10,7 +10,6 @@ from being.sensors import Sensor
 
 
 logging.basicConfig(level=0)
-suppress_other_loggers()
 
 
 class DummySensor(Sensor):
@@ -34,5 +33,7 @@ behavior = Behavior.from_config('behavior.json')
 mp = MotionPlayer()
 behavior.associate(mp)
 mp | DummyMotor()
+mp.add_position_output()
+mp.outputs[1] | DummyMotor()
 sensor | behavior
 awake(behavior)
