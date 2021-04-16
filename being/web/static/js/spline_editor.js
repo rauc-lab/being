@@ -84,6 +84,8 @@ class Editor extends CurverBase {
         this.splineList = new SplineList(this);
         this.recordedTrajectory = [];
         this.api = new Api();
+        this.dimSelect = null;
+        this.dim = 0;
 
         this.setup_toolbar_elements();
 
@@ -134,16 +136,21 @@ class Editor extends CurverBase {
         return is_checked(this.snapBtn);
     }
 
-    init_plotting_lines(n) {
-        while (this.lines.length < n) {
-            const color = this.colorPicker.next();
-            this.lines.push(new Line(this.ctx, color, this.maxlen));
-        }
-    }
-
     resize() {
         super.resize();
         this.draw();
+    }
+
+    /**
+     * Initialize a given number of splines.
+     *
+     * @param {Number} maxLines Maximum number of lines.
+     */
+    init_plotting_lines(maxLines = 1) {
+        while (this.lines.length < maxLines) {
+            const color = this.colorPicker.next();
+            this.lines.push(new Line(this.ctx, color, this.maxlen));
+        }
     }
 
     /**
@@ -713,7 +720,8 @@ class Editor extends CurverBase {
         }
 
         if (this.transport.recording) {
-            this.recordedTrajectory.push([t, actualValue]);
+            const vals = msg.values.filter((_, i) => motor.actualValueIndices.includes(i));
+            this.recordedTrajectory.push([t].concat(vals));
         }
     }
 
@@ -724,5 +732,6 @@ class Editor extends CurverBase {
         }
     }
 }
+
 
 customElements.define("being-editor", Editor);

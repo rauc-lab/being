@@ -115,7 +115,6 @@ def connected_motors(motionPlayer):
 def serialize_motion_players(being):
     """Return list of motion player / motors informations."""
     for nr, mp in enumerate(being.motionPlayers):
-        setpointOutputs = []
         actualOutputs = []
         motors = []
         lengths = []
@@ -125,7 +124,6 @@ def serialize_motion_players(being):
                     mot = input_.owner
                     motors.append(mot)
                     actualOutputs.append(mot.output)
-                    setpointOutputs.append(mot.input.incomingConnection)
                     lengths.append(mot.length)
                     break
 
