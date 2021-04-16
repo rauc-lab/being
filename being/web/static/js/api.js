@@ -1,9 +1,9 @@
 /**
  *  @module api Back end API definitions.
  */
-import { BPoly } from "/static/js/spline.js";
-import { API } from "/static/js/config.js";
-import { put, post, delete_fetch, get_json, post_json, put_json } from "/static/js/fetching.js";
+import {BPoly} from "/static/js/spline.js";
+import {API} from "/static/js/config.js";
+import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js/fetching.js";
 
 
 export class Api {
@@ -15,7 +15,6 @@ export class Api {
     async get_motor_infos() {
         return get_json(API + "/motors");
     }
-
 
     /**
      * Play spline in backend.
@@ -29,14 +28,12 @@ export class Api {
         return res["startTime"];
     }
 
-
     /**
      * Stop all spline playback in backend.
      */
     async stop_spline_playback() {
         return post(API + "/motors/stop");
     }
-
 
     /**
      * Move motor in backend to position.
@@ -47,7 +44,6 @@ export class Api {
         return put_json(API + "/motors/" + id + "/livePreview", { "position": position });
     }
 
-
     /**
      * Disable all motors in backend for motion recording.
      */
@@ -55,14 +51,12 @@ export class Api {
         return put(API + "/motors/disenable");
     }
 
-
     /**
      * Enable all motors in backend after motion recording.
      */
     async enable_motors() {
         return put(API + "/motors/enable");
     }
-
 
     /**
      * Fit spline from trajectory data.
@@ -75,67 +69,41 @@ export class Api {
         return BPoly.from_object(obj);
     }
 
+    async find_free_name(wishName=null) {
+        let uri = API + "/find-free-name";
+        if (wishName !== null) {
+            uri += "/" + wishName;
+        }
 
-    /**
-    * Create a new spline on the backend. Content is a line with
-    * arbitrary filename
-    */
-    async create_spline() {
-        return post_json(API + "/motions");
+        return get_json(encodeURI(uri));
     }
 
-
-    /**
-     * Save spline to backend.
-     *
-     * @param {BPoly} spline Spline instance to save.
-     * @param {String} name Spline name in content.
-     */
-    async save_spline(spline, name) {
+    async get_spline(name) {
         const url = encodeURI(API + "/motions/" + name);
-        return put_json(url, spline.to_dict());
+        const obj = await get_json(url);
+        return BPoly.from_object(obj);
     }
 
-
-    /**
-     * Duplicate motion in backend / content.
-     *
-     * @param {String} name Motion name.
-     * @returns Fetch promise
-     */
-    async duplicate_spline(name) {
-        let url = API + "/motions/" + name;
-        url = encodeURI(url);
-        return post(url);
+    async create_spline(name, spline) {
+        const url = encodeURI(API + "/motions/" + name);
+        return post_json(url, spline.to_dict());
     }
 
-
-    /**
-     * Rename spline in backend / content.
-     *
-     * @param {String} oldName Old spline name
-     * @param {String} newName New spline name
-     * @returns Fetch promise
-     */
-    async rename_spline(oldName, newName) {
-        let url = API + "/motions/" + oldName + "?rename=" + newName;
-        url = encodeURI(url);
-        return put_json(url);
+    async update_spline(name, spline) {
+        const url = encodeURI(API + "/motions/" + name);
+        return post_json(url, spline.to_dict());
     }
 
-
-    /**
-     * Delete spline in backend / content.
-     *
-     * @param {String} name Spline name.
-     * @returns Fetch promise.
-     */
     async delete_spline(name) {
-        let url = API + "/motions/" + name;
-        url = encodeURI(url);
+        const url = encodeURI(API + "/motions/" + name);
         return delete_fetch(url);
     }
 
+    async duplicate_spline(name) {
+        const freename = await this.find_free_name(name + " Copy");
+        const spline = await this.get_spline(name);
+        return this.create_spline(freename, spline);
+    }
 
     /**
      * Load entire content from backend / content.
@@ -145,9 +113,6 @@ export class Api {
     async fetch_splines() {
         return get_json(API + "/motions");
     }
-
-
-
 
     async load_motions() {
         return get_json(API + "/motions2");

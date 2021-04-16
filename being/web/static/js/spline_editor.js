@@ -175,7 +175,7 @@ class Editor extends CurverBase {
 
             const spline = this.history.retrieve();
             const name = this.splineList.selected;
-            await this.api.save_spline(spline, name);
+            await this.api.update_spline(name, spline);
             this.history.clear();
             this.history.capture(spline);
             const selectedSpline = this.splineList.splines.filter(sp => sp.filename === this.splineList.selected)[0];
@@ -675,7 +675,10 @@ class Editor extends CurverBase {
      * Create a new spline.
      */
     async create_new_spline() {
-        await this.api.create_spline();
+        const motor = this.motorSelector.selected_motor_info();
+        const name = await this.api.find_free_name();
+        const spline = zero_spline(motor.ndim);
+        await this.api.create_spline(name, spline);
         this.update_ui();
         this.splineList.reload_spline_list();
     }

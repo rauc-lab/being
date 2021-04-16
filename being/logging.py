@@ -14,6 +14,7 @@ DEFAULT_EXCLUDES = [
     'matplotlib',
     'can',
     'canopen',
+    'aiohttp',
 ]
 
 
@@ -50,7 +51,7 @@ def setup_logging():
     suppress_other_loggers()
     logging.root.setLevel(LEVEL)
     formatter = logging.Formatter(
-        fmt='%(asctime)s.%(msecs)03d -%(levelname)5s - %(name)s - %(message)s',
+        fmt='%(asctime)s.%(msecs)03d - %(levelname)5s - %(name)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
     )
 

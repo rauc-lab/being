@@ -71,10 +71,9 @@ export class SplineList {
 
         const duplSplineButton = create_button("file_copy", "Duplicate motion file");
         newBtnContainer.appendChild(duplSplineButton);
-        duplSplineButton.addEventListener("click", () => {
-            this.api.duplicate_spline(this.selected).then(() => {
-                this.reload_spline_list();
-            });
+        duplSplineButton.addEventListener("click", async () => {
+            await this.api.duplicate_spline(this.selected);
+            this.reload_spline_list();
         });
     }
 
@@ -86,19 +85,19 @@ export class SplineList {
             entry.classList.add("spline-list-entry");
             entry.classList.add("noselect");
             entry.id = spline.filename;
-            entry.addEventListener("click", evt => {
+            entry.addEventListener("click", () => {
                 if (this.editor.history.savable && !confirm("Discard unsaved edits?")) {
                     return;
                 }
 
-                if (evt.currentTarget.id !== this.selected) {
+                if (entry.id !== this.selected) {
                     if (!this.preSelectVisibility) {
                         this.visibles.delete(this.selected);
                     }
 
-                    this.selected = evt.currentTarget.id;
+                    this.selected = entry.id;
                     this.preSelectVisibility = this.visibles.has(this.selected);
-                    // this.visibles.add(evt.currentTarget.id);
+                    // this.visibles.add(entry.id);
                     this.update_spline_list_selection();
                     this.draw_selected_spline();
                     const selectedSpline = this.splines.filter(sp => sp.filename === this.selected)[0];
@@ -132,12 +131,12 @@ export class SplineList {
             }, true);
             checkbox.addEventListener("mouseover", evt => {
                 evt.stopPropagation();
-                evt.currentTarget.innerHTML = "visibility";
+                checkbox.innerHTML = "visibility";
             });
             checkbox.addEventListener("mouseout", evt => {
                 const filename = evt.target.parentNode.id;
                 if (!this.visibles.has(filename)) {
-                    evt.currentTarget.innerHTML = "";
+                    checkbox.innerHTML = "";
                 }
             });
 
@@ -148,69 +147,65 @@ export class SplineList {
             text.setAttribute("required", "");
             text.classList.add("truncate");
             entry.append(checkbox, text);
-            text.addEventListener("blur", evt => {
-                let current_elem = evt.currentTarget;
-                evt.currentTarget.contentEditable = "false";
-                if (this.origFilename !== evt.currentTarget.innerHTML) {
-                    const newFilename = evt.currentTarget.innerHTML;
+            text.addEventListener("blur", async evt => {
+                text.contentEditable = "false";
+                if (this.origFilename !== text.innerHTML) {
+                    let newFilename = text.innerHTML;
                     if (newFilename.length <= 0 ||
                         newFilename === "<br>" ||
                         newFilename === "<p>" ||
                         newFilename === "<div>" ||
                         !is_valid_filename(newFilename)) {
-                        evt.currentTarget.innerHTML = this.origFilename;
+                        text.innerHTML = this.origFilename;
                     } else {
-                        this.api.rename_spline(this.origFilename, newFilename).then(() => {
-                            // local update
-                            // We dont want to reload from the server because we want to keep the 
-                            // evenetually modified spline and history when renaming
-                            let spl = this.splines.filter(sp => sp.filename === this.origFilename)[0];
-                            spl.filename = newFilename;
+                        const spline = await this.api.get_spline(this.origFilename);
+                        newFilename = await this.api.find_free_name(newFilename)
+                        await this.api.create_spline(newFilename, spline);
+                        await this.api.delete_spline(this.origFilename)
 
-                            if (this.selected === this.origFilename) {
-                                this.selected = newFilename;
-                            }
+                        let spl = this.splines.filter(sp => sp.filename === this.origFilename)[0];
+                        spl.filename = newFilename;
 
-                            if (this.visibles.has(this.origFilename)) {
-                                this.visibles.delete(this.origFilename);
-                                this.visibles.add(newFilename);
-                            }
+                        if (this.selected === this.origFilename) {
+                            this.selected = newFilename;
+                        }
 
-                            const filename_div = this.editor.shadowRoot.getElementById(this.origFilename);
-                            filename_div.id = newFilename;
-                            console.log("renamed!!");
-                        }).catch(() => {
-                            // same filename exists
-                            current_elem.innerHTML = this.origFilename;
-                        });
+                        if (this.visibles.has(this.origFilename)) {
+                            this.visibles.delete(this.origFilename);
+                            this.visibles.add(newFilename);
+                        }
+
+                        const filename_div = this.editor.shadowRoot.getElementById(this.origFilename);
+                        filename_div.id = newFilename;
+                        text.innerHTML = newFilename;
                     }
                 }
 
-                evt.currentTarget.classList.remove("nonvalid");
+                text.classList.remove("nonvalid");
             });
             text.addEventListener("keyup", evt => {
                 if (!is_valid_filename(evt.currentTarget.innerHTML)) {
-                    evt.currentTarget.classList.add("nonvalid");
+                    text.classList.add("nonvalid");
                 } else {
                     evt.currentTarget.classList.remove("nonvalid");
                 }
                 // Keyup eventListener needed to capture meta keys
                 if (evt.key === "Escape") {
-                    evt.currentTarget.innerHTML = this.origFilename;
-                    evt.currentTarget.blur();  // saving file handled by "blur" eventListener
+                    text.innerHTML = this.origFilename;
+                    text.blur();  // saving file handled by "blur" eventListener
                 }
             });
             text.addEventListener("dblclick", evt => {
-                if (!evt.currentTarget.isContentEditable) {
-                    evt.currentTarget.contentEditable = "true";
-                    evt.currentTarget.focus();
-                    this.origFilename = evt.currentTarget.innerHTML;
+                if (!text.isContentEditable) {
+                    text.contentEditable = "true";
+                    text.focus();
+                    this.origFilename = text.innerHTML;
                 }
             });
             text.addEventListener("keypress", evt => {
                 // Keypress eventListener (compared to keyup) fires before contenteditable adds <br>
                 if (evt.key === "Enter") {
-                    evt.currentTarget.blur();  // saving file handled by "blur" eventListener
+                    text.blur();  // saving file handled by "blur" eventListener
                 }
             });
             this.splineListDiv.append(entry);
