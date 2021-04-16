@@ -78,7 +78,7 @@ export class SplineDrawer {
     }
 
     /**
-     * Calcualte data bounding box of drawn splines.
+     * Calculate data bounding box of drawn splines.
      */
     bbox() {
         const bbox = new BBox();
@@ -240,38 +240,24 @@ export class SplineDrawer {
         return line;
     }
 
-    /**
-     * Draw spline. Initializes SVG elements. If interactive also paint knots,
-     * control points and helper lines and setup UI callbacks.
-     */
-    draw_spline(spline, interactive = true) {
-        this.splines.push(spline);
-
-        /** Spline working copy */
-        const wc = spline.copy();
-        const lw = interactive ? 2 : 1;
-
-        // Path
-        const segments = arange(wc.n_segments);
+    draw_curve(spline, lw = 1) {
+        const segments = arange(spline.n_segments);
         segments.forEach(seg => {
             this.init_path(() => {
                 return [
-                    wc.point(seg, 0),
-                    wc.point(seg, 1),
-                    wc.point(seg, 2),
-                    wc.point(seg + 1, 0),
+                    spline.point(seg, 0),
+                    spline.point(seg, 1),
+                    spline.point(seg, 2),
+                    spline.point(seg + 1, 0),
                 ];
             }, lw);
         });
+    }
 
-        if (!interactive) {
-            return;
-        }
-
-        // Control points
-        assert(wc.degree <= Degree.CUBIC, "Spline degree not supported!");
+    draw_control_points(spline, lw = 2) {
+        const segments = arange(spline.n_segments);
         const cps = [];
-        for (let cp=1; cp<wc.degree; cp++) {
+        for (let cp=1; cp<spline.degree; cp++) {
             cps.push(cp);
         }
 
@@ -280,67 +266,86 @@ export class SplineDrawer {
                 // 1st helper line
                 if (cp === FIRST_CP) {
                     this.init_line(() => {
-                        return [wc.point(seg, KNOT), wc.point(seg, FIRST_CP)];
+                        return [spline.point(seg, KNOT), spline.point(seg, FIRST_CP)];
                     });
                 }
 
                 // 2nd helper line
-                if (wc.degree === Degree.QUADRATIC || cp === SECOND_CP) {
-                    const rightKnot = KNOT + wc.degree;
+                if (spline.degree === Degree.QUADRATIC || cp === SECOND_CP) {
+                    const rightKnot = KNOT + spline.degree;
                     this.init_line(() => {
-                        return [wc.point(seg, cp), wc.point(seg, rightKnot)];
+                        return [spline.point(seg, cp), spline.point(seg, rightKnot)];
                     });
                 }
 
                 // Control point
                 const circle = this.init_circle(() => {
-                    return wc.point(seg, cp);
+                    return spline.point(seg, cp);
                 }, 3 * lw, "red");
                 this.make_draggable(
                     circle,
                     pos => {
-                        wc.position_control_point(seg, cp, pos[1], this.editor.c1);
+                        spline.position_control_point(seg, cp, pos[1], this.editor.c1);
                         let slope = 0;
                         if (cp === FIRST_CP) {
-                            slope = wc.get_derivative_at_knot(seg, RIGHT);
+                            slope = spline.get_derivative_at_knot(seg, RIGHT);
                         } else if (cp === SECOND_CP) {
-                            slope = wc.get_derivative_at_knot(seg + 1, LEFT);
+                            slope = spline.get_derivative_at_knot(seg + 1, LEFT);
                         }
 
                         this.annotation.innerHTML = "Slope: " + format_number(slope);
                     },
-                    wc,
+                    spline,
                 );
             });
         });
+    }
 
-        // Knots
-        const knots = arange(wc.n_segments + 1);
+    draw_knots(spline, lw = 1) {
+        const knots = arange(spline.n_segments + 1);
         knots.forEach(knot => {
             const circle = this.init_circle(() => {
-                return wc.point(knot);
+                return spline.point(knot);
             }, 3 * lw);
             this.make_draggable(
                 circle,
                 pos => {
                     this.editor.spline_changing(pos[1]);
-                    wc.position_knot(knot, pos, this.editor.c1);
+                    spline.position_knot(knot, pos, this.editor.c1);
                     const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
                     this.annotation.innerHTML = txt;
                 },
-                wc,
-                knot < wc.n_segments ? "ur" : "ul",
+                spline,
+                knot < spline.n_segments ? "ur" : "ul",
             );
             circle.addEventListener("dblclick", evt => {
                 evt.stopPropagation();
-                if (wc.n_segments > 1) {
+                if (spline.n_segments > 1) {
                     this.editor.spline_changing();
-                    wc.remove_knot(knot);
-                    this.editor.spline_changed(wc);
+                    spline.remove_knot(knot);
+                    this.editor.spline_changed(spline);
                 }
             });
         });
+    }
 
+    /**
+     * Draw spline. Initializes SVG elements. If interactive also paint knots,
+     * control points and helper lines and setup UI callbacks.
+     */
+    draw_spline(spline, interactive = true) {
+        assert(spline.degree <= Degree.CUBIC, `Spline degree ${spline.degree} not supported!`);
+        // Spline working copy
+        const wc = spline.copy();
+        this.splines.push(wc);
+        const lw = interactive ? 2 : 1;
+        this.draw_curve(wc, lw);
+        if (!interactive) {
+            return;
+        }
+
+        this.draw_control_points(wc, lw);
+        this.draw_knots(wc, lw);
         this.draw();
     }
 

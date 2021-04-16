@@ -1,16 +1,11 @@
 /**
  * @module spline Spline stuff. Some constants and BPoly wrapper. Spline data container.
  */
-import {
-    array_shape, array_min, array_max, array_ndims, arange, zeros,
-    array_reshape, array_full,
-} from "/static/js/array.js";
+import {array_shape, array_min, array_max, array_ndims, arange, zeros, array_full} from "/static/js/array.js";
 import {deep_copy, last_element} from "/static/js/utils.js";
-import {ONE_D} from "/static/js/constants.js";
 import {BBox} from "/static/js/bbox.js";
 import {assert, searchsorted, insert_in_array, remove_from_array} from "/static/js/utils.js";
-import {clip, floor_division } from "/static/js/math.js";
-import {arrays_equal} from "/static/js/utils.js";
+import {clip, floor_division} from "/static/js/math.js";
 
 
 /** @const {number} - Named indices for BPoly coefficents matrix */
