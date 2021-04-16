@@ -3,6 +3,7 @@
  * currently selected motor (or motion player behind the scenes).
  */
 import {remove_all_children, add_option} from "/static/js/utils.js";
+import {arange} from "/static/js/array.js";
 
 
 /** @const {number} - Nothing selected in HTML select yet */
@@ -17,41 +18,97 @@ const DEFAULT_MOTOR_INFO = {
 };
 
 
+function dont_display_select_when_no_options(select) {
+    select.style.display = select.length < 2 ? "none" : "inline";
+}
+
+
 export class MotorSelector {
-    constructor(select = null) {
-        this.select = select;
+    constructor(editor) {
+        this.editor = editor;
+        this.motorSelect = null;
+        this.channelSelect = null;
         this.motorInfos = [];
     }
 
     /**
-     * Set select element (DI).
-     * @param {HTMLElement} select HTML select element.
+     * Disable UI components.
      */
-    attach_select(select) {
-        this.select = select;
+    set disabled(value) {
+        this.motorSelect.disabled = value;
+        this.channelSelect.disabled = value;
+    }
+
+    /**
+     * Update UI elements.
+     */
+    update_channel_select() {
+        remove_all_children(this.channelSelect);
+        const motor = this.selected_motor_info();
+        arange(motor.ndim).forEach(dim => {
+            add_option(this.channelSelect, "Channel " + dim);
+        });
+        dont_display_select_when_no_options(this.channelSelect);
+    }
+
+    /**
+     * Set MotorSelectors HTML selelct elements (indirect DI since selects are
+     * inside the toolbar).
+     *
+     * @param {HTMLElement} motorSelect HTML select element for motor selection.
+     * @param {HTMLElement} channelSelect HTML select element for motion channel selection.
+     */
+    attach_selects(motorSelect, channelSelect) {
+        this.motorSelect = motorSelect;
+        this.channelSelect = channelSelect;
+        motorSelect.addEventListener("change", () => {
+            this.update_channel_select();
+        });
+        channelSelect.addEventListener("change", () => {
+            this.editor.draw_current_spline();
+        });
+        this.update_channel_select();
     }
 
     /**
      * Populate select with the currently available motors.
+     * 
      * @param {Array} motorInfos List of motor info objects.
      */
     populate(motorInfos) {
         this.motorInfos = motorInfos;
-        remove_all_children(this.select);
+        remove_all_children(this.motorSelect);
         motorInfos.forEach(motor => {
-            add_option(this.select, "Motor " + motor.id);
+            add_option(this.motorSelect, "Motor " + motor.id);
         });
+
+        dont_display_select_when_no_options(this.motorSelect);
+        this.update_channel_select();
     }
 
     /**
      * Get motor info for currently selected motor.
+     *
      * @returns {object} Motor info dictionary.
      */
     selected_motor_info() {
-        if (this.select.selectedIndex === NOTHING_SELECTED) {
+        if (this.motorSelect.selectedIndex === NOTHING_SELECTED) {
             return DEFAULT_MOTOR_INFO;
         }
 
-        return this.motorInfos[this.select.selectedIndex];
+        return this.motorInfos[this.motorSelect.selectedIndex];
+    }
+
+    /**
+     * Currently selected motor channel / spline dim.
+     *
+     * @returns {Number} Index of currently selected motion channel.
+     */
+    selected_channel() {
+        if (this.channelSelect.selectedIndex === NOTHING_SELECTED) {
+            return 0;
+        }
+
+        return this.channelSelect.selectedIndex;
     }
 }

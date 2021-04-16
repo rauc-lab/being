@@ -56,6 +56,17 @@ export function spline_degree(spline) {
 
 
 /**
+ * Create zero spline for a given number of dimensions.
+ *
+ * @param {Number} ndim Number of spline dimensions
+ * @returns {BPoly} Zero spline.
+ */
+export function zero_spline(ndim=1) {
+    return new BPoly(zeros([4, 1, ndim]), [0., 1.]);
+}
+
+
+/**
  * Duplicate entry in array at index.
  * @param {Array} array 
  * @param {Number} index 

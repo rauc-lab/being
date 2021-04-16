@@ -1,26 +1,23 @@
 /**
  * @module spline_editor Spline editor custom HTML element.
  */
-import { BBox } from "/static/js/bbox.js";
-import { CurverBase } from "/static/js/curver.js";
-import { make_draggable } from "/static/js/draggable.js";
-import { History } from "/static/js/history.js";
-import { clip } from "/static/js/math.js";
-import { subtract_arrays, array_reshape, multiply_scalar, array_shape, zeros } from "/static/js/array.js";
-import { COEFFICIENTS_DEPTH, BPoly } from "/static/js/spline.js";
-import { clear_array } from "/static/js/utils.js";
-import { Line } from "/static/js/line.js";
-import { PAUSED, PLAYING, RECORDING, Transport } from "/static/js/transport.js";
-import { SplineDrawer } from "/static/js/spline_drawer.js";
-import { SplineList } from "/static/js/spline_list.js";
-import { INTERVAL } from "/static/js/config.js";
-import { MotorSelector } from "/static/js/motor_selector.js";
-import { toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button } from "/static/js/button.js";
-import { Api } from "/static/js/api.js";
+import {BBox} from "/static/js/bbox.js";
+import {CurverBase} from "/static/js/curver.js";
+import {make_draggable} from "/static/js/draggable.js";
+import {History} from "/static/js/history.js";
+import {clip} from "/static/js/math.js";
+import {subtract_arrays, array_reshape, multiply_scalar, array_shape} from "/static/js/array.js";
+import {COEFFICIENTS_DEPTH, zero_spline, BPoly} from "/static/js/spline.js";
+import {clear_array} from "/static/js/utils.js";
+import {Line} from "/static/js/line.js";
+import {PAUSED, PLAYING, RECORDING, Transport} from "/static/js/transport.js";
+import {SplineDrawer} from "/static/js/spline_drawer.js";
+import {SplineList} from "/static/js/spline_list.js";
+import {INTERVAL} from "/static/js/config.js";
+import {MotorSelector} from "/static/js/motor_selector.js";
+import {toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button} from "/static/js/button.js";
+import {Api} from "/static/js/api.js";
 
-
-/** @const {BPoly} - Zero spline with duration 1.0 */
-const ZERO_SPLINE = new BPoly(zeros([4, 1, 1]), [0., 1.]);
 
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
 const ZOOM_FACTOR_PER_STEP = 1.5;
@@ -37,6 +34,7 @@ const FOLDED = "folded";
 
 /**
  * Zoom / scale bounding box in place.
+ *
  * @param {Bbox} bbox Bounding box to scale.
  * @param {Number} factor Zoom factor.
  */
@@ -58,7 +56,7 @@ function scale_spline(spline, factor) {
 
 
 /**
- * Stretch spline by factor (strech knots).
+ * Stretch spline by factor (stretch knots).
  */
 function stretch_spline(spline, factor) {
     const stretchedKnots = multiply_scalar(factor, spline.x);
@@ -80,12 +78,10 @@ class Editor extends CurverBase {
         this.transport = new Transport(this);
         this.drawer = new SplineDrawer(this, this.splineGroup);
         this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
-        this.motorSelector = new MotorSelector();
+        this.motorSelector = new MotorSelector(this);
         this.splineList = new SplineList(this);
         this.recordedTrajectory = [];
         this.api = new Api();
-        this.dimSelect = null;
-        this.dim = 0;
 
         this.setup_toolbar_elements();
 
@@ -222,12 +218,9 @@ class Editor extends CurverBase {
 
 
         // Motor selection
-        const select = this.add_select_to_toolbar();
-        select.addEventListener("change", () => {
-            this.stop_spline_playback();
-        });
-        this.motorSelector.attach_select(select);
-
+        const motorSelect = this.add_select_to_toolbar();
+        const channelSelect = this.add_select_to_toolbar();
+        this.motorSelector.attach_selects(motorSelect, channelSelect);
 
         // Transport buttons
         this.playPauseBtn = this.add_button_to_toolbar("play_arrow", "Play / pause motion playback");
@@ -333,7 +326,8 @@ class Editor extends CurverBase {
         });
         this.add_button_to_toolbar("clear", "Reset current motion").addEventListener("click", () => {
             this.spline_changing();
-            this.spline_changed(ZERO_SPLINE.copy());
+            const motor = this.motorSelector.selected_motor_info();
+            this.spline_changed(zero_spline(motor.ndim));
         });
     }
 
@@ -456,6 +450,8 @@ class Editor extends CurverBase {
                 switch_button_off(this.recBtn);
 
                 enable_button(this.stopBtn);
+
+                this.motorSelector.disabled = false;
                 break;
             case PLAYING:
                 this.playPauseBtn.innerHTML = "pause";
@@ -467,6 +463,8 @@ class Editor extends CurverBase {
                 switch_button_off(this.recBtn);
 
                 enable_button(this.stopBtn);
+
+                this.motorSelector.disabled = true;
                 break;
             case RECORDING:
                 this.playPauseBtn.innerHTML = "play_arrow";
@@ -478,6 +476,8 @@ class Editor extends CurverBase {
                 switch_button_on(this.recBtn);
 
                 disable_button(this.stopBtn);
+
+                this.motorSelector.disabled = true;
                 break;
             default:
                 throw "Ooops, something went wrong with the FSM!";
@@ -543,8 +543,11 @@ class Editor extends CurverBase {
         });
 
         this.drawer.clear();
-        this.drawer.draw_spline(current);
-
+        {
+            const interactive = true;
+            const dim = this.motorSelector.selected_channel();
+            this.drawer.draw_spline(current, interactive, dim);
+        }
         this.update_ui();
     }
 
@@ -700,7 +703,7 @@ class Editor extends CurverBase {
     }
 
     /**
-     * Process new data message from backend.
+     * Process new data message from back-end.
      */
     new_data(msg) {
         const t = this.transport.move(msg.timestamp);
