@@ -5,7 +5,7 @@ import { BBox } from "/static/js/bbox.js";
 import { make_draggable } from "/static/js/draggable.js";
 import { arange } from "/static/js/array.js";
 import { clip } from "/static/js/math.js";
-import { KNOT, FIRST_CP, SECOND_CP, Degree, LEFT, RIGHT } from "/static/js/spline.js";
+import { COEFFICIENTS_DEPTH, KNOT, FIRST_CP, SECOND_CP, Degree, LEFT, RIGHT } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
 import { assert, arrays_equal, clear_array } from "/static/js/utils.js";
 
@@ -17,6 +17,7 @@ const PRECISION = 3;
 /**
  * Try to snap value to array of grid values. Return value as if not close
  * enough to grid. Exclude value itself as grid line candidate.
+ *
  * @param {Number} value Value to snap to grid.
  * @param {Array} grid Grid values.
  * @param {Number} threshold Distance attraction threshold.
@@ -53,6 +54,7 @@ function format_number(number, smallest=1e-10) {
 
 /**
  * Clip point so that it lies within bounding box.
+ *
  * @param {Array} pt 2D point to clip.
  * @param {BBox} bbox Bounding box to use to restrict the point.
  * @returns Clipped point.
@@ -78,7 +80,7 @@ export class SplineDrawer {
     }
 
     /**
-     * Calcualte data bounding box of drawn splines.
+     * Calculate data bounding box of drawn splines.
      */
     bbox() {
         const bbox = new BBox();
@@ -103,6 +105,7 @@ export class SplineDrawer {
 
     /**
      * Position annotation label around.
+     *
      * @param {Array} pos Position to move to (data space).
      * @param {String} location Label location identifier.
      */
@@ -131,6 +134,7 @@ export class SplineDrawer {
      * make_draggable. Handles mouse -> image space -> data space
      * transformation, calculates delta offset, triggers redraws. Mostly used
      * to drag SVG elements around.
+     *
      * @param ele Element to make draggable.
      * @param on_drag On drag motion callback. Will be called with a relative
      * delta array.
@@ -146,7 +150,7 @@ export class SplineDrawer {
             ele,
             evt => {
                 start = this.editor.mouse_coordinates(evt);
-                yValues = new Set(workingCopy.c.flat());
+                yValues = new Set(workingCopy.c.flat(COEFFICIENTS_DEPTH));
                 yValues.add(0.0);
                 this.editor.spline_changing();
                 limits = this.editor.limits();
@@ -220,6 +224,12 @@ export class SplineDrawer {
      * Initialize an SVG line element and adds it to the SVG parent element.
      * data_source callback needs to deliver the start end and point of the
      * line.
+     *
+     * @param {function} data_source Callable data source which spits out the
+         * current start and end point of the line.
+     * @param {Number} strokeWidth Stroke width of line.
+     * @param {String} color Color string.
+     * @returns SVG line instance.
      */
     init_line(data_source, strokeWidth = 1, color = "black") {
         const line = create_element("line");
@@ -241,37 +251,37 @@ export class SplineDrawer {
     }
 
     /**
-     * Draw spline. Initializes SVG elements. If interactive also paint knots,
-     * control points and helper lines and setup UI callbacks.
+     * Draw spline path / curve. This is non-interative.
+     *
+     * @param {BPoly} spline Spline to draw curve / path.
+     * @param {Number} lw Line width.
+     * @param {Number} dim Which dimension to draw.
      */
-    draw_spline(spline, interactive = true) {
-        this.splines.push(spline);
-
-        /** Spline working copy */
-        const wc = spline.copy();
-        const lw = interactive ? 2 : 1;
-
-        // Path
-        const segments = arange(wc.n_segments);
+    draw_curve(spline, lw = 1, dim = 0) {
+        const segments = arange(spline.n_segments);
         segments.forEach(seg => {
             this.init_path(() => {
                 return [
-                    wc.point(seg, 0),
-                    wc.point(seg, 1),
-                    wc.point(seg, 2),
-                    wc.point(seg + 1, 0),
+                    spline.point(seg, 0, dim),
+                    spline.point(seg, 1, dim),
+                    spline.point(seg, 2, dim),
+                    spline.point(seg + 1, 0, dim),
                 ];
             }, lw);
         });
+    }
 
-        if (!interactive) {
-            return;
-        }
-
-        // Control points
-        assert(wc.degree <= Degree.CUBIC, "Spline degree not supported!");
+    /**
+     * Draw interactive control points of spline.
+     *
+     * @param {BPoly} spline Spline to draw control points from.
+     * @param {Number} lw Line width in pixel.
+     * @param {Number} dim Which dimension to draw.
+     */
+    draw_control_points(spline, lw = 2, dim = 0) {
+        const segments = arange(spline.n_segments);
         const cps = [];
-        for (let cp=1; cp<wc.degree; cp++) {
+        for (let cp=1; cp<spline.degree; cp++) {
             cps.push(cp);
         }
 
@@ -280,67 +290,93 @@ export class SplineDrawer {
                 // 1st helper line
                 if (cp === FIRST_CP) {
                     this.init_line(() => {
-                        return [wc.point(seg, KNOT), wc.point(seg, FIRST_CP)];
+                        return [spline.point(seg, KNOT, dim), spline.point(seg, FIRST_CP, dim)];
                     });
                 }
 
                 // 2nd helper line
-                if (wc.degree === Degree.QUADRATIC || cp === SECOND_CP) {
-                    const rightKnot = KNOT + wc.degree;
+                if (spline.degree === Degree.QUADRATIC || cp === SECOND_CP) {
+                    const rightKnot = KNOT + spline.degree;
                     this.init_line(() => {
-                        return [wc.point(seg, cp), wc.point(seg, rightKnot)];
+                        return [spline.point(seg, cp, dim), spline.point(seg, rightKnot, dim)];
                     });
                 }
 
                 // Control point
                 const circle = this.init_circle(() => {
-                    return wc.point(seg, cp);
+                    return spline.point(seg, cp, dim);
                 }, 3 * lw, "red");
                 this.make_draggable(
                     circle,
                     pos => {
-                        wc.position_control_point(seg, cp, pos[1], this.editor.c1);
+                        spline.position_control_point(seg, cp, pos[1], this.editor.c1, dim);
                         let slope = 0;
                         if (cp === FIRST_CP) {
-                            slope = wc.get_derivative_at_knot(seg, RIGHT);
+                            slope = spline.get_derivative_at_knot(seg, RIGHT, dim);
                         } else if (cp === SECOND_CP) {
-                            slope = wc.get_derivative_at_knot(seg + 1, LEFT);
+                            slope = spline.get_derivative_at_knot(seg + 1, LEFT, dim);
                         }
 
                         this.annotation.innerHTML = "Slope: " + format_number(slope);
                     },
-                    wc,
+                    spline,
                 );
             });
         });
+    }
 
-        // Knots
-        const knots = arange(wc.n_segments + 1);
+    /**
+     * Draw interactive spline knots.
+     *
+     * @param {BPoly} spline Spline to draw knots from.
+     * @param {Number} lw Line width in pixel.
+     * @param {dim} dim Which dimension to draw.
+     */
+    draw_knots(spline, lw = 1, dim = 0) {
+        const knots = arange(spline.n_segments + 1);
         knots.forEach(knot => {
             const circle = this.init_circle(() => {
-                return wc.point(knot);
+                return spline.point(knot, 0, dim);
             }, 3 * lw);
             this.make_draggable(
                 circle,
                 pos => {
                     this.editor.spline_changing(pos[1]);
-                    wc.position_knot(knot, pos, this.editor.c1);
+                    spline.position_knot(knot, pos, this.editor.c1, dim);
                     const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
                     this.annotation.innerHTML = txt;
                 },
-                wc,
-                knot < wc.n_segments ? "ur" : "ul",
+                spline,
+                knot < spline.n_segments ? "ur" : "ul",
             );
             circle.addEventListener("dblclick", evt => {
                 evt.stopPropagation();
-                if (wc.n_segments > 1) {
+                if (spline.n_segments > 1) {
                     this.editor.spline_changing();
-                    wc.remove_knot(knot);
-                    this.editor.spline_changed(wc);
+                    spline.remove_knot(knot);
+                    this.editor.spline_changed(spline);
                 }
             });
         });
+    }
 
+    /**
+     * Draw spline. Initializes SVG elements. If interactive also paint knots,
+     * control points and helper lines and setup UI callbacks.
+     */
+    draw_spline(spline, interactive = true, channel = 0) {
+        assert(spline.degree <= Degree.CUBIC, `Spline degree ${spline.degree} not supported!`);
+        // Spline working copy
+        const wc = spline.copy();
+        this.splines.push(wc);
+        const lw = interactive ? 2 : 1;
+        arange(wc.ndim).forEach(dim => {
+            this.draw_curve(wc, lw, dim);
+            if (interactive && dim === channel) {
+                this.draw_control_points(wc, lw, dim);
+                this.draw_knots(wc, lw, dim);
+            }
+        });
         this.draw();
     }
 

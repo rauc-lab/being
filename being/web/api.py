@@ -4,14 +4,13 @@ import math
 from typing import ForwardRef
 
 from aiohttp import web
-from scipy.interpolate import BPoly
 
 from being.behavior import State
 from being.content import Content
 from being.logging import get_logger
+from being.motor import _MotorBase
 from being.serialization import loads, spline_from_dict
 from being.spline import fit_spline
-from being.utils import any_item
 from being.web.responses import respond_ok, json_response
 
 
@@ -41,6 +40,15 @@ def content_controller(content: Content) -> web.RouteTableDef:
     async def get_all_motions_2(request):
         return json_response(content.dict_motions_2())
 
+    @routes.get('/find-free-name')
+    async def find_free_name(request):
+        return json_response(content.find_free_name())
+
+    @routes.get('/find-free-name/{wishName}')
+    async def find_free_name_wish_name(request):
+        wishName = request.match_info['wishName']
+        return json_response(content.find_free_name(wishName=wishName))
+
     @routes.get('/motions/{name}')
     async def get_motion_by_name(request):
         name = request.match_info['name']
@@ -50,70 +58,66 @@ def content_controller(content: Content) -> web.RouteTableDef:
         spline = content.load_motion(name)
         return json_response(spline)
 
-    @routes.post('/motions')
-    async def create_motion(request):
-        name = content.find_free_name('Untitled')
-        spline = BPoly([[0], [0], [0], [0]], [0., 1.])
-        content.save_motion(spline, name)
-        return json_response(spline)
+    @routes.post('/motions/{name}')
+    async def create_motion_by_name(request):
+        name = request.match_info['name']
+        try:
+            spline = await request.json(loads=loads)
+        except json.JSONDecodeError:
+            return web.HTTPNotAcceptable(text='Failed deserializing JSON spline!')
+
+        content.save_motion(name, spline)
+        return json_response()
 
     @routes.put('/motions/{name}')
-    async def update_motion(request):
+    async def update_motion_by_name(request):
         name = request.match_info['name']
         if not content.motion_exists(name):
-            return web.HTTPNotFound(text='This motion does not exist!')
-
-        if 'rename' in request.query:
-            if not content.motion_exists(name):
-                return web.HTTPNotFound(text=f'Motion {name!r} does not exist!')
-
-            newName = request.query['rename']
-            if content.motion_exists(newName):
-                return web.HTTPNotAcceptable(text=f'Another file with the same name {name} already exists!')
-
-            content.rename_motion(name, newName)
-            return json_response(content.load_motion(newName))
+            return web.HTTPNotFound(text=f'Motion {name!r} does not exist!')
 
         try:
             spline = await request.json(loads=loads)
-            content.save_motion(spline, name)
-            return json_response(content.load_motion(name))
         except json.JSONDecodeError:
             return web.HTTPNotAcceptable(text='Failed deserializing JSON spline!')
-        except:
-            return web.HTTPError(text='Saving spline failed!')
+
+        content.save_motion(name, spline)
+        return json_response()
 
     @routes.delete('/motions/{name}')
-    async def delete_motion(request):
+    async def delete_motion_by_name(request):
         name = request.match_info['name']
         if not content.motion_exists(name):
             return web.HTTPNotFound(text=f'Motion {name!r} does not exist!')
 
         content.delete_motion(name)
-        return respond_ok()
-
-    @routes.post('/motions/{name}')
-    async def duplicate_motion(request):
-        name = request.match_info['name']
-        if not content.motion_exists(name):
-            return web.HTTPNotFound(text=f'Motion {name!r} does not exist!')
-
-        content.duplicate_motion(name)
-        return respond_ok()
+        return json_response()
 
     return routes
+
+
+def connected_motors(motionPlayer):
+    for output in motionPlayer.positionOutputs:
+        for input_ in output.outgoingConnections:
+            if isinstance(input_.owner, _MotorBase):
+                yield input_.owner
 
 
 def serialize_motion_players(being):
     """Return list of motion player / motors informations."""
     for nr, mp in enumerate(being.motionPlayers):
-        input_ = any_item(mp.output.outgoingConnections)
-        motor = input_.owner
+        actualOutputs = []
+        motors = []
+        lengths = []
+        for motor in connected_motors(mp):
+            motors.append(motor)
+            actualOutputs.append(motor.output)
+            lengths.append(motor.length)
+
         yield {
             'id': nr,
-            'setpointValueIndex': being.valueOutputs.index(mp.output),
-            'actualValueIndex': being.valueOutputs.index(motor.output),
-            'length': motor.length,
+            'actualValueIndices': [being.valueOutputs.index(out) for out in actualOutputs],
+            'lengths': lengths,
+            'ndim': mp.ndim,
         }
 
 
@@ -173,22 +177,26 @@ def being_controller(being: Being) -> web.RouteTableDef:
 
         return respond_ok()
 
-    @routes.put('/motors/{id}/livePreview')
+    @routes.put('/motors/{id}/channels/{channel}/livePreview')
     async def live_preview(request):
         """Live preview of position value for motor."""
         being.pause_behaviors()
         id = int(request.match_info['id'])
+        channel = int(request.match_info['channel'])
         try:
             mp = being.motionPlayers[id]
-            data = await request.json()
-            pos = data['position']
-            if pos is None or not math.isfinite(pos):
-                return web.HTTPBadRequest(text=f'Invalid value {pos} for live preview!')
+            if mp.playing:
+                mp.stop()
 
-            mp.live_preview(data['position'])
+            data = await request.json()
+            position = data.get('position')
+            if position is None or not math.isfinite(position):
+                return web.HTTPBadRequest(text=f'Invalid value {position} for live preview!')
+
+            mp.positionOutputs[channel].value = position
             return json_response()
         except IndexError:
-            return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
+            return web.HTTPBadRequest(text=f'Motion player with id {id} on channel {channel} does not exist!')
         except KeyError:
             return web.HTTPBadRequest(text='Could not parse spline!')
 

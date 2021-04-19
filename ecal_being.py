@@ -19,6 +19,7 @@ with manage_resources():
     # Make block connections
     sensor.output.connect(behavior.input)
     behavior.associate(mp)
-    mp.output.connect(motor0.input)
-    mp.output.connect(motor1.input)
+    mp.add_position_output()
+    mp.outputs[0].connect(motor0.input)
+    mp.outputs[1].connect(motor1.input)
     awake(behavior)

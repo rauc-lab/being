@@ -60,8 +60,7 @@ class Content(PubSub, SingleInstanceCache):
             Available version of wish name.
 
         Raises:
-            RuntimeError: If we can not find any available name (after x
-                tries...)
+            RuntimeError: If we can not find any available name (after x tries...)
         """
         names = list(self._sorted_names())
         if wishName not in names:
@@ -98,7 +97,7 @@ class Content(PubSub, SingleInstanceCache):
         fp = self._fullpath(name)
         return loads(read_file(fp))
 
-    def save_motion(self, spline: BPoly, name: str):
+    def save_motion(self, name: str, spline: BPoly):
         """Save spline to disk.
 
         Args:
@@ -107,29 +106,6 @@ class Content(PubSub, SingleInstanceCache):
         """
         fp = self._fullpath(name)
         write_file(fp, dumps(spline))
-        self.publish(CONTENT_CHANGED)
-
-    def rename_motion(self, oldName: str, newName: str):
-        """Rename motion on disk.
-
-        Args:
-            oldName: Old motion name.
-            newName: New motion name.
-        """
-        oldFp = self._fullpath(oldName)
-        newFp = self._fullpath(newName)
-        os.rename(oldFp, newFp)
-        self.publish(CONTENT_CHANGED)
-
-    def duplicate_motion(self, name: str):
-        """Make a copy of a motion.
-
-        Args:
-            name: Motion name.
-        """
-        orig = self._fullpath(name)
-        copy = self._fullpath(self.find_free_name(name + ' Copy'))
-        shutil.copyfile(orig, copy)
         self.publish(CONTENT_CHANGED)
 
     def delete_motion(self, name: str):

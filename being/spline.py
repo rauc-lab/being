@@ -73,6 +73,23 @@ def spline_order(spline: Spline) -> int:
     return spline.c.shape[0]
 
 
+def spline_dimensions(spline: Spline) -> int:
+    """Number of dimensions of spline."""
+    if spline.c.ndim == 3:
+        return spline.c.shape[2]
+
+    return 1
+
+
+def spline_shape(spline: Spline) -> tuple:
+    """Spline shape."""
+    if spline.c.ndim == 3:
+        return spline.c.shape[2:]
+
+    scalarShape = ()
+    return scalarShape
+
+
 def spline_duration(spline: Spline) -> float:
     """Spline duration in seconds."""
     knots = spline.x

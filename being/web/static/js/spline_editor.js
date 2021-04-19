@@ -1,26 +1,23 @@
 /**
  * @module spline_editor Spline editor custom HTML element.
  */
-import { BBox } from "/static/js/bbox.js";
-import { CurverBase } from "/static/js/curver.js";
-import { make_draggable } from "/static/js/draggable.js";
-import { History } from "/static/js/history.js";
-import { clip } from "/static/js/math.js";
-import { subtract_arrays, array_reshape, multiply_scalar, array_shape } from "/static/js/array.js";
-import { BPoly } from "/static/js/spline.js";
-import { clear_array } from "/static/js/utils.js";
-import { Line } from "/static/js/line.js";
-import { PAUSED, PLAYING, RECORDING, Transport } from "/static/js/transport.js";
-import { SplineDrawer } from "/static/js/spline_drawer.js";
-import { SplineList } from "/static/js/spline_list.js";
-import { INTERVAL } from "/static/js/config.js";
-import { MotorSelector } from "/static/js/motor_selector.js";
-import { toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button } from "/static/js/button.js";
-import { Api } from "/static/js/api.js";
+import {BBox} from "/static/js/bbox.js";
+import {CurverBase} from "/static/js/curver.js";
+import {make_draggable} from "/static/js/draggable.js";
+import {History} from "/static/js/history.js";
+import {clip} from "/static/js/math.js";
+import {subtract_arrays, array_reshape, multiply_scalar, array_shape } from "/static/js/array.js";
+import {COEFFICIENTS_DEPTH, zero_spline, BPoly} from "/static/js/spline.js";
+import {clear_array} from "/static/js/utils.js";
+import {Line} from "/static/js/line.js";
+import {PAUSED, PLAYING, RECORDING, Transport} from "/static/js/transport.js";
+import {SplineDrawer} from "/static/js/spline_drawer.js";
+import {SplineList} from "/static/js/spline_list.js";
+import {INTERVAL} from "/static/js/config.js";
+import {MotorSelector} from "/static/js/motor_selector.js";
+import {toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button} from "/static/js/button.js";
+import {Api} from "/static/js/api.js";
 
-
-/** Zero spline with duration 1.0 */
-const ZERO_SPLINE = new BPoly([[0.], [0.], [0.], [0.], ], [0., 1.]);
 
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
 const ZOOM_FACTOR_PER_STEP = 1.5;
@@ -37,6 +34,7 @@ const FOLDED = "folded";
 
 /**
  * Zoom / scale bounding box in place.
+ *
  * @param {Bbox} bbox Bounding box to scale.
  * @param {Number} factor Zoom factor.
  */
@@ -52,13 +50,13 @@ function zoom_bbox_in_place(bbox, factor) {
  */
 function scale_spline(spline, factor) {
     const shape = array_shape(spline.c);
-    const scaledCoeffs = array_reshape(multiply_scalar(factor, spline.c.flat()), shape);
+    const scaledCoeffs = array_reshape(multiply_scalar(factor, spline.c.flat(COEFFICIENTS_DEPTH)), shape);
     return new BPoly(scaledCoeffs, spline.x);
 }
 
 
 /**
- * Stretch spline by factor (strech knots).
+ * Stretch spline by factor (stretch knots).
  */
 function stretch_spline(spline, factor) {
     const stretchedKnots = multiply_scalar(factor, spline.x);
@@ -80,20 +78,18 @@ class Editor extends CurverBase {
         this.transport = new Transport(this);
         this.drawer = new SplineDrawer(this, this.splineGroup);
         this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
-        this.motorSelector = new MotorSelector();
+        this.motorSelector = new MotorSelector(this);
         this.splineList = new SplineList(this);
         this.recordedTrajectory = [];
         this.api = new Api();
-
-        // Single actual value line
-        const color = this.colorPicker.next();
-        this.line = new Line(this.ctx, color, this.maxlen);
-        this.lines.push(this.line);
 
         this.setup_toolbar_elements();
 
         // Initial data
         this.api.get_motor_infos().then(infos => {
+            infos.forEach(mot => {
+                this.init_plotting_lines(mot.ndim);
+            });
             this.motorSelector.populate(infos);
         });
         this.splineList.reload_spline_list();
@@ -142,6 +138,18 @@ class Editor extends CurverBase {
     }
 
     /**
+     * Initialize a given number of splines.
+     *
+     * @param {Number} maxLines Maximum number of lines.
+     */
+    init_plotting_lines(maxLines = 1) {
+        while (this.lines.length < maxLines) {
+            const color = this.colorPicker.next();
+            this.lines.push(new Line(this.ctx, color, this.maxlen));
+        }
+    }
+
+    /**
      * Populate toolbar with buttons and motor selection. Wire up event listeners.
      */
     setup_toolbar_elements() {
@@ -167,7 +175,7 @@ class Editor extends CurverBase {
 
             const spline = this.history.retrieve();
             const name = this.splineList.selected;
-            await this.api.save_spline(spline, name);
+            await this.api.update_spline(name, spline);
             this.history.clear();
             this.history.capture(spline);
             const selectedSpline = this.splineList.splines.filter(sp => sp.filename === this.splineList.selected)[0];
@@ -210,11 +218,7 @@ class Editor extends CurverBase {
 
 
         // Motor selection
-        const select = this.add_select_to_toolbar();
-        select.addEventListener("change", () => {
-            this.stop_spline_playback();
-        });
-        this.motorSelector.attach_select(select);
+        const motorSelect = this.add_select_to_toolbar();
 
 
         // Transport buttons
@@ -241,6 +245,8 @@ class Editor extends CurverBase {
 
 
         // Tool adjustments
+        const channelSelect = this.add_select_to_toolbar();
+        this.motorSelector.attach_selects(motorSelect, channelSelect);
         this.snapBtn = this.add_button_to_toolbar("grid_3x3", "Snap to grid");  // TODO: Or vertical_align_center?
         switch_button_on(this.snapBtn);
         this.snapBtn.addEventListener("click", () => {
@@ -319,9 +325,10 @@ class Editor extends CurverBase {
             });
             this.spline_changed(newSpline);
         });
-        this.add_button_to_toolbar("clear", "Reset current motion.").addEventListener("click", () => {
+        this.add_button_to_toolbar("clear", "Reset current motion").addEventListener("click", () => {
             this.spline_changing();
-            this.spline_changed(ZERO_SPLINE.copy());
+            const motor = this.motorSelector.selected_motor_info();
+            this.spline_changed(zero_spline(motor.ndim));
         });
     }
 
@@ -444,6 +451,8 @@ class Editor extends CurverBase {
                 switch_button_off(this.recBtn);
 
                 enable_button(this.stopBtn);
+
+                this.motorSelector.disabled = false;
                 break;
             case PLAYING:
                 this.playPauseBtn.innerHTML = "pause";
@@ -455,6 +464,8 @@ class Editor extends CurverBase {
                 switch_button_off(this.recBtn);
 
                 enable_button(this.stopBtn);
+
+                this.motorSelector.disabled = true;
                 break;
             case RECORDING:
                 this.playPauseBtn.innerHTML = "play_arrow";
@@ -466,6 +477,8 @@ class Editor extends CurverBase {
                 switch_button_on(this.recBtn);
 
                 disable_button(this.stopBtn);
+
+                this.motorSelector.disabled = true;
                 break;
             default:
                 throw "Ooops, something went wrong with the FSM!";
@@ -484,9 +497,10 @@ class Editor extends CurverBase {
      * @returns {BBox} Boundaries bounding box
      */
     limits() {
+        // TODO(atheler): Support for multiple and different motor lengths
         if (is_checked(this.limitBtn)) {
             const motor = this.motorSelector.selected_motor_info();
-            return new BBox([0, 0], [Infinity, motor.length]);
+            return new BBox([0, 0], [Infinity, motor.lengths[0]]);
         } else {
             return new BBox([0, -Infinity], [Infinity, Infinity]);
         }
@@ -525,11 +539,16 @@ class Editor extends CurverBase {
 
         const duration = current.end;
         this.transport.duration = duration;
-        this.line.maxlen = .8 * duration / INTERVAL;
+        this.lines.forEach(line => {
+            line.maxlen = .8 * duration / INTERVAL;
+        });
 
         this.drawer.clear();
-        this.drawer.draw_spline(current);
-
+        {
+            const interactive = true;
+            const dim = this.motorSelector.selected_channel();
+            this.drawer.draw_spline(current, interactive, dim);
+        }
         this.update_ui();
     }
 
@@ -538,10 +557,11 @@ class Editor extends CurverBase {
      */
     spline_changing(position = null) {
         this.stop_spline_playback();
-        this.line.data.clear();
+        this.lines.forEach(line => line.data.clear());
         if (position !== null && is_checked(this.livePreviewBtn)) {
             const motor = this.motorSelector.selected_motor_info();
-            this.api.live_preview(position, motor.id);
+            const channel = this.motorSelector.selected_channel();
+            this.api.live_preview(position, motor.id, channel);
         }
     }
 
@@ -596,8 +616,10 @@ class Editor extends CurverBase {
      */
     async start_recording() {
         this.transport.record();
-        this.line.data.clear();
-        this.line.data.maxlen = Infinity;
+        this.lines.forEach(line => {
+            line.data.clear();
+            line.data.maxlen = Infinity;
+        });
         this.auto = true;
         this.drawer.clear();
         await this.api.disable_motors();
@@ -655,7 +677,10 @@ class Editor extends CurverBase {
      * Create a new spline.
      */
     async create_new_spline() {
-        await this.api.create_spline();
+        const motor = this.motorSelector.selected_motor_info();
+        const name = await this.api.find_free_name();
+        const spline = zero_spline(motor.ndim);
+        await this.api.create_spline(name, spline);
         this.update_ui();
         this.splineList.reload_spline_list();
     }
@@ -683,7 +708,7 @@ class Editor extends CurverBase {
     }
 
     /**
-     * Process new data message from backend.
+     * Process new data message from back-end.
      */
     new_data(msg) {
         const t = this.transport.move(msg.timestamp);
@@ -693,15 +718,18 @@ class Editor extends CurverBase {
         }
 
         const motor = this.motorSelector.selected_motor_info();
-        const actualValue = msg.values[motor.actualValueIndex];
         if (this.transport.paused) {
-            this.line.data.popleft();
+            this.lines.forEach(line => line.data.popleft());
         } else {
-            this.line.append_data([t, actualValue]);
+            motor.actualValueIndices.forEach((idx, nr) => {
+                const actualValue = msg.values[idx];
+                this.lines[nr].append_data([t, actualValue]);
+            });
         }
 
         if (this.transport.recording) {
-            this.recordedTrajectory.push([t, actualValue]);
+            const vals = msg.values.filter((_, i) => motor.actualValueIndices.includes(i));
+            this.recordedTrajectory.push([t].concat(vals));
         }
     }
 
@@ -712,5 +740,6 @@ class Editor extends CurverBase {
         }
     }
 }
+
 
 customElements.define("being-editor", Editor);

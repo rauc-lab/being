@@ -15,8 +15,7 @@ from being.block import Block
 from being.clock import Clock
 from being.content import Content
 from being.logging import get_logger
-from being.spline import Spline, sample_spline
-
+from being.spline import Spline, sample_spline, spline_dimensions, spline_shape
 
 
 """
@@ -75,9 +74,9 @@ class MotionPlayer(Block):
 
         super().__init__()
         self.add_message_input('mcIn')
-        self.add_value_output('setpointPosition')
-        self.add_message_output('feedbackOut')
-
+        #self.add_message_output('feedbackOut')
+        self.positionOutputs = []
+        self.add_position_output()
         self.clock = clock
         self.content = content
         self.spline = None
@@ -90,12 +89,22 @@ class MotionPlayer(Block):
         """Spline playback in progress."""
         return self.spline is not None
 
+    @property
+    def ndim(self) -> int:
+        """Number of output dimensions."""
+        return len(self.positionOutputs)
+
+    def add_position_output(self):
+        self.add_value_output()
+        latestOut = self.outputs[-1]
+        self.positionOutputs.append(latestOut)
+
     def stop(self):
         """Stop spline playback."""
         self.spline = None
         self.startTime = 0
         self.looping = False
-        self.feedbackOut.send(SUCCESS)
+        #self.feedbackOut.send(SUCCESS)
 
     def play_spline(self, spline: Spline, loop=False, offset=0):
         """Play a spline directly.
@@ -107,17 +116,11 @@ class MotionPlayer(Block):
             loop: Loop spline playback.
             offset: Start offset inside spline.
         """
+        self.logger.info('Playing spline')
         self.spline = spline
         self.startTime = self.clock.now() - offset
         self.looping = loop
         return self.startTime
-
-    def live_preview(self, position):
-        """Reset spline and output position value directly."""
-        if self.playing:
-            self.stop()
-
-        self.output.value = position
 
     def process_mc(self, mc: MotionCommand):
         """Process new motion command and schedule next spline to play.
@@ -130,7 +133,13 @@ class MotionPlayer(Block):
             self.logger.info('Playing motion %r', mc.name)
         except FileNotFoundError:
             self.logger.error('Motion %r does not exist!', mc.name)
-            spline = constant_spline(self.output.value, duration=5.)
+            currentVals = [out.value for out in self.positionOutputs]
+            spline = constant_spline(currentVals, duration=5.)
+
+        shape = spline_shape(spline)
+        if shape != (self.ndim, ):
+            msg = f'Motion {mc.name} (shape {shape}) is not compatible with connected motors ({self.ndim})!'
+            self.logger.error(msg)
 
         return self.play_spline(spline, mc.loop)
 
@@ -141,8 +150,9 @@ class MotionPlayer(Block):
         if self.playing:
             now = self.clock.now()
             t = now - self.startTime
-            sample = sample_spline(self.spline, t, loop=self.looping)
-            self.output.value = sample
+            samples = sample_spline(self.spline, t, loop=self.looping)
+            for val, out in zip(samples, self.positionOutputs):
+                out.value = val
 
             if not self.looping and t >= self.spline.x[-1]:
                 self.stop()
