@@ -1,5 +1,6 @@
 """Awaking a being to live. Main start execution entry point."""
 import asyncio
+import signal
 import time
 
 from being.backends import CanBackend
@@ -9,7 +10,7 @@ from being.config import CONFIG
 from being.connectables import ValueOutput
 from being.execution import execute, block_network_graph
 from being.graph import topological_sort
-from being.logging import setup_logging
+from being.logging import setup_logging, get_logger
 from being.motion_player import MotionPlayer
 from being.motor import home_motors, _MotorBase
 from being.utils import filter_by_type
@@ -20,6 +21,7 @@ from being.web.web_socket import WebSocket
 INTERVAL = CONFIG['General']['INTERVAL']
 API_PREFIX = CONFIG['Web']['API_PREFIX']
 WEB_SOCKET_ADDRESS = CONFIG['Web']['WEB_SOCKET_ADDRESS']
+LOGGER = get_logger(__name__)
 
 
 def value_outputs(blocks):
@@ -75,7 +77,17 @@ class Being:
 
     def run(self):
         """Run being standalone."""
-        while True:
+        running = True
+
+        def exit_gracefully(signum, frame):
+            """Exit main loop gracefully."""
+            LOGGER.info('Graceful exit (signum %r)', signum)
+            nonlocal running
+            running = False
+
+        signal.signal(signal.SIGTERM, exit_gracefully)
+
+        while running:
             now = time.perf_counter()
             self.single_cycle()
             then = time.perf_counter()
@@ -113,6 +125,17 @@ def awake(*blocks, web=True):
     asyncio.run(_awake_web(being))
 
 
+def cancel_all_tasks():
+    """Shutdown all async tasks.
+
+    Resrouces:
+      https://gist.github.com/nvgoldin/30cea3c04ee0796ebd0489aa62bcf00a
+    """
+    LOGGER.info('Cancelling all async tasks')
+    for task in asyncio.all_tasks():
+        task.cancel()
+
+
 async def _awake_web(being):
     """Run being with web server."""
     app = init_web_server()
@@ -121,8 +144,13 @@ async def _awake_web(being):
     app.on_shutdown.append(ws.close_all)
     api = init_api(being, ws)
     app.add_subapp(API_PREFIX, api)
-    await asyncio.gather(*[
-        being._run_web(ws),
-        run_web_server(app),
-        ws.run_broker(),
-    ])
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler(signal.SIGTERM, cancel_all_tasks)
+    try:
+        await asyncio.gather(*[
+            being._run_web(ws),
+            run_web_server(app),
+            ws.run_broker(),
+        ])
+    except asyncio.CancelledError:
+        pass
