@@ -46,7 +46,7 @@ export class MotorSelector {
         remove_all_children(this.channelSelect);
         const motor = this.selected_motor_info();
         arange(motor.ndim).forEach(dim => {
-            add_option(this.channelSelect, "Channel " + dim);
+            add_option(this.channelSelect, "Curve " + (dim + 1));
         });
         dont_display_select_when_no_options(this.channelSelect);
     }
@@ -79,7 +79,7 @@ export class MotorSelector {
         this.motorInfos = motorInfos;
         remove_all_children(this.motorSelect);
         motorInfos.forEach(motor => {
-            add_option(this.motorSelect, "Motor " + motor.id);
+            add_option(this.motorSelect, "Motor" + (motor.id + 1));
         });
 
         dont_display_select_when_no_options(this.motorSelect);

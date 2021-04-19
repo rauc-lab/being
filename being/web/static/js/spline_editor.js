@@ -219,8 +219,7 @@ class Editor extends CurverBase {
 
         // Motor selection
         const motorSelect = this.add_select_to_toolbar();
-        const channelSelect = this.add_select_to_toolbar();
-        this.motorSelector.attach_selects(motorSelect, channelSelect);
+
 
         // Transport buttons
         this.playPauseBtn = this.add_button_to_toolbar("play_arrow", "Play / pause motion playback");
@@ -246,6 +245,8 @@ class Editor extends CurverBase {
 
 
         // Tool adjustments
+        const channelSelect = this.add_select_to_toolbar();
+        this.motorSelector.attach_selects(motorSelect, channelSelect);
         this.snapBtn = this.add_button_to_toolbar("grid_3x3", "Snap to grid");  // TODO: Or vertical_align_center?
         switch_button_on(this.snapBtn);
         this.snapBtn.addEventListener("click", () => {
