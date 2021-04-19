@@ -30,12 +30,15 @@ class DummySensor(Sensor):
 
 sensor = DummySensor()
 behavior = Behavior.from_config('behavior.json')
+sensor | behavior
 mp = MotionPlayer()
 behavior.associate(mp)
-mp.add_position_output()
+
+
+#mp.add_position_output()
 mp.add_position_output()
 mp.outputs[0] | DummyMotor()
 mp.outputs[1] | DummyMotor()
-mp.outputs[2] | DummyMotor()
-sensor | behavior
+
+
 awake(behavior)
