@@ -122,13 +122,6 @@ class MotionPlayer(Block):
         self.looping = loop
         return self.startTime
 
-    def live_preview(self, position):
-        """Reset spline and output position value directly."""
-        if self.playing:
-            self.stop()
-
-        self.output.value = position
-
     def process_mc(self, mc: MotionCommand):
         """Process new motion command and schedule next spline to play.
 

@@ -40,8 +40,10 @@ export class Api {
      *
      * @param {Number} position Vertical y position of linear motor.
      */
-    async live_preview(position, id) {
-        return put_json(API + "/motors/" + id + "/livePreview", { "position": position });
+    async live_preview(position, id, channel = 0) {
+        return put_json(API + "/motors/" + id + "/channels/" + channel + "/livePreview", {
+            "position": position,
+        });
     }
 
     /**

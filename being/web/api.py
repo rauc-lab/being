@@ -4,7 +4,6 @@ import math
 from typing import ForwardRef
 
 from aiohttp import web
-from scipy.interpolate import BPoly
 
 from being.behavior import State
 from being.content import Content
@@ -97,7 +96,7 @@ def content_controller(content: Content) -> web.RouteTableDef:
 
 
 def connected_motors(motionPlayer):
-    for output in motionPlayer.positionOutpus:
+    for output in motionPlayer.positionOutputs:
         for input_ in output.outgoingConnections:
             if isinstance(input_.owner, _MotorBase):
                 yield input_.owner
@@ -109,14 +108,10 @@ def serialize_motion_players(being):
         actualOutputs = []
         motors = []
         lengths = []
-        for output in mp.positionOutputs:
-            for input_ in output.outgoingConnections:
-                if isinstance(input_.owner, _MotorBase):
-                    mot = input_.owner
-                    motors.append(mot)
-                    actualOutputs.append(mot.output)
-                    lengths.append(mot.length)
-                    break
+        for motor in connected_motors(mp):
+            motors.append(motor)
+            actualOutputs.append(motor.output)
+            lengths.append(motor.length)
 
         yield {
             'id': nr,
@@ -182,22 +177,26 @@ def being_controller(being: Being) -> web.RouteTableDef:
 
         return respond_ok()
 
-    @routes.put('/motors/{id}/livePreview')
+    @routes.put('/motors/{id}/channels/{channel}/livePreview')
     async def live_preview(request):
         """Live preview of position value for motor."""
         being.pause_behaviors()
         id = int(request.match_info['id'])
+        channel = int(request.match_info['channel'])
         try:
             mp = being.motionPlayers[id]
-            data = await request.json()
-            pos = data['position']
-            if pos is None or not math.isfinite(pos):
-                return web.HTTPBadRequest(text=f'Invalid value {pos} for live preview!')
+            if mp.playing:
+                mp.stop()
 
-            mp.live_preview(data['position'])
+            data = await request.json()
+            position = data.get('position')
+            if position is None or not math.isfinite(position):
+                return web.HTTPBadRequest(text=f'Invalid value {position} for live preview!')
+
+            mp.positionOutputs[channel].value = position
             return json_response()
         except IndexError:
-            return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
+            return web.HTTPBadRequest(text=f'Motion player with id {id} on channel {channel} does not exist!')
         except KeyError:
             return web.HTTPBadRequest(text='Could not parse spline!')
 

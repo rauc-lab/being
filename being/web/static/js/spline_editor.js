@@ -6,7 +6,7 @@ import {CurverBase} from "/static/js/curver.js";
 import {make_draggable} from "/static/js/draggable.js";
 import {History} from "/static/js/history.js";
 import {clip} from "/static/js/math.js";
-import {subtract_arrays, array_reshape, multiply_scalar, array_shape} from "/static/js/array.js";
+import {subtract_arrays, array_reshape, multiply_scalar, array_shape } from "/static/js/array.js";
 import {COEFFICIENTS_DEPTH, zero_spline, BPoly} from "/static/js/spline.js";
 import {clear_array} from "/static/js/utils.js";
 import {Line} from "/static/js/line.js";
@@ -560,7 +560,8 @@ class Editor extends CurverBase {
         this.lines.forEach(line => line.data.clear());
         if (position !== null && is_checked(this.livePreviewBtn)) {
             const motor = this.motorSelector.selected_motor_info();
-            this.api.live_preview(position, motor.id);
+            const channel = this.motorSelector.selected_channel();
+            this.api.live_preview(position, motor.id, channel);
         }
     }
 
