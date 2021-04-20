@@ -257,7 +257,7 @@ export class SplineDrawer {
      * @param {Number} lw Line width.
      * @param {Number} dim Which dimension to draw.
      */
-    draw_curve(spline, lw = 1, dim = 0) {
+    draw_curve(spline, lw = 1, dim = 0, color = "black") {
         const segments = arange(spline.n_segments);
         segments.forEach(seg => {
             this.init_path(() => {
@@ -267,7 +267,7 @@ export class SplineDrawer {
                     spline.point(seg, 2, dim),
                     spline.point(seg + 1, 0, dim),
                 ];
-            }, lw);
+            }, lw, color);
         });
     }
 
@@ -371,7 +371,8 @@ export class SplineDrawer {
         this.splines.push(wc);
         const lw = interactive ? 2 : 1;
         arange(wc.ndim).forEach(dim => {
-            this.draw_curve(wc, lw, dim);
+            const color = (dim === channel) ? "black" : "silver";
+            this.draw_curve(wc, lw, dim, color);
             if (interactive && dim === channel) {
                 this.draw_control_points(wc, lw, dim);
                 this.draw_knots(wc, lw, dim);
