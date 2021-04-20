@@ -210,7 +210,7 @@ class Editor extends CurverBase {
             const current = this.history.retrieve();
             const bbox = current.bbox();
             bbox.expand_by_bbox(DEFAULT_DATA_BBOX);
-            this.viewport = current.bbox();
+            this.viewport = bbox;
             this.update_trafo();
             this.draw();
         });
