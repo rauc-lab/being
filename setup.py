@@ -43,10 +43,20 @@ setup(
         'Topic :: System :: Hardware :: Hardware Drivers',
     ],
     description='Robotic core for the PATHOS project.',
-    #install_requires=['setuptools', 'numpy', 'scipy', ],
+    install_requires=[
+        'setuptools',
+        'numpy',
+        'scipy',
+        'matplotlib',
+        'python-can',
+        'canopen',
+        'aiohttp',
+        #'RPi.GPIO',  # Needed on Rpi. We do not include it here that being can run on normal computers...
+        #'PyAudio',  # Optional. Not needed right now
+    ],
     keywords='Poetic animatronics robotic framework',
     long_description=longDescription,
-    #long_description_content_type='text/rst',  # TODO: Does not work
+    #long_description_content_type='text/rst',  # TODO: Does not work. Maybe .rst -> .md
     name='being',
     packages=find_packages(),
     data_files=[
