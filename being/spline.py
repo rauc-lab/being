@@ -228,11 +228,8 @@ def sample_spline(spline: Spline, t, loop: bool = False):
     """
     start = spline.x[0]  # No fancy indexing. Faster then `start, end = spline.x[[0, -1]]`
     end = spline.x[-1]
-
     if loop:
-        # duration = end - start
-        duration = end  # We want to include dead time at the beginning from 0 -> start
-        t = (t - start) % duration + start
+        return spline(np.clip(t % end, start, end))
 
     if spline.extrapolate:
         return spline(t)
