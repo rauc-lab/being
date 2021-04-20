@@ -37,18 +37,12 @@ class NetworkBlock(Block):
         """
         super().__init__()
         if sock is None:
-            sock = self.create_socket()
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.setblocking(False)
             register_resource(sock)
 
         self.address = address
         self.sock = sock
-
-    @staticmethod
-    def create_socket():
-        """New non-blocking datagram socket instance."""
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setblocking(False)
-        return sock
 
 
 class NetworkOut(NetworkBlock):

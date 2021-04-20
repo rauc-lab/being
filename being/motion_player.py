@@ -95,6 +95,7 @@ class MotionPlayer(Block):
         return len(self.positionOutputs)
 
     def add_position_output(self):
+        """Add an additional position out to the motion player."""
         self.add_value_output()
         latestOut = self.outputs[-1]
         self.positionOutputs.append(latestOut)
