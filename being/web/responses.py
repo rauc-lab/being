@@ -19,12 +19,18 @@ def json_response(obj=None):
 
     return web.json_response(obj, dumps=dumps)
 
-
-def file_response_handler(filepath):
-    """Create anonymous file response handler for a file."""
-    return lambda request: web.FileResponse(filepath)
-
-
-def json_response_handler(data):
-    """Create anonymous JSON response handler function for some data."""
-    return lambda request: json_response(data)
+# Note: Do not use these functions! Leads to errors under Windows because the
+# IocpProactor proactor does not accept non-async lambda functions.
+#
+# Excerpt:
+#     raise TypeError("Only async functions are allowed as web-handlers "
+# TypeError: Only async functions are allowed as web-handlers , got <function file_response_handler.<locals>.<lambda> at 0x000001A40BF45CA0>
+# 
+#def file_response_handler(filepath):
+#    """Create anonymous file response handler for a file."""
+#    return lambda request: web.FileResponse(filepath)
+#
+#
+#def json_response_handler(data):
+#    """Create anonymous JSON response handler function for some data."""
+#    return lambda request: json_response(data)

@@ -201,7 +201,7 @@ def being_controller(being: Being) -> web.RouteTableDef:
             return web.HTTPBadRequest(text='Could not parse spline!')
 
     @routes.put('/motors/disenable')
-    def disenable_drives(request):
+    async def disenable_drives(request):
         being.pause_behaviors()
         if being.network:
             being.network.engage_drives()
@@ -209,7 +209,7 @@ def being_controller(being: Being) -> web.RouteTableDef:
         return respond_ok()
 
     @routes.put('/motors/enable')
-    def enable_drives(request):
+    async def enable_drives(request):
         if being.network:
             being.network.enable_drives()
 
@@ -224,16 +224,16 @@ def behavior_controller(behavior) -> web.RouteTableDef:
     routes = web.RouteTableDef()
 
     @routes.get('/behavior/states')
-    def get_states(request):
+    async def get_states(request):
         stateNames = list(State.__members__)
         return json_response(stateNames)
 
     @routes.get('/behavior')
-    def get_info(request):
+    async def get_info(request):
         return json_response(behavior.infos())
 
     @routes.put('/behavior/toggle_playback')
-    def toggle_playback(request):
+    async def toggle_playback(request):
         if behavior.active:
             behavior.pause()
         else:
@@ -242,7 +242,7 @@ def behavior_controller(behavior) -> web.RouteTableDef:
         return json_response(behavior.infos())
 
     @routes.get('/behavior/params')
-    def get_params(request):
+    async def get_params(request):
         return json_response(behavior.params)
 
     @routes.put('/behavior/params')

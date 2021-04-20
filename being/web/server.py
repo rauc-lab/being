@@ -15,7 +15,6 @@ from being.logging import get_logger
 from being.sensors import Sensor
 from being.utils import filter_by_type
 from being.web.api import content_controller, being_controller, behavior_controller, misc_controller
-from being.web.responses import file_response_handler
 from being.web.web_socket import WebSocket
 
 
@@ -104,29 +103,26 @@ def init_web_server() -> web.Application:
     """
     here = os.path.dirname(os.path.abspath(__file__))
     staticDir = os.path.join(here, 'static')
-
     app = web.Application()
-    app.router.add_static(
-        prefix='/static',
-        path=staticDir,
-        show_index=True,
-    )
-    app.router.add_get(
-        '/favicon.ico',
-        file_response_handler(os.path.join(staticDir, 'favicon.ico')),
-    )
-    app.router.add_get(
-        '/',
-        file_response_handler(os.path.join(staticDir, 'being.html')),
-    )
-    app.router.add_get(
-        '/being',
-        file_response_handler(os.path.join(staticDir, 'being.html')),
-    )
-    app.router.add_get(
-        '/web-socket-test',
-        file_response_handler(os.path.join(staticDir, 'web-socket-test.html')),
-    )
+    app.router.add_static(prefix='/static', path=staticDir, show_index=True)
+
+    routes = web.RouteTableDef()
+
+    @routes.get('/favicon.ico')
+    async def get_favicon(request):
+        return web.FileResponse(os.path.join(staticDir, 'favicon.ico'))
+
+
+    @routes.get('/')
+    @routes.get('/being')
+    async def get_index(request):
+        return web.FileResponse(os.path.join(staticDir, 'being.html'))
+
+    #@routes.get('/web-socket-test')
+    #async def get_index(request):
+    #    return web.FileResponse(os.path.join(staticDir, 'web-socket-test.html'))
+
+    app.router.add_routes(routes)
     return app
 
 
