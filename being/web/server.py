@@ -117,7 +117,7 @@ def init_web_server() -> web.Application:
     )
     app.router.add_get(
         '/',
-        file_response_handler(os.path.join(staticDir, 'index.html')),
+        file_response_handler(os.path.join(staticDir, 'being.html')),
     )
     app.router.add_get(
         '/being',
