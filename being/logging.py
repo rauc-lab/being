@@ -48,7 +48,7 @@ def get_logger(name: Optional[str] = None):
 
 def setup_logging():
     """Setup being loggers."""
-    suppress_other_loggers()
+    #suppress_other_loggers()
     logging.root.setLevel(LEVEL)
     formatter = logging.Formatter(
         fmt='%(asctime)s.%(msecs)03d - %(levelname)5s - %(name)s - %(message)s',
