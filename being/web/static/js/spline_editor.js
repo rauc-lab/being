@@ -31,6 +31,9 @@ const MIN_HEIGHT = 0.010;
 /** @const {string} - Folded motion / spline list HTML attribute */
 const FOLDED = "folded";
 
+/** @const {Number} - Default spline knot shift offset amount...  */
+const DEFAULT_KNOT_SHIFT = 0.5;
+
 
 /**
  * Zoom / scale bounding box in place.
@@ -61,6 +64,17 @@ function scale_spline(spline, factor) {
 function stretch_spline(spline, factor) {
     const stretchedKnots = multiply_scalar(factor, spline.x);
     return new BPoly(spline.c, stretchedKnots);
+}
+
+
+function shift_spline(spline, offset) {
+    const start = spline.x[0];
+    offset = Math.max(offset, -start);
+    const shiftedKnots = spline.x.map(pos => {
+        return pos + offset;
+    });
+
+    return new BPoly(spline.c, shiftedKnots);
 }
 
 
@@ -312,20 +326,33 @@ class Editor extends CurverBase {
                 return;
             }
 
-            const spline = this.history.retrieve();
-            const startOffset = spline.x[0];
-            if (startOffset === 0) {
+            this.spline_changing();
+            const newSpline = shift_spline(this.history.retrieve(), -Infinity);
+            this.spline_changed(newSpline);
+        });
+        this.add_button_to_toolbar("chevron_left", "Shift knots to the left").addEventListener("click", () => {
+            if (!this.history.length) {
                 return;
             }
 
             this.spline_changing();
-            const newSpline = spline.copy();
-            newSpline.x.forEach((knot, nr) => {
-                newSpline.x[nr] = knot - startOffset;
-            });
+            const newSpline = shift_spline(this.history.retrieve(), -DEFAULT_KNOT_SHIFT);
+            this.spline_changed(newSpline);
+        });
+        this.add_button_to_toolbar("chevron_right", "Shift knots to the right").addEventListener("click", () => {
+            if (!this.history.length) {
+                return;
+            }
+
+            this.spline_changing();
+            const newSpline = shift_spline(this.history.retrieve(), DEFAULT_KNOT_SHIFT);
             this.spline_changed(newSpline);
         });
         this.add_button_to_toolbar("clear", "Reset current motion").addEventListener("click", () => {
+            if (!this.history.length) {
+                return;
+            }
+
             this.spline_changing();
             const motor = this.motorSelector.selected_motor_info();
             this.spline_changed(zero_spline(motor.ndim));
@@ -558,7 +585,8 @@ class Editor extends CurverBase {
     spline_changing(position = null) {
         this.stop_spline_playback();
         this.lines.forEach(line => line.data.clear());
-        if (position !== null && is_checked(this.livePreviewBtn)) {
+        if ((position !== null) && is_checked(this.livePreviewBtn)) {
+            console.log("Live preview")
             const motor = this.motorSelector.selected_motor_info();
             const channel = this.motorSelector.selected_channel();
             this.api.live_preview(position, motor.id, channel);
