@@ -1,7 +1,9 @@
 """Awaking a being to live. Main start execution entry point."""
 import asyncio
+import os
 import signal
 import time
+import warnings
 
 from being.backends import CanBackend
 from being.behavior import Behavior
@@ -85,7 +87,13 @@ class Being:
             nonlocal running
             running = False
 
-        signal.signal(signal.SIGTERM, exit_gracefully)
+        if os.name == 'posix':
+            signal.signal(signal.SIGTERM, exit_gracefully)
+        else:
+            warnings.warn((
+                'No signals available on your OS. Can not register SIGTERM'
+                ' signal for graceful program exit'
+            ))
 
         while running:
             now = time.perf_counter()
@@ -144,8 +152,16 @@ async def _awake_web(being):
     app.on_shutdown.append(ws.close_all)
     api = init_api(being, ws)
     app.add_subapp(API_PREFIX, api)
-    loop = asyncio.get_running_loop()
-    loop.add_signal_handler(signal.SIGTERM, cancel_all_tasks)
+
+    if os.name == 'posix':
+        loop = asyncio.get_running_loop()
+        loop.add_signal_handler(signal.SIGTERM, cancel_all_tasks)
+    else:
+        warnings.warn((
+            'No signals available on your OS. Can not register SIGTERM'
+            ' signal for graceful program exit'
+    ))
+
     try:
         await asyncio.gather(*[
             being._run_web(ws),
