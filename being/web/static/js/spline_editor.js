@@ -567,7 +567,7 @@ class Editor extends CurverBase {
         const duration = current.end;
         this.transport.duration = duration;
         this.lines.forEach(line => {
-            line.maxlen = .8 * duration / INTERVAL;
+            line.maxlen = .5 * .8 * duration / INTERVAL;  // Tmp workaround for the decoupling of web socket send in main loop
         });
 
         this.drawer.clear();

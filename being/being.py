@@ -101,19 +101,28 @@ class Being:
             then = time.perf_counter()
             time.sleep(max(0, INTERVAL - (then - now)))
 
-    async def _run_web(self, ws):
+    async def run_async(self):
         """Run being inside async loop."""
         time_func = asyncio.get_running_loop().time
         while True:
             now = time_func()
             self.single_cycle()
-            await ws.send_json({
-                'type': 'output-values',
-                'timestamp': self.clock.now(),
-                'values': self.capture_value_outputs()
-            })
             then = time_func()
             await asyncio.sleep(max(0, INTERVAL - (then - now)))
+
+
+async def send_being_state_to_front_end(being: Being, ws: WebSocket):
+    """Keep capturing the current being state and send it to the front-end.
+    Taken out from ex being._run_web() because web socket send might block our
+    main loop.
+    """
+    while True:
+        await ws.send_json({
+            'type': 'output-values',
+            'timestamp': being.clock.now(),
+            'values': being.capture_value_outputs()
+        })
+        await asyncio.sleep(2 * INTERVAL)
 
 
 def awake(*blocks, web=True):
@@ -164,7 +173,8 @@ async def _awake_web(being):
 
     try:
         await asyncio.gather(*[
-            being._run_web(ws),
+            being.run_async(),
+            send_being_state_to_front_end(being, ws),
             run_web_server(app),
             ws.run_broker(),
         ])
