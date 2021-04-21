@@ -18,6 +18,11 @@ const DEFAULT_MOTOR_INFO = {
 };
 
 
+/**
+ * Do not show select when there is only 1x option.
+ *
+ * @param {HTMLElement} select HTML select element.
+ */
 function dont_display_select_when_no_options(select) {
     select.style.display = select.length < 2 ? "none" : "inline";
 }
@@ -46,10 +51,11 @@ export class MotorSelector {
         remove_all_children(this.channelSelect);
         const motor = this.selected_motor_info();
         arange(motor.ndim).forEach(dim => {
-            add_option(this.channelSelect, "Curve " + (dim + 1));
+            add_option(this.channelSelect, "Motor " + (dim + 1));  // TODO(atheler): Change back to "Curve " after ECAL workshop
         });
         dont_display_select_when_no_options(this.channelSelect);
     }
+
 
     /**
      * Set MotorSelectors HTML selelct elements (indirect DI since selects are
