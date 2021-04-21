@@ -586,7 +586,6 @@ class Editor extends CurverBase {
         this.stop_spline_playback();
         this.lines.forEach(line => line.data.clear());
         if ((position !== null) && is_checked(this.livePreviewBtn)) {
-            console.log("Live preview")
             const motor = this.motorSelector.selected_motor_info();
             const channel = this.motorSelector.selected_channel();
             this.api.live_preview(position, motor.id, channel);
@@ -665,15 +664,16 @@ class Editor extends CurverBase {
         if (!this.recordedTrajectory.length) {
             return;
         }
+
         try {
             const spline = await this.api.fit_spline(this.recordedTrajectory);
+            clear_array(this.recordedTrajectory);
+            this.history.capture(spline);
+            this.draw_current_spline();
         } catch(err) {
             console.log(err)
         }
 
-        clear_array(this.recordedTrajectory);
-        this.history.capture(spline);
-        this.draw_current_spline();
         this.update_ui();
     }
 
@@ -761,7 +761,10 @@ class Editor extends CurverBase {
         }
 
         if (this.transport.recording) {
-            const vals = msg.values.filter((_, i) => motor.actualValueIndices.includes(i));
+            const vals = [];
+            motor.actualValueIndices.forEach(i => {
+                vals.push(msg.values[i]);
+            });
             this.recordedTrajectory.push([t].concat(vals));
         }
     }
