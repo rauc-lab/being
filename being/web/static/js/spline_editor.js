@@ -665,10 +665,15 @@ class Editor extends CurverBase {
         if (!this.recordedTrajectory.length) {
             return;
         }
+        try {
+            const spline = await this.api.fit_spline(this.recordedTrajectory);
+        } catch(err) {
+            console.log(err)
+        }
 
-        const spline = await this.api.fit_spline(this.recordedTrajectory);
         clear_array(this.recordedTrajectory);
-        this.load_spline(spline);
+        this.history.capture(spline);
+        this.draw_current_spline();
         this.update_ui();
     }
 
