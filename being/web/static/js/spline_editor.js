@@ -14,7 +14,7 @@ import {PAUSED, PLAYING, RECORDING, Transport} from "/static/js/transport.js";
 import {SplineDrawer} from "/static/js/spline_drawer.js";
 import {SplineList} from "/static/js/spline_list.js";
 import {INTERVAL} from "/static/js/config.js";
-import {MotorSelector} from "/static/js/motor_selector.js";
+import {DEFAULT_MOTOR_INFOS, MotorSelector} from "/static/js/motor_selector.js";
 import {toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button} from "/static/js/button.js";
 import {Api} from "/static/js/api.js";
 
@@ -101,10 +101,16 @@ class Editor extends CurverBase {
 
         // Initial data
         this.api.get_motor_infos().then(infos => {
-            infos.forEach(mot => {
-                this.init_plotting_lines(mot.ndim);
+            infos.forEach(motor => {
+                this.init_plotting_lines(motor.ndim);
             });
             this.motorSelector.populate(infos);
+        }).catch(err => {
+            console.log("Failed fetching motor infos from back-end!", err);
+            DEFAULT_MOTOR_INFOS.forEach(motor => {
+                this.init_plotting_lines(motor.ndim);
+            });
+            this.motorSelector.populate(DEFAULT_MOTOR_INFOS);
         });
         this.splineList.reload_spline_list();
 

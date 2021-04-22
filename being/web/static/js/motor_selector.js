@@ -10,12 +10,14 @@ import {arange} from "/static/js/array.js";
 export const NOTHING_SELECTED = -1;
 
 /** @const {object} - Default motor info dictionary if nothing is selected */
-const DEFAULT_MOTOR_INFO = {
-    "id": 0,
-    "actualValueIndices": [0],
-    "length": [Infinity],
-    "ndim": 1,
-};
+export const DEFAULT_MOTOR_INFOS = [
+    {
+        "id": -2,
+        "actualValueIndices": [0],
+        "length": [Infinity],
+        "ndim": 1,
+    },
+];
 
 
 /**
@@ -73,7 +75,6 @@ export class MotorSelector {
         channelSelect.addEventListener("change", () => {
             this.editor.draw_current_spline();
         });
-        this.update_channel_select();
     }
 
     /**
@@ -98,10 +99,6 @@ export class MotorSelector {
      * @returns {object} Motor info dictionary.
      */
     selected_motor_info() {
-        if (this.motorSelect.selectedIndex === NOTHING_SELECTED) {
-            return DEFAULT_MOTOR_INFO;
-        }
-
         return this.motorInfos[this.motorSelect.selectedIndex];
     }
 
@@ -111,10 +108,6 @@ export class MotorSelector {
      * @returns {Number} Index of currently selected motion channel.
      */
     selected_channel() {
-        if (this.channelSelect.selectedIndex === NOTHING_SELECTED) {
-            return 0;
-        }
-
         return this.channelSelect.selectedIndex;
     }
 }
