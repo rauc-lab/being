@@ -15,7 +15,7 @@ from being.block import Block
 from being.clock import Clock
 from being.content import Content
 from being.logging import get_logger
-from being.spline import Spline, sample_spline, spline_dimensions, spline_shape
+from being.spline import Spline, sample_spline, spline_shape
 
 
 """
@@ -65,7 +65,7 @@ class MotionPlayer(Block):
         looping (bool): Looping motion.
     """
 
-    def __init__(self, clock=None, content=None):
+    def __init__(self, ndim=1, clock=None, content=None):
         if clock is None:
             clock = Clock.single_instance_setdefault()
 
@@ -76,7 +76,9 @@ class MotionPlayer(Block):
         self.add_message_input('mcIn')
         #self.add_message_output('feedbackOut')
         self.positionOutputs = []
-        self.add_position_output()
+        for _ in range(ndim):
+            self.add_position_output()
+
         self.clock = clock
         self.content = content
         self.spline = None
