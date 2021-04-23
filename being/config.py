@@ -16,13 +16,13 @@ CONFIG = {
         'SI_2_FAULHABER': 1e6,  # Unit conversion for Lineare DC-Servomotoren Serie LM 0830 ... 01.
     },
     'Web': {
-        'HOST': None,
-        'PORT': 8080,
+        'HOST': None,  # Host name of web server
+        'PORT': 8080,  # Port number of web server
         'API_PREFIX': '/api',  # API route prefix.
         'WEB_SOCKET_ADDRESS': '/stream',  # Web socket URL.
     },
     'Logging': {
-        'LEVEL': logging.DEBUG,
+        'LEVEL': logging.WARNING,
         'DIRECTORY': None,
         'FILENAME': 'being.log',
     }

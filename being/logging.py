@@ -4,7 +4,7 @@ import os
 from typing import Optional
 
 from being.config import CONFIG
-
+from being.constants import MB
 
 BEING_LOGGERS = set()
 """All being loggers. Workaround for messy logger hierarchy."""
@@ -46,30 +46,29 @@ def get_logger(name: Optional[str] = None):
     return logger
 
 
-def setup_logging():
+def setup_logging(level=LEVEL):
     """Setup being loggers."""
-    #suppress_other_loggers()
-    logging.root.setLevel(LEVEL)
+    # Note using logging.basicConfig(level=level) would route all the other
+    # loggers to stdout
+    logging.root.setLevel(level)
+
     formatter = logging.Formatter(
         fmt='%(asctime)s.%(msecs)03d - %(levelname)5s - %(name)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S',
     )
 
-    # Normal stream handler
-    sh = logging.StreamHandler()
-    sh.setLevel(LEVEL)
-    sh.setFormatter(formatter)
-    logging.root.addHandler(sh)
-
-    if DIRECTORY is not None:
-        # Rotary log file handler
+    if DIRECTORY:
         os.makedirs(DIRECTORY, exist_ok=True)
-        fh = logging.handlers.TimedRotatingFileHandler(
-            filename=os.path.join(DIRECTORY, FILENAME),
-            when='midnight',
-            interval=1,
-            backupCount=10,
+        filename = os.path.join(DIRECTORY, FILENAME)
+        print(f'Logging to {filename!r}')
+        handler = logging.handlers.RotatingFileHandler(
+            filename,
+            maxBytes=100 * MB,
+            backupCount=5,
         )
-        fh.setLevel(LEVEL)
-        fh.setFormatter(formatter)
-        logging.root.addHandler(fh)
+    else:
+        handler = logging.StreamHandler()
+
+    handler.setFormatter(formatter)
+    #handler.setLevel(level)
+    logging.root.addHandler(handler)

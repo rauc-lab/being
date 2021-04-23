@@ -41,6 +41,7 @@ def wire_being_loggers_to_web_socket(ws: WebSocket):
     handler = WsHandler()
     for logger in BEING_LOGGERS:
         logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
 
 
 def patch_sensor_to_web_socket(sensor, ws: WebSocket):
@@ -82,8 +83,6 @@ def init_api(being, ws: WebSocket) -> web.Application:
 
     # Being
     api.add_routes(being_controller(being))
-
-    logging.basicConfig(level=20)
     wire_being_loggers_to_web_socket(ws)
 
     # Patch sensor events

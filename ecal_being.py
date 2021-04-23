@@ -2,6 +2,7 @@
 """Being for ECAL workshop May 2021."""
 from being.behavior import Behavior
 from being.being import awake
+from being.logging import setup_logging
 from being.motion_player import MotionPlayer
 from being.motor import Motor
 from being.resources import manage_resources
@@ -19,6 +20,9 @@ def look_for_motors():
             yield Motor(nodeId, length=0.100)
         except RuntimeError:
             pass
+
+
+setup_logging()
 
 
 with manage_resources():

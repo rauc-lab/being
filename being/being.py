@@ -12,7 +12,7 @@ from being.config import CONFIG
 from being.connectables import ValueOutput
 from being.execution import execute, block_network_graph
 from being.graph import topological_sort
-from being.logging import setup_logging, get_logger
+from being.logging import get_logger
 from being.motion_player import MotionPlayer
 from being.motor import home_motors, _MotorBase
 from being.utils import filter_by_type
@@ -23,6 +23,7 @@ from being.web.web_socket import WebSocket
 INTERVAL = CONFIG['General']['INTERVAL']
 API_PREFIX = CONFIG['Web']['API_PREFIX']
 WEB_SOCKET_ADDRESS = CONFIG['Web']['WEB_SOCKET_ADDRESS']
+FILE_LOGGING = bool(CONFIG['Logging']['DIRECTORY'])
 LOGGER = get_logger(__name__)
 
 
@@ -58,10 +59,12 @@ class Being:
             self.network.enable_drives()
 
     def start_behaviors(self):
+        """Start all behaviors."""
         for behavior in self.behaviors:
             behavior.play()
 
     def pause_behaviors(self):
+        """Pause all behaviors."""
         for behavior in self.behaviors:
             behavior.pause()
 
@@ -134,12 +137,18 @@ def awake(*blocks, web=True):
     Kwargs:
         web: Run with web server.
     """
-    setup_logging()
     being = Being(blocks)
-    if not web:
-        return being.run()
+    try:
+        if not web:
+            return being.run()
 
-    asyncio.run(_awake_web(being))
+        asyncio.run(_awake_web(being))
+    except Exception as err:
+        LOGGER.fatal(err, exc_info=True)
+        if FILE_LOGGING:
+            # TODO(atheler): Log and throw anti pattern but we want to see the
+            # error in the RotatingFileHandler logs as well.
+            raise
 
 
 def cancel_all_tasks():
@@ -161,7 +170,6 @@ async def _awake_web(being):
     app.on_shutdown.append(ws.close_all)
     api = init_api(being, ws)
     app.add_subapp(API_PREFIX, api)
-
     if os.name == 'posix':
         loop = asyncio.get_running_loop()
         loop.add_signal_handler(signal.SIGTERM, cancel_all_tasks)
@@ -171,12 +179,13 @@ async def _awake_web(being):
             ' signal for graceful program exit'
     ))
 
+
     try:
-        await asyncio.gather(*[
+        await asyncio.gather(
             being.run_async(),
             send_being_state_to_front_end(being, ws),
             run_web_server(app),
             ws.run_broker(),
-        ])
+        )
     except asyncio.CancelledError:
         pass

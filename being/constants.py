@@ -25,3 +25,12 @@ STEREO: int = 2
 
 EOT = chr(4)
 """End of transmission character."""
+
+BYTE: int = 8
+"""One byte."""
+
+KB: int = 1024 * BYTE
+"""One kilo byte."""
+
+MB: int = 1024 * KB
+"""One mega byte."""
