@@ -1,10 +1,9 @@
 import time
 import logging
 
-from being.logging import setup_logging
-
 from being.behavior import Behavior
 from being.being import awake
+from being.logging import setup_logging
 from being.logging import suppress_other_loggers
 from being.motion_player import MotionPlayer
 from being.motor import DummyMotor
@@ -28,7 +27,7 @@ class DummySensor(Sensor):
         self.output.send('But hey')
 
 
-setup_logging(level=logging.DEBUG)
+#setup_logging(level=logging.DEBUG)
 
 
 with manage_resources():
