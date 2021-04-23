@@ -5,6 +5,7 @@ import weakref
 
 import aiohttp
 from aiohttp import web
+from aiohttp import WSMsgType
 
 from being.serialization import dumps
 from being.logging import get_logger
@@ -31,17 +32,26 @@ class WebSocket:
         await ws.prepare(request)
         self.logger.info('Opened web socket')
         self.sockets.add(ws)
-
         try:
             async for msg in ws:
-                if msg.type == aiohttp.WSMsgType.TEXT:
+                if msg.type == WSMsgType.TEXT:
                     if msg.data == 'close':
-                        await ws.close()
-                elif msg.type == aiohttp.WSMsgType.ERROR:
+                        break
+                elif msg.type == WSMsgType.ERROR:
                     self.logger.error('Web socket error with exception %s', ws.exception())
+                    break
         finally:
             self.sockets.discard(ws)
+
+            # TODO(atheler): We must wait a bit before closing the socket.
+            # Otherwise it can happen, that someone else is writing to a closed
+            # transport which crashes the application. Probably by calling
+            # send_json() when there are multiple sockets present. There must be
+            # a better way?!
+            await asyncio.sleep(1.)
+
             self.logger.info('Closing web socket')
+            await ws.close()
 
         self.logger.debug('Web socket closed')
         return ws
