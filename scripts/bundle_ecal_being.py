@@ -6,10 +6,11 @@ Resources:
   https://unix.stackexchange.com/questions/90191/how-to-extract-archive-via-network
 """
 import argparse
-import sys
+import contextlib
 import glob
 import io
 import os
+import sys
 import tarfile
 import zipfile
 
@@ -20,12 +21,13 @@ NODE_IDS = {
     2: [5, 6],
     3: [7, 8],
     4: [9, 10],
-    5: [11, 12],
+    #5: [11, 12],
+    5: [20, 21],
     6: [13, 14],
     7: [15, 16],
     8: [17, 18],
-    9: [19, 20],
-    10: [21, 22],
+    #9: [19, 20],
+    #10: [21, 22],
     11: [23, 24],
     12: [25, 26],
     13: [27, 28],
@@ -44,11 +46,22 @@ DIRECTORY = log
 
 
 INSTALL_SCRIPT_TEMPLATE = '''#!/bin/bash
-echo "Uploading source code to kit ({hostname})";
+if ! ping -c 1 -W 1 "{hostname}.local";
+then
+  echo "Kit {hostname} not reachable :(";
+  exit -1;
+fi
+cd "`dirname "$0"`"
+echo "Uploading source code to kit {hostname}";
+echo {tarname};
 cat "{tarname}" | ssh "pi@{hostname}.local" "tar zxvf -";
 echo "Restarting being.service";
 ssh "pi@{hostname}.local" "sudo systemctl restart being.service";
+echo "Done with updating the software. You can close now this windows.";
 '''
+
+TMP_SCRIPT = 'tmp script.sh'
+"""Tmp script filename for making it executable."""
 
 
 def cli() -> argparse.Namespace:
@@ -130,46 +143,59 @@ if __name__ == '__main__':
     print(f'Formatting ecal_being.py program for kit {args.id}')
     ecalProgram = format_ecal_program(args.id)
 
-    # Bash install script
-    print(f'Formatting install.sh script for {hostname!r}')
-    installScript = INSTALL_SCRIPT_TEMPLATE.format(
-        hostname=hostname,
-        tarname=tarname,
-    )
+    with contextlib.ExitStack() as stack:
+        # Bash install script
+        print(f'Formatting install.sh script for {hostname!r}')
+        installScript = INSTALL_SCRIPT_TEMPLATE.format(
+            hostname=hostname,
+            tarname=tarname,
+        )
 
-    with tarfile.open(tarname, 'w:gz') as tarh:
-        if args.verbose:
-            print(f'Creating {tarname!r} (tmp file)')
-            print('Packing source files ')
+        if os.path.exists(TMP_SCRIPT):
+            os.chmod(TMP_SCRIPT, 0o777)
+            os.remove(TMP_SCRIPT)
 
-        for fp in sourcefiles:
-            dst = os.path.join('being', fp)
+        with open(TMP_SCRIPT, 'w') as f:
+            f.write(installScript)
+
+        #os.chmod(TMP_SCRIPT, 0o700)
+        os.chmod(TMP_SCRIPT, 0o500)
+        stack.callback(lambda: os.remove(TMP_SCRIPT))
+
+        with tarfile.open(tarname, 'w:gz') as tarh:
             if args.verbose:
-                print(f'Adding {dst!r}')
+                print(f'Creating {tarname!r} (tmp file)')
+                print('Packing source files ')
 
-            tarh.add(fp, dst)
+            for fp in sourcefiles:
+                dst = os.path.join('being', fp)
+                if args.verbose:
+                    print(f'Adding {dst!r}')
 
-        if args.verbose:
-            print("Creating 'ecal_being.py'")
+                tarh.add(fp, dst)
 
-        write_string(tarh, ecalProgram, 'ecal_being.py')
+            if args.verbose:
+                print("Creating 'ecal_being.py'")
 
-        if args.verbose:
-            print("Creating 'being.ini'")
+            write_string(tarh, ecalProgram, 'ecal_being.py')
 
-        write_string(tarh, BEING_INI, 'being.ini')
+            if args.verbose:
+                print("Creating 'being.ini'")
 
-    with zipfile.ZipFile(zipname, 'w') as ziph:
-        if args.verbose:
-            print(f'Creating {zipname!r}')
-            print(f'Moving {tarname!r} -> {zipname!r}')
+            write_string(tarh, BEING_INI, 'being.ini')
 
-        ziph.write(tarname)
-        os.remove(tarname)
+        stack.callback(lambda: os.remove(tarname))
 
-        if args.verbose:
-            print('Packing install.sh')
+        with zipfile.ZipFile(zipname, 'w') as ziph:
+            if args.verbose:
+                print(f'Creating {zipname!r}')
+                print(f'Moving {tarname!r} -> {zipname!r}')
 
-        ziph.writestr('install.sh', installScript)
+            ziph.write(tarname)
 
-    print(f'Successfully bundled {zipname!r}')
+            if args.verbose:
+                print('Packing install.sh')
+
+            ziph.write(TMP_SCRIPT, arcname='install.command')
+
+        print(f'Successfully bundled {zipname!r}')
