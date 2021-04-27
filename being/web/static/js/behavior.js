@@ -22,14 +22,6 @@ BEHAVIOR_TEMPLATE.innerHTML = `
 `;
 
 
-/** @const {object} - State name lookup for ECAL workshop. */
-const STATE_NAME_LOOKUP = {
-    "STATE_0": "STATE I",
-    "STATE_1": "STATE II",
-    "STATE_2": "STATE III",
-};
-
-
 class Behavior extends Widget {
     constructor() {
         super();
@@ -123,7 +115,7 @@ class Behavior extends Widget {
             const stateNameDiv = document.createElement("span");
             stateDiv.appendChild(stateNameDiv);
             stateNameDiv.classList.add("title");
-            stateNameDiv.innerHTML = STATE_NAME_LOOKUP[name];
+            stateNameDiv.innerHTML = name;
 
             // State specific infos / params
             const div = document.createElement("span");

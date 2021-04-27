@@ -20,18 +20,18 @@ class State(enum.Enum):
 
     """Behavior states."""
 
-    STATE_0 = 0
-    STATE_1 = 1
-    STATE_2 = 2
+    STATE_I = 0
+    STATE_II = 1
+    STATE_III = 2
 
 
 register_enum(State)
 
 
 # For comforts / de-clutter
-STATE_0 = State.STATE_0
-STATE_1 = State.STATE_1
-STATE_2 = State.STATE_2
+STATE_I = State.STATE_I
+STATE_II = State.STATE_II
+STATE_III = State.STATE_III
 
 
 BEHAVIOR_CHANGED = 'BEHAVIOR_CHANGED'
@@ -52,14 +52,14 @@ class Behavior(Block, PubSub):
 
     """Simple 3x state finite state machine behavior engine for ECAL workshop.
     Based on modified Anima II/III behavior engine. The three states are:
-      1) STATE_0
-      2) STATE_1
-      3) STATE_2
+      1) STATE_I
+      2) STATE_II
+      3) STATE_III
 
-    Sensor trigger transitions STATE_0 / STATE_1 -> STATE_2 and fire one
-    animation playback. After this single animation behavior will go to STATE_1
+    Sensor trigger transitions STATE_I / STATE_II -> STATE_III and fire one
+    animation playback. After this single animation behavior will go to STATE_II
     where it will stay for at least `params.attentionSpan` many seconds. After
-    that it will transition to STATE_0 state.
+    that it will transition to STATE_I state.
 
     Animations are chosen randomly from supplied animation from params.
 
@@ -88,7 +88,7 @@ class Behavior(Block, PubSub):
 
         self.active = True
         self.motionPlayer = None
-        self.state = State.STATE_0
+        self.state = State.STATE_I
         self.lastChanged = 0.
         self.lastPlayed = ''
         self.logger = get_logger('Behavior')
@@ -146,7 +146,7 @@ class Behavior(Block, PubSub):
         self.active = False
         self.lastPlayed = ''
         self.motionPlayer.stop()
-        self.state = STATE_0
+        self.state = STATE_I
         self.publish(BEHAVIOR_CHANGED)
 
     def sensor_triggered(self) -> bool:
@@ -213,26 +213,26 @@ class Behavior(Block, PubSub):
         passed = self.clock.now() - self.lastChanged
         attentionLost = (passed >= self._params['attentionSpan'])
 
-        if self.state is STATE_0:
+        if self.state is STATE_I:
             if triggered:
-                self.change_state(STATE_2)
+                self.change_state(STATE_III)
                 self.play_random_motion_for_current_state()
 
-        elif self.state is STATE_1:
+        elif self.state is STATE_II:
             if triggered:
-                self.change_state(STATE_2)
+                self.change_state(STATE_III)
                 self.play_random_motion_for_current_state()
             elif attentionLost and not playing:
-                self.change_state(STATE_0)
+                self.change_state(STATE_I)
 
-        elif self.state is STATE_2:
+        elif self.state is STATE_III:
             if not playing:
                 if triggered:
-                    self.change_state(STATE_2)
+                    self.change_state(STATE_III)
                 elif self._params['attentionSpan'] > 0:
-                    self.change_state(STATE_1)
+                    self.change_state(STATE_II)
                 else:
-                    self.change_state(STATE_0)
+                    self.change_state(STATE_I)
 
         if not playing:
             self.play_random_motion_for_current_state()
