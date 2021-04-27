@@ -22,6 +22,14 @@ BEHAVIOR_TEMPLATE.innerHTML = `
 `;
 
 
+/** @const {object} - State name lookup for ECAL workshop. */
+const STATE_NAME_LOOKUP = {
+    "STATE_0": "STATE I",
+    "STATE_1": "STATE II",
+    "STATE_2": "STATE III",
+};
+
+
 class Behavior extends Widget {
     constructor() {
         super();
@@ -69,7 +77,7 @@ class Behavior extends Widget {
         slider.setAttribute("name", "attentionSpan");
 
         this.attentionSpanSpan = document.createElement("span");
-        this.attentionSpanSpan.style = "display: inline-block; min-width: 3.5em; text-align: right;"
+        this.attentionSpanSpan.style = "display: inline-block; min-width: 3.5em; text-align: right;";
 
         this.led = document.createElement("span");
         this.led.classList.add("led");
@@ -115,7 +123,7 @@ class Behavior extends Widget {
             const stateNameDiv = document.createElement("span");
             stateDiv.appendChild(stateNameDiv);
             stateNameDiv.classList.add("title");
-            stateNameDiv.innerHTML = name;
+            stateNameDiv.innerHTML = STATE_NAME_LOOKUP[name];
 
             // State specific infos / params
             const div = document.createElement("span");
