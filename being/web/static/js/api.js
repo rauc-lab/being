@@ -101,12 +101,6 @@ export class Api {
         return delete_fetch(url);
     }
 
-    async duplicate_spline(name) {
-        const freename = await this.find_free_name(name + " Copy");
-        const spline = await this.get_spline(name);
-        return this.create_spline(freename, spline);
-    }
-
     /**
      * Load entire content from backend / content.
      *

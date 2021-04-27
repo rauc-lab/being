@@ -721,12 +721,17 @@ class Editor extends CurverBase {
      * Create a new spline.
      */
     async create_new_spline() {
-        const motor = this.motorSelector.selected_motor_info();
-        const name = await this.api.find_free_name();
-        const spline = zero_spline(motor.ndim);
-        await this.api.create_spline(name, spline);
-        this.update_ui();
-        this.splineList.reload_spline_list();
+        if (this.confirm_unsaved_changes()) {
+            this.spline_changing();
+            const motor = this.motorSelector.selected_motor_info();
+            const name = await this.api.find_free_name();
+            const spline = zero_spline(motor.ndim);
+            await this.api.create_spline(name, spline);
+            this.load_spline(spline);
+            this.update_ui();
+            this.splineList.selected = name;
+            this.splineList.reload_spline_list();
+        }
     }
 
     /**
@@ -749,6 +754,17 @@ class Editor extends CurverBase {
             this.stop_spline_playback();
             this.draw_current_spline();
         }
+    }
+
+    /**
+     * Check if there are unsaved changes and get confirmation of the user to proceed.
+     */
+    confirm_unsaved_changes() {
+        if (this.history.savable) {
+            return confirm("Are you sure you want to leave without saving?");
+        }
+
+        return true;
     }
 
     /**

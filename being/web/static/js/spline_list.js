@@ -72,8 +72,14 @@ export class SplineList {
         const duplSplineButton = create_button("file_copy", "Duplicate motion file");
         newBtnContainer.appendChild(duplSplineButton);
         duplSplineButton.addEventListener("click", async () => {
-            await this.api.duplicate_spline(this.selected);
-            this.reload_spline_list();
+            if (this.editor.confirm_unsaved_changes()) {
+                const freename = await this.api.find_free_name(this.selected + " Copy");
+                const spline = await this.api.get_spline(this.selected);
+                await this.api.create_spline(freename, spline);
+                this.selected = freename;
+                this.reload_spline_list();
+                this.editor.load_spline(spline);
+            }
         });
     }
 
@@ -86,7 +92,7 @@ export class SplineList {
             entry.classList.add("noselect");
             entry.id = spline.filename;
             entry.addEventListener("click", () => {
-                if (this.editor.history.savable && !confirm("Are you sure you want to leave without saving?")) {
+                if (!this.editor.confirm_unsaved_changes()) {
                     return;
                 }
 
