@@ -1,7 +1,7 @@
 """Motor block."""
 import time
 
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Generator
 
 from being.backends import CanBackend
 from being.bitmagic import check_bit_mask
@@ -29,10 +29,12 @@ from being.math import sign
 from being.resources import register_resource
 
 
-STILL_HOMING = True
+HomingState = bool  # TODO(atheler): We should probabelly switch to an enum.
+
+STILL_HOMING: HomingState = True
 """Indicates that homing job is still in progress."""
 
-DONE_HOMING = False
+DONE_HOMING: HomingState = False
 """Indicates that homing job has finished."""
 
 
@@ -253,7 +255,7 @@ class Motor(_MotorBase):
 
             rx.save()
 
-    def home(self, speed: int = 100, deadCycles: int = 20):
+    def home(self, speed: int = 100, deadCycles: int = 20) -> Generator[HomingState, None, None]:
         """Crude homing procedure. Move with PROFILED_VELOCITY operation mode
         upwards and downwards until reaching limits (position not increasing or
         decreasing anymore). Implemented as Generator so that we can home
@@ -262,6 +264,7 @@ class Motor(_MotorBase):
 
         Kwargs:
             speed: Homing speed.
+            deadCycles: Number of cycles we give the motor to start moving in a direction.
 
         Yields:
             Homing state.
