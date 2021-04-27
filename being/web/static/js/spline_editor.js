@@ -585,6 +585,8 @@ class Editor extends CurverBase {
 
     /**
      * Notify spline editor that the spline working copy is going to change.
+     * Also supply a optional [x, y] position value for the live preview
+     * feature (if enabled).
      */
     spline_changing(position = null) {
         this.stop_spline_playback();
@@ -592,7 +594,10 @@ class Editor extends CurverBase {
         if ((position !== null) && is_checked(this.livePreviewBtn)) {
             const motor = this.motorSelector.selected_motor_info();
             const channel = this.motorSelector.selected_channel();
-            this.api.live_preview(position, motor.id, channel);
+            const [x, y] = position;
+            this.transport.position = x;
+            this.transport.draw_cursor();
+            this.api.live_preview(y, motor.id, channel);
         }
     }
 

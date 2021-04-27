@@ -33,7 +33,7 @@ export class Transport {
         this.editor = editor;
         this.state = PAUSED;
         this.looping = looping;
-        this.position = 0;
+        this.position = 0;  // TODO(atheler): Rename. It's not a position. It's a moment in time...
         this.duration = 1;
         this.startTime = 0;
         this.latestTimestamp = 0;

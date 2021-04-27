@@ -341,7 +341,7 @@ export class SplineDrawer {
             this.make_draggable(
                 circle,
                 pos => {
-                    this.editor.spline_changing(pos[1]);
+                    this.editor.spline_changing(pos);
                     spline.position_knot(knot, pos, this.editor.c1, dim);
                     const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
                     this.annotation.innerHTML = txt;
