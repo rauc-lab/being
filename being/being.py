@@ -145,10 +145,9 @@ def awake(*blocks, web=True):
         asyncio.run(_awake_web(being))
     except Exception as err:
         LOGGER.fatal(err, exc_info=True)
-        if FILE_LOGGING:
-            # TODO(atheler): Log and throw anti pattern but we want to see the
-            # error in the RotatingFileHandler logs as well.
-            raise
+        # TODO(atheler): Log and throw anti pattern but we always want to see
+        # the error in stderr
+        raise
 
 
 def cancel_all_tasks():
