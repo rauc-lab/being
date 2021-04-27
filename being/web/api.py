@@ -268,7 +268,7 @@ def misc_controller() -> web.RouteTableDef:
         """Convert a trajectory array to a spline."""
         try:
             trajectory = await request.json()
-            spline = fit_spline(trajectory)
+            spline = fit_spline(trajectory, smoothing=1e-9)
             return json_response(spline)
         except ValueError:
             return web.HTTPBadRequest(text='Wrong trajectory data format. Has to be 2d!')

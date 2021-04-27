@@ -237,7 +237,7 @@ def sample_spline(spline: Spline, t, loop: bool = False):
     return spline(np.clip(t, start, end))
 
 
-def fit_spline(trajectory):
+def fit_spline(trajectory, smoothing=1e-6):
     """Fit a smoothing spline through a trajectory."""
     trajectory = np.asarray(trajectory)
     if trajectory.ndim != TWO_D:

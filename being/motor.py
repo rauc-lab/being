@@ -177,7 +177,7 @@ class Motor(_MotorBase):
         node.set_state(State402.READY_TO_SWITCH_ON)
         node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
 
-    def setup_node(self, maxSpeed: float = 1., maxAcc: float = 1.):
+    def setup_node(self, maxSpeed: float = 5., maxAcc: float = 5.):
         """Configure Faulhaber node (some settings via SDO).
 
         Kwargs:
