@@ -100,7 +100,7 @@ class Editor extends CurverBase {
                 this.init_plotting_lines(motor.ndim);
                 motor.lengths.forEach(l => {
                     this.defaultBbox.expand_by_point([1., l]);
-                })
+                });
             });
             this.motorSelector.populate(infos);
         }).catch(err => {
@@ -109,11 +109,17 @@ class Editor extends CurverBase {
                 this.init_plotting_lines(motor.ndim);
                 motor.lengths.forEach(l => {
                     this.defaultBbox.expand_by_point([1., l]);
-                })
+                });
             });
             this.motorSelector.populate(DEFAULT_MOTOR_INFOS);
         });
         this.splineList.reload_spline_list();
+
+        // TODO(atheler): Tmp workaround. Sometimes proper motor informations
+        // seem to be missing. Then we do not have enough lines to plot the
+        // actual motor values on. -> Assure that we have at least 2x lines for
+        // the ECAL workshop.
+        this.init_plotting_lines(2);
 
         // SVG event listeners
         this.setup_svg_drag_navigation();
@@ -681,7 +687,7 @@ class Editor extends CurverBase {
             this.history.capture(spline);
             this.draw_current_spline();
         } catch(err) {
-            console.log(err)
+            console.log(err);
         }
 
         this.update_ui();
