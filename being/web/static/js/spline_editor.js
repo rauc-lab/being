@@ -185,12 +185,11 @@ class Editor extends CurverBase {
 
 
         // Editing history buttons
-        /*
         this.newBtn = this.add_button_to_toolbar("add_box", "Create new spline");
+        this.newBtn.style.display = "none";
         this.newBtn.addEventListener("click", () => {
             this.create_new_spline();
         });
-        */
         this.saveBtn = this.add_button_to_toolbar("save", "Save motion");
         this.saveBtn.addEventListener("click", async () => {
             if (!this.history.length) {
@@ -552,15 +551,11 @@ class Editor extends CurverBase {
      * Recalculate bounding box
      */
     load_spline(spline) {
-        console.log("load_spline");
         this.history.clear();
         this.history.capture(spline);
-
-        // Calc viewport
         const bbox = spline.bbox();
         bbox.expand_by_bbox(this.defaultBbox);
         this.viewport = bbox;
-
         this.draw_current_spline();
     }
 
