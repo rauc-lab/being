@@ -278,6 +278,7 @@ class Editor extends CurverBase {
             toggle_button(this.c1Btn);
         });
         this.limitBtn = this.add_button_to_toolbar("fence", "Limit motion to selected motor");
+        this.limitBtn.style.display = "none";
         switch_button_on(this.limitBtn);
         this.limitBtn.addEventListener("click", () => {
             toggle_button(this.limitBtn);
