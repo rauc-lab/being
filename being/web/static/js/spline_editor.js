@@ -174,16 +174,15 @@ class Editor extends CurverBase {
      * Populate toolbar with buttons and motor selection. Wire up event listeners.
      */
     setup_toolbar_elements() {
-        /*
         this.listBtn = this.add_button_to_toolbar("list", "Toggle spline list");
+        this.listBtn.style.display = "none";
         this.listBtn.addEventListener("click", () => {
             this.motionListDiv.toggleAttribute(FOLDED);
             this.update_ui();
             this.resize();
         });
+        //this.add_space_to_toolbar();
 
-        this.add_space_to_toolbar();
-        */
 
         // Editing history buttons
         /*
@@ -248,7 +247,8 @@ class Editor extends CurverBase {
 
         // Transport buttons
         this.playPauseBtn = this.add_button_to_toolbar("play_arrow", "Play / pause motion playback");
-        //this.stopBtn = this.add_button_to_toolbar("stop", "Stop spline playback");
+        this.stopBtn = this.add_button_to_toolbar("stop", "Stop spline playback");
+        this.stopBtn.style.display = "none";
         this.recBtn = this.add_button_to_toolbar("fiber_manual_record", "Record motion");
         this.recBtn.classList.add("record");
         this.loopBtn = this.add_button_to_toolbar("loop", "Loop spline motion");
@@ -258,12 +258,10 @@ class Editor extends CurverBase {
         this.recBtn.addEventListener("click", () => {
             this.toggle_recording();
         });
-        /*
         this.stopBtn.addEventListener("click", async () => {
             this.stop_spline_playback();
             this.transport.stop();  // Not the same as pause() which gets triggered in stop_spline_playback()!
         });
-        */
         this.loopBtn.addEventListener("click", () => {
             this.transport.toggle_looping();
             this.update_ui();

@@ -86,7 +86,7 @@ export class SplineList {
             entry.classList.add("noselect");
             entry.id = spline.filename;
             entry.addEventListener("click", () => {
-                if (this.editor.history.savable && !confirm("Discard unsaved edits?")) {
+                if (this.editor.history.savable && !confirm("Are you sure you want to leave without saving?")) {
                     return;
                 }
 
