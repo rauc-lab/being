@@ -22,12 +22,6 @@ import {Api} from "/static/js/api.js";
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
 const ZOOM_FACTOR_PER_STEP = 1.5;
 
-/** @const {BBox} - Default data bbox size. */
-const DEFAULT_DATA_BBOX = new BBox([0, 0], [1, 0.04]);
-
-/** @const {number} - Min height of spline drawing area (y directions) */
-const MIN_HEIGHT = 0.010;
-
 /** @const {string} - Folded motion / spline list HTML attribute */
 const FOLDED = "folded";
 
@@ -99,16 +93,23 @@ class Editor extends CurverBase {
 
         this.setup_toolbar_elements();
 
-        // Initial data
+        // Initialze data / fetch motor informations
+        this.defaultBbox = new BBox([0., 0.], [1., 0.04]);
         this.api.get_motor_infos().then(infos => {
             infos.forEach(motor => {
                 this.init_plotting_lines(motor.ndim);
+                motor.lengths.forEach(l => {
+                    this.defaultBbox.expand_by_point([1., l]);
+                })
             });
             this.motorSelector.populate(infos);
         }).catch(err => {
             console.log("Failed fetching motor infos from back-end!", err);
             DEFAULT_MOTOR_INFOS.forEach(motor => {
                 this.init_plotting_lines(motor.ndim);
+                motor.lengths.forEach(l => {
+                    this.defaultBbox.expand_by_point([1., l]);
+                })
             });
             this.motorSelector.populate(DEFAULT_MOTOR_INFOS);
         });
@@ -229,7 +230,7 @@ class Editor extends CurverBase {
 
             const current = this.history.retrieve();
             const bbox = current.bbox();
-            bbox.expand_by_bbox(DEFAULT_DATA_BBOX);
+            bbox.expand_by_bbox(this.defaultBbox);
             this.viewport = bbox;
             this.update_trafo();
             this.draw();
@@ -544,17 +545,13 @@ class Editor extends CurverBase {
      * Recalculate bounding box
      */
     load_spline(spline) {
+        console.log("load_spline");
         this.history.clear();
         this.history.capture(spline);
 
         // Calc viewport
         const bbox = spline.bbox();
-        if (bbox.ll[1] > 0) { bbox.ll[1] = 0; }
-        if (bbox.ur[1] < 0) { bbox.ur[1] = 0; }
-        if (bbox.height < MIN_HEIGHT) {
-            bbox.ll[1] -= .5 * MIN_HEIGHT;
-            bbox.ur[1] += .5 * MIN_HEIGHT;
-        }
+        bbox.expand_by_bbox(this.defaultBbox);
         this.viewport = bbox;
 
         this.draw_current_spline();

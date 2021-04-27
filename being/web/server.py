@@ -113,13 +113,9 @@ def init_web_server() -> web.Application:
 
 
     @routes.get('/')
-    @routes.get('/being')
     async def get_index(request):
-        return web.FileResponse(os.path.join(staticDir, 'being.html'))
+        return web.FileResponse(os.path.join(staticDir, 'index.html'))
 
-    #@routes.get('/web-socket-test')
-    #async def get_index(request):
-    #    return web.FileResponse(os.path.join(staticDir, 'web-socket-test.html'))
 
     app.router.add_routes(routes)
     return app

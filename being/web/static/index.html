@@ -1,54 +1,72 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <title>PATHOS</title>
-        <style>
-            html, body {
-                margin: 0;
-                padding: 0;
-                width: 100%;
-                height: 100%;
-            }
+<html lang="en">
 
-            svg {
-                min-width: 100%;
-                min-height: 100%;
-            }
+<head>
+    <meta charset="utf-8" />
+    <title>Being</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="static/css/reset.css">
+    <link rel="stylesheet" type="text/css" href="static/css/open_sans.css">
+    <link rel="stylesheet" type="text/css" href="static/css/material_icons.css">
+    <link rel="stylesheet" type="text/css" href="static/css/being.css">
+    <script type="module" src="static/js/behavior.js"></script>
+    <script type="module" src="static/js/spline_editor.js"></script>
+    <script type="module" src="static/js/console.js"></script>
+</head>
 
-            a { text-decoration: none; }
+<body>
+    <nav>
+        <span>Being</span>
+        <span class="filler"></span>
+        <a href="#behavior-anchor">Behavior</a>
+        <a href="#editor-anchor">Motion Editor</a>
+        <a href="#console-anchor">Console</a>
+    </nav>
 
-            text { 
-                font-size: .5em;
-                font-family: Helvetica;
-                font-weight: 100;
-                text-transform: uppercase;
-                letter-spacing: 1em;
-            }
-        </style>
-    </head>
-    <body>
-        <a href="https://asl.ethz.ch/research/rauc.html">
-            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="-25 -25 150 150" preserveAspectRatio="xMidYMid meet">
-                <path d="M0 0 L100 0 L100 100 L0 100 L0 0" id="textcircle" stroke="red" stroke-width="0" fill="none"/>
-                <text>
-                    <textPath id="myTextPath" xlink:href="#textcircle">
-                        Hello, world PATHOS!
-                    </textPath>
-                </text>
-            </svg>
-        </a>
-        <script>
-            const textPath = document.getElementById("myTextPath");
-            const TAU = 2 * Math.PI;
+    <div id="wrapper">
+        <hr>
+        <a class="anchor" id="behavior-anchor"></a>
+        <h1>Behavior</h1>
+        <being-behavior id="behavior"></being-behavior>
+        <a class="anchor" id="editor-anchor"></a>
+        <h1>Motion Editor</h1>
+        <being-editor id="editor"></being-editor>
+        <a class="anchor" id="console-anchor"></a>
+        <h1>Console</h1>
+        <being-console id="console"></being-console>
+    </div>
 
-            function render(timestamp) {
-                const now = timestamp / 1000;
-                const pos = 5*now - 5*Math.sin(TAU * .25 * now) + 2;
-                textPath.setAttributeNS(null, "startOffset", pos % 100 + "%");
-                requestAnimationFrame(render);
-            }
+    <script type="module">
+        /**
+         * Wire up web socket to widgets.
+         */
+        import { WS_ADDRESS } from "/static/js/config.js";
+        import { receive_from_websocket } from "/static/js/web_socket.js";
 
-            requestAnimationFrame(render);
-        </script>
-    </body>
+        const host = window.location.host;
+        const editor = document.getElementById("editor");
+        const behavior = document.getElementById("behavior");
+        const terminal = document.getElementById("console");
+
+        receive_from_websocket(WS_ADDRESS, {
+            "output-values": [
+                msg => editor.new_data(msg),
+            ],
+            "behavior-update": [
+                msg => behavior.behavior_message(msg),
+                msg => editor.behavior_message(msg),
+            ],
+            "motions": [
+                msg => behavior.content_message(msg),
+            ],
+            "log": [
+                msg => terminal.new_log_messages(msg),
+            ],
+            "sensor-message": [
+                () => behavior.pulse_led(),
+            ],
+        });
+    </script>
+</body>
+
 </html>
