@@ -714,6 +714,7 @@ class Editor extends CurverBase {
         }
 
         const pos = this.mouse_coordinates(evt);
+        this.spline_changing(pos);
         const currentSpline = this.history.retrieve();
         const newSpline = currentSpline.copy();
         newSpline.insert_knot(pos);
