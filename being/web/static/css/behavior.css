@@ -90,7 +90,7 @@ span.now-playing {
 
 span.led {
     display: inline-block;
-    background-color: black;
+    background-color: red;
     opacity: 0;
     width: 0.5em;
     height: 0.5em;
