@@ -6,6 +6,7 @@ TODO:
     clock. Or a phasor?
   - Slow and fast crossover between splines?
 """
+import json
 from typing import NamedTuple, Optional
 
 from scipy.interpolate import BPoly
@@ -138,10 +139,14 @@ class MotionPlayer(Block):
             Scheduled start time of spline (if any).
         """
         try:
-            spline = self.content.load_motion(mc.name)
             self.logger.info('Playing motion %r', mc.name)
+            spline = self.content.load_motion(mc.name)
         except FileNotFoundError:
             self.logger.error('Motion %r does not exist!', mc.name)
+            currentVals = [out.value for out in self.positionOutputs]
+            spline = constant_spline(currentVals, duration=5.)
+        except json.JSONDecodeError:
+            self.logger.error('Could not decode %r!', mc.name)
             currentVals = [out.value for out in self.positionOutputs]
             spline = constant_spline(currentVals, duration=5.)
 
