@@ -26,7 +26,7 @@ from being.logging import get_logger
 
 State = ForwardRef('State')
 Edge = Tuple[State, State]
-SI_2_FAULHABER = CONFIG['Can']['SI_2_FAULHABER']
+SI_2_FAULHABER = CONFIG['Can']['SI_2_FAULHABER']  # TODO(atheler): This has to go
 
 
 class State(Enum):
