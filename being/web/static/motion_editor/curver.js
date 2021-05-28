@@ -3,7 +3,7 @@
  */
 import { Widget } from "/static/js/widget.js";
 import { BBox } from "/static/js/bbox.js";
-import { tick_space, } from "/static/js/layout.js";
+import { tick_space, } from "/static/motion_editor/layout.js";
 import { divide_arrays} from "/static/js/array.js";
 import { clip } from "/static/js/math.js";
 import { cycle } from "/static/js/utils.js";
@@ -78,7 +78,7 @@ export class CurverBase extends Widget {
      * Initialize DOM elements with shadow root.
      */
     init_elements() {
-        this._append_link("static/css/curver.css");
+        this._append_link("static/motion_editor/curver.css");
         this.add_template(CURVER_TEMPLATE);
 
         this.graph = this.shadowRoot.getElementById("graph");

@@ -76,7 +76,7 @@ class Console extends Widget {
         super();
         this.maxlen = maxlen;
 
-        this._append_link("static/css/console.css");
+        this._append_link("static/console/console.css");
         this.list = document.createElement("ul");
         this.shadowRoot.appendChild(this.list);
         this.blockedUntil = -Infinity;

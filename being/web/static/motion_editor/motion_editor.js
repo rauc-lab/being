@@ -2,19 +2,19 @@
  * @module spline_editor Spline editor custom HTML element.
  */
 import {BBox} from "/static/js/bbox.js";
-import {CurverBase} from "/static/js/curver.js";
+import {CurverBase} from "/static/motion_editor/curver.js";
 import {make_draggable} from "/static/js/draggable.js";
 import {History} from "/static/js/history.js";
 import {clip} from "/static/js/math.js";
 import {subtract_arrays, array_reshape, multiply_scalar, array_shape } from "/static/js/array.js";
 import {COEFFICIENTS_DEPTH, zero_spline, BPoly} from "/static/js/spline.js";
 import {clear_array} from "/static/js/utils.js";
-import {Line} from "/static/js/line.js";
-import {PAUSED, PLAYING, RECORDING, Transport} from "/static/js/transport.js";
-import {SplineDrawer} from "/static/js/spline_drawer.js";
-import {SplineList} from "/static/js/spline_list.js";
+import {Line} from "/static/motion_editor/line.js";
+import {PAUSED, PLAYING, RECORDING, Transport} from "/static/motion_editor/transport.js";
+import {SplineDrawer} from "/static/motion_editor/spline_drawer.js";
+import {MotionList} from "/static/motion_editor/motion_list.js";
 import {INTERVAL} from "/static/js/config.js";
-import {DEFAULT_MOTOR_INFOS, MotorSelector} from "/static/js/motor_selector.js";
+import {DEFAULT_MOTOR_INFOS, MotorSelector} from "/static/motion_editor/motor_selector.js";
 import {toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button} from "/static/js/button.js";
 import {Api} from "/static/js/api.js";
 
@@ -73,7 +73,7 @@ function shift_spline(spline, offset) {
 
 
 /**
- * Spline editor.
+ * Motion editor.
  *
  * Shadow root with canvas and SVG overlay.
  */
@@ -81,13 +81,13 @@ class Editor extends CurverBase {
     constructor() {
         const auto = false;
         super(auto);
-        this._append_link("static/css/spline_editor.css");
+        this._append_link("static/motion_editor/motion_editor.css");
         this.history = new History();
         this.transport = new Transport(this);
         this.drawer = new SplineDrawer(this, this.splineGroup);
         this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
         this.motorSelector = new MotorSelector(this);
-        this.splineList = new SplineList(this);
+        this.motionList = new MotionList(this);
         this.recordedTrajectory = [];
         this.api = new Api();
 
@@ -113,7 +113,7 @@ class Editor extends CurverBase {
             });
             this.motorSelector.populate(DEFAULT_MOTOR_INFOS);
         });
-        this.splineList.reload_spline_list();
+        this.motionList.reload_spline_list();
 
         // TODO(atheler): Tmp workaround. Sometimes proper motor informations
         // seem to be missing. Then we do not have enough lines to plot the
@@ -203,11 +203,11 @@ class Editor extends CurverBase {
             }
 
             const spline = this.history.retrieve();
-            const name = this.splineList.selected;
+            const name = this.motionList.selected;
             await this.api.update_spline(name, spline);
             this.history.clear();
             this.history.capture(spline);
-            const selectedSpline = this.splineList.splines.filter(sp => sp.filename === this.splineList.selected)[0];
+            const selectedSpline = this.motionList.splines.filter(sp => sp.filename === this.motionList.selected)[0];
             selectedSpline.content = spline;
             this.update_ui();
         });
@@ -735,8 +735,8 @@ class Editor extends CurverBase {
             await this.api.create_spline(name, spline);
             this.load_spline(spline);
             this.update_ui();
-            this.splineList.selected = name;
-            this.splineList.reload_spline_list();
+            this.motionList.selected = name;
+            this.motionList.reload_spline_list();
         }
     }
 

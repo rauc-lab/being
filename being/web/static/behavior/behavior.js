@@ -46,7 +46,7 @@ class Behavior extends Widget {
             this.update_ui(infos);
         });
 
-        this._append_link("static/css/behavior.css");
+        this._append_link("static/behavior/behavior.css");
         this.add_template(BEHAVIOR_TEMPLATE);
 
         this.statesDiv = this.shadowRoot.getElementById("statesDiv");

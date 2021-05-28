@@ -7,7 +7,7 @@ import { create_button } from "/static/js/button.js";
 import { remove_all_children, is_valid_filename } from "/static/js/utils.js";
 
 
-export class SplineList {
+export class MotionList {
     constructor(editor) {
         this.editor = editor;
         this.splines = [];
