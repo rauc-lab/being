@@ -5,6 +5,8 @@ import logging
 import types
 
 from aiohttp import web
+import aiohttp_jinja2
+import jinja2
 
 from being.behavior import BEHAVIOR_CHANGED
 from being.config import  CONFIG
@@ -103,19 +105,18 @@ def init_web_server() -> web.Application:
     here = os.path.dirname(os.path.abspath(__file__))
     staticDir = os.path.join(here, 'static')
     app = web.Application()
+    aiohttp_jinja2.setup(app, loader=jinja2.PackageLoader('being.web', 'templates'))
     app.router.add_static(prefix='/static', path=staticDir, show_index=True)
-
     routes = web.RouteTableDef()
 
     @routes.get('/favicon.ico')
     async def get_favicon(request):
         return web.FileResponse(os.path.join(staticDir, 'favicon.ico'))
 
-
     @routes.get('/')
+    @aiohttp_jinja2.template('index.html')
     async def get_index(request):
-        return web.FileResponse(os.path.join(staticDir, 'index.html'))
-
+        pass
 
     app.router.add_routes(routes)
     return app
