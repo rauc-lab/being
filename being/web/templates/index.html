@@ -17,19 +17,16 @@
         <a href="#editor-anchor">Motion Editor</a>
         <a href="#console-anchor">Console</a>
     </nav>
-
-    <div id="wrapper">
-        <hr>
-        <a class="anchor" id="behavior-anchor"></a>
-        <h1>Behavior</h1>
-        <being-behavior id="behavior"></being-behavior>
-        <a class="anchor" id="editor-anchor"></a>
-        <h1>Motion Editor</h1>
-        <being-editor id="editor"></being-editor>
-        <a class="anchor" id="console-anchor"></a>
-        <h1>Console</h1>
-        <being-console id="console"></being-console>
-    </div>
+    <hr>
+    <a class="anchor" id="behavior-anchor"></a>
+    <h1>Behavior</h1>
+    <being-behavior id="behavior"></being-behavior>
+    <a class="anchor" id="editor-anchor"></a>
+    <h1>Motion Editor</h1>
+    <being-editor id="editor"></being-editor>
+    <a class="anchor" id="console-anchor"></a>
+    <h1>Console</h1>
+    <being-console id="console"></being-console>
 
     <script type="module">
         /**
@@ -62,4 +59,11 @@
             ],
         });
     </script>
+{% endblock %}
+
+
+{% block footer %}
+<footer style="text-align: center;">
+    Being {{version}}. Escaped from <a href="http://rauc.ethz.ch">RAUC</a> LAB © 2021
+</footer>
 {% endblock %}

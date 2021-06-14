@@ -8,6 +8,7 @@ from aiohttp import web
 import aiohttp_jinja2
 import jinja2
 
+import being
 from being.behavior import BEHAVIOR_CHANGED
 from being.config import  CONFIG
 from being.connectables import MessageInput
@@ -116,6 +117,7 @@ def init_web_server() -> web.Application:
     @routes.get('/')
     @aiohttp_jinja2.template('index.html')
     async def get_index(request):
+        return {'version': being.__version__}
         pass
 
     app.router.add_routes(routes)

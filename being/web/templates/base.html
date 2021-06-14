@@ -9,7 +9,15 @@
 {% endblock %}
 </head>
 <body>
+    <div id="wrapper">
 {% block body %}
 {% endblock %}
+
+    {% block footer %}
+    <footer style="text-align: center;">
+        <a href="http://rauc.ethz.ch">RAUC</a> © 2021
+    </footer>
+    {% endblock %}
+    </div>
 </body>
 </html>
