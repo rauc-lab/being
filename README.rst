@@ -17,7 +17,7 @@ Test suite can be run via `setup.py`.
 
 .. code-block:: bash
 
-   python3 setupt.py test
+   python3 setup.py test
 
 Running web server
 
