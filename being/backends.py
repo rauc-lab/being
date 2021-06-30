@@ -27,7 +27,7 @@ DEFAULT_CAN_BITRATE = CONFIG['Can']['DEFAULT_CAN_BITRATE']
 
 
 # Default system dependent CAN bus parameters
-if sys.platform == 'darwin':
+if sys.platform.startswith('darwin'):
     _BUS_TYPE = 'pcan'
     _CHANNEL = 'PCAN_USBBUS1'
 else:
