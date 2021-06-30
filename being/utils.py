@@ -1,13 +1,13 @@
 import collections
 import fnmatch
 import glob
+import itertools
 import os
 import weakref
 from typing import Dict, List, Generator
 
 
 Filepath = str
-
 
 
 def filter_by_type(sequence, type_) -> Generator:
@@ -135,10 +135,9 @@ class IdAware:
 
     """Assign ascending id numbers to instances."""
 
-    COUNTERS = collections.defaultdict(int)
+    ID_COUNTERS = collections.defaultdict(itertools.count)
 
     def __new__(cls, *args, **kwargs):
-        self = super().__new__(cls, *args, **kwargs)
-        self.id = cls.COUNTERS[cls]
-        cls.COUNTERS[cls] += 1
+        self = object.__new__(cls)
+        self.id = next(cls.ID_COUNTERS[cls])
         return self

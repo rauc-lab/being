@@ -1,6 +1,6 @@
 import unittest
 
-from being.utils import SingleInstanceCache
+from being.utils import SingleInstanceCache, IdAware
 
 
 class Foo(SingleInstanceCache):
@@ -29,6 +29,23 @@ class TestSingleInstanceCache(unittest.TestCase):
         b = Foo.single_instance_setdefault()
 
         self.assertIs(a, b)
+
+
+class TestIdAware(unittest.TestCase):
+    def test_instances_of_two_different_classes_have_ascending_ids(self):
+        class Foo(IdAware):
+            pass
+
+        class Bar(IdAware):
+            pass
+
+        a = Foo()
+        b = Bar()
+        c = Foo()
+
+        self.assertEqual(a.id, 0)
+        self.assertEqual(b.id, 0)
+        self.assertEqual(c.id, 1)
 
 
 if __name__ == '__main__':
