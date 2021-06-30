@@ -50,7 +50,7 @@ setup(
         'matplotlib',
         'python-can',
         'canopen',
-        'aiohttp',
+        'aiohttp >= 3.7.0, <= 3.7.4',  # 4.0.0 leads to problems (weakref on WebSocketResponse)
         'aiohttp-jinja2',
         #'RPi.GPIO',  # Needed on Rpi. We do not include it here that being can run on normal computers...
         #'PyAudio',  # Optional. Not needed right now
