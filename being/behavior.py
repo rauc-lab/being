@@ -13,7 +13,7 @@ from being.logging import get_logger
 from being.motion_player import MotionPlayer, MotionCommand
 from being.pubsub import PubSub
 from being.serialization import register_enum, loads, dumps
-from being.utils import read_file, write_file
+from being.utils import read_file, write_file, IdAware
 
 
 class State(enum.Enum):
@@ -48,7 +48,7 @@ def create_params(attentionSpan=10., motions=None):
     }
 
 
-class Behavior(Block, PubSub):
+class Behavior(Block, PubSub, IdAware):
 
     """Simple 3x state finite state machine behavior engine for ECAL workshop.
     Based on modified Anima II/III behavior engine. The three states are:
@@ -240,6 +240,7 @@ class Behavior(Block, PubSub):
     def infos(self):
         return {
             'type': 'behavior-update',
+            'id': self.id,
             'active': self.active,
             'state': self.state,
             'lastPlayed': self.lastPlayed,

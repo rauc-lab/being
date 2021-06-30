@@ -163,7 +163,7 @@ def cancel_all_tasks():
 
 async def _awake_web(being):
     """Run being with web server."""
-    app = init_web_server()
+    app = init_web_server(being)
     ws = WebSocket()
     app.router.add_get(WEB_SOCKET_ADDRESS, ws.handle_web_socket)
     app.on_shutdown.append(ws.close_all)
@@ -177,7 +177,6 @@ async def _awake_web(being):
             'No signals available on your OS. Can not register SIGTERM'
             ' signal for graceful program exit'
     ))
-
 
     try:
         await asyncio.gather(

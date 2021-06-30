@@ -218,41 +218,60 @@ def being_controller(being: Being) -> web.RouteTableDef:
     return routes
 
 
-def behavior_controller(behavior) -> web.RouteTableDef:
+def behavior_controllers(behaviors) -> web.RouteTableDef:
     """API routes for being behavior."""
-    # TODO: For now we only support 1x behavior instance. Needs to be expanded for the future
     routes = web.RouteTableDef()
+    lookup = {
+        behavior.id: behavior
+        for behavior in behaviors
+    }
 
-    @routes.get('/behavior/states')
-    async def get_states(request):
+    @routes.get('/behaviors/{id}/states')
+    async def load_behavior_states(request):
         stateNames = list(State.__members__)
         return json_response(stateNames)
 
-    @routes.get('/behavior')
-    async def get_info(request):
-        return json_response(behavior.infos())
 
-    @routes.put('/behavior/toggle_playback')
-    async def toggle_playback(request):
-        if behavior.active:
-            behavior.pause()
-        else:
-            behavior.play()
+    @routes.get('/behaviors/{id}')
+    async def load_behavior_infos(request):
+        try:
+            id = int(request.match_info['id'])
+            return json_response(lookup[id].infos())
+        except (ValueError, KeyError):
+            msg = f'Behavior with id {id} does not exist!'
+            return web.HTTPBadRequest(text=msg)
 
-        return json_response(behavior.infos())
 
-    @routes.get('/behavior/params')
-    async def get_params(request):
-        return json_response(behavior.params)
+    @routes.put('/behaviors/{id}/toggle_playback')
+    async def toggle_behavior_playback(request):
+        try:
+            id = int(request.match_info['id'])
+            behavior = lookup[id]
+            if behavior.active:
+                behavior.pause()
+            else:
+                behavior.play()
 
-    @routes.put('/behavior/params')
-    async def set_params(request):
+            return json_response(behavior.infos())
+        except (ValueError, KeyError):
+            msg = f'Behavior with id {id} does not exist!'
+            return web.HTTPBadRequest(text=msg)
+
+
+    @routes.put('/behaviors/{id}/params')
+    async def receive_behavior_params(request):
+        id = int(request.match_info['id'])
         try:
             params = await request.json()
+            behavior = lookup[id]
             behavior.params = params
-            return json_response(behavior.infos())
+            return json_response(behavior.params)
         except json.JSONDecodeError:
-            return web.HTTPNotAcceptable(text=f'Failed deserializing JSON behavior params!')
+            msg = f'Failed deserializing JSON behavior params!'
+            return web.HTTPNotAcceptable(text=msg)
+        except (ValueError, IndexError):
+            msg = f'Behavior with id {id} does not exist!'
+            return web.HTTPBadRequest(text=msg)
 
     return routes
 

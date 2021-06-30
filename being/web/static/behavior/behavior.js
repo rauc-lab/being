@@ -1,8 +1,13 @@
 /**
  * @module behavior Behavior web component widget.
+ *
+ * The HTML <being-behavior> widget needs to know its behavior id, so that we
+ * can map the API requests correctly (via an instance of BehaviorApi).
  */
-import { Widget } from "/static/js/widget.js";
+import { API } from "/static/js/config.js";
 import { Api } from "/static/js/api.js";
+import { Widget } from "/static/js/widget.js";
+import { get_json, put_json} from "/static/js/fetching.js";
 import { remove_all_children } from "/static/js/utils.js";
 import { round } from "/static/js/math.js";
 
@@ -22,30 +27,66 @@ BEHAVIOR_TEMPLATE.innerHTML = `
 `;
 
 
+class BehaviorApi extends Api {
+    constructor(id) {
+        super();
+        this.id = id;
+    }
+
+    async load_behavior_states() {
+        return get_json(API + "/behaviors/" + this.id + "/states");
+    }
+
+    async load_behavior_infos() {
+        return get_json(API + "/behaviors/" + this.id);
+    }
+
+    async send_behavior_params(params) {
+        return put_json(API + "/behaviors/" + this.id + "/params", params);
+    }
+
+    async toggle_behavior_playback() {
+        return put_json(API + "/behaviors/" + this.id + "/toggle_playback");
+    }
+}
+
+
 class Behavior extends Widget {
     constructor() {
         super();
-        this.api = new Api();
+        this.api = null;
         this.attentionSpanSlider = null;
-        this.nowPlayingSpan = null;
-        this.statesDiv = null;
         this.attentionSpanSpan = null;
         this.led = null;
+        this.nowPlayingSpan = null;
+        this.statesDiv = null;
 
-        this.init_elements();
+        this.init_html_elements();
+    }
+
+    /**
+     * Get behavior id for this widget from "behaviorId" HTML attribute as int.
+     * Return -1 if not set.
+     */
+         get id() {
+            const attr = this.getAttribute("behaviorId");
+            if (attr === null) {
+                return -1;
+            }
+
+            return parseInt(attr);
+        }
+
+    async connectedCallback() {
+        this.api = new BehaviorApi(this.id);
         this.load();
     }
 
     /**
      * Build DOM elements.
      */
-    init_elements() {
+    init_html_elements() {
         this.playPauseBtn = this.add_button_to_toolbar("play_arrow");
-        this.playPauseBtn.addEventListener("click", async () => {
-            const infos = await this.api.toggle_behavior_playback();
-            this.update_ui(infos);
-        });
-
         this._append_link("static/behavior/behavior.css");
         this.add_template(BEHAVIOR_TEMPLATE);
 
@@ -56,43 +97,42 @@ class Behavior extends Widget {
         label.innerHTML = "Now playing: ";
         label.style.marginLeft = "0.5em";
         label.style.marginRight = "0.5em";
-
         this.nowPlayingSpan = document.createElement("span");
         this.nowPlayingSpan.classList.add("now-playing");
         this.toolbar.appendChild(this.nowPlayingSpan);
-
-        const slider = document.createElement("input");
-        this.attentionSpanSlider = slider;
-        slider.setAttribute("type", "range");
-        slider.setAttribute("min", 0);
-        slider.setAttribute("max", N_TICKS);
-        slider.setAttribute("name", "attentionSpan");
-
+        this.attentionSpanSlider = document.createElement("input");
+        this.attentionSpanSlider.setAttribute("type", "range");
+        this.attentionSpanSlider.setAttribute("min", 0);
+        this.attentionSpanSlider.setAttribute("max", N_TICKS);
+        this.attentionSpanSlider.setAttribute("name", "attentionSpan");
         this.attentionSpanSpan = document.createElement("span");
         this.attentionSpanSpan.style = "display: inline-block; min-width: 3.5em; text-align: right;";
-
         this.led = document.createElement("span");
         this.led.classList.add("led");
-
-        slider.addEventListener("change", () => {
-            this.emit_params();
-        });
-        slider.addEventListener("input", () => {
-            const duration = slider.value * MAX_ATTENTION_SPAN / N_TICKS;
-            this.update_attention_span_label(duration);
-        });
     }
 
     /**
-     * Load data from back end and populate HTML elements.
+     * Load behavior state / params from server and populate HTML elements.
      */
-    async load() {
+    load() {
         const stateNames = await this.api.load_behavior_states();
         this.populate_states(stateNames);
 
         const motions = await this.api.load_motions();
         const names = Object.keys(motions.splines);
         this.populate_motions(names);
+
+        this.playPauseBtn.addEventListener("click", async () => {
+            const infos = await this.api.toggle_behavior_playback();
+            this.update_ui(infos);
+        });
+        this.attentionSpanSlider.addEventListener("change", () => {
+            this.emit_params();
+        });
+        this.attentionSpanSlider.addEventListener("input", () => {
+            const duration = this.attentionSpanSlider.value * MAX_ATTENTION_SPAN / N_TICKS;
+            this.update_attention_span_label(duration);
+        });
 
         const infos = await this.api.load_behavior_infos();
         this.update_ui(infos);
@@ -213,17 +253,25 @@ class Behavior extends Widget {
      * Trigger LED pulse animation for one cycle.
      */
     pulse_led() {
+        // Retrigger CSS animation. We need to void access offsetWidth for it
+        // to work (?!). See section "Update: Another JavaScript Method to
+        // Restart a CSS Animation" at
+        // https://css-tricks.com/restart-css-animation/
         this.led.classList.remove("pulsing");
-        this.led.offsetWidth;  // https://css-tricks.com/restart-css-animation/
+        this.led.offsetWidth;
         this.led.classList.add("pulsing");
     }
 
     /**
-     * Update all UI elements.
+     * Update all UI elements from a behavior message.
      *
      * @param {Object} infos Behavior info object.
      */
     update_ui(infos) {
+        if (info.id !== this.id) {
+            return;
+        }
+
         this.playPauseBtn.innerHTML = infos.active ? "pause" : "play_arrow";
         this.nowPlayingSpan.innerHTML = infos.lastPlayed;
         this.update_attention_span_slider(infos.params.attentionSpan);

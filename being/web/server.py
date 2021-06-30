@@ -8,7 +8,7 @@ from aiohttp import web
 import aiohttp_jinja2
 import jinja2
 
-import being
+from being import __version__ as BEING_VERSION_NUMBER
 from being.behavior import BEHAVIOR_CHANGED
 from being.config import  CONFIG
 from being.connectables import MessageInput
@@ -17,7 +17,7 @@ from being.logging import BEING_LOGGERS
 from being.logging import get_logger
 from being.sensors import Sensor
 from being.utils import filter_by_type
-from being.web.api import content_controller, being_controller, behavior_controller, misc_controller
+from being.web.api import content_controller, being_controller, behavior_controllers, misc_controller
 from being.web.web_socket import WebSocket
 
 
@@ -78,10 +78,12 @@ def init_api(being, ws: WebSocket) -> web.Application:
     content.subscribe(CONTENT_CHANGED, lambda: ws.send_json_buffered(content.dict_motions_2()))
 
     # Behavior
-    if len(being.behaviors) >= 1:
-        behavior = being.behaviors[0]
-        api.add_routes(behavior_controller(behavior))
-        behavior.subscribe(BEHAVIOR_CHANGED, lambda: ws.send_json_buffered(behavior.infos()))
+    api.add_routes(behavior_controllers(being.behaviors))
+    for id, behavior in enumerate(being.behaviors):
+        behavior.subscribe(
+            BEHAVIOR_CHANGED,
+            lambda: ws.send_json_buffered(behavior.infos())
+        )
         content.subscribe(CONTENT_CHANGED, behavior._purge_params)
 
     # Being
@@ -97,7 +99,7 @@ def init_api(being, ws: WebSocket) -> web.Application:
     return api
 
 
-def init_web_server() -> web.Application:
+def init_web_server(being) -> web.Application:
     """Initialize aiohttp web server application and setup some routes.
 
     Returns:
@@ -117,8 +119,10 @@ def init_web_server() -> web.Application:
     @routes.get('/')
     @aiohttp_jinja2.template('index.html')
     async def get_index(request):
-        return {'version': being.__version__}
-        pass
+        return {
+            'version': BEING_VERSION_NUMBER,
+            'behaviors': [beh.infos() for beh in being.behaviors],
+        }
 
     app.router.add_routes(routes)
     return app
