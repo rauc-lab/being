@@ -8,7 +8,7 @@ from aiohttp import web
 from being.behavior import State
 from being.content import Content
 from being.logging import get_logger
-from being.motor import _MotorBase
+from being.motor import Motor
 from being.serialization import loads, spline_from_dict
 from being.spline import fit_spline
 from being.web.responses import respond_ok, json_response
@@ -98,7 +98,7 @@ def content_controller(content: Content) -> web.RouteTableDef:
 def connected_motors(motionPlayer):
     for output in motionPlayer.positionOutputs:
         for input_ in output.outgoingConnections:
-            if isinstance(input_.owner, _MotorBase):
+            if isinstance(input_.owner, Motor):
                 yield input_.owner
 
 

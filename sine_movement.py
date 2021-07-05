@@ -2,7 +2,7 @@
 """Slow Sine movement on the motors."""
 from being.being import awake
 from being.blocks import Sine, Trafo
-from being.motor import Motor
+from being.motor import LinearMotor
 from being.resources import manage_resources
 
 
@@ -18,7 +18,7 @@ with manage_resources():
     sine | trafo
     trafo.scale /= 2
     for nodeId in MOTOR_IDS:
-        mot = Motor(nodeId, length=ROD_LENGTH)
+        mot = LinearMotor(nodeId, length=ROD_LENGTH)
         trafo | mot
 
     awake(sine)

@@ -58,6 +58,9 @@ FAULHABER_ERRORS = {
 SI_2_FAULHABER = CONFIG['Can']['SI_2_FAULHABER']
 INTERVAL = CONFIG['General']['INTERVAL']
 
+UP = FORWARD = 1.
+DOWN = BACKWARD = -1.
+
 
 class DriveError(BeingError):
 
@@ -112,42 +115,25 @@ def stringify_faulhaber_error(value: int) -> str:
     return ', '.join(messages)
 
 
-class _MotorBase(Block):
+class Motor(Block):
 
-    """Motor base class."""
-
-    def __init__(self):
-        super().__init__()
-        self.add_value_input()
-        self.add_value_output()
-
-    def home(self):
-        yield DONE_HOMING
-
-
-class Motor(_MotorBase):
-
-    """Motor blocks which takes set-point values through its inputs and outputs
-    the current actual position value through its output. The input position
-    values are filtered with a kinematic filter. Encapsulates a and setups a
-    CiA402Node. Currently only tested with Faulhaber linear drive (0.04 m).
+    """Motor base class.
 
     Attributes:
         network (CanBackend): Associsated network:
         node (CiA402Node): Drive node.
-        state (State): Kinematic state.
     """
 
-    def __init__(self, nodeId: int,
-            length: Optional[float] = None,
-            # TODO: Which args? direction, maxSpeed, maxAcc, ...?
-            network: Optional[CanBackend] = None,
-            node: Optional[CiA402Node] = None):
-        """Args:
+    def __init__(self,
+             nodeId: int,
+             network: Optional[CanBackend] = None,
+             node: Optional[CiA402Node] = None,
+        ):
+        """
+        Args:
             nodeId: CANopen node id.
 
         Kwargs:
-            length: Rod length if known.
             network: External network (dependency injection).
             node: Drive node (dependency injection).
         """
@@ -159,25 +145,63 @@ class Motor(_MotorBase):
         if node is None:
             node = create_node(network, nodeId)
 
-        self.nodeId = nodeId
-        self.length = length
-        #self.direction = sign(direction)
         self.network = network
+        self.node = node
+        self.add_value_input('targetPosition')
+        self.add_value_output('actualPosition')
         self.logger = get_logger(str(self))
 
-        self.targetPosition, = self.inputs = [ValueInput(owner=self)]
-        self.actualPosition, = self.outputs = [ValueOutput(owner=self)]
+    @property
+    def nodeId(self):
+        return self.node.id
 
-        self.node = node
+    def home(self):
+        yield DONE_HOMING
+
+    def __str__(self):
+        return f'{type(self).__name__}(nodeId={self.nodeId})'
+
+
+class LinearMotor(Motor):
+
+    """Motor blocks which takes set-point values through its inputs and outputs
+    the current actual position value through its output. The input position
+    values are filtered with a kinematic filter. Encapsulates a and setups a
+    CiA402Node. Currently only tested with Faulhaber linear drive (0.04 m).
+
+    Attributes:
+        state (State): Kinematic state.
+    """
+
+    def __init__(
+        self,
+        nodeId: int,
+        length: Optional[float] = None,
+        direction: float = UP,
+        # TODO: Which args? direction, maxSpeed, maxAcc, ...?
+        *args,
+        **kwargs,
+    ):
+        """Args:
+            nodeId: CANopen node id.
+
+        Kwargs:
+            length: Rod length if known.
+            network: External network (dependency injection).
+            node: Drive node (dependency injection).
+        """
+        super().__init__(nodeId, *args, **kwargs)
+        self.length = length
+        #self.direction = sign(direction)
 
         self.setup_node()
         self.setup_pdos()
 
-        node.nmt.state = PRE_OPERATIONAL
-        node.set_state(State402.READY_TO_SWITCH_ON)
-        node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
+        self.node.nmt.state = PRE_OPERATIONAL
+        self.node.set_state(State402.READY_TO_SWITCH_ON)
+        self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
 
-    def setup_node(self, maxSpeed: float = 5., maxAcc: float = 5.):
+    def setup_node(self, maxSpeed: float = 1., maxAcc: float = 1.):
         """Configure Faulhaber node (some settings via SDO).
 
         Kwargs:
@@ -345,11 +369,20 @@ class Motor(_MotorBase):
         # Fetch actual position
         self.output.value = self.node.pdo['Position Actual Value'].raw / SI_2_FAULHABER
 
-    def __str__(self):
-        return f'{type(self).__name__}(nodeId={self.nodeId})'
+
+class RotaryMotor(Motor):
+    def __init__(self, nodeId, *args, **kwargs):
+        raise NotImplementedError
+        # TODO: Make me!
 
 
-class DummyMotor(_MotorBase):
+class WindupMotor(Motor):
+    def __init__(self, nodeId, *args, **kwargs):
+        raise NotImplementedError
+        # TODO: Make me!
+
+
+class DummyMotor(Motor):
 
     """Dummy motor for testing and standalone usage."""
 

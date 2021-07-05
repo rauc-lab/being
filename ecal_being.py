@@ -4,7 +4,7 @@ from being.behavior import Behavior
 from being.being import awake
 from being.logging import setup_logging
 from being.motion_player import MotionPlayer
-from being.motor import Motor
+from being.motor import LinearMotor
 from being.resources import manage_resources
 from being.sensors import SensorGpio
 
@@ -17,7 +17,7 @@ def look_for_motors():
     """Look which motors for NODE_IDS are available."""
     for nodeId in NODE_IDS:
         try:
-            yield Motor(nodeId, length=0.100)
+            yield LinearMotor(nodeId, length=0.100)
         except RuntimeError:
             pass
 

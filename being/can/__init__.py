@@ -83,14 +83,14 @@ def load_object_dictionary(network, nodeId: int) -> ObjectDictionary:
         except SdoCommunicationError as err:
             raise RuntimeError(f'CANopen node {nodeId} is not reachable!') from err
 
-        # Try to download object dictionary from node
+        # Try to download remote object dictionary from node
         try:
             edsFp = client.open(STORE_EDS, mode='rt')
             return import_eds(edsFp, nodeId)
         except SdoAbortedError:
             pass
 
-        # Check if we know the node
+        # Try to load local object dictionary
         if deviceType in SUPPORTED_DEVICE_TYPES:
             filelike = _load_local_eds(deviceType)
             return import_eds(filelike, nodeId)
