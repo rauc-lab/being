@@ -76,3 +76,19 @@ class Mic(Block):
             register_resource(audioBackend, duplicates=False)
 
         self.audioBackend = audioBackend
+
+
+class Printer(Block):
+
+    """Print input values to stdout."""
+
+    def __init__(self, prefix=''):
+        """Kwargs:
+            prefix: Prefix string to prepend.
+        """
+        super().__init__()
+        self.prefix = prefix
+        self.add_value_input()
+
+    def update(self):
+        print(self.prefix, self.input.value)
