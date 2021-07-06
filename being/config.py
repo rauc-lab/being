@@ -13,7 +13,6 @@ CONFIG = {
     },
     'Can': {
         'DEFAULT_CAN_BITRATE': 1000000,  # Default bitrate (bit / sec) for CAN interface.
-        'SI_2_FAULHABER': 1e6,  # Unit conversion for Lineare DC-Servomotoren Serie LM 0830 ... 01.
     },
     'Web': {
         'HOST': None,  # Host name of web server

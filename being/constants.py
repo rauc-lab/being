@@ -34,3 +34,7 @@ KB: int = 1024 * BYTE
 
 MB: int = 1024 * KB
 """One mega byte."""
+UP = 1.
+FORWARD = 1.
+DOWN = -1.
+BACKWARD = -1.

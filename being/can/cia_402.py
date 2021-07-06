@@ -5,7 +5,7 @@ SDO, rest via PDO. Support for CYCLIC_SYNCHRONOUS_POSITION.
 """
 import contextlib
 from enum import auto, IntEnum, Enum
-from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union
+from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union, NamedTuple
 from collections import deque, defaultdict
 
 from canopen import RemoteNode
@@ -15,19 +15,18 @@ from being.can.definitions import (
     CONTROLWORD,
     MODES_OF_OPERATION,
     MODES_OF_OPERATION_DISPLAY,
-    POSITION_ACTUAL_VALUE,
     STATUSWORD,
+    MANUFACTURER_DEVICE_NAME,
     SUPPORTED_DRIVE_MODES,
     TransmissionType,
 )
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
-from being.config import CONFIG
+from being.can.vendor import UNITS, Units
 from being.logging import get_logger
 
 
 State = ForwardRef('State')
 Edge = Tuple[State, State]
-SI_2_FAULHABER = CONFIG['Can']['SI_2_FAULHABER']  # TODO(atheler): This has to go
 CanOpenRegister = Union[int, str]
 
 
@@ -242,32 +241,105 @@ class CiA402Node(RemoteNode):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger = get_logger(str(self))
-        #self.setup_pdos()
+        self.units: Units = None
 
-    @property
-    def position(self):
-        """Current actual position value."""
-        return self.sdo[POSITION_ACTUAL_VALUE].raw / SI_2_FAULHABER
+        # CAN network not available here. Call CiA402Node._setup() later on to
+        # finish setup!
 
-    # TODO: Wording. Any English speakers in the house?
+    def _setup(self):
+        """...__init__ continued. CAN network is not available during
+        CiA402Node.__init__() so let's pick it up from here and finish setup.
+        """
+        # PDOs
+        self.pdo.read()  # Load both node.tpdo and node.rpdo
 
-    def disengage(self):
-        self.nmt.state = PRE_OPERATIONAL
-        self.change_state(State.READY_TO_SWITCH_ON)
+        # Note: Default PDO mapping of some motors includes the Control- /
+        # Statusword in multiple PDOs. This can lead to unexpected behavior with
+        # our CanOpen stack since for example:
+        #
+        #     node.pdo['Controlword'] = Command.ENABLE_OPERATION
+        #
+        # will only set the value in the first PDO with the Controlword but not
+        # for the others following. In these, the Controlword will stay zero and
+        # subsequently shut down the motor.
+        #
+        # -> We clear all of them and have the Controlword only in the first RxPDO1.
 
-    def disable(self):
-        self.disengage()
+        # TxPdo
+        self.setup_txpdo(1, 'Statusword', 'Error Register')
+        self.setup_txpdo(2, 'Position Actual Value')
+        self.setup_txpdo(3, enabled=False)
+        self.setup_txpdo(4, enabled=False)
 
-    def engage(self):
-        self.nmt.state = OPERATIONAL
-        self.change_state(State.SWITCHED_ON)
+        # RxPdo
+        self.setup_rxpdo(1, 'Controlword')
+        self.setup_rxpdo(2, 'Target Position')
+        self.setup_rxpdo(3, enabled=False)
+        self.setup_rxpdo(4, enabled=False)
 
-    def disenable(self):
-        self.engage()
+        # Determine device units
+        manu = self.sdo[MANUFACTURER_DEVICE_NAME].raw
+        self.units = UNITS[manu]
 
-    def enable(self):
-        self.nmt.state = OPERATIONAL
-        self.change_state(State.OPERATION_ENABLE)
+    def setup_txpdo(self,
+            nr: int,
+            *variables: CanOpenRegister,
+            overwrite: bool = True,
+            enabled: bool = True,
+            trans_type: TransmissionType = TransmissionType.SYNCHRONOUS_CYCLIC,
+            event_timer: int = 0,
+        ):
+        """Setup single transmission PDO of node (receiving PDO from remote
+        node).
+
+        Args:
+            nr: TxPDO number (1-4).
+            *variables: CanOpen variables to receive from remote node via this
+                TxPDO.
+
+        Kwargs:
+            enabled: Enable or disable RxPDO.
+            overwrite: Overwrite RxPDO.
+            trans_type:
+            event_timer:
+        """
+        tx = self.tpdo[nr]
+        if overwrite:
+            tx.clear()
+
+        for var in variables:
+            tx.add_variable(var)
+
+        tx.enabled = enabled
+        tx.trans_type = trans_type
+        tx.event_timer = event_timer
+        tx.save()
+
+    def setup_rxpdo(self,
+            nr: int,
+            *variables: CanOpenRegister,
+            overwrite: bool = True,
+            enabled: bool = True,
+        ):
+        """Setup single receiving PDO of node (sending PDO to remote node).
+
+        Args:
+            nr: RxPDO number (1-4).
+            *variables: CanOpen variables to send to remote node via this RxPDO.
+
+        Kwargs:
+            enabled: Enable or disable RxPDO.
+            overwrite: Overwrite RxPDO.
+        """
+        rx = self.rpdo[nr]
+        if overwrite:
+            rx.clear()
+
+        for var in variables:
+            rx.add_variable(var)
+
+        rx.enabled = enabled
+        rx.save()
 
     def get_state(self) -> State:
         """Get current node state."""
@@ -350,105 +422,34 @@ class CiA402Node(RemoteNode):
         self.set_operation_mode(op)
         self.nmt.state = nmt
 
-    def setup_pdos(self):
-        """Setup PDOs of CiA402 node with the following default mappings.
+    # TODO: Wording. Any English speakers in the house?
 
-        Receiving:
-            RxPDO1: 'Statusword', 'Error Register'
-            RxPDO2: 'Position Actual Value'
-            RxPDO3: -
-            RxPDO4: -
+    def disengage(self):
+        self.nmt.state = PRE_OPERATIONAL
+        self.change_state(State.READY_TO_SWITCH_ON)
 
-        Sending:
-            TxPDO1: 'Controlword'
-            TxPDO2: 'Target Position'
-            TxPDO3: -
-            TxPDO4: -
-        """
-        self.pdo.read()  # Load both node.tpdo and node.rpdo
+    def disable(self):
+        self.disengage()
 
-        # Note for the default mapping of some motors where e.g. the Controlword
-        # appears in multiple RxPDOs: We clear all of them and have the
-        # Controlword only in the first RxPDO1. Otherwise this can lead to
-        # unexpected behavior with our canopen library since for example:
-        #
-        #     node.pdo['Controlword'] = Command.ENABLE_OPERATION
-        #
-        # will only set the value in the first PDO with one Controlword but not
-        # the others. In these the controlword will stay zero and subsequently
-        # shut down the motor.
+    def engage(self):
+        self.nmt.state = OPERATIONAL
+        self.change_state(State.SWITCHED_ON)
 
-        # TxPdo
-        self.setup_txpdo(1, 'Statusword', 'Error Register')
-        self.setup_txpdo(2, 'Position Actual Value')
-        self.setup_txpdo(3, enabled=False)
-        self.setup_txpdo(4, enabled=False)
+    def disenable(self):
+        self.engage()
 
-        # RxPdo
-        self.setup_rxpdo(1, 'Controlword')
-        self.setup_rxpdo(2, 'Target Position')
-        self.setup_rxpdo(3, enabled=False)
-        self.setup_rxpdo(4, enabled=False)
+    def enable(self):
+        self.nmt.state = OPERATIONAL
+        self.change_state(State.OPERATION_ENABLE)
 
-    def setup_txpdo(self,
-            nr: int,
-            *variables: CanOpenRegister,
-            overwrite: bool = True,
-            enabled: bool = True,
-            trans_type: TransmissionType = TransmissionType.SYNCHRONOUS_CYCLIC,
-            event_timer: int = 0,
-        ):
-        """Setup single transmission PDO of node (receiving PDO from remote
-        node).
+    def set_target_position(self, pos):
+        """Set target position in device units."""
+        self.pdo['Target Position'].raw = pos * self.units.length
+        self.rpdo[2].transmit()
 
-        Args:
-            nr: TxPDO number (1-4).
-            *variables: CanOpen variables to receive from remote node via this
-                TxPDO.
-
-        Kwargs:
-            enabled: Enable or disable RxPDO.
-            overwrite: Overwrite RxPDO.
-            trans_type:
-            event_timer:
-        """
-        tx = self.tpdo[nr]
-        if overwrite:
-            tx.clear()
-
-        for var in variables:
-            tx.add_variable(var)
-
-        tx.enabled = enabled
-        tx.trans_type = trans_type
-        tx.event_timer = event_timer
-        tx.save()
-
-    def setup_rxpdo(self,
-            nr: int,
-            *variables: CanOpenRegister,
-            overwrite: bool = True,
-            enabled: bool = True,
-        ):
-        """Setup single receiving PDO of node (sending PDO to remote node).
-
-        Args:
-            nr: RxPDO number (1-4).
-            *variables: CanOpen variables to send to remote node via this RxPDO.
-
-        Kwargs:
-            enabled: Enable or disable RxPDO.
-            overwrite: Overwrite RxPDO.
-        """
-        rx = self.rpdo[nr]
-        if overwrite:
-            rx.clear()
-
-        for var in variables:
-            rx.add_variable(var)
-
-        rx.enabled = enabled
-        rx.save()
+    def get_actual_position(self):
+        """Get actual position in device units."""
+        return self.pdo['Position Actual Value'].raw / self.units.length
 
     def __str__(self):
         return f'{type(self).__name__}(id={self.id})'

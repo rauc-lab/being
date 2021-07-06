@@ -1,6 +1,5 @@
 """Motor block."""
 import time
-
 from typing import Optional, Iterable, Generator
 
 from being.backends import CanBackend
@@ -12,15 +11,17 @@ from being.can.cia_402 import State as State402
 from being.can.definitions import (
     CONTROLWORD,
     HOMING_OFFSET,
+    MANUFACTURER_DEVICE_NAME,
     POSITION_ACTUAL_VALUE,
     SOFTWARE_POSITION_LIMIT,
     TARGET_VELOCITY,
     TransmissionType,
 )
 from being.can.nmt import PRE_OPERATIONAL
+from being.can.vendor import FAULHABER_ERRORS
 from being.config import CONFIG
 from being.connectables import ValueInput, ValueOutput
-from being.constants import INF
+from being.constants import INF, UP
 from being.error import BeingError
 from being.kinematics import State as KinematicState
 from being.kinematics import kinematic_filter
@@ -38,29 +39,6 @@ DONE_HOMING: HomingState = False
 """Indicates that homing job has finished."""
 
 
-FAULHABER_ERRORS = {
-    0x0001: 'Continuous Over Current',
-    0x0002: 'Deviation',
-    0x0004: 'Over Voltage',
-    0x0008: 'Over Temperature',
-    0x0010: 'Flash Memory Error',
-    0x0040: 'CAN In Error Passive Mode',
-    0x0080: 'CAN Overrun (objects lost)',
-    0x0100: 'Life Guard Or Heart- beat Error',
-    0x0200: 'Recovered From Bus Off',
-    0x0800: 'Conversion Overflow',
-    0x1000: 'Internal Software',
-    0x2000: 'PDO Length Exceeded',
-    0x4000: 'PDO not processes due to length error',
-}
-
-
-SI_2_FAULHABER = CONFIG['Can']['SI_2_FAULHABER']
-INTERVAL = CONFIG['General']['INTERVAL']
-
-UP = FORWARD = 1.
-DOWN = BACKWARD = -1.
-
 
 class DriveError(BeingError):
 
@@ -73,6 +51,7 @@ def create_node(network, nodeId):
     od = load_object_dictionary(network, nodeId)
     node = CiA402Node(nodeId, od)
     network.add_node(node, object_dictionary=od)
+    node._setup()
     return node
 
 
@@ -117,7 +96,23 @@ def stringify_faulhaber_error(value: int) -> str:
 
 class Motor(Block):
 
-    """Motor base class.
+    """Motor base class."""
+
+    def __init__(self):
+        super().__init__()
+        self.add_value_input('targetPosition')
+        self.add_value_output('actualPosition')
+
+    def home(self):
+        yield DONE_HOMING
+
+
+class LinearMotor(Motor):
+
+    """Motor blocks which takes set-point values through its inputs and outputs
+    the current actual position value through its output. The input position
+    values are filtered with a kinematic filter. Encapsulates a and setups a
+    CiA402Node. Currently only tested with Faulhaber linear drive (0.04 m).
 
     Attributes:
         network (CanBackend): Associsated network:
@@ -125,15 +120,18 @@ class Motor(Block):
     """
 
     def __init__(self,
-             nodeId: int,
-             network: Optional[CanBackend] = None,
-             node: Optional[CiA402Node] = None,
-        ):
-        """
-        Args:
+                 nodeId: int,
+                 length: Optional[float] = None,
+                 direction: float = UP,
+                 # TODO: Which args? direction, maxSpeed, maxAcc, ...?
+                 network: Optional[CanBackend] = None,
+                 node: Optional[CiA402Node] = None,
+                 ):
+        """Args:
             nodeId: CANopen node id.
 
         Kwargs:
+            length: Rod length if known.
             network: External network (dependency injection).
             node: Drive node (dependency injection).
         """
@@ -145,69 +143,32 @@ class Motor(Block):
         if node is None:
             node = create_node(network, nodeId)
 
+        self.length = length
+        self.direction = sign(direction)
         self.network = network
         self.node = node
-        self.add_value_input('targetPosition')
-        self.add_value_output('actualPosition')
         self.logger = get_logger(str(self))
 
-    @property
-    def nodeId(self):
-        return self.node.id
-
-    def home(self):
-        yield DONE_HOMING
-
-    def __str__(self):
-        return f'{type(self).__name__}(nodeId={self.nodeId})'
-
-
-class LinearMotor(Motor):
-
-    """Motor blocks which takes set-point values through its inputs and outputs
-    the current actual position value through its output. The input position
-    values are filtered with a kinematic filter. Encapsulates a and setups a
-    CiA402Node. Currently only tested with Faulhaber linear drive (0.04 m).
-
-    Attributes:
-        state (State): Kinematic state.
-    """
-
-    def __init__(
-        self,
-        nodeId: int,
-        length: Optional[float] = None,
-        direction: float = UP,
-        # TODO: Which args? direction, maxSpeed, maxAcc, ...?
-        *args,
-        **kwargs,
-    ):
-        """Args:
-            nodeId: CANopen node id.
-
-        Kwargs:
-            length: Rod length if known.
-            network: External network (dependency injection).
-            node: Drive node (dependency injection).
-        """
-        super().__init__(nodeId, *args, **kwargs)
-        self.length = length
-        #self.direction = sign(direction)
-
-        self.setup_node()
-        self.node.setup_pdos()
+        self.configure_node()
 
         self.node.nmt.state = PRE_OPERATIONAL
         self.node.set_state(State402.READY_TO_SWITCH_ON)
         self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
 
-    def setup_node(self, maxSpeed: float = 1., maxAcc: float = 1.):
+    @property
+    def nodeId(self) -> int:
+        """CAN node id."""
+        return self.node.id
+
+    def configure_node(self, maxSpeed: float = 1., maxAcc: float = 1.):
         """Configure Faulhaber node (some settings via SDO).
 
         Kwargs:
             maxSpeed: Maximum speed.
             maxAcc: Maximum acceleration.
         """
+        units = self.node.units
+
         generalSettings = self.node.sdo['General Settings']
         generalSettings['Pure Sinus Commutation'].raw = 1
         #generalSettings['Activate Position Limits in Velocity Mode'].raw = 1
@@ -229,13 +190,13 @@ class LinearMotor(Motor):
         #posController['Derivative Term PD'].raw = 14
 
         curController = self.node.sdo['Current Control Parameter Set']
-        curController['Continuous Current Limit'].raw = 1000 * 0.550  # [mA]
-        curController['Peak Current Limit'].raw = 1000 * 1.640  # [mA]
+        curController['Continuous Current Limit'].raw = 0.550 * units.current  # [mA]
+        curController['Peak Current Limit'].raw = 1.640 * units.current  # [mA]
         curController['Integral Term CI'].raw = 3
 
-        self.node.sdo['Max Profile Velocity'].raw = 1000 * maxSpeed  # [mm / s]
-        self.node.sdo['Profile Acceleration'].raw = 1000 * maxAcc  # [mm / s^2]
-        self.node.sdo['Profile Deceleration'].raw = 1000 * maxAcc  # [mm / s^2]
+        self.node.sdo['Max Profile Velocity'].raw = maxSpeed * units.kinematics  # [mm / s]
+        self.node.sdo['Profile Acceleration'].raw = maxAcc * units.kinematics  # [mm / s^2]
+        self.node.sdo['Profile Deceleration'].raw = maxAcc * units.kinematics  # [mm / s^2]
 
     def home(self, speed: int = 100, deadCycles: int = 20) -> Generator[HomingState, None, None]:
         """Crude homing procedure. Move with PROFILED_VELOCITY operation mode
@@ -294,7 +255,7 @@ class LinearMotor(Motor):
             # Take into account rod length
             width = upper - lower
             if self.length is not None:
-                dx = .5 * (width - self.length * SI_2_FAULHABER)
+                dx = .5 * (width - self.length * node.units.length)
                 if dx > 0:
                     lower, upper = lower + dx, upper - dx
 
@@ -308,7 +269,6 @@ class LinearMotor(Motor):
             logger.debug('SOFTWARE_POSITION_LIMIT[1]: %s', 0)
             logger.debug('SOFTWARE_POSITION_LIMIT[2]: %s', upper - lower)
 
-        self.state = KinematicState(position=node.position)
         while True:
             yield DONE_HOMING
 
@@ -319,13 +279,8 @@ class LinearMotor(Motor):
             #raise DriveError(msg)
             self.logger.error('DriveError: %s', msg)
 
-        # Set target position
-        soll = SI_2_FAULHABER * self.input.value
-        self.node.pdo['Target Position'].raw = soll
-        self.node.rpdo[2].transmit()
-
-        # Fetch actual position
-        self.output.value = self.node.pdo['Position Actual Value'].raw / SI_2_FAULHABER
+        self.node.set_target_position(self.targetPosition.value)
+        self.output.value = self.node.get_actual_position()
 
 
 class RotaryMotor(Motor):
@@ -347,9 +302,8 @@ class DummyMotor(Motor):
     def __init__(self, length=0.04):
         super().__init__()
         self.length = length
-        self.add_value_input()
-        self.add_value_output()
         self.state = KinematicState()
+        self.dt = CONFIG['General']['INTERVAL']
 
     def home(self, speed: int = 100):
         yield DONE_HOMING
@@ -358,7 +312,7 @@ class DummyMotor(Motor):
         # Kinematic filter input target position
         self.state = kinematic_filter(
             self.input.value,
-            dt=INTERVAL,
+            dt=self.dt,
             state=self.state,
             maxSpeed=1.,
             maxAcc=1.,
