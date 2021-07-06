@@ -6,21 +6,19 @@ from being.backends import CanBackend
 from being.bitmagic import check_bit_mask
 from being.block import Block
 from being.can import load_object_dictionary
-from being.can.cia_402 import CiA402Node, OperationMode, Command, CW, State
-from being.can.cia_402 import State as State402
+from being.can.cia_402 import CiA402Node, OperationMode, Command, CW
+from being.can.cia_402 import State as CiA402State
+
 from being.can.definitions import (
     CONTROLWORD,
     HOMING_OFFSET,
-    MANUFACTURER_DEVICE_NAME,
     POSITION_ACTUAL_VALUE,
     SOFTWARE_POSITION_LIMIT,
     TARGET_VELOCITY,
-    TransmissionType,
 )
 from being.can.nmt import PRE_OPERATIONAL
 from being.can.vendor import FAULHABER_ERRORS
 from being.config import CONFIG
-from being.connectables import ValueInput, ValueOutput
 from being.constants import INF, UP
 from being.error import BeingError
 from being.kinematics import State as KinematicState
@@ -37,7 +35,6 @@ STILL_HOMING: HomingState = True
 
 DONE_HOMING: HomingState = False
 """Indicates that homing job has finished."""
-
 
 
 class DriveError(BeingError):
@@ -120,13 +117,13 @@ class LinearMotor(Motor):
     """
 
     def __init__(self,
-                 nodeId: int,
-                 length: Optional[float] = None,
-                 direction: float = UP,
-                 # TODO: Which args? direction, maxSpeed, maxAcc, ...?
-                 network: Optional[CanBackend] = None,
-                 node: Optional[CiA402Node] = None,
-                 ):
+             nodeId: int,
+             length: Optional[float] = None,
+             direction: float = UP,
+             # TODO: Which args? direction, maxSpeed, maxAcc, ...?
+             network: Optional[CanBackend] = None,
+             node: Optional[CiA402Node] = None,
+        ):
         """Args:
             nodeId: CANopen node id.
 
@@ -152,7 +149,7 @@ class LinearMotor(Motor):
         self.configure_node()
 
         self.node.nmt.state = PRE_OPERATIONAL
-        self.node.set_state(State402.READY_TO_SWITCH_ON)
+        self.node.set_state(CiA402State.READY_TO_SWITCH_ON)
         self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
 
     @property
@@ -219,11 +216,11 @@ class LinearMotor(Motor):
         logger.info('Starting homing for %s', node)
         with node.restore_states_and_operation_mode():
             node.nmt.state = 'PRE-OPERATIONAL'
-            node.change_state(State402.READY_TO_SWITCH_ON)
+            node.change_state(CiA402State.READY_TO_SWITCH_ON)
             node.sdo[HOMING_OFFSET].raw = 0
             #TODO: Do we need to set NMT to 'OPERATIONAL'?
             node.set_operation_mode(OperationMode.PROFILED_VELOCITY)
-            node.change_state(State402.OPERATION_ENABLE)
+            node.change_state(CiA402State.OPERATION_ENABLE)
 
             # Move upwards
             logger.info('Moving upwards')
@@ -259,7 +256,7 @@ class LinearMotor(Motor):
                 if dx > 0:
                     lower, upper = lower + dx, upper - dx
 
-            node.change_state(State402.READY_TO_SWITCH_ON)
+            node.change_state(CiA402State.READY_TO_SWITCH_ON)
             node.sdo[HOMING_OFFSET].raw = lower
             node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
             node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = upper - lower
@@ -273,13 +270,17 @@ class LinearMotor(Motor):
             yield DONE_HOMING
 
     def update(self):
+        from being.can.cia_402 import State, which_state
         err = self.node.pdo['Error Register'].raw
         if err:
             msg = stringify_faulhaber_error(err)
             #raise DriveError(msg)
             self.logger.error('DriveError: %s', msg)
 
-        self.node.set_target_position(self.targetPosition.value)
+        state = which_state(self.node.pdo['Statusword'].raw)
+        if state is CiA402State.OPERATION_ENABLE:
+            self.node.set_target_position(self.targetPosition.value)
+
         self.output.value = self.node.get_actual_position()
 
 
