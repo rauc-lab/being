@@ -5,7 +5,7 @@ SDO, rest via PDO. Support for CYCLIC_SYNCHRONOUS_POSITION.
 """
 import contextlib
 from enum import auto, IntEnum, Enum
-from typing import List, Dict, Set, Tuple, ForwardRef, Generator
+from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union
 from collections import deque, defaultdict
 
 from canopen import RemoteNode
@@ -18,6 +18,7 @@ from being.can.definitions import (
     POSITION_ACTUAL_VALUE,
     STATUSWORD,
     SUPPORTED_DRIVE_MODES,
+    TransmissionType,
 )
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.config import CONFIG
@@ -27,6 +28,7 @@ from being.logging import get_logger
 State = ForwardRef('State')
 Edge = Tuple[State, State]
 SI_2_FAULHABER = CONFIG['Can']['SI_2_FAULHABER']  # TODO(atheler): This has to go
+CanOpenRegister = Union[int, str]
 
 
 class State(Enum):
@@ -240,6 +242,7 @@ class CiA402Node(RemoteNode):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger = get_logger(str(self))
+        #self.setup_pdos()
 
     @property
     def position(self):
@@ -346,6 +349,106 @@ class CiA402Node(RemoteNode):
         self.change_state(state)
         self.set_operation_mode(op)
         self.nmt.state = nmt
+
+    def setup_pdos(self):
+        """Setup PDOs of CiA402 node with the following default mappings.
+
+        Receiving:
+            RxPDO1: 'Statusword', 'Error Register'
+            RxPDO2: 'Position Actual Value'
+            RxPDO3: -
+            RxPDO4: -
+
+        Sending:
+            TxPDO1: 'Controlword'
+            TxPDO2: 'Target Position'
+            TxPDO3: -
+            TxPDO4: -
+        """
+        self.pdo.read()  # Load both node.tpdo and node.rpdo
+
+        # Note for the default mapping of some motors where e.g. the Controlword
+        # appears in multiple RxPDOs: We clear all of them and have the
+        # Controlword only in the first RxPDO1. Otherwise this can lead to
+        # unexpected behavior with our canopen library since for example:
+        #
+        #     node.pdo['Controlword'] = Command.ENABLE_OPERATION
+        #
+        # will only set the value in the first PDO with one Controlword but not
+        # the others. In these the controlword will stay zero and subsequently
+        # shut down the motor.
+
+        # TxPdo
+        self.setup_txpdo(1, 'Statusword', 'Error Register')
+        self.setup_txpdo(2, 'Position Actual Value')
+        self.setup_txpdo(3, enabled=False)
+        self.setup_txpdo(4, enabled=False)
+
+        # RxPdo
+        self.setup_rxpdo(1, 'Controlword')
+        self.setup_rxpdo(2, 'Target Position')
+        self.setup_rxpdo(3, enabled=False)
+        self.setup_rxpdo(4, enabled=False)
+
+    def setup_txpdo(self,
+            nr: int,
+            *variables: CanOpenRegister,
+            overwrite: bool = True,
+            enabled: bool = True,
+            trans_type: TransmissionType = TransmissionType.SYNCHRONOUS_CYCLIC,
+            event_timer: int = 0,
+        ):
+        """Setup single transmission PDO of node (receiving PDO from remote
+        node).
+
+        Args:
+            nr: TxPDO number (1-4).
+            *variables: CanOpen variables to receive from remote node via this
+                TxPDO.
+
+        Kwargs:
+            enabled: Enable or disable RxPDO.
+            overwrite: Overwrite RxPDO.
+            trans_type:
+            event_timer:
+        """
+        tx = self.tpdo[nr]
+        if overwrite:
+            tx.clear()
+
+        for var in variables:
+            tx.add_variable(var)
+
+        tx.enabled = enabled
+        tx.trans_type = trans_type
+        tx.event_timer = event_timer
+        tx.save()
+
+    def setup_rxpdo(self,
+            nr: int,
+            *variables: CanOpenRegister,
+            overwrite: bool = True,
+            enabled: bool = True,
+        ):
+        """Setup single receiving PDO of node (sending PDO to remote node).
+
+        Args:
+            nr: RxPDO number (1-4).
+            *variables: CanOpen variables to send to remote node via this RxPDO.
+
+        Kwargs:
+            enabled: Enable or disable RxPDO.
+            overwrite: Overwrite RxPDO.
+        """
+        rx = self.rpdo[nr]
+        if overwrite:
+            rx.clear()
+
+        for var in variables:
+            rx.add_variable(var)
+
+        rx.enabled = enabled
+        rx.save()
 
     def __str__(self):
         return f'{type(self).__name__}(id={self.id})'

@@ -195,7 +195,7 @@ class LinearMotor(Motor):
         #self.direction = sign(direction)
 
         self.setup_node()
-        self.setup_pdos()
+        self.node.setup_pdos()
 
         self.node.nmt.state = PRE_OPERATIONAL
         self.node.set_state(State402.READY_TO_SWITCH_ON)
@@ -218,12 +218,12 @@ class LinearMotor(Motor):
         filterSettings['Gain Scheduling Velocity Controller'].raw = 1
 
         velocityController = self.node.sdo['Velocity Control Parameter Set']
-        velocityController['Proportional Term POR'].raw = 44
-        velocityController['Integral Term I'].raw = 50
+        #velocityController['Proportional Term POR'].raw = 44
+        #velocityController['Integral Term I'].raw = 50
 
         posController = self.node.sdo['Position Control Parameter Set']
-        posController['Proportional Term PP'].raw = 15
-        posController['Derivative Term PD'].raw = 10
+        #posController['Proportional Term PP'].raw = 15
+        #posController['Derivative Term PD'].raw = 10
         # Some softer params from pygmies
         #posController['Proportional Term PP'].raw = 8
         #posController['Derivative Term PD'].raw = 14
@@ -236,48 +236,6 @@ class LinearMotor(Motor):
         self.node.sdo['Max Profile Velocity'].raw = 1000 * maxSpeed  # [mm / s]
         self.node.sdo['Profile Acceleration'].raw = 1000 * maxAcc  # [mm / s^2]
         self.node.sdo['Profile Deceleration'].raw = 1000 * maxAcc  # [mm / s^2]
-
-    def setup_pdos(self):
-        """Configure PDOs of node. We only use 'Position Actual Value' and
-        'Target Position' in PDO2.
-        """
-        # We overwrite and clear all the defaults. By default the Controlword
-        # and Statusword appear in multiple PDOs. This can lead to unexpected
-        # behavior since for example:
-        #
-        #     node.pdo['Controlword'] = Command.ENABLE_OPERATION
-        #
-        # will only set the value in the first PDO with one Controlword but not
-        # the others. In these the controlword will stay zero and subsequently
-        # shut down the motor.
-        node = self.node
-        node.pdo.read()  # Load both node.tpdo and node.rpdo
-
-        # Clear all rx PDOs and Position Actual Value -> PDO2
-        for nr, tx in enumerate(node.tpdo.values(), start=1):
-            tx.clear()
-            if nr == 1:
-                tx.add_variable('Statusword')
-                tx.add_variable('Error Register')
-                tx.add_variable('Position Actual Value')
-                tx.enabled = True
-                tx.trans_type = TransmissionType.SYNCHRONOUS_CYCLIC
-                tx.event_timer = 0
-            else:
-                tx.enabled = False
-
-            tx.save()
-
-        # Clear all rx PDOs and Target Position -> PDO2
-        for nr, rx in enumerate(node.rpdo.values(), start=1):
-            rx.clear()
-            if nr == 1:
-                rx.add_variable('Target Position')
-                rx.enabled = True
-            else:
-                rx.enabled = False
-
-            rx.save()
 
     def home(self, speed: int = 100, deadCycles: int = 20) -> Generator[HomingState, None, None]:
         """Crude homing procedure. Move with PROFILED_VELOCITY operation mode
@@ -364,7 +322,7 @@ class LinearMotor(Motor):
         # Set target position
         soll = SI_2_FAULHABER * self.input.value
         self.node.pdo['Target Position'].raw = soll
-        self.node.rpdo[1].transmit()
+        self.node.rpdo[2].transmit()
 
         # Fetch actual position
         self.output.value = self.node.pdo['Position Actual Value'].raw / SI_2_FAULHABER
