@@ -14,7 +14,8 @@ from being.execution import execute, block_network_graph
 from being.graph import topological_sort
 from being.logging import get_logger
 from being.motion_player import MotionPlayer
-from being.motor import home_motors, Motor
+from being.motor import Motor
+from being.can.homing import home_motors
 from being.utils import filter_by_type
 from being.web.server import init_web_server, run_web_server, init_api
 from being.web.web_socket import WebSocket

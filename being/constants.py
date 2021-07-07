@@ -17,12 +17,6 @@ ONE_D: int = 1
 TWO_D: int = 2
 """Two dimensional."""
 
-MONO: int = 1
-"""Mono audio signal."""
-
-STEREO: int = 2
-"""Stereo audio signal."""
-
 EOT = chr(4)
 """End of transmission character."""
 
@@ -34,7 +28,15 @@ KB: int = 1024 * BYTE
 
 MB: int = 1024 * KB
 """One mega byte."""
+
 UP = 1.
+"""Up direction."""
+
 FORWARD = 1.
+"""Forward direction."""
+
 DOWN = -1.
+"""Down direction."""
+
 BACKWARD = -1.
+"""Backward direction."""

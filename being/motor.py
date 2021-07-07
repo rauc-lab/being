@@ -6,9 +6,8 @@ from being.backends import CanBackend
 from being.bitmagic import check_bit_mask
 from being.block import Block
 from being.can import load_object_dictionary
-from being.can.cia_402 import CiA402Node, OperationMode, Command, CW
+from being.can.cia_402 import CiA402Node, OperationMode, Command, CW, which_state
 from being.can.cia_402 import State as CiA402State
-
 from being.can.definitions import (
     CONTROLWORD,
     HOMING_OFFSET,
@@ -16,10 +15,11 @@ from being.can.definitions import (
     SOFTWARE_POSITION_LIMIT,
     TARGET_VELOCITY,
 )
+from being.can.homing import HomingState, crude_homing
 from being.can.nmt import PRE_OPERATIONAL
-from being.can.vendor import FAULHABER_ERRORS
+from being.can.vendor import FAULHABER_ERRORS, stringify_faulhaber_error
 from being.config import CONFIG
-from being.constants import INF, UP
+from being.constants import INF, FORWARD
 from being.error import BeingError
 from being.kinematics import State as KinematicState
 from being.kinematics import kinematic_filter
@@ -28,67 +28,31 @@ from being.math import sign
 from being.resources import register_resource
 
 
-HomingState = bool  # TODO(atheler): We should probabelly switch to an enum.
-
-STILL_HOMING: HomingState = True
-"""Indicates that homing job is still in progress."""
-
-DONE_HOMING: HomingState = False
-"""Indicates that homing job has finished."""
-
-
 class DriveError(BeingError):
 
     """Something went wrong on the drive."""
 
 
-def create_node(network, nodeId):
-    """CiA402Node factory."""
+def create_cia_402_node(network: CanBackend, nodeId: int, direction: float = FORWARD) -> CiA402Node:
+    """CiA402Node factory. Creates a new node and also adds it to the connected CAN network.
+
+    Args:
+        network: Connected CAN network.
+        nodeId: CAN node id.
+
+    Kwargs:
+        direction: Movement orientation.
+
+    Returns:
+        CiA402Node instance.
+    """
     # TODO: Support for different motors / different CiA402Node subclasses?
+    # TODO: Constructor -> CiA402Node @classmethod.
     od = load_object_dictionary(network, nodeId)
-    node = CiA402Node(nodeId, od)
+    node = CiA402Node(nodeId, od, direction=direction)
     network.add_node(node, object_dictionary=od)
     node._setup()
     return node
-
-
-def _move(node, speed: int):
-    """Move motor with constant speed."""
-    node.sdo[TARGET_VELOCITY].raw = speed
-    node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
-
-
-def home_motors(motors: Iterable, interval: float = .01, timeout: float = 5., **kwargs):
-    """Home multiple motors in parallel. This operation will block for time of
-    homing.
-
-    Args:
-        motors: Motors to home.
-
-    Kwargs:
-        interval: Tmp. main loop interval for homing.
-        timeout: Maximum homing duration. RuntimeError if homing takes to long.
-        kwargs: Optional arguments for homing jobs.
-    """
-    homingJobs = [mot.home(**kwargs) for mot in motors]
-    starTime = time.perf_counter()
-
-    while any([next(job) == STILL_HOMING for job in homingJobs]):
-        passed = time.perf_counter() - starTime
-        if passed > timeout:
-            raise RuntimeError(f'Could not home all motors before timeout {timeout} sec.!')
-
-        time.sleep(interval)
-
-
-def stringify_faulhaber_error(value: int) -> str:
-    """Concatenate error messages for a given error value."""
-    messages = []
-    for mask, message in FAULHABER_ERRORS.items():
-        if check_bit_mask(value, mask):
-            messages.append(message)
-
-    return ', '.join(messages)
 
 
 class Motor(Block):
@@ -99,9 +63,6 @@ class Motor(Block):
         super().__init__()
         self.add_value_input('targetPosition')
         self.add_value_output('actualPosition')
-
-    def home(self):
-        yield DONE_HOMING
 
 
 class LinearMotor(Motor):
@@ -119,8 +80,7 @@ class LinearMotor(Motor):
     def __init__(self,
              nodeId: int,
              length: Optional[float] = None,
-             direction: float = UP,
-             # TODO: Which args? direction, maxSpeed, maxAcc, ...?
+             direction: float = FORWARD,
              network: Optional[CanBackend] = None,
              node: Optional[CiA402Node] = None,
         ):
@@ -129,6 +89,7 @@ class LinearMotor(Motor):
 
         Kwargs:
             length: Rod length if known.
+            direction: Movement orientation.
             network: External network (dependency injection).
             node: Drive node (dependency injection).
         """
@@ -138,12 +99,13 @@ class LinearMotor(Motor):
             register_resource(network, duplicates=False)
 
         if node is None:
-            node = create_node(network, nodeId)
+            node = create_cia_402_node(network, nodeId, direction=direction)
 
         self.length = length
         self.direction = sign(direction)
         self.network = network
         self.node = node
+        self.homing = None
         self.logger = get_logger(str(self))
 
         self.configure_node()
@@ -195,82 +157,7 @@ class LinearMotor(Motor):
         self.node.sdo['Profile Acceleration'].raw = maxAcc * units.kinematics  # [mm / s^2]
         self.node.sdo['Profile Deceleration'].raw = maxAcc * units.kinematics  # [mm / s^2]
 
-    def home(self, speed: int = 100, deadCycles: int = 20) -> Generator[HomingState, None, None]:
-        """Crude homing procedure. Move with PROFILED_VELOCITY operation mode
-        upwards and downwards until reaching limits (position not increasing or
-        decreasing anymore). Implemented as Generator so that we can home
-        multiple motors in parallel (quasi pseudo coroutine). time.sleep has to
-        be handled by the caller.
-
-        Kwargs:
-            speed: Homing speed.
-            deadCycles: Number of cycles we give the motor to start moving in a direction.
-
-        Yields:
-            Homing state.
-        """
-        direction = sign(speed)
-        speed = abs(speed)
-        node = self.node
-        logger = self.logger
-        logger.info('Starting homing for %s', node)
-        with node.restore_states_and_operation_mode():
-            node.nmt.state = 'PRE-OPERATIONAL'
-            node.change_state(CiA402State.READY_TO_SWITCH_ON)
-            node.sdo[HOMING_OFFSET].raw = 0
-            #TODO: Do we need to set NMT to 'OPERATIONAL'?
-            node.set_operation_mode(OperationMode.PROFILED_VELOCITY)
-            node.change_state(CiA402State.OPERATION_ENABLE)
-
-            # Move upwards
-            logger.info('Moving upwards')
-            pos = node.sdo[POSITION_ACTUAL_VALUE].raw
-            upper = -INF
-            _move(node, direction * speed)
-            for _ in range(deadCycles):
-                yield STILL_HOMING
-
-            while pos > upper:
-                #logger.debug('Homing up pos: %d', pos)
-                upper = pos
-                yield STILL_HOMING
-                pos = node.sdo[POSITION_ACTUAL_VALUE].raw
-
-            # Move downwards
-            logger.info('Moving downwards')
-            lower = INF
-            _move(node, -direction * speed)
-            for _ in range(deadCycles):
-                yield STILL_HOMING
-
-            while pos < lower:
-                #logger.debug('Homing down pos: %d', pos)
-                lower = pos
-                yield STILL_HOMING
-                pos = node.sdo[POSITION_ACTUAL_VALUE].raw
-
-            # Take into account rod length
-            width = upper - lower
-            if self.length is not None:
-                dx = .5 * (width - self.length * node.units.length)
-                if dx > 0:
-                    lower, upper = lower + dx, upper - dx
-
-            node.change_state(CiA402State.READY_TO_SWITCH_ON)
-            node.sdo[HOMING_OFFSET].raw = lower
-            node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
-            node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = upper - lower
-
-            logger.info('Homed')
-            logger.debug('HOMING_OFFSET:              %s', lower)
-            logger.debug('SOFTWARE_POSITION_LIMIT[1]: %s', 0)
-            logger.debug('SOFTWARE_POSITION_LIMIT[2]: %s', upper - lower)
-
-        while True:
-            yield DONE_HOMING
-
     def update(self):
-        from being.can.cia_402 import State, which_state
         err = self.node.pdo['Error Register'].raw
         if err:
             msg = stringify_faulhaber_error(err)
@@ -279,6 +166,11 @@ class LinearMotor(Motor):
 
         state = which_state(self.node.pdo['Statusword'].raw)
         if state is CiA402State.OPERATION_ENABLE:
+            #if self.homing:
+            #    ret = next(self.homing)
+            #    if ret is HomingState.FAILURE:
+            #        raise RuntimeError('Homing failed')
+            #else:
             self.node.set_target_position(self.targetPosition.value)
 
         self.output.value = self.node.get_actual_position()
@@ -305,9 +197,6 @@ class DummyMotor(Motor):
         self.length = length
         self.state = KinematicState()
         self.dt = CONFIG['General']['INTERVAL']
-
-    def home(self, speed: int = 100):
-        yield DONE_HOMING
 
     def update(self):
         # Kinematic filter input target position

@@ -5,7 +5,7 @@ SDO, rest via PDO. Support for CYCLIC_SYNCHRONOUS_POSITION.
 """
 import contextlib
 from enum import auto, IntEnum, Enum
-from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union, NamedTuple
+from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union
 from collections import deque, defaultdict
 
 from canopen import RemoteNode
@@ -13,15 +13,18 @@ from canopen import RemoteNode
 from being.bitmagic import check_bit
 from being.can.definitions import (
     CONTROLWORD,
+    HOMING_OFFSET,
+    MANUFACTURER_DEVICE_NAME,
     MODES_OF_OPERATION,
     MODES_OF_OPERATION_DISPLAY,
+    SOFTWARE_POSITION_LIMIT,
     STATUSWORD,
-    MANUFACTURER_DEVICE_NAME,
     SUPPORTED_DRIVE_MODES,
     TransmissionType,
 )
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.can.vendor import UNITS, Units
+from being.constants import UP
 from being.logging import get_logger
 
 
@@ -238,19 +241,21 @@ class CiA402Node(RemoteNode):
 
     """Alternative / simplified implementation of canopen.BaseNode402."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, direction=UP, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger = get_logger(str(self))
         self.units: Units = None
+        self.softwarePositionWidth = 0
+        self.flipped = (direction < 0)
 
         # CAN network not available here. Call CiA402Node._setup() later on to
         # finish setup!
 
     def _setup(self):
-        """...__init__ continued. CAN network is not available during
-        CiA402Node.__init__() so let's pick it up from here and finish setup.
+        """Continuation of initialization. Let's continue with configuration of
+        node where we need an active CAN network connection.
         """
-        # PDOs
+        # Configure PDOs
         self.pdo.read()  # Load both node.tpdo and node.rpdo
 
         # Note: Default PDO mapping of some motors includes the Control- /
@@ -265,13 +270,11 @@ class CiA402Node(RemoteNode):
         #
         # -> We clear all of them and have the Controlword only in the first RxPDO1.
 
-        # TxPdo
         self.setup_txpdo(1, 'Statusword', 'Error Register')
         self.setup_txpdo(2, 'Position Actual Value')
         self.setup_txpdo(3, enabled=False)
         self.setup_txpdo(4, enabled=False)
 
-        # RxPdo
         self.setup_rxpdo(1, 'Controlword')
         self.setup_rxpdo(2, 'Target Position')
         self.setup_rxpdo(3, enabled=False)
@@ -281,6 +284,11 @@ class CiA402Node(RemoteNode):
         manu = self.sdo[MANUFACTURER_DEVICE_NAME].raw
         self.units = UNITS[manu]
 
+        # Fetch current software position width
+        lower = self.sdo[SOFTWARE_POSITION_LIMIT][1].raw
+        upper = self.sdo[SOFTWARE_POSITION_LIMIT][2].raw
+        self.softwarePositionWidth = (upper - lower)
+
     def setup_txpdo(self,
             nr: int,
             *variables: CanOpenRegister,
@@ -289,13 +297,14 @@ class CiA402Node(RemoteNode):
             trans_type: TransmissionType = TransmissionType.SYNCHRONOUS_CYCLIC,
             event_timer: int = 0,
         ):
-        """Setup single transmission PDO of node (receiving PDO from remote
-        node).
+        """Setup single transmission PDO of node (receiving PDO messages from
+        remote node). Note: Sending / receiving direction always from the remote
+        nodes perspective.
 
         Args:
             nr: TxPDO number (1-4).
-            *variables: CanOpen variables to receive from remote node via this
-                TxPDO.
+            *variables: CanOpen variables to register to receive from remote
+                node via TxPDO.
 
         Kwargs:
             enabled: Enable or disable RxPDO.
@@ -321,11 +330,14 @@ class CiA402Node(RemoteNode):
             overwrite: bool = True,
             enabled: bool = True,
         ):
-        """Setup single receiving PDO of node (sending PDO to remote node).
+        """Setup single receiving PDO of node (sending PDO messages to remote
+        node). Note: Sending / receiving direction always from the remote nodes
+        perspective.
 
         Args:
             nr: RxPDO number (1-4).
-            *variables: CanOpen variables to send to remote node via this RxPDO.
+            *variables: CanOpen variables to register to send to remote node via
+                RxPDO.
 
         Kwargs:
             enabled: Enable or disable RxPDO.
@@ -422,6 +434,20 @@ class CiA402Node(RemoteNode):
         self.set_operation_mode(op)
         self.nmt.state = nmt
 
+    def set_homing_params(self, lower: int, upper: int):
+        """Set homing parameters. Also update softwarePositionWidth attribute
+        (for flipped operation).
+
+        Args:
+            lower: Lower bound of homing range.
+            upper: Upper bound of homing range.
+        """
+        width = (upper - lower)
+        self.sdo[HOMING_OFFSET].raw = lower
+        self.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
+        self.sdo[SOFTWARE_POSITION_LIMIT][2].raw = width
+        self.softwarePositionWidth = width
+
     # TODO: Wording. Any English speakers in the house?
 
     def disengage(self):
@@ -444,7 +470,12 @@ class CiA402Node(RemoteNode):
 
     def set_target_position(self, pos):
         """Set target position in device units."""
-        self.pdo['Target Position'].raw = pos * self.units.length
+        if self.flipped:
+            targetPos = self.softwarePositionWidth - pos * self.units.length
+        else:
+            targetPos = pos * self.units.length
+
+        self.pdo['Target Position'].raw = targetPos
         self.rpdo[2].transmit()
 
     def get_actual_position(self):
