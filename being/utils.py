@@ -1,3 +1,4 @@
+"""Miscellaneous helpers."""
 import collections
 import fnmatch
 import glob
@@ -7,10 +8,7 @@ import weakref
 from typing import Dict, List, Generator
 
 
-Filepath = str
-
-
-def filter_by_type(sequence, type_) -> Generator:
+def filter_by_type(sequence, type_) -> Generator[object, None, None]:
     """Filter sequence by type."""
     return (
         ele for ele in sequence
@@ -25,7 +23,7 @@ def rootname(path: str) -> str:
     return root
 
 
-def collect_files(directory, pattern='*') -> Generator[Filepath, None, None]:
+def collect_files(directory, pattern='*') -> Generator[str, None, None]:
     """Recursively walk over all files in directory. With file extension
     filter."""
     # Give full context
@@ -35,7 +33,7 @@ def collect_files(directory, pattern='*') -> Generator[Filepath, None, None]:
             yield os.path.join(dirpath, fn)
 
 
-def listdir(directory, fullpath=True) -> List[Filepath]:
+def listdir(directory, fullpath=True) -> List[str]:
     """List directory content. Not recursive. No hidden files. Lexicographically
     sorted.
 
@@ -52,12 +50,14 @@ def listdir(directory, fullpath=True) -> List[Filepath]:
     ]
 
 
-def read_file(filepath):
+def read_file(filepath: str) -> str:
+    """Read entire data from file."""
     with open(filepath) as file:
         return file.read()
 
 
-def write_file(filepath, data):
+def write_file(filepath: str, data):
+    """Write data to file."""
     with open(filepath, 'w') as file:
         file.write(data)
 
@@ -133,7 +133,9 @@ class SingleInstanceCache:
 
 class IdAware:
 
-    """Assign ascending id numbers to instances."""
+    """Class mixin for assigning assigning id numbers to each instance. Each
+    type has its own counter / starts from zero.
+    """
 
     ID_COUNTERS = collections.defaultdict(itertools.count)
 
