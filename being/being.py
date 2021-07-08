@@ -4,9 +4,11 @@ import os
 import signal
 import time
 import warnings
+from typing import List, Optional
 
 from being.backends import CanBackend
 from being.behavior import Behavior
+from being.block import Block
 from being.clock import Clock
 from being.config import CONFIG
 from being.connectables import ValueOutput
@@ -15,7 +17,6 @@ from being.graph import topological_sort
 from being.logging import get_logger
 from being.motion_player import MotionPlayer
 from being.motors import Motor
-from being.can.homing import home_motors
 from being.utils import filter_by_type
 from being.web.server import init_web_server, run_web_server, init_api
 from being.web.web_socket import WebSocket
@@ -42,22 +43,24 @@ class Being:
     graph and additional components (some back ends, clock, motors...).
     """
 
-    def __init__(self, blocks):
+    def __init__(self, blocks: List[Block], clock: Clock, network: Optional[CanBackend] = None):
         """Args:
             blocks: Blocks to execute.
+            clock: Being clock instance.
+
+        Kwargs:
+            network: CanBackend instance (if any).
         """
+        self.clock = clock
+        self.network = network
         self.graph = block_network_graph(blocks)
         self.execOrder = topological_sort(self.graph)
-        self.network = CanBackend.single_instance_get()
         self.motors = list(filter_by_type(self.execOrder, Motor))
         self.motionPlayers = list(filter_by_type(self.execOrder, MotionPlayer))
-        self.clock = Clock.single_instance_setdefault()
         self.valueOutputs = list(value_outputs(self.execOrder))
         self.behaviors = list(filter_by_type(self.execOrder, Behavior))
         if self.network is not None:
             self.execOrder.append(self.network)
-            home_motors(self.motors)
-            self.network.enable_drives()
 
     def start_behaviors(self):
         """Start all behaviors."""
@@ -129,7 +132,7 @@ async def send_being_state_to_front_end(being: Being, ws: WebSocket):
         await asyncio.sleep(2 * INTERVAL)
 
 
-def awake(*blocks, web=True):
+def awake(*blocks, web: bool = True, clock: Optional[Clock] = None, network: Optional[CanBackend] = None):
     """Run being block network.
 
     Args:
@@ -137,8 +140,21 @@ def awake(*blocks, web=True):
 
     Kwargs:
         web: Run with web server.
+        clock: Clock instance.
+        network: CanBackend instance.
     """
-    being = Being(blocks)
+    if clock is None:
+        clock = Clock.single_instance_setdefault()
+
+    if network is None:
+        network = CanBackend.single_instance_get()
+
+    being = Being(blocks, clock, network)
+    if network:
+        network.enable_drives()
+        for mot in being.motors:
+            mot.home()
+
     try:
         if not web:
             return being.run()

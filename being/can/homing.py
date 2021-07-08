@@ -5,8 +5,9 @@ complicated but we do this so that we can move blocking aspects to the caller
 and home multiple motors / nodes in parallel. This results in quasi coroutines.
 We do not use asyncio because we want to keep the core async free for now.
 """
-from typing import Iterable, Generator, Optional, Tuple
+from typing import Generator, Optional, Tuple
 import enum
+import math
 import time
 
 from being.can.cia_402 import (
@@ -40,10 +41,11 @@ class HomingState(enum.Enum):
 
     """Possible homing states."""
 
-    FAILURE = 0  # TODO: To be removed since it hides error trace back? Should
-                 # we always raise an exception?
-    SUCCESS = 1
-    RUNNING = 2
+    UNHOMED = 0
+    HOMED = 1
+    ONGOING = 2
+    FAILED = 3  # TODO: To be removed since it hides error trace back? Should
+                # we always raise an exception?
 
 
 HomingProgress = Generator[HomingState, None, None]
@@ -88,7 +90,7 @@ def _fetch_velocity(node: CiA402Node) -> int:
     return node.sdo[VELOCITY_ACTUAL_VALUE].raw
 
 
-def _move_node(node: CiA402Node, speed: int, deadTime=1.) -> HomingProgress:
+def _move_node(node: CiA402Node, velocity: int, deadTime: float = 2.) -> HomingProgress:
     """Move motor with constant speed.
 
     Args:
@@ -101,26 +103,24 @@ def _move_node(node: CiA402Node, speed: int, deadTime=1.) -> HomingProgress:
     Yields:
         HomingState.RUNNING
     """
-    node.sdo[TARGET_VELOCITY].raw = int(speed)
+    node.sdo[TARGET_VELOCITY].raw = int(velocity)
     node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
     endTime = time.perf_counter() + deadTime
     while time.perf_counter() < endTime:
-        # Early exit if speed error below relative 10%
         vel = _fetch_velocity(node)
-        if abs(speed - vel) < .1 * abs(speed):
+        if math.isclose(vel, velocity, rel_tol=0.05, abs_tol=1):
             return
 
-        yield HomingState.RUNNING
+        yield HomingState.ONGOING
 
 
-def _stop_node(node: CiA402Node):
+def _stop_node(node: CiA402Node, deadTime: float = 2.):
     """Set target velocity to zero.
 
     Args:
         node: Connected CiA402 node.
     """
-    node.sdo[TARGET_VELOCITY].raw = 0
-    node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
+    yield from _move_node(node, velocity=0, deadTime=deadTime)
 
 
 def _align_in_the_middle(lower: int, upper: int, length: int) -> HomingRange:
@@ -142,11 +142,27 @@ def _align_in_the_middle(lower: int, upper: int, length: int) -> HomingRange:
     return lower + margin, upper - margin
 
 
+def _validate_homing_width(node: CiA402Node, lower: int, upper: int):
+    """Validate minimal homing width.
+
+    Args:
+        node: Connected CiA402 node.
+        lower: Lower homing range.
+        upper: Upper homing range.
+
+    Raises:
+        HomingFailed error.
+    """
+    homingWidth = abs(upper - lower) / node.units.length
+    if homingWidth < MINIMUM_HOMING_WIDTH:
+        raise HomingFailed(f'Homing width to narrow. Homing range: {[lower, upper]}!')
+
+
 def crude_homing(
         node: CiA402Node,
         velocity: int = DEFAULT_HOMING_VELOCITY_DEV,
         length: Optional[float] = None,
-        deadTime: float = 1.,
+        deadTime: float = 2.,
     ) -> HomingProgress:
     """Crude homing procedure. Move with PROFILED_VELOCITY operation mode in
     both direction until reaching the limits (position not increasing or
@@ -168,8 +184,8 @@ def crude_homing(
     """
     direction = sign(velocity)
     speed = abs(velocity)
-    lower = upper = None
-    """Lower and upper bound of homing range."""
+    lower = None
+    upper = None
 
     def home_forward() -> HomingProgress:
         """Home in forward direction until upper limits is not increasing
@@ -180,9 +196,9 @@ def crude_homing(
         yield from _move_node(node, speed, deadTime)
         while (pos := _fetch_position(node)) > upper:
             upper = pos
-            yield HomingState.RUNNING
+            yield HomingState.ONGOING
 
-        _stop_node(node)
+        yield from _stop_node(node)
 
 
     def home_backward() -> HomingProgress:
@@ -194,9 +210,9 @@ def crude_homing(
         yield from _move_node(node, -speed, deadTime)
         while (pos := _fetch_position(node)) < lower:
             lower = pos
-            yield HomingState.RUNNING
+            yield HomingState.ONGOING
 
-        _stop_node(node)
+        yield from _stop_node(node)
 
 
     # TODO: Design decision: Should we skip the second homing travel when we
@@ -225,16 +241,14 @@ def crude_homing(
     #    ...     else:
     #    ...         upper = int(lower + length * node.units.length)
 
-
     with node.restore_states_and_operation_mode():
         node.nmt.state = 'PRE-OPERATIONAL'
         node.change_state(CiA402State.READY_TO_SWITCH_ON)
-        node.sdo[HOMING_METHOD].raw = 35
-        node.sdo[HOMING_OFFSET].raw = 0
-
-        #TODO: Do we need to set NMT to 'OPERATIONAL'?
         node.set_operation_mode(OperationMode.PROFILED_VELOCITY)
         node.change_state(CiA402State.OPERATION_ENABLE)
+
+        node.sdo[HOMING_METHOD].raw = 35
+        node.sdo[HOMING_OFFSET].raw = 0
 
         # Homing travel
         forward = (direction > 0)
@@ -245,51 +259,16 @@ def crude_homing(
             yield from home_backward()
             yield from home_forward()
 
-        # Homing width validation
-        if abs(upper - lower) < MINIMUM_HOMING_WIDTH * node.units.length:
-            raise HomingFailed(f'Homing width to narrow. Homing range: {[lower, upper]}!')
+        node.change_state(CiA402State.READY_TO_SWITCH_ON)
+
+        _validate_homing_width(node, lower, upper)
 
         # Center according to rod length
         if length is not None:
             lengthDev = int(length * node.units.length)
             lower, upper = _align_in_the_middle(lower, upper, lengthDev)
 
-        node.change_state(CiA402State.READY_TO_SWITCH_ON)
         node.set_homing_params(lower, upper)
 
     while True:
-        yield HomingState.SUCCESS
-
-
-def home_motors(motors: Iterable, interval: float = .05, timeout: float = 5., velocity: int = DEFAULT_HOMING_VELOCITY_DEV):
-    """Home multiple motors in parallel. This operation will block for time of
-    homing but home all motors at the same time / in parallel.
-
-    Args:
-        motors: Motors to home.
-
-    Kwargs:
-        interval: Tmp. main loop interval for homing.
-        timeout: Maximum homing duration. RuntimeError if homing takes to long.
-        kwargs: Optional arguments for homing jobs.
-    """
-    jobs = [
-        crude_homing(motor.node, velocity=motor.direction * velocity, length=motor.length)
-        for motor in motors
-    ]
-    starTime = time.perf_counter()
-    endTime = starTime + timeout
-
-    while True:
-        # Check timeout
-        if time.perf_counter() > endTime:
-            raise HomingFailed(f'Could not home all motors before timeout {timeout} sec.!')
-
-        states = [next(job) for job in jobs]
-        if HomingState.FAILURE in states:
-            raise HomingFailed('At least one motor could not be homed!')
-
-        if not HomingState.RUNNING in states:
-            break
-
-        time.sleep(interval)
+        yield HomingState.HOMED

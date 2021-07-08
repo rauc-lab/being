@@ -445,15 +445,18 @@ class CiA402Node(RemoteNode):
             ...     # Do something fancy with the states
             ...     pass
         """
-        nmt = self.nmt.state
-        op = self.get_operation_mode()
-        state = self.get_state()
+        oldNmt = self.nmt.state
+        oldOp = self.get_operation_mode()
+        oldState = self.get_state()
 
         yield self
 
-        self.change_state(state)
-        self.set_operation_mode(op)
-        self.nmt.state = nmt
+        # TODO: Should we do a d-tour via READY_TO_SWITCH_ON so that we can
+        # restore the operation mode in any case?
+        #self.change_state(State.READY_TO_SWITCH_ON)
+        self.set_operation_mode(oldOp)
+        self.change_state(oldState)
+        self.nmt.state = oldNmt
 
     def set_homing_params(self, lower: int, upper: int):
         """Set homing parameters. Also update softwarePositionWidth attribute
@@ -503,6 +506,13 @@ class CiA402Node(RemoteNode):
         """Get actual position in device units."""
         return self.pdo['Position Actual Value'].raw / self.units.length
 
+    def _get_info(self) -> dict:
+        """Get the current states."""
+        return {
+            'nmt': self.nmt.state,
+            'state': self.get_state(),
+            'op': self.get_operation_mode(),
+        }
+
     def __str__(self):
         return f'{type(self).__name__}(id={self.id})'
-

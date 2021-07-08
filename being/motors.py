@@ -6,6 +6,7 @@ from being.block import Block
 from being.can import load_object_dictionary
 from being.can.cia_402 import CiA402Node, OperationMode, which_state
 from being.can.cia_402 import State as CiA402State
+from being.can.homing import HomingState, crude_homing, DEFAULT_HOMING_VELOCITY_DEV
 from being.can.nmt import PRE_OPERATIONAL
 from being.can.vendor import stringify_faulhaber_error
 from being.config import CONFIG
@@ -51,8 +52,13 @@ class Motor(Block):
 
     def __init__(self):
         super().__init__()
+        self.homing = HomingState.UNHOMED
+        self.homingJob = None
         self.add_value_input('targetPosition')
         self.add_value_output('actualPosition')
+
+    def home(self):
+        pass
 
 
 class LinearMotor(Motor):
@@ -95,7 +101,6 @@ class LinearMotor(Motor):
         self.direction = sign(direction)
         self.network = network
         self.node = node
-        self.homing = None
         self.logger = get_logger(str(self))
 
         self.configure_node()
@@ -147,6 +152,12 @@ class LinearMotor(Motor):
         self.node.sdo['Profile Acceleration'].raw = maxAcc * units.kinematics  # [mm / s^2]
         self.node.sdo['Profile Deceleration'].raw = maxAcc * units.kinematics  # [mm / s^2]
 
+    def home(self):
+        """Home motor."""
+        homingVelocity = self.direction * DEFAULT_HOMING_VELOCITY_DEV
+        self.homingJob = crude_homing(self.node, homingVelocity, self.length)
+        self.homing = HomingState.ONGOING
+
     def update(self):
         err = self.node.pdo['Error Register'].raw
         if err:
@@ -154,14 +165,13 @@ class LinearMotor(Motor):
             #raise DriveError(msg)
             self.logger.error('DriveError: %s', msg)
 
-        state = which_state(self.node.pdo['Statusword'].raw)
-        if state is CiA402State.OPERATION_ENABLE:
-            #if self.homing:
-            #    ret = next(self.homing)
-            #    if ret is HomingState.FAILURE:
-            #        raise RuntimeError('Homing failed')
-            #else:
-            self.node.set_target_position(self.targetPosition.value)
+        if self.homing is HomingState.HOMED:
+            state = which_state(self.node.pdo['Statusword'].raw)
+            if state is CiA402State.OPERATION_ENABLE:
+                self.node.set_target_position(self.targetPosition.value)
+
+        elif self.homing is HomingState.ONGOING:
+            self.homing = next(self.homingJob)
 
         self.output.value = self.node.get_actual_position()
 
@@ -187,6 +197,7 @@ class DummyMotor(Motor):
         self.length = length
         self.state = KinematicState()
         self.dt = CONFIG['General']['INTERVAL']
+        self.homed = HomingState.HOMED
 
     def update(self):
         # Kinematic filter input target position
