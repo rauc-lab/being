@@ -68,7 +68,7 @@ PEP8 / Google flavored. With the one exception for variable and argument names
 Authors
 -------
 
-* **Alexander Theler** (`GitHub <https://github.com/atheler>`_)
+* **Alexander Theler** (`RAUC <https://asl.ethz.ch/research/rauc.html>`_, `GitHub <https://github.com/atheler>`_)
 * **Silvan Januth** (`Wyss Zurich <https://www.wysszurich.uzh.ch/technology-platforms/robotics-technologies?tx_ogwyssteams_teamlist%5Baction%5D=show&tx_ogwyssteams_teamlist%5Bcontroller%5D=Page&tx_ogwyssteams_teamlist%5Bteamid%5D=14&cHash=fd397786f38a735838b306d7e9655ca9#c117>`_)
 
 Acknowledgments
