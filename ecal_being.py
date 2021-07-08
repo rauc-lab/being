@@ -4,7 +4,7 @@ from being.behavior import Behavior
 from being.being import awake
 from being.logging import setup_logging
 from being.motion_player import MotionPlayer
-from being.motor import LinearMotor
+from being.motors import LinearMotor
 from being.resources import manage_resources
 from being.sensors import SensorGpio
 

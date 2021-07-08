@@ -9,16 +9,19 @@ from typing import Iterable, Generator, Optional, Tuple
 import enum
 import time
 
-from being.can.cia_402 import OperationMode, Command, CW, CiA402Node
-from being.can.cia_402 import State as CiA402State
-from being.can.definitions import (
+from being.can.cia_402 import (
     CONTROLWORD,
+    CW,
+    CiA402Node,
+    Command,
     HOMING_METHOD,
-    HOMING_OFFSET,
+    OperationMode,
     POSITION_ACTUAL_VALUE,
     TARGET_VELOCITY,
     VELOCITY_ACTUAL_VALUE,
 )
+from being.can.cia_402 import State as CiA402State
+from being.can.definitions import HOMING_OFFSET
 from being.constants import INF
 from being.error import BeingError
 from being.math import sign
@@ -38,7 +41,7 @@ class HomingState(enum.Enum):
     """Possible homing states."""
 
     FAILURE = 0  # TODO: To be removed since it hides error trace back? Should
-                 # we always raise exception?
+                 # we always raise an exception?
     SUCCESS = 1
     RUNNING = 2
 

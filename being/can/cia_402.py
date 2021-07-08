@@ -1,7 +1,8 @@
-"""CiA 402 CANopen node.
+"""CiA 402 definitions, state machine and CiA402Node class.
 
-Trimmed down version of canopen.BaseNode402. Statusword & controlword always via
-SDO, rest via PDO. Support for CYCLIC_SYNCHRONOUS_POSITION.
+CiA402Node is a trimmed down version of canopen.BaseNode402. We favor SDO
+communication during setup but synchronous acyclic PDO communication during
+operation. Also added support for CYCLIC_SYNCHRONOUS_POSITION mode.
 """
 import contextlib
 from enum import auto, IntEnum, Enum
@@ -12,20 +13,39 @@ from canopen import RemoteNode
 
 from being.bitmagic import check_bit
 from being.can.definitions import (
-    CONTROLWORD,
     HOMING_OFFSET,
-    MANUFACTURER_DEVICE_NAME,
-    MODES_OF_OPERATION,
-    MODES_OF_OPERATION_DISPLAY,
-    SOFTWARE_POSITION_LIMIT,
-    STATUSWORD,
-    SUPPORTED_DRIVE_MODES,
     TransmissionType,
 )
+from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.can.vendor import UNITS, Units
 from being.constants import UP
 from being.logging import get_logger
+
+
+# Mandatory (?) CiA 402 object dictionary entries
+CONTROLWORD = 0x6040
+STATUSWORD = 0x6041
+MODES_OF_OPERATION = 0x6060
+MODES_OF_OPERATION_DISPLAY = 0x6061
+POSITION_DEMAND_VALUE = 0x6062
+POSITION_ACTUAL_VALUE = 0x6064
+VELOCITY_DEMAND_VALUE = 0x606b
+VELOCITY_ACTUAL_VALUE = 0x606c
+TARGET_POSITION = 0x607a
+POSITION_RANGE_LIMIT = 0x607b
+SOFTWARE_POSITION_LIMIT = 0x607d
+MAX_PROFILE_VELOCITY = 0x607f
+PROFILE_VELOCITY = 0x6081
+PROFILE_ACCELERATION = 0x6083
+PROFILE_DECELERATION = 0x6084
+QUICK_STOP_DECELERATION = 0x6085
+HOMING_METHOD = 0x6098
+HOMING_SPEEDS = 0x6099
+HOMING_ACCELERATION = 0x609a
+DIGITAL_INPUTS = 0x60fd
+TARGET_VELOCITY = 0x60ff
+SUPPORTED_DRIVE_MODES = 0x6502
 
 
 State = ForwardRef('State')
@@ -228,8 +248,9 @@ def find_shortest_state_path(start: State, end: State) -> List[State]:
         tail = path[-1]
         for suc in POSSIBLE_TRANSITIONS[tail]:
             if suc in path:
-                continue  # Cycle
-            elif suc is end:
+                continue  # Cycle detected
+
+            if suc is end:
                 paths.append(path + [end])
             else:
                 queue.append(path + [suc])
@@ -484,3 +505,4 @@ class CiA402Node(RemoteNode):
 
     def __str__(self):
         return f'{type(self).__name__}(id={self.id})'
+

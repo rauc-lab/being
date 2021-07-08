@@ -6,7 +6,7 @@ from being.being import awake
 from being.logging import setup_logging
 from being.logging import suppress_other_loggers
 from being.motion_player import MotionPlayer
-from being.motor import DummyMotor
+from being.motors import DummyMotor
 from being.resources import manage_resources
 from being.sensors import Sensor
 

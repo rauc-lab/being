@@ -1,25 +1,15 @@
-"""Motor block."""
-import time
-from typing import Optional, Iterable, Generator
+"""Motor blocks."""
+from typing import Optional
 
 from being.backends import CanBackend
-from being.bitmagic import check_bit_mask
 from being.block import Block
 from being.can import load_object_dictionary
-from being.can.cia_402 import CiA402Node, OperationMode, Command, CW, which_state
+from being.can.cia_402 import CiA402Node, OperationMode, which_state
 from being.can.cia_402 import State as CiA402State
-from being.can.definitions import (
-    CONTROLWORD,
-    HOMING_OFFSET,
-    POSITION_ACTUAL_VALUE,
-    SOFTWARE_POSITION_LIMIT,
-    TARGET_VELOCITY,
-)
-from being.can.homing import HomingState, crude_homing
 from being.can.nmt import PRE_OPERATIONAL
-from being.can.vendor import FAULHABER_ERRORS, stringify_faulhaber_error
+from being.can.vendor import stringify_faulhaber_error
 from being.config import CONFIG
-from being.constants import INF, FORWARD
+from being.constants import FORWARD
 from being.error import BeingError
 from being.kinematics import State as KinematicState
 from being.kinematics import kinematic_filter
