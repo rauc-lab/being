@@ -12,6 +12,7 @@ from collections import deque, defaultdict
 from canopen import RemoteNode
 
 from being.bitmagic import check_bit
+from being.can import load_object_dictionary
 from being.can.definitions import (
     HOMING_OFFSET,
     TransmissionType,
@@ -260,22 +261,30 @@ def find_shortest_state_path(start: State, end: State) -> List[State]:
 
 class CiA402Node(RemoteNode):
 
-    """Alternative / simplified implementation of canopen.BaseNode402."""
+    """Alternative / simplified implementation of canopen.BaseNode402.
 
-    def __init__(self, *args, direction=UP, **kwargs):
-        super().__init__(*args, **kwargs)
+    Since we want to configure the CanOpen node during init we make a connected
+    CAN network mandatory.
+
+    Attributes:
+        units (Units): Manufacturer dependent device units.
+        softwarePositionWidth (int): Current software position width from
+            homing. Used for flipped operation.
+        flipped (bool): Flipped operation (position and velocity).
+    """
+
+    def __init__(self, network, nodeId, direction=UP, objectDictionary=None):
+        if objectDictionary is None:
+            objectDictionary = load_object_dictionary(network, nodeId)
+
+        super().__init__(nodeId, objectDictionary, load_od=False)
         self.logger = get_logger(str(self))
         self.units: Units = None
         self.softwarePositionWidth = 0
         self.flipped = (direction < 0)
 
-        # CAN network not available here. Call CiA402Node._setup() later on to
-        # finish setup!
+        network.add_node(self, objectDictionary)
 
-    def _setup(self):
-        """Continuation of initialization. Let's continue with configuration of
-        node where we need an active CAN network connection.
-        """
         # Configure PDOs
         self.pdo.read()  # Load both node.tpdo and node.rpdo
 

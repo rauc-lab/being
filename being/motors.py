@@ -3,7 +3,6 @@ from typing import Optional
 
 from being.backends import CanBackend
 from being.block import Block
-from being.can import load_object_dictionary
 from being.can.cia_402 import CiA402Node, OperationMode, which_state
 from being.can.cia_402 import State as CiA402State
 from being.can.homing import HomingState, crude_homing, DEFAULT_HOMING_VELOCITY_DEV
@@ -22,28 +21,6 @@ from being.resources import register_resource
 class DriveError(BeingError):
 
     """Something went wrong on the drive."""
-
-
-def create_cia_402_node(network: CanBackend, nodeId: int, direction: float = FORWARD) -> CiA402Node:
-    """CiA402Node factory. Creates a new node and also adds it to the connected CAN network.
-
-    Args:
-        network: Connected CAN network.
-        nodeId: CAN node id.
-
-    Kwargs:
-        direction: Movement orientation.
-
-    Returns:
-        CiA402Node instance.
-    """
-    # TODO: Support for different motors / different CiA402Node subclasses?
-    # TODO: Constructor -> CiA402Node @classmethod.
-    od = load_object_dictionary(network, nodeId)
-    node = CiA402Node(nodeId, od, direction=direction)
-    network.add_node(node, object_dictionary=od)
-    node._setup()
-    return node
 
 
 class Motor(Block):
@@ -95,7 +72,7 @@ class LinearMotor(Motor):
             register_resource(network, duplicates=False)
 
         if node is None:
-            node = create_cia_402_node(network, nodeId, direction=direction)
+            node = CiA402Node(network, nodeId)
 
         self.length = length
         self.direction = sign(direction)
