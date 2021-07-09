@@ -503,7 +503,7 @@ class CiA402Node(RemoteNode):
         self.pdo['Target Velocity'].raw = vel * self.units.speed
         self.rpdo[3].transmit()
 
-    def get_target_velocity(self):
+    def get_actual_velocity(self):
         """Get actual velocity in SI units."""
         return self.pdo['Velocity Actual Value'].raw / self.units.speed
 

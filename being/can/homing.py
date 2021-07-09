@@ -5,7 +5,7 @@ complicated but we do this so that we can move blocking aspects to the caller
 and home multiple motors / nodes in parallel. This results in quasi coroutines.
 We do not use asyncio because we want to keep the core async free for now.
 """
-from typing import Generator, Optional, Tuple, ForwardRef
+from typing import Generator, Tuple, ForwardRef
 import enum
 import math
 import time
@@ -23,7 +23,7 @@ from being.can.cia_402 import (
 )
 from being.can.cia_402 import State as CiA402State
 from being.can.definitions import HOMING_OFFSET
-from being.constants import INF
+from being.constants import INF, FORWARD
 from being.error import BeingError
 from being.math import sign, clip
 
@@ -56,9 +56,6 @@ HomingRange = Tuple[int, int]
 
 MINIMUM_HOMING_WIDTH = 0.010
 """Minimum width of homing range for a successful homing."""
-
-DEFAULT_HOMING_VELOCITY_DEV = 50
-"""Default homing velocity. In device units!"""
 
 LinearMotor = ForwardRef('LinearMotor')
 
@@ -144,25 +141,10 @@ def _align_in_the_middle(lower: int, upper: int, length: int) -> HomingRange:
     return lower + margin, upper - margin
 
 
-def _validate_homing_width(node: CiA402Node, lower: int, upper: int):
-    """Validate minimal homing width.
-
-    Args:
-        node: Connected CiA402 node.
-        lower: Lower homing range.
-        upper: Upper homing range.
-
-    Raises:
-        HomingFailed error.
-    """
-    homingWidth = abs(upper - lower) / node.units.length
-    if homingWidth < MINIMUM_HOMING_WIDTH:
-        raise HomingFailed(f'Homing width to narrow. Homing range: {[lower, upper]}!')
-
-
 def crude_linear_homing(
         motor: LinearMotor,
-        velocity: int = DEFAULT_HOMING_VELOCITY_DEV,
+        direction=FORWARD,
+        maxSpeed=0.050,
         deadTime: float = 2.,
         relMargin: float = 0.01,
     ) -> HomingProgress:
@@ -178,7 +160,8 @@ def crude_linear_homing(
         motor: Linear motor block.
 
     Kwargs:
-        velocity: Homing velocity (in device units).
+        direction: Initial homing direction.
+        maxSpeed: Maximum speed of homing travel.
         deadTime: Max wait time until motor reaches set-point velocities (in
             seconds).
         relMargin: Relative margin if motor length is not known a priori. Final
@@ -189,8 +172,8 @@ def crude_linear_homing(
         Homing state.
     """
     node = motor.node
-    direction = sign(velocity)
-    speed = abs(velocity)
+    direction = sign(direction)
+    speed = abs(maxSpeed * node.units.speed)
     lower = None
     upper = None
     relMargin = clip(relMargin, 0.00, 0.50)  # In [0%, 50%]!
@@ -269,12 +252,13 @@ def crude_linear_homing(
 
         node.change_state(CiA402State.READY_TO_SWITCH_ON)
 
-        _validate_homing_width(node, lower, upper)
+        homingWidth = (upper - lower) / node.units.length
+        if homingWidth < MINIMUM_HOMING_WIDTH:
+            raise HomingFailed(f'Homing width to narrow. Homing range: {[lower, upper]}!')
 
         # Estimate motor length
         if motor.length is None:
-            width = (upper - lower) / node.units.length
-            motor.length = (1. - 2 * relMargin) * width
+            motor.length = (1. - 2 * relMargin) * homingWidth
 
         # Center according to rod length
         lengthDev = int(motor.length * node.units.length)

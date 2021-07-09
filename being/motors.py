@@ -6,7 +6,7 @@ from being.block import Block
 from being.can import load_object_dictionary
 from being.can.cia_402 import CiA402Node, OperationMode, which_state
 from being.can.cia_402 import State as CiA402State
-from being.can.homing import HomingState, crude_linear_homing, DEFAULT_HOMING_VELOCITY_DEV
+from being.can.homing import HomingState, crude_linear_homing
 from being.can.nmt import PRE_OPERATIONAL
 from being.can.vendor import stringify_faulhaber_error
 from being.config import CONFIG
@@ -55,6 +55,7 @@ class LinearMotor(Motor):
              nodeId: int,
              length: Optional[float] = None,
              direction: float = FORWARD,
+             homingDirection: Optional[float] = None,
              network: Optional[CanBackend] = None,
              node: Optional[CiA402Node] = None,
              objectDictionary = None,
@@ -65,10 +66,14 @@ class LinearMotor(Motor):
         Kwargs:
             length: Rod length if known.
             direction: Movement orientation.
+            homingDirection: Initial homing direction. Default same as `direction`.
             network: External network (dependency injection).
             node: Drive node (dependency injection).
         """
         super().__init__()
+        if homingDirection is None:
+            homingDirection = direction
+
         if network is None:
             network = CanBackend.single_instance_setdefault()
             register_resource(network, duplicates=False)
@@ -81,6 +86,7 @@ class LinearMotor(Motor):
 
         self.length = length
         self.direction = sign(direction)
+        self.homingDirection = sign(homingDirection)
         self.network = network
         self.node = node
         self.logger = get_logger(str(self))
@@ -136,8 +142,7 @@ class LinearMotor(Motor):
 
     def home(self):
         """Home motor."""
-        homingVelocity = self.direction * DEFAULT_HOMING_VELOCITY_DEV
-        self.homingJob = crude_linear_homing(self, homingVelocity)
+        self.homingJob = crude_linear_homing(self, direction=self.homingDirection)
         self.homing = HomingState.ONGOING
 
     def update(self):
