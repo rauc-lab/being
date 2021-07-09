@@ -10,6 +10,7 @@ import enum
 import time
 
 from being.backends import CanBackend
+from being.bitmagic import set_bit
 from being.block import Block
 from being.can import load_object_dictionary
 from being.can.cia_402 import (
@@ -17,11 +18,14 @@ from being.can.cia_402 import (
     CW,
     CiA402Node,
     Command,
+    HOMING_ACCELERATION,
     HOMING_METHOD,
+    HOMING_SPEED,
     OperationMode,
     POSITION_ACTUAL_VALUE,
     SOFTWARE_POSITION_LIMIT,
     STATUSWORD,
+    SW,
     State as CiA402State,
     TARGET_VELOCITY,
     VELOCITY_ACTUAL_VALUE,
@@ -119,15 +123,17 @@ def _move_node(node: CiA402Node, velocity: int, deadTime: float = 2.) -> HomingP
     Yields:
         HomingState.RUNNING
     """
+    print('_move_node()', velocity)
     node.pdo[TARGET_VELOCITY].raw = int(velocity)
-    node.rpdo[3].transmit()
+    node.pdo[TARGET_VELOCITY].pdo_parent.transmit()
     node.pdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
-    node.rpdo[1].transmit()
+    node.pdo[CONTROLWORD].pdo_parent.transmit()
     endTime = time.perf_counter() + deadTime
     while time.perf_counter() < endTime:
         yield HomingState.ONGOING  # Wait for sync
         sw = node.pdo[STATUSWORD].raw
         if target_reached(sw):
+            print('Early exit')
             return
 
 
@@ -359,8 +365,46 @@ class LinearMotor(Motor):
             node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
             node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = self.upper - self.lower
 
-        while True:
-            yield HomingState.HOMED
+        yield HomingState.HOMED
+
+    def end_switch_homing(self,
+              homingMethod: int,
+              maxSpeed: float = 0.050,
+              maxAcc: float = 1.,
+              relMargin: float = 0.01,
+              timeout: float = 5.,
+        ) -> HomingProgress:
+
+        raise NotImplementedError('Make me!')
+
+        node = self.node
+        with node.restore_states_and_operation_mode():
+            node.change_state(CiA402State.READY_TO_SWITCH_ON)
+            node.set_operation_mode(OperationMode.HOMING)
+            node.nmt.state = OPERATIONAL
+            node.change_state(CiA402State.OPERATION_ENABLE)
+
+            # TODO: Set Homing Switch(Objekt 0x2310). Manufacture dependent
+            # node.sdo['Homing Switch'] = ???
+            node.sdo[HOMING_METHOD] = homingMethod
+            node.sdo[HOMING_SPEED] = abs(maxSpeed * node.units.speed)
+            node.sdo[HOMING_ACCELERATION] = abs(maxAcc * node.units.speed)
+
+            node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
+
+            # TODO: Check statusword bit 10 and 12 zero
+            endTime = time.perf_counter() + timeout
+            while time.perf_counter() < endTime:
+                yield HomingState.ONGOING
+
+                sw = node.sdo[STATUSWORD].raw
+                if (sw & SW.TARGET_REACHED) and (sw & SW.HOMING_ATTAINED):
+                    yield HomingState.HOMED
+                    break
+            else:  # If no break
+                # Abort homing
+                node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
+                yield HomingState.FAILED
 
     def home(self):
         """Home motor."""
