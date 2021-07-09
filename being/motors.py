@@ -56,6 +56,8 @@ class LinearMotor(Motor):
              length: Optional[float] = None,
              direction: float = FORWARD,
              homingDirection: Optional[float] = None,
+             maxSpeed: float = 1.,
+             maxAcc: float = 1.,
              network: Optional[CanBackend] = None,
              node: Optional[CiA402Node] = None,
              objectDictionary = None,
@@ -67,8 +69,12 @@ class LinearMotor(Motor):
             length: Rod length if known.
             direction: Movement orientation.
             homingDirection: Initial homing direction. Default same as `direction`.
+            maxSpeed: Maximum speed.
+            maxAcc: Maximum acceleration.
             network: External network (dependency injection).
             node: Drive node (dependency injection).
+            objectDictionary: Object dictionary for CiA402Node. If will be tried
+                to identified from known EDS files.
         """
         super().__init__()
         if homingDirection is None:
@@ -89,6 +95,8 @@ class LinearMotor(Motor):
         self.homingDirection = sign(homingDirection)
         self.network = network
         self.node = node
+        self.maxSpeed = maxSpeed
+        self.maxAcc = maxAcc
         self.logger = get_logger(str(self))
 
         self.configure_node()
@@ -102,12 +110,10 @@ class LinearMotor(Motor):
         """CAN node id."""
         return self.node.id
 
-    def configure_node(self, maxSpeed: float = 1., maxAcc: float = 1.):
+    def configure_node(self):
         """Configure Faulhaber node (some settings via SDO).
 
         Kwargs:
-            maxSpeed: Maximum speed.
-            maxAcc: Maximum acceleration.
         """
         units = self.node.units
 
@@ -136,9 +142,9 @@ class LinearMotor(Motor):
         curController['Peak Current Limit'].raw = 1.640 * units.current  # [mA]
         curController['Integral Term CI'].raw = 3
 
-        self.node.sdo['Max Profile Velocity'].raw = maxSpeed * units.kinematics  # [mm / s]
-        self.node.sdo['Profile Acceleration'].raw = maxAcc * units.kinematics  # [mm / s^2]
-        self.node.sdo['Profile Deceleration'].raw = maxAcc * units.kinematics  # [mm / s^2]
+        self.node.sdo['Max Profile Velocity'].raw = self.maxSpeed * units.kinematics  # [mm / s]
+        self.node.sdo['Profile Acceleration'].raw = self.maxAcc * units.kinematics  # [mm / s^2]
+        self.node.sdo['Profile Deceleration'].raw = self.maxAcc * units.kinematics  # [mm / s^2]
 
     def home(self):
         """Home motor."""
