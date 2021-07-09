@@ -10,7 +10,6 @@ import enum
 import time
 
 from being.backends import CanBackend
-from being.bitmagic import check_bit
 from being.block import Block
 from being.can import load_object_dictionary
 from being.can.cia_402 import (
@@ -21,14 +20,16 @@ from being.can.cia_402 import (
     HOMING_METHOD,
     OperationMode,
     POSITION_ACTUAL_VALUE,
+    SOFTWARE_POSITION_LIMIT,
     STATUSWORD,
     State as CiA402State,
     TARGET_VELOCITY,
     VELOCITY_ACTUAL_VALUE,
+    target_reached,
     which_state,
 )
 from being.can.definitions import HOMING_OFFSET
-from being.can.nmt import PRE_OPERATIONAL
+from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL
 from being.can.vendor import stringify_faulhaber_error
 from being.config import CONFIG
 from being.constants import INF, FORWARD
@@ -90,7 +91,7 @@ def _fetch_position(node: CiA402Node) -> int:
     Returns:
         Position value in device units.
     """
-    return node.sdo[POSITION_ACTUAL_VALUE].raw
+    return node.pdo[POSITION_ACTUAL_VALUE].raw
 
 
 def _fetch_velocity(node: CiA402Node) -> int:
@@ -102,7 +103,7 @@ def _fetch_velocity(node: CiA402Node) -> int:
     Returns:
         Velocity value in device units.
     """
-    return node.sdo[VELOCITY_ACTUAL_VALUE].raw
+    return node.pdo[VELOCITY_ACTUAL_VALUE].raw
 
 
 def _move_node(node: CiA402Node, velocity: int, deadTime: float = 2.) -> HomingProgress:
@@ -118,16 +119,17 @@ def _move_node(node: CiA402Node, velocity: int, deadTime: float = 2.) -> HomingP
     Yields:
         HomingState.RUNNING
     """
-    node.sdo[TARGET_VELOCITY].raw = int(velocity)
-    node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
+    node.pdo[TARGET_VELOCITY].raw = int(velocity)
+    node.rpdo[3].transmit()
+    node.pdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
+    node.rpdo[1].transmit()
     endTime = time.perf_counter() + deadTime
     while time.perf_counter() < endTime:
-        sw = node.sdo[STATUSWORD].raw
-        targetReached = bool(check_bit(sw, bit=10))
-        if targetReached:
+        yield HomingState.ONGOING  # Wait for sync
+        sw = node.pdo[STATUSWORD].raw
+        if target_reached(sw):
             return
 
-        yield HomingState.ONGOING
 
 def _align_in_the_middle(lower: int, upper: int, length: int) -> HomingRange:
     """Align homing range in the middle.
@@ -294,10 +296,7 @@ class LinearMotor(Motor):
 
         yield from _move_node(self.node, velocity=0.)
 
-    def crude_homing(self,
-            maxSpeed=0.050,
-            relMargin: float = 0.01,
-        ) -> HomingProgress:
+    def crude_homing(self, maxSpeed=0.050, relMargin: float = 0.01) -> HomingProgress:
         """Crude homing procedure. Move with PROFILED_VELOCITY operation mode in
         both direction until reaching the limits (position not increasing or
         decreasing anymore). Implemented as Generator so that we can home multiple
@@ -307,10 +306,7 @@ class LinearMotor(Motor):
         Velocity direction controls initial homing direction.
 
         Kwargs:
-            direction: Initial homing direction.
             maxSpeed: Maximum speed of homing travel.
-            deadTime: Max wait time until motor reaches set-point velocities (in
-                seconds).
             relMargin: Relative margin if motor length is not known a priori. Final
                 length will be the measured length from the two homing travels minus
                 `relMargin` percent on both sides.
@@ -324,15 +320,18 @@ class LinearMotor(Motor):
         relMargin = clip(relMargin, 0.00, 0.50)  # In [0%, 50%]!
 
         with node.restore_states_and_operation_mode():
-            node.nmt.state = 'PRE-OPERATIONAL'
             node.change_state(CiA402State.READY_TO_SWITCH_ON)
             node.set_operation_mode(OperationMode.PROFILED_VELOCITY)
             node.change_state(CiA402State.OPERATION_ENABLE)
+            node.nmt.state = OPERATIONAL
 
             node.sdo[HOMING_METHOD].raw = 35
             node.sdo[HOMING_OFFSET].raw = 0
 
             # Homing travel
+            # TODO: Should we skip 2nd homing travel if we know motor length a
+            # priori? Would need to also consider relMargin. Otherwise motor
+            # will touch one edge
             if forward:
                 yield from self.home_forward(speed)
                 yield from self.home_backward(speed)
@@ -356,7 +355,9 @@ class LinearMotor(Motor):
             lengthDev = int(self.length * node.units.length)
             self.lower, self.upper = _align_in_the_middle(self.lower, self.upper, lengthDev)
 
-            node.set_homing_params(self.lower, self.upper)
+            node.sdo[HOMING_OFFSET].raw = self.lower
+            node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
+            node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = self.upper - self.lower
 
         while True:
             yield HomingState.HOMED

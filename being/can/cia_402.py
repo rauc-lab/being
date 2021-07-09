@@ -12,14 +12,10 @@ from collections import deque, defaultdict
 from canopen import RemoteNode
 
 from being.bitmagic import check_bit
-from being.can.definitions import (
-    HOMING_OFFSET,
-    TransmissionType,
-)
 from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
+from being.can.definitions import TransmissionType
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.can.vendor import UNITS, Units
-from being.constants import UP
 from being.logging import get_logger
 
 
@@ -86,7 +82,6 @@ class CW(IntEnum):
     HALT = (1 << 8)
 
 
-'''
 class SW(IntEnum):
 
     """Statusword bits."""
@@ -107,7 +102,6 @@ class SW(IntEnum):
     DEVIATION_ERROR = (1 << 13)
     #NOT_IN_USE_0 = (1 << 14)
     #NOT_IN_USE_1 = 15
-'''
 
 
 class Command(IntEnum):
@@ -256,6 +250,18 @@ def find_shortest_state_path(start: State, end: State) -> List[State]:
                 queue.append(path + [suc])
 
     return min(paths, key=len, default=[])
+
+
+def target_reached(statusword: int) -> bool:
+    """Check if target has been reached from statusword.
+
+    Args:
+        statusword: Statusword value.
+
+    Returns:
+        If target has been reached.
+    """
+    return bool(statusword & SW.TARGET_REACHED)
 
 
 class CiA402Node(RemoteNode):
@@ -456,18 +462,6 @@ class CiA402Node(RemoteNode):
         self.set_operation_mode(oldOp)
         self.change_state(oldState)
         self.nmt.state = oldNmt
-
-    def set_homing_params(self, lower: int, upper: int):
-        """Set homing offset and software position limits.
-
-        Args:
-            lower: Lower bound of homing range (in device units).
-            upper: Upper bound of homing range (in device units).
-        """
-        width = (upper - lower)
-        self.sdo[HOMING_OFFSET].raw = lower
-        self.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
-        self.sdo[SOFTWARE_POSITION_LIMIT][2].raw = width
 
     # TODO: Wording. Any English speakers in the house?
 
