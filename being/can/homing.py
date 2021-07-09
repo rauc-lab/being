@@ -5,7 +5,7 @@ complicated but we do this so that we can move blocking aspects to the caller
 and home multiple motors / nodes in parallel. This results in quasi coroutines.
 We do not use asyncio because we want to keep the core async free for now.
 """
-from typing import Generator, Optional, Tuple
+from typing import Generator, Optional, Tuple, ForwardRef
 import enum
 import math
 import time
@@ -25,7 +25,7 @@ from being.can.cia_402 import State as CiA402State
 from being.can.definitions import HOMING_OFFSET
 from being.constants import INF
 from being.error import BeingError
-from being.math import sign
+from being.math import sign, clip
 
 
 # TODO: Implement "non-crude" homings for the different controllers / end-switch
@@ -59,6 +59,8 @@ MINIMUM_HOMING_WIDTH = 0.010
 
 DEFAULT_HOMING_VELOCITY_DEV = 50
 """Default homing velocity. In device units!"""
+
+LinearMotor = ForwardRef('LinearMotor')
 
 
 class HomingFailed(BeingError):
@@ -158,11 +160,11 @@ def _validate_homing_width(node: CiA402Node, lower: int, upper: int):
         raise HomingFailed(f'Homing width to narrow. Homing range: {[lower, upper]}!')
 
 
-def crude_homing(
-        node: CiA402Node,
+def crude_linear_homing(
+        motor: LinearMotor,
         velocity: int = DEFAULT_HOMING_VELOCITY_DEV,
-        length: Optional[float] = None,
         deadTime: float = 2.,
+        relMargin: float = 0.01,
     ) -> HomingProgress:
     """Crude homing procedure. Move with PROFILED_VELOCITY operation mode in
     both direction until reaching the limits (position not increasing or
@@ -173,19 +175,25 @@ def crude_homing(
     Velocity direction controls initial homing direction.
 
     Args:
-        node: Connected CiA402 node.
+        motor: Linear motor block.
 
     Kwargs:
-        speed: Homing speed.
-        deadCycles: Number of cycles we give the motor to start moving in a direction.
+        velocity: Homing velocity (in device units).
+        deadTime: Max wait time until motor reaches set-point velocities (in
+            seconds).
+        relMargin: Relative margin if motor length is not known a priori. Final
+            length will be the measured length from the two homing travels minus
+            `relMargin` percent on both sides.
 
     Yields:
         Homing state.
     """
+    node = motor.node
     direction = sign(velocity)
     speed = abs(velocity)
     lower = None
     upper = None
+    relMargin = clip(relMargin, 0.00, 0.50)  # In [0%, 50%]!
 
     def home_forward() -> HomingProgress:
         """Home in forward direction until upper limits is not increasing
@@ -263,10 +271,14 @@ def crude_homing(
 
         _validate_homing_width(node, lower, upper)
 
+        # Estimate motor length
+        if motor.length is None:
+            width = (upper - lower) / node.units.length
+            motor.length = (1. - 2 * relMargin) * width
+
         # Center according to rod length
-        if length is not None:
-            lengthDev = int(length * node.units.length)
-            lower, upper = _align_in_the_middle(lower, upper, lengthDev)
+        lengthDev = int(motor.length * node.units.length)
+        lower, upper = _align_in_the_middle(lower, upper, lengthDev)
 
         node.set_homing_params(lower, upper)
 

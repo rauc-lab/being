@@ -272,12 +272,10 @@ class CiA402Node(RemoteNode):
         flipped (bool): Flipped operation (position and velocity).
     """
 
-    def __init__(self, nodeId, objectDictionary, network, direction=UP):
+    def __init__(self, nodeId, objectDictionary, network):
         super().__init__(nodeId, objectDictionary, load_od=False)
         self.logger = get_logger(str(self))
         self.units: Units = None
-        self.softwarePositionWidth = 0
-        self.flipped = (direction < 0)
 
         network.add_node(self, objectDictionary)
 
@@ -309,11 +307,6 @@ class CiA402Node(RemoteNode):
         # Determine device units
         manu = self.sdo[MANUFACTURER_DEVICE_NAME].raw
         self.units = UNITS[manu]
-
-        # Fetch current software position width
-        lower = self.sdo[SOFTWARE_POSITION_LIMIT][1].raw
-        upper = self.sdo[SOFTWARE_POSITION_LIMIT][2].raw
-        self.softwarePositionWidth = (upper - lower)
 
     def setup_txpdo(self,
             nr: int,
@@ -382,6 +375,7 @@ class CiA402Node(RemoteNode):
     def get_state(self) -> State:
         """Get current node state."""
         sw = self.sdo[STATUSWORD].raw  # This takes approx. 2.713 ms
+        # sw = self.node.pdo['Statusword'].raw  # This takes approx. 0.027 ms
         return which_state(sw)
 
     def set_state(self, target: State):
@@ -464,18 +458,16 @@ class CiA402Node(RemoteNode):
         self.nmt.state = oldNmt
 
     def set_homing_params(self, lower: int, upper: int):
-        """Set homing parameters. Also update softwarePositionWidth attribute
-        (for flipped operation).
+        """Set homing offset and software position limits.
 
         Args:
-            lower: Lower bound of homing range.
-            upper: Upper bound of homing range.
+            lower: Lower bound of homing range (in device units).
+            upper: Upper bound of homing range (in device units).
         """
         width = (upper - lower)
         self.sdo[HOMING_OFFSET].raw = lower
         self.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
         self.sdo[SOFTWARE_POSITION_LIMIT][2].raw = width
-        self.softwarePositionWidth = width
 
     # TODO: Wording. Any English speakers in the house?
 
@@ -499,12 +491,7 @@ class CiA402Node(RemoteNode):
 
     def set_target_position(self, pos):
         """Set target position in SI units"""
-        if self.flipped:
-            targetPos = self.softwarePositionWidth - pos * self.units.length
-        else:
-            targetPos = pos * self.units.length
-
-        self.pdo['Target Position'].raw = targetPos
+        self.pdo['Target Position'].raw = pos * self.units.length
         self.rpdo[2].transmit()
 
     def get_actual_position(self):
@@ -513,12 +500,7 @@ class CiA402Node(RemoteNode):
 
     def set_target_velocity(self, vel):
         """Set target velocity in SI units."""
-        if self.flipped:
-            targetVel = -vel * self.units.speed
-        else:
-            targetVel = vel * self.units.speed
-
-        self.pdo['Target Velocity'].raw = targetVel
+        self.pdo['Target Velocity'].raw = vel * self.units.speed
         self.rpdo[3].transmit()
 
     def get_target_velocity(self):

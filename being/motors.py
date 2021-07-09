@@ -6,7 +6,7 @@ from being.block import Block
 from being.can import load_object_dictionary
 from being.can.cia_402 import CiA402Node, OperationMode, which_state
 from being.can.cia_402 import State as CiA402State
-from being.can.homing import HomingState, crude_homing, DEFAULT_HOMING_VELOCITY_DEV
+from being.can.homing import HomingState, crude_linear_homing, DEFAULT_HOMING_VELOCITY_DEV
 from being.can.nmt import PRE_OPERATIONAL
 from being.can.vendor import stringify_faulhaber_error
 from being.config import CONFIG
@@ -137,7 +137,7 @@ class LinearMotor(Motor):
     def home(self):
         """Home motor."""
         homingVelocity = self.direction * DEFAULT_HOMING_VELOCITY_DEV
-        self.homingJob = crude_homing(self.node, homingVelocity, self.length)
+        self.homingJob = crude_linear_homing(self, homingVelocity)
         self.homing = HomingState.ONGOING
 
     def update(self):
@@ -150,7 +150,12 @@ class LinearMotor(Motor):
         if self.homing is HomingState.HOMED:
             sw = self.node.pdo['Statusword'].raw  # This takes approx. 0.027 ms
             if which_state(sw) is CiA402State.OPERATION_ENABLE:
-                self.node.set_target_position(self.targetPosition.value)
+                if self.direction > 0:
+                    tarPos = self.targetPosition.value
+                else:
+                    tarPos = self.length - self.targetPosition.value
+
+                self.node.set_target_position(tarPos)
 
         elif self.homing is HomingState.ONGOING:
             self.homing = next(self.homingJob)
