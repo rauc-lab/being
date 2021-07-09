@@ -3,6 +3,7 @@ from typing import Optional
 
 from being.backends import CanBackend
 from being.block import Block
+from being.can import load_object_dictionary
 from being.can.cia_402 import CiA402Node, OperationMode, which_state
 from being.can.cia_402 import State as CiA402State
 from being.can.homing import HomingState, crude_homing, DEFAULT_HOMING_VELOCITY_DEV
@@ -56,6 +57,7 @@ class LinearMotor(Motor):
              direction: float = FORWARD,
              network: Optional[CanBackend] = None,
              node: Optional[CiA402Node] = None,
+             objectDictionary = None,
         ):
         """Args:
             nodeId: CANopen node id.
@@ -72,7 +74,10 @@ class LinearMotor(Motor):
             register_resource(network, duplicates=False)
 
         if node is None:
-            node = CiA402Node(network, nodeId)
+            if objectDictionary is None:
+                objectDictionary = load_object_dictionary(network, nodeId)
+
+            node = CiA402Node(nodeId, objectDictionary, network)
 
         self.length = length
         self.direction = sign(direction)
@@ -143,8 +148,8 @@ class LinearMotor(Motor):
             self.logger.error('DriveError: %s', msg)
 
         if self.homing is HomingState.HOMED:
-            state = which_state(self.node.pdo['Statusword'].raw)
-            if state is CiA402State.OPERATION_ENABLE:
+            sw = self.node.pdo['Statusword'].raw  # This takes approx. 0.027 ms
+            if which_state(sw) is CiA402State.OPERATION_ENABLE:
                 self.node.set_target_position(self.targetPosition.value)
 
         elif self.homing is HomingState.ONGOING:

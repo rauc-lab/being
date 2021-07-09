@@ -12,7 +12,6 @@ from collections import deque, defaultdict
 from canopen import RemoteNode
 
 from being.bitmagic import check_bit
-from being.can import load_object_dictionary
 from being.can.definitions import (
     HOMING_OFFSET,
     TransmissionType,
@@ -273,10 +272,7 @@ class CiA402Node(RemoteNode):
         flipped (bool): Flipped operation (position and velocity).
     """
 
-    def __init__(self, network, nodeId, direction=UP, objectDictionary=None):
-        if objectDictionary is None:
-            objectDictionary = load_object_dictionary(network, nodeId)
-
+    def __init__(self, nodeId, objectDictionary, network, direction=UP):
         super().__init__(nodeId, objectDictionary, load_od=False)
         self.logger = get_logger(str(self))
         self.units: Units = None
@@ -302,12 +298,12 @@ class CiA402Node(RemoteNode):
 
         self.setup_txpdo(1, 'Statusword', 'Error Register')
         self.setup_txpdo(2, 'Position Actual Value')
-        self.setup_txpdo(3, enabled=False)
+        self.setup_txpdo(3, 'Velocity Actual Value')
         self.setup_txpdo(4, enabled=False)
 
         self.setup_rxpdo(1, 'Controlword')
         self.setup_rxpdo(2, 'Target Position')
-        self.setup_rxpdo(3, enabled=False)
+        self.setup_rxpdo(3, 'Target Velocity')
         self.setup_rxpdo(4, enabled=False)
 
         # Determine device units
@@ -385,7 +381,7 @@ class CiA402Node(RemoteNode):
 
     def get_state(self) -> State:
         """Get current node state."""
-        sw = self.sdo[STATUSWORD].raw
+        sw = self.sdo[STATUSWORD].raw  # This takes approx. 2.713 ms
         return which_state(sw)
 
     def set_state(self, target: State):
@@ -502,7 +498,7 @@ class CiA402Node(RemoteNode):
         self.change_state(State.OPERATION_ENABLE)
 
     def set_target_position(self, pos):
-        """Set target position in device units."""
+        """Set target position in SI units"""
         if self.flipped:
             targetPos = self.softwarePositionWidth - pos * self.units.length
         else:
@@ -512,8 +508,22 @@ class CiA402Node(RemoteNode):
         self.rpdo[2].transmit()
 
     def get_actual_position(self):
-        """Get actual position in device units."""
+        """Get actual position in SI units"""
         return self.pdo['Position Actual Value'].raw / self.units.length
+
+    def set_target_velocity(self, vel):
+        """Set target velocity in SI units."""
+        if self.flipped:
+            targetVel = -vel * self.units.speed
+        else:
+            targetVel = vel * self.units.speed
+
+        self.pdo['Target Velocity'].raw = targetVel
+        self.rpdo[3].transmit()
+
+    def get_target_velocity(self):
+        """Get actual velocity in SI units."""
+        return self.pdo['Velocity Actual Value'].raw / self.units.speed
 
     def _get_info(self) -> dict:
         """Get the current states."""
