@@ -7,10 +7,10 @@ We do not use asyncio because we want to keep the core async free for now.
 """
 from typing import Optional, Generator, Tuple, ForwardRef
 import enum
-import math
 import time
 
 from being.backends import CanBackend
+from being.bitmagic import check_bit
 from being.block import Block
 from being.can import load_object_dictionary
 from being.can.cia_402 import (
@@ -21,6 +21,7 @@ from being.can.cia_402 import (
     HOMING_METHOD,
     OperationMode,
     POSITION_ACTUAL_VALUE,
+    STATUSWORD,
     State as CiA402State,
     TARGET_VELOCITY,
     VELOCITY_ACTUAL_VALUE,
@@ -121,21 +122,12 @@ def _move_node(node: CiA402Node, velocity: int, deadTime: float = 2.) -> HomingP
     node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
     endTime = time.perf_counter() + deadTime
     while time.perf_counter() < endTime:
-        vel = _fetch_velocity(node)
-        if math.isclose(vel, velocity, rel_tol=0.05, abs_tol=1):
+        sw = node.sdo[STATUSWORD].raw
+        targetReached = bool(check_bit(sw, bit=10))
+        if targetReached:
             return
 
         yield HomingState.ONGOING
-
-
-def _stop_node(node: CiA402Node, deadTime: float = 2.):
-    """Set target velocity to zero.
-
-    Args:
-        node: Connected CiA402 node.
-    """
-    yield from _move_node(node, velocity=0, deadTime=deadTime)
-
 
 def _align_in_the_middle(lower: int, upper: int, length: int) -> HomingRange:
     """Align homing range in the middle.
@@ -278,33 +270,32 @@ class LinearMotor(Motor):
         self.node.sdo['Profile Acceleration'].raw = self.maxAcc * units.kinematics  # [mm / s^2]
         self.node.sdo['Profile Deceleration'].raw = self.maxAcc * units.kinematics  # [mm / s^2]
 
-    def home_forward(self, speed: int, deadTime: float) -> HomingProgress:
+    def home_forward(self, speed: int) -> HomingProgress:
         """Home in forward direction until upper limits is not increasing
         anymore.
         """
         self.upper = -INF
-        yield from _move_node(self.node, speed, deadTime)
+        yield from _move_node(self.node, velocity=speed)
         while (pos := _fetch_position(self.node)) > self.upper:
             self.upper = pos
             yield HomingState.ONGOING
 
-        yield from _stop_node(self.node)
+        yield from _move_node(self.node, velocity=0.)
 
-    def home_backward(self, speed: int, deadTime: float) -> HomingProgress:
+    def home_backward(self, speed: int) -> HomingProgress:
         """Home in backward direction until `lower` is not decreasing
         anymore.
         """
         self.lower = INF
-        yield from _move_node(self.node, -speed, deadTime)
+        yield from _move_node(self.node, velocity=-speed)
         while (pos := _fetch_position(self.node)) < self.lower:
             self.lower = pos
             yield HomingState.ONGOING
 
-        yield from _stop_node(self.node)
+        yield from _move_node(self.node, velocity=0.)
 
-    def crude_linear_homing(self,
+    def crude_homing(self,
             maxSpeed=0.050,
-            deadTime: float = 2.,
             relMargin: float = 0.01,
         ) -> HomingProgress:
         """Crude homing procedure. Move with PROFILED_VELOCITY operation mode in
@@ -343,11 +334,11 @@ class LinearMotor(Motor):
 
             # Homing travel
             if forward:
-                yield from self.home_forward(speed, deadTime)
-                yield from self.home_backward(speed, deadTime)
+                yield from self.home_forward(speed)
+                yield from self.home_backward(speed)
             else:
-                yield from self.home_backward(speed, deadTime)
-                yield from self.home_forward(speed, deadTime)
+                yield from self.home_backward(speed)
+                yield from self.home_forward(speed)
 
             node.change_state(CiA402State.READY_TO_SWITCH_ON)
 
@@ -372,7 +363,7 @@ class LinearMotor(Motor):
 
     def home(self):
         """Home motor."""
-        self.homingJob = self.crude_linear_homing()
+        self.homingJob = self.crude_homing()
         self.homing = HomingState.ONGOING
 
     def update(self):
