@@ -7,6 +7,7 @@
     <script type="module" src="static/behavior/behavior.js"></script>
     <script type="module" src="static/motion_editor/motion_editor.js"></script>
     <script type="module" src="static/console/console.js"></script>
+    <script type="module" src="static/control_panel/control_panel.js"></script>
 {% endblock %}
 
 {% block body%}
@@ -19,6 +20,10 @@
     </nav>
     <hr>
 
+    <h1>Control Panel</h1>
+
+    <being-control-panel></being-control-panel>
+
     {% if behaviors %}
         <a class="anchor" id="behavior-anchor"></a>
         <h1>Behavior</h1>
@@ -29,46 +34,39 @@
 
     <a class="anchor" id="editor-anchor"></a>
     <h1>Motion Editor</h1>
+
     <being-editor id="editor"></being-editor>
+
     <a class="anchor" id="console-anchor"></a>
+
     <h1>Console</h1>
+
     <being-console id="console"></being-console>
 
     <script type="module">
-        /**
-         * Wire up web socket to widgets.
-         */
+        // Wire up web socket to the different widgets.
         import { WS_ADDRESS } from "/static/js/config.js";
         import { receive_from_websocket } from "/static/js/web_socket.js";
+        import { defaultdict } from "/static/js/utils.js";
 
         const host = window.location.host;
         const editor = document.getElementById("editor");
         const behavior = document.getElementById("behavior");
         const terminal = document.getElementById("console");
-        const wsMessageCallbacks = {
-            "output-values": [
-                msg => editor.new_data(msg),
-            ],
-            "behavior-update": [
-                msg => editor.behavior_message(msg),
-            ],
-            "motions": [],
-            "log": [
-                msg => terminal.new_log_messages(msg),
-            ],
-            "sensor-message": [],
-        };
 
+        const callbacks = defaultdict(Array);
+        callbacks["output-values"].push(msg => editor.new_data(msg));
+        callbacks["behavior-update"].push(msg => editor.behavior_message(msg));
+        callbacks["log"].push(msg => terminal.new_log_messages(msg));
         for (let behavior of document.getElementsByTagName("being-behavior")) {
-            wsMessageCallbacks["behavior-update"].push(msg => behavior.behavior_message(msg));
-            wsMessageCallbacks["motions"].push(msg => behavior.content_message(msg));
-            wsMessageCallbacks["sensor-message"].push(() => behavior.pulse_led());
+            callbacks["behavior-update"].push(msg => behavior.behavior_message(msg));
+            callbacks["motions"].push(msg => behavior.content_message(msg));
+            callbacks["sensor-message"].push(() => behavior.pulse_led());
         }
 
-        receive_from_websocket(WS_ADDRESS, wsMessageCallbacks);
+        receive_from_websocket(WS_ADDRESS, callbacks);
     </script>
 {% endblock %}
-
 
 {% block footer %}
 <footer style="text-align: center;">

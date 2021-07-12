@@ -18,9 +18,9 @@ export function receive_from_websocket(url, callbacks, reconnectTimeout=1.) {
         console.log("Open socket connection", url);
     };
     sock.onmessage = function(evt) {
-        let obj = JSON.parse(evt.data);
-        callbacks[obj.type].forEach(function(func) {
-            func(obj);
+        let msg = JSON.parse(evt.data);
+        callbacks[msg.type].forEach(function(func) {
+            func(msg);
         });
     };
     sock.onerror = function(evt) {

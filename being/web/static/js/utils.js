@@ -169,3 +169,21 @@ export function insert_in_array(array, index, item) {
 export function remove_from_array(array, index) {
     array.splice(index, 1);
 }
+
+
+/**
+ * Python like defaultdict.
+ */
+export function defaultdict(default_factory) {
+    const handler = {
+        get: function(obj, key) {
+            if (!obj[key]) {  // TODO: Should use hasOwnProperty or in operator. But does not work
+                obj[key] = default_factory();
+            }
+
+            return obj[key];
+        }
+    };
+
+    return new Proxy({}, handler);
+}

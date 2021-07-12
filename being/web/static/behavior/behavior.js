@@ -114,7 +114,7 @@ class Behavior extends Widget {
     /**
      * Load behavior state / params from server and populate HTML elements.
      */
-    load() {
+    async load() {
         const stateNames = await this.api.load_behavior_states();
         this.populate_states(stateNames);
 
@@ -268,7 +268,7 @@ class Behavior extends Widget {
      * @param {Object} infos Behavior info object.
      */
     update_ui(infos) {
-        if (info.id !== this.id) {
+        if (infos.id !== this.id) {
             return;
         }
 
