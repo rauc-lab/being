@@ -95,7 +95,7 @@ class Editor extends CurverBase {
 
         // Initialze data / fetch motor informations
         this.defaultBbox = new BBox([0., 0.], [1., 0.04]);
-        this.api.get_motor_infos().then(infos => {
+        this.api.get_motion_player_infos().then(infos => {
             infos.forEach(motor => {
                 this.init_plotting_lines(motor.ndim);
                 motor.lengths.forEach(l => {

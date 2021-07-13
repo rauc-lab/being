@@ -1,11 +1,11 @@
 """API calls / controller for communication between front end and being components."""
 import json
 import math
-from typing import ForwardRef
+from typing import ForwardRef, Dict
 
 from aiohttp import web
 
-from being.behavior import State
+from being.behavior import State, Behavior
 from being.content import Content
 from being.logging import get_logger
 from being.motors import Motor
@@ -121,6 +121,15 @@ def serialize_motion_players(being):
         }
 
 
+def motion_player_controllers(motionPlayers):
+    pass
+
+
+def motor_controllers(motors):
+    routes = web.RouteTableDef()
+    return routes
+
+
 def being_controller(being: Being) -> web.RouteTableDef:
     """API routes for being object.
 
@@ -129,13 +138,28 @@ def being_controller(being: Being) -> web.RouteTableDef:
     """
     routes = web.RouteTableDef()
 
-    @routes.get('/motors')
+    @routes.put('/motors/disable')
+    async def disable_drives(request):
+        being.pause_behaviors()
+        if being.network:
+            being.network.disable_drives()
+
+        return respond_ok()
+
+    @routes.put('/motors/enable')
+    async def enable_drives(request):
+        if being.network:
+            being.network.enable_drives()
+
+        return respond_ok()
+
+    @routes.get('/motionPlayers')
     async def get_motors(request):
         """Inform front end of available motion players / motors."""
         infos = list(serialize_motion_players(being))
         return json_response(infos)
 
-    @routes.post('/motors/{id}/play')
+    @routes.post('/motionPlayers/{id}/play')
     async def start_spline_playback(request):
         """Start spline playback for a received spline from front end."""
         being.pause_behaviors()
@@ -158,7 +182,7 @@ def being_controller(being: Being) -> web.RouteTableDef:
             LOGGER.debug('dct: %s', dct)
             return web.HTTPBadRequest(text=f'Something went wrong with the spline. Raw data was: {dct}!')
 
-    @routes.post('/motors/{id}/stop')
+    @routes.post('/motionPlayers/{id}/stop')
     async def stop_spline_playback(request):
         """Stop spline playback."""
         id = int(request.match_info['id'])
@@ -169,7 +193,7 @@ def being_controller(being: Being) -> web.RouteTableDef:
         except IndexError:
             return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
 
-    @routes.post('/motors/stop')
+    @routes.post('/motionPlayers/stop')
     async def stop_all_spline_playbacks(request):
         """Stop all spline playbacks aka. Stop all motion players."""
         for mp in being.motionPlayers:
@@ -177,7 +201,7 @@ def being_controller(being: Being) -> web.RouteTableDef:
 
         return respond_ok()
 
-    @routes.put('/motors/{id}/channels/{channel}/livePreview')
+    @routes.put('/motionPlayers/{id}/channels/{channel}/livePreview')
     async def live_preview(request):
         """Live preview of position value for motor."""
         being.pause_behaviors()
@@ -200,31 +224,17 @@ def being_controller(being: Being) -> web.RouteTableDef:
         except KeyError:
             return web.HTTPBadRequest(text='Could not parse spline!')
 
-    @routes.put('/motors/disenable')
-    async def disenable_drives(request):
-        being.pause_behaviors()
-        if being.network:
-            being.network.engage_drives()
-
-        return respond_ok()
-
-    @routes.put('/motors/enable')
-    async def enable_drives(request):
-        if being.network:
-            being.network.enable_drives()
-
-        return respond_ok()
-
     return routes
 
 
 def behavior_controllers(behaviors) -> web.RouteTableDef:
     """API routes for being behavior."""
     routes = web.RouteTableDef()
-    lookup = {
+    behaviorLookup: Dict[int, Behavior] = {
         behavior.id: behavior
         for behavior in behaviors
     }
+    """Behavior id -> Behavior instance lookup."""
 
     @routes.get('/behaviors/{id}/states')
     async def load_behavior_states(request):
@@ -236,7 +246,7 @@ def behavior_controllers(behaviors) -> web.RouteTableDef:
     async def load_behavior_infos(request):
         try:
             id = int(request.match_info['id'])
-            return json_response(lookup[id].infos())
+            return json_response(behaviorLookup[id].infos())
         except (ValueError, KeyError):
             msg = f'Behavior with id {id} does not exist!'
             return web.HTTPBadRequest(text=msg)
@@ -246,7 +256,7 @@ def behavior_controllers(behaviors) -> web.RouteTableDef:
     async def toggle_behavior_playback(request):
         try:
             id = int(request.match_info['id'])
-            behavior = lookup[id]
+            behavior = behaviorLookup[id]
             if behavior.active:
                 behavior.pause()
             else:
@@ -263,7 +273,7 @@ def behavior_controllers(behaviors) -> web.RouteTableDef:
         id = int(request.match_info['id'])
         try:
             params = await request.json()
-            behavior = lookup[id]
+            behavior = behaviorLookup[id]
             behavior.params = params
             return json_response(behavior.params)
         except json.JSONDecodeError:

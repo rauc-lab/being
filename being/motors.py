@@ -7,10 +7,10 @@ We do not use asyncio because we want to keep the core async free for now.
 """
 from typing import Optional, Generator, Tuple, ForwardRef
 import enum
+import random
 import time
 
 from being.backends import CanBackend
-from being.bitmagic import set_bit
 from being.block import Block
 from being.can import load_object_dictionary
 from being.can.cia_402 import (
@@ -123,7 +123,7 @@ def _move_node(node: CiA402Node, velocity: int, deadTime: float = 2.) -> HomingP
     Yields:
         HomingState.RUNNING
     """
-    print('_move_node()', velocity)
+    #print('_move_node()', velocity)
     node.pdo[TARGET_VELOCITY].raw = int(velocity)
     node.pdo[TARGET_VELOCITY].pdo_parent.transmit()
     node.pdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
@@ -133,7 +133,7 @@ def _move_node(node: CiA402Node, velocity: int, deadTime: float = 2.) -> HomingP
         yield HomingState.ONGOING  # Wait for sync
         sw = node.pdo[STATUSWORD].raw
         if target_reached(sw):
-            print('Early exit')
+            #print('Early exit')
             return
 
 
@@ -175,7 +175,7 @@ class Motor(Block):
         """Switch motor off."""
         pass
 
-    def switch_on(self):
+    def disable(self):
         """Switch motor on."""
         pass
 
@@ -262,6 +262,9 @@ class LinearMotor(Motor):
         """Configure Faulhaber node (some settings via SDO)."""
         units = self.node.units
 
+        # TODO: These parameters have to come from the outside. Question: How
+        # can we identify the motor and choose sensible defaults?
+
         generalSettings = self.node.sdo['General Settings']
         generalSettings['Pure Sinus Commutation'].raw = 1
         #generalSettings['Activate Position Limits in Velocity Mode'].raw = 1
@@ -276,8 +279,8 @@ class LinearMotor(Motor):
         #velocityController['Integral Term I'].raw = 50
 
         posController = self.node.sdo['Position Control Parameter Set']
-        #posController['Proportional Term PP'].raw = 15
-        #posController['Derivative Term PD'].raw = 10
+        posController['Proportional Term PP'].raw = 15
+        posController['Derivative Term PD'].raw = 10
         # Some softer params from pygmies
         #posController['Proportional Term PP'].raw = 8
         #posController['Derivative Term PD'].raw = 14
@@ -315,7 +318,7 @@ class LinearMotor(Motor):
 
         yield from _move_node(self.node, velocity=0.)
 
-    def crude_homing(self, maxSpeed=0.050, relMargin: float = 0.01) -> HomingProgress:
+    def crude_homing(self, maxSpeed=0.100, relMargin: float = 0.01) -> HomingProgress:
         """Crude homing procedure. Move with PROFILED_VELOCITY operation mode in
         both direction until reaching the limits (position not increasing or
         decreasing anymore). Implemented as Generator so that we can home multiple
@@ -423,11 +426,11 @@ class LinearMotor(Motor):
         self.homingJob = self.crude_homing()
         self.homing = HomingState.ONGOING
 
-    def switch_on(self):
-        self.node.switch_on()
-
     def switch_off(self):
         self.node.switch_off()
+
+    def disable(self):
+        self.node.disable()
 
     def engage(self):
         self.node.engage()

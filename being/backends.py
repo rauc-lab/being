@@ -55,9 +55,9 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         for drive in self.drives:
             drive.switch_off()
 
-    def switch_on_drives(self):
+    def disable_drives(self):
         for drive in self.drives:
-            drive.switch_on()
+            drive.disable()
 
     def enable_drives(self):
         for drive in self.drives:
@@ -68,7 +68,7 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         for sending out sync messages at the end of the cycle for driving the
         PDO communication.
         """
-        self.send_message(0x80, [])
+        self.send_message(0x80, [])  # Std. CAN SYNC message
 
     def __enter__(self):
         self.connect(bitrate=self.bitrate, bustype=self.bustype, channel=self.channel)

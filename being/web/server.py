@@ -71,23 +71,23 @@ def init_api(being, ws: WebSocket) -> web.Application:
     """Initialize and setup Rest-like API sub-app."""
     content = Content.single_instance_setdefault()
     api = web.Application()
+
+    # Misc functionality
     api.add_routes(misc_controller())
-    api.add_routes(content_controller(content))
 
     # Content
+    api.add_routes(content_controller(content))
     content.subscribe(CONTENT_CHANGED, lambda: ws.send_json_buffered(content.dict_motions_2()))
 
     # Behavior
     api.add_routes(behavior_controllers(being.behaviors))
-    for id, behavior in enumerate(being.behaviors):
-        behavior.subscribe(
-            BEHAVIOR_CHANGED,
-            lambda: ws.send_json_buffered(behavior.infos())
-        )
+    for behavior in being.behaviors:
+        behavior.subscribe(BEHAVIOR_CHANGED, lambda: ws.send_json_buffered(behavior.infos()))
         content.subscribe(CONTENT_CHANGED, behavior._purge_params)
 
     # Being
     api.add_routes(being_controller(being))
+
     wire_being_loggers_to_web_socket(ws)
 
     # Patch sensor events

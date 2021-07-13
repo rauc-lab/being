@@ -14,7 +14,8 @@ from being.logging import get_logger
 class WebSocket:
 
     """WebSocket connections. Interfaces with aiohttp web socket requests. Can
-    hold multiple open web socket connections simultaneously.
+    hold multiple open web socket connections simultaneously. Also has a message
+    queue / broker functionality to send messages from non-asyncio world.
 
     Attributes:
         sockets: Active web socket connections

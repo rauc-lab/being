@@ -8,19 +8,33 @@ import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js
 
 export class Api {
     /**
+     * Disable all motors in backend for motion recording.
+     */
+     async disable_motors() {
+        return put(API + "/motors/disable");
+    }
+
+    /**
+     * Enable all motors in backend after motion recording.
+     */
+    async enable_motors() {
+        return put(API + "/motors/enable");
+    }
+
+    /**
      * Get available motor infos from backend. 
      *
      * @returns Array of motor info dictionaries.
      */
-    async get_motor_infos() {
-        return get_json(API + "/motors");
+    async get_motion_player_infos() {
+        return get_json(API + "/motionPlayers");
     }
 
     /**
      * Play spline in backend.
      */
     async play_spline(spline, id, loop = false, offset = 0) {
-        const res = await post_json(API + "/motors/" + id + "/play", {
+        const res = await post_json(API + "/motionPlayers/" + id + "/play", {
             "spline": spline.to_dict(),
             "loop": loop,
             "offset": offset,
@@ -32,7 +46,7 @@ export class Api {
      * Stop all spline playback in backend.
      */
     async stop_spline_playback() {
-        return post(API + "/motors/stop");
+        return post(API + "/motionPlayers/stop");
     }
 
     /**
@@ -41,29 +55,15 @@ export class Api {
      * @param {Number} position Vertical y position of linear motor.
      */
     async live_preview(position, id, channel = 0) {
-        return put_json(API + "/motors/" + id + "/channels/" + channel + "/livePreview", {
+        return put_json(API + "/motionPlayers/" + id + "/channels/" + channel + "/livePreview", {
             "position": position,
         });
     }
 
     /**
-     * Disable all motors in backend for motion recording.
-     */
-    async disable_motors() {
-        return put(API + "/motors/disenable");
-    }
-
-    /**
-     * Enable all motors in backend after motion recording.
-     */
-    async enable_motors() {
-        return put(API + "/motors/enable");
-    }
-
-    /**
      * Fit spline from trajectory data.
      *
-     * @param {Array} trajectory Recorded trajectory. Array of timestamps and positoin values.
+     * @param {Array} trajectory Recorded trajectory. Array of timestamps and position values.
      * @returns Fitted smoothing spline instance.
      */
     async fit_spline(trajectory) {

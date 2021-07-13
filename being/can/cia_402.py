@@ -467,14 +467,17 @@ class CiA402Node(RemoteNode):
     # TODO: Wording. Any English speakers in the house?
 
     def switch_off(self):
+        """Switch off drive. Same state as on power-up."""
         self.nmt.state = PRE_OPERATIONAL
         self.change_state(State.READY_TO_SWITCH_ON)
 
-    def switch_on(self):
+    def disable(self):
+        """Disable drive (no power)."""
         self.nmt.state = OPERATIONAL
         self.change_state(State.SWITCHED_ON)
 
     def enable(self):
+        """Enable drive."""
         self.nmt.state = OPERATIONAL
         self.change_state(State.OPERATION_ENABLE)
 
