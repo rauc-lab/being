@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 
 {% block head %}
+    <!-- Include alertifyjs -->
+    <script src="static/alertifyjs/alertify.min.js"></script>
+    <link rel="stylesheet" href="static/alertifyjs/css/alertify.min.css" />
+    <link rel="stylesheet" href="static/alertifyjs/css/themes/default.min.css" />
+
     <link rel="stylesheet" type="text/css" href="static/css/open_sans.css">
     <link rel="stylesheet" type="text/css" href="static/css/material_icons.css">
     <link rel="stylesheet" type="text/css" href="static/css/being.css">
@@ -44,16 +49,19 @@
     <being-console id="console"></being-console>
 
     <script type="module">
-        // Wire up web socket to the different widgets.
         import { WS_ADDRESS } from "/static/js/config.js";
         import { receive_from_websocket } from "/static/js/web_socket.js";
         import { defaultdict } from "/static/js/utils.js";
+        import { NotificationCenter } from "/static/js/notification_center.js";
 
         const host = window.location.host;
         const editor = document.getElementById("editor");
         const behavior = document.getElementById("behavior");
         const terminal = document.getElementById("console");
 
+        const notifications = new NotificationCenter(alertify);
+
+        // Wire up web socket to the different widgets.
         const callbacks = defaultdict(Array);
         callbacks["output-values"].push(msg => editor.new_data(msg));
         callbacks["behavior-update"].push(msg => editor.behavior_message(msg));
