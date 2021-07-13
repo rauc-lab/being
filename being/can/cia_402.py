@@ -381,8 +381,8 @@ class CiA402Node(RemoteNode):
 
     def get_state(self) -> State:
         """Get current node state."""
-        #sw = self.sdo[STATUSWORD].raw  # This takes approx. 2.713 ms
-        sw = self.node.pdo['Statusword'].raw  # This takes approx. 0.027 ms
+        sw = self.sdo[STATUSWORD].raw  # This takes approx. 2.713 ms
+        #sw = self.pdo['Statusword'].raw  # This takes approx. 0.027 ms
         return which_state(sw)
 
     def set_state(self, target: State):
