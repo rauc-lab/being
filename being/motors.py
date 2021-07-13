@@ -482,10 +482,27 @@ class DummyMotor(Motor):
         self.dt = CONFIG['General']['INTERVAL']
         self.homed = HomingState.HOMED
 
+    def dummy_homing(self, minDuration: float = 1., maxDuration: float = 2.) -> HomingProgress:
+        duration = random.uniform(minDuration, maxDuration)
+        endTime = time.perf_counter() + duration
+        while time.perf_counter() < endTime:
+            yield HomingState.ONGOING
+
+        yield HomingState.HOMED
+
+    def home(self):
+        self.homingJob = self.dummy_homing()
+        self.homed = HomingState.ONGOING
+
     def update(self):
         # Kinematic filter input target position
+        if self.homing is HomingState.ONGOING:
+            target = 0.
+        else:
+            target = self.input.value
+
         self.state = kinematic_filter(
-            self.input.value,
+            target,
             dt=self.dt,
             state=self.state,
             maxSpeed=1.,
