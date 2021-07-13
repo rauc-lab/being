@@ -168,6 +168,19 @@ class Motor(Block):
         self.add_value_output('actualPosition')
 
     def home(self):
+        """Start homing routine for this motor. Has then to be driven via the update() method."""
+        pass
+
+    def switch_off(self):
+        """Switch motor off."""
+        pass
+
+    def switch_on(self):
+        """Switch motor on."""
+        pass
+
+    def engage(self):
+        """Engage motor. This is switching motor on and engaging its drive."""
         pass
 
 
@@ -407,9 +420,17 @@ class LinearMotor(Motor):
                 yield HomingState.FAILED
 
     def home(self):
-        """Home motor."""
         self.homingJob = self.crude_homing()
         self.homing = HomingState.ONGOING
+
+    def switch_on(self):
+        self.node.switch_on()
+
+    def switch_off(self):
+        self.node.switch_off()
+
+    def engage(self):
+        self.node.engage()
 
     def update(self):
         err = self.node.pdo['Error Register'].raw
@@ -418,9 +439,10 @@ class LinearMotor(Motor):
             #raise DriveError(msg)
             self.logger.error('DriveError: %s', msg)
 
+        sw = self.node.pdo['Statusword'].raw  # This takes approx. 0.027 ms
+        state = which_state(sw)
         if self.homing is HomingState.HOMED:
-            sw = self.node.pdo['Statusword'].raw  # This takes approx. 0.027 ms
-            if which_state(sw) is CiA402State.OPERATION_ENABLE:
+            if state is CiA402State.OPERATION_ENABLE:
                 if self.direction > 0:
                     tarPos = self.targetPosition.value
                 else:

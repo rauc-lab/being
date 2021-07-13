@@ -381,7 +381,7 @@ class CiA402Node(RemoteNode):
 
     def get_state(self) -> State:
         """Get current node state."""
-        sw = self.sdo[STATUSWORD].raw  # This takes approx. 2.713 ms
+        sw = self.sdoSTATUSWORD].raw  # This takes approx. 2.713 ms
         # sw = self.node.pdo['Statusword'].raw  # This takes approx. 0.027 ms
         return which_state(sw)
 
@@ -466,19 +466,13 @@ class CiA402Node(RemoteNode):
 
     # TODO: Wording. Any English speakers in the house?
 
-    def disengage(self):
+    def switch_off(self):
         self.nmt.state = PRE_OPERATIONAL
         self.change_state(State.READY_TO_SWITCH_ON)
 
-    def disable(self):
-        self.disengage()
-
-    def engage(self):
+    def switch_on(self):
         self.nmt.state = OPERATIONAL
         self.change_state(State.SWITCHED_ON)
-
-    def disenable(self):
-        self.engage()
 
     def enable(self):
         self.nmt.state = OPERATIONAL

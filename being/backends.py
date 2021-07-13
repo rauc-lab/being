@@ -51,21 +51,13 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         from being.can.cia_402 import CiA402Node  # Circular import for comforts
         return filter_by_type(self.values(), CiA402Node)
 
-    def disengage_drives(self):
+    def switch_off_drives(self):
         for drive in self.drives:
-            drive.disengage()
+            drive.switch_off()
 
-    def disable_drives(self):
+    def switch_on_drives(self):
         for drive in self.drives:
-            drive.disable()
-
-    def engage_drives(self):
-        for drive in self.drives:
-            drive.engage()
-
-    def disenable_drives(self):
-        for drive in self.drives:
-            drive.disenable()
+            drive.switch_on()
 
     def enable_drives(self):
         for drive in self.drives:
@@ -84,7 +76,7 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.disable_drives()
+        self.switch_off_drives()
         self.disconnect()
 
 
