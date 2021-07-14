@@ -1,23 +1,80 @@
 """API calls / controller for communication between front end and being components."""
+import collections
 import json
 import math
 from typing import ForwardRef, Dict
 
 from aiohttp import web
 
-from being.behavior import State, Behavior
+from being.behavior import State as BehaviorState, Behavior
 from being.content import Content
 from being.logging import get_logger
-from being.motors import Motor
+from being.motors import MOTOR_CHANGED, Motor
 from being.serialization import loads, spline_from_dict
 from being.spline import fit_spline
 from being.web.responses import respond_ok, json_response
+
+
+#from being.motors import MOTOR_CHANGED, HomingState
+#from being.serialization import register_enum
+#register_enum(HomingState)
 
 
 LOGGER = get_logger(__name__)
 """API module logger."""
 
 Being = ForwardRef('Being')
+
+
+# TODO: Why not replacing serializer functions with proper serialization? Block.to_dict()...
+
+
+def connected_motors(motionPlayer):
+    for output in motionPlayer.positionOutputs:
+        for input_ in output.outgoingConnections:
+            if isinstance(input_.owner, Motor):
+                yield input_.owner
+
+
+def serialize_behavior(behavior):
+    return {
+        'type': 'behavior-update',
+        'id': behavior.id,
+        'active': behavior.active,
+        'state': behavior.state,
+        'lastPlayed': behavior.lastPlayed,
+        'params': behavior._params,
+    }
+
+
+def serialize_motion_players(being):
+    """Return list of motion player / motors informations."""
+    for nr, mp in enumerate(being.motionPlayers):
+        actualOutputs = []
+        motors = []
+        lengths = []
+        for motor in connected_motors(mp):
+            motors.append(motor)
+            actualOutputs.append(motor.output)
+            lengths.append(motor.length)
+
+        yield {
+            'id': nr,
+            'actualValueIndices': [being.valueOutputs.index(out) for out in actualOutputs],
+            'lengths': lengths,
+            'ndim': mp.ndim,
+        }
+
+
+def serialize_motor(motor):
+    return collections.OrderedDict([
+        ('type', 'motor-update'),
+        ('id', motor.id),
+        ('motorType', type(motor).__name__),
+        #('length', motor.length),
+        ('enabled', motor.enabled()),
+        #('homed', motor.homed),
+    ])
 
 
 def content_controller(content: Content) -> web.RouteTableDef:
@@ -95,41 +152,6 @@ def content_controller(content: Content) -> web.RouteTableDef:
     return routes
 
 
-def connected_motors(motionPlayer):
-    for output in motionPlayer.positionOutputs:
-        for input_ in output.outgoingConnections:
-            if isinstance(input_.owner, Motor):
-                yield input_.owner
-
-
-def serialize_motion_players(being):
-    """Return list of motion player / motors informations."""
-    for nr, mp in enumerate(being.motionPlayers):
-        actualOutputs = []
-        motors = []
-        lengths = []
-        for motor in connected_motors(mp):
-            motors.append(motor)
-            actualOutputs.append(motor.output)
-            lengths.append(motor.length)
-
-        yield {
-            'id': nr,
-            'actualValueIndices': [being.valueOutputs.index(out) for out in actualOutputs],
-            'lengths': lengths,
-            'ndim': mp.ndim,
-        }
-
-
-def motion_player_controllers(motionPlayers):
-    pass
-
-
-def motor_controllers(motors):
-    routes = web.RouteTableDef()
-    return routes
-
-
 def being_controller(being: Being) -> web.RouteTableDef:
     """API routes for being object.
 
@@ -138,23 +160,27 @@ def being_controller(being: Being) -> web.RouteTableDef:
     """
     routes = web.RouteTableDef()
 
+    @routes.get('/motors')
+    async def get_motors(request):
+        return json_response([serialize_motor(motor) for motor in being.motors])
+
     @routes.put('/motors/disable')
-    async def disable_drives(request):
+    async def disable_motors(request):
         being.pause_behaviors()
-        if being.network:
-            being.network.disable_drives()
+        for motor in being.motors:
+            motor.disable()
 
         return respond_ok()
 
     @routes.put('/motors/enable')
-    async def enable_drives(request):
-        if being.network:
-            being.network.enable_drives()
+    async def enable_motors(request):
+        for motor in being.motors:
+            motor.enable()
 
         return respond_ok()
 
     @routes.get('/motionPlayers')
-    async def get_motors(request):
+    async def get_motion_players(request):
         """Inform front end of available motion players / motors."""
         infos = list(serialize_motion_players(being))
         return json_response(infos)
@@ -238,7 +264,7 @@ def behavior_controllers(behaviors) -> web.RouteTableDef:
 
     @routes.get('/behaviors/{id}/states')
     async def load_behavior_states(request):
-        stateNames = list(State.__members__)
+        stateNames = list(BehaviorState.__members__)
         return json_response(stateNames)
 
 
@@ -246,7 +272,7 @@ def behavior_controllers(behaviors) -> web.RouteTableDef:
     async def load_behavior_infos(request):
         try:
             id = int(request.match_info['id'])
-            return json_response(behaviorLookup[id].infos())
+            return json_response(serialize_behavior(behaviorLookup[id]))
         except (ValueError, KeyError):
             msg = f'Behavior with id {id} does not exist!'
             return web.HTTPBadRequest(text=msg)
@@ -262,7 +288,7 @@ def behavior_controllers(behaviors) -> web.RouteTableDef:
             else:
                 behavior.play()
 
-            return json_response(behavior.infos())
+            return json_response(serialize_behavior(behavior))
         except (ValueError, KeyError):
             msg = f'Behavior with id {id} does not exist!'
             return web.HTTPBadRequest(text=msg)

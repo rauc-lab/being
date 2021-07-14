@@ -104,7 +104,7 @@ class Editor extends CurverBase {
             });
             this.motorSelector.populate(infos);
         }).catch(err => {
-            console.log("Failed fetching motor infos from back-end!", err);
+            console.log("Failed fetching motion player infos from back-end!", err);
             DEFAULT_MOTOR_INFOS.forEach(motor => {
                 this.init_plotting_lines(motor.ndim);
                 motor.lengths.forEach(l => {

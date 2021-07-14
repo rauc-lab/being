@@ -150,10 +150,9 @@ def awake(*blocks, web: bool = True, clock: Optional[Clock] = None, network: Opt
         network = CanBackend.single_instance_get()
 
     being = Being(blocks, clock, network)
-    if network:
-        network.enable_drives()
-        for mot in being.motors:
-            mot.home()
+    for motor in being.motors:
+        motor.enable()
+        motor.home()
 
     try:
         if not web:

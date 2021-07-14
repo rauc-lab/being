@@ -1,7 +1,8 @@
 """Web server back end."""
-import os
 import asyncio
+import functools
 import logging
+import os
 import types
 
 from aiohttp import web
@@ -13,11 +14,18 @@ from being.behavior import BEHAVIOR_CHANGED
 from being.config import  CONFIG
 from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
-from being.logging import BEING_LOGGERS
-from being.logging import get_logger
+from being.logging import BEING_LOGGERS, get_logger
+from being.motors import MOTOR_CHANGED, Motor
 from being.sensors import Sensor
 from being.utils import filter_by_type
-from being.web.api import content_controller, being_controller, behavior_controllers, misc_controller
+from being.web.api import (
+    behavior_controllers,
+    serialize_behavior,
+    being_controller,
+    content_controller,
+    misc_controller,
+    serialize_motor,
+)
 from being.web.web_socket import WebSocket
 
 
@@ -72,6 +80,45 @@ def init_api(being, ws: WebSocket) -> web.Application:
     content = Content.single_instance_setdefault()
     api = web.Application()
 
+
+    def make_sender_func(obj, serializer=None):
+        """Function factory for creating callable sender task to emit the
+        current state of an object via the web socket connection. Used for the
+        PubSub pattern further down to register subscribers.
+
+        Originally lambda's were in place for this job but that led to a nasty
+        false reference bug when iterating over e.g. multiple motors.
+
+        The bug can be basically recreated with this:
+
+            >>> callbacks = []
+            ... for obj in range(5):
+            ...     callbacks.append(lambda: obj)
+            ...
+            ... for func in callbacks:
+            ...     print(func())
+            4
+            4
+            4
+            4
+            4
+
+        All the lambda point to the name `obj` which changes during the
+        iteration. Possible workarounds:
+          - Using functools.partial
+          - Intermediate function for freezing the scope.
+
+        The decision fell on the latter in order to protect posterity.
+        """
+        if serializer:
+            return lambda: ws.send_json_buffered(serializer(obj))
+
+        return lambda: ws.send_json_buffered(obj)
+
+
+    # Being
+    api.add_routes(being_controller(being))
+
     # Misc functionality
     api.add_routes(misc_controller())
 
@@ -79,22 +126,23 @@ def init_api(being, ws: WebSocket) -> web.Application:
     api.add_routes(content_controller(content))
     content.subscribe(CONTENT_CHANGED, lambda: ws.send_json_buffered(content.dict_motions_2()))
 
-    # Behavior
-    api.add_routes(behavior_controllers(being.behaviors))
-    for behavior in being.behaviors:
-        behavior.subscribe(BEHAVIOR_CHANGED, lambda: ws.send_json_buffered(behavior.infos()))
-        content.subscribe(CONTENT_CHANGED, behavior._purge_params)
-
-    # Being
-    api.add_routes(being_controller(being))
-
-    wire_being_loggers_to_web_socket(ws)
-
     # Patch sensor events
     sensors = list(filter_by_type(being.execOrder, Sensor))
     if len(sensors) > 0:
         sensor = sensors[0]
         patch_sensor_to_web_socket(sensor, ws)
+
+    # Behaviors
+    api.add_routes(behavior_controllers(being.behaviors))
+    for behavior in being.behaviors:
+        behavior.subscribe(BEHAVIOR_CHANGED, make_sender_func(behavior, serialize_behavior))
+        content.subscribe(CONTENT_CHANGED, behavior._purge_params)
+
+    # Motors
+    for motor in being.motors:
+        motor.subscribe(MOTOR_CHANGED, make_sender_func(motor, serialize_motor))
+
+    wire_being_loggers_to_web_socket(ws)
 
     return api
 
@@ -121,7 +169,10 @@ def init_web_server(being) -> web.Application:
     async def get_index(request):
         return {
             'version': BEING_VERSION_NUMBER,
-            'behaviors': [beh.infos() for beh in being.behaviors],
+            'behaviors': [
+                serialize_behavior(behavior)
+                for behavior in being.behaviors
+            ],
         }
 
     app.router.add_routes(routes)

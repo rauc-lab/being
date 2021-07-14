@@ -48,7 +48,7 @@ def create_params(attentionSpan=10., motions=None):
     }
 
 
-class Behavior(Block, PubSub, IdAware):
+class Behavior(Block, PubSub):
 
     """Simple 3x state finite state machine behavior engine for ECAL workshop.
     Based on modified Anima II/III behavior engine. The three states are:
@@ -158,10 +158,12 @@ class Behavior(Block, PubSub, IdAware):
         return triggered
 
     def _purge_params(self):
-        """Check with content and remove all non existing motion names from _params."""
+        """Check with content and remove all non existing motion names from
+        _params.
+        """
         existing = list(self.content._sorted_names())
-        for i, names in enumerate(self._params['motions']):
-            self._params['motions'][i] = [
+        for stateNr, names in enumerate(self._params['motions']):
+            self._params['motions'][stateNr] = [
                 name
                 for name in names
                 if name in existing
@@ -236,13 +238,3 @@ class Behavior(Block, PubSub, IdAware):
 
         if not playing:
             self.play_random_motion_for_current_state()
-
-    def infos(self):
-        return {
-            'type': 'behavior-update',
-            'id': self.id,
-            'active': self.active,
-            'state': self.state,
-            'lastPlayed': self.lastPlayed,
-            'params': self._params,
-        }

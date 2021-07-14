@@ -1,7 +1,6 @@
 """Content manager. Manages spline motions in content directory. Motion model."""
 import os
 import glob
-import shutil
 from typing import List, Generator
 
 from being.config import CONFIG

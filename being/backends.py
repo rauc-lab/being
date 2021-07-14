@@ -55,14 +55,6 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         for drive in self.drives:
             drive.switch_off()
 
-    def disable_drives(self):
-        for drive in self.drives:
-            drive.disable()
-
-    def enable_drives(self):
-        for drive in self.drives:
-            drive.enable()
-
     def update(self):
         """Custom update method so that we can include CanBackend in execOrder
         for sending out sync messages at the end of the cycle for driving the

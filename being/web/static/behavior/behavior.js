@@ -68,14 +68,14 @@ class Behavior extends Widget {
      * Get behavior id for this widget from "behaviorId" HTML attribute as int.
      * Return -1 if not set.
      */
-         get id() {
-            const attr = this.getAttribute("behaviorId");
-            if (attr === null) {
-                return -1;
-            }
-
-            return parseInt(attr);
+    get id() {
+        const attr = this.getAttribute("behaviorId");
+        if (attr === null) {
+            return -1;
         }
+
+        return parseInt(attr);
+    }
 
     async connectedCallback() {
         this.api = new BehaviorApi(this.id);

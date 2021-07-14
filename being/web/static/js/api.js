@@ -8,9 +8,16 @@ import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js
 
 export class Api {
     /**
+     * Get current motor infos.
+     */
+    async get_motor_infos() {
+        return get_json(API + "/motors");
+    }
+
+    /**
      * Disable all motors in backend for motion recording.
      */
-     async disable_motors() {
+    async disable_motors() {
         return put(API + "/motors/disable");
     }
 

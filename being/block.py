@@ -2,6 +2,7 @@
 
 Some block related helpers."""
 import functools
+import itertools
 from typing import List, ForwardRef, Generator, Union
 
 from being.connectables import (
@@ -154,9 +155,13 @@ class Block:
         outputs: Output connections.
     """
 
+    ID_COUNTER = itertools.count()
+    """Counter used for id assignment."""
+
     def __init__(self):
         self.inputs: List[InputBase] = []
         self.outputs: List[OutputBase] = []
+        self.id: int = next(self.ID_COUNTER)
 
     @property
     def nInputs(self) -> int:

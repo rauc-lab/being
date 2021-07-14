@@ -54,22 +54,27 @@
         import { defaultdict } from "/static/js/utils.js";
         import { NotificationCenter } from "/static/js/notification_center.js";
 
-        const host = window.location.host;
-        const editor = document.getElementById("editor");
-        const behavior = document.getElementById("behavior");
-        const terminal = document.getElementById("console");
-
         const notifications = new NotificationCenter(alertify);
 
         // Wire up web socket to the different widgets.
         const callbacks = defaultdict(Array);
-        callbacks["output-values"].push(msg => editor.new_data(msg));
-        callbacks["behavior-update"].push(msg => editor.behavior_message(msg));
-        callbacks["log"].push(msg => terminal.new_log_messages(msg));
+
+        for (let editor of document.getElementsByTagName("being-editor")) {
+            callbacks["output-values"].push(msg => editor.new_data(msg));
+            callbacks["behavior-update"].push(msg => editor.behavior_message(msg));
+        }
+
+        for (let console of document.getElementsByTagName("being-console")) {
+            callbacks["log"].push(msg => console.new_log_messages(msg));
+        }
+
         for (let behavior of document.getElementsByTagName("being-behavior")) {
             callbacks["behavior-update"].push(msg => behavior.behavior_message(msg));
             callbacks["motions"].push(msg => behavior.content_message(msg));
             callbacks["sensor-message"].push(() => behavior.pulse_led());
+        }
+        for (let controlPanel of document.getElementsByTagName("being-control-panel")) {
+            callbacks["motor-update"].push(msg => controlPanel.new_motor_message(msg));
         }
 
         receive_from_websocket(WS_ADDRESS, callbacks);
