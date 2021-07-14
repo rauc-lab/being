@@ -59,13 +59,30 @@ def register_named_tuple(namedTupleType: type):
     NAMED_TUPLE_LOOKUP[name] = namedTupleType
 
 
-def register_enum(enum: EnumMeta):
+def _enum_type_qualname(enumType: EnumMeta) -> str:
+    """Quasi qualname for enum types. So to distinguish different enum types
+    with the same name in different modules.
+
+    Usage:
+        >>> import enum
+        ...
+        ... class Foo(enum.Enum):
+        ...     FIRST = 0
+        ...     SECOND = 1
+        ...
+        ... print(_enum_type_qualname(Foo))
+        __main__.Foo
+    """
+    return enumType.__module__ + '.' + enumType.__name__
+
+
+def register_enum(enumType: EnumMeta):
     """Register enum for serialization / deserialization."""
-    name = enum.__name__
+    name = _enum_type_qualname(enumType)
     if name in ENUM_LOOKUP:
         raise RuntimeError(f'Enum {name!r} is already registered!')
 
-    ENUM_LOOKUP[name] = enum
+    ENUM_LOOKUP[name] = enumType
 
 
 def spline_to_dict(spline: Spline) -> OrderedDict:
@@ -115,12 +132,13 @@ def ndarray_from_dict(dct: dict) -> ndarray:
     return np.frombuffer(data, dct['dtype']).reshape(dct['shape'])
 
 
-def enum_to_dict(obj) -> OrderedDict:
+def enum_to_dict(enum) -> OrderedDict:
     """Convert enum instance to dct representation."""
+    enumType = type(enum)
     return OrderedDict([
-        ('type', type(obj).__name__),
-        ('members', list(type(obj).__members__)),
-        ('value', obj.value),
+        ('type', _enum_type_qualname(enumType)),
+        ('members', list(enumType.__members__)),
+        ('value', enum.value),
     ])
 
 
