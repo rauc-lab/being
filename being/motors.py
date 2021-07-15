@@ -171,22 +171,26 @@ class Motor(Block, PubSub):
         self.add_value_input('targetPosition')
         self.add_value_output('actualPosition')
 
-    def enabled(self):
+    @property
+    def homed(self) -> bool:
+        return self.homing is HomingState.HOMED
+
+    def enabled(self) -> bool:
         return self._enabled
 
-    def home(self):
-        """Start homing routine for this motor. Has then to be driven via the update() method."""
-        self.publish(MOTOR_CHANGED)
+    def enable(self, publish=True):
+        """Engage motor. This is switching motor on and engaging its drive."""
+        if publish:
+            self.publish(MOTOR_CHANGED)
 
     def disable(self, publish=True):
         """Switch motor on."""
         if publish:
             self.publish(MOTOR_CHANGED)
 
-    def enable(self, publish=True):
-        """Engage motor. This is switching motor on and engaging its drive."""
-        if publish:
-            self.publish(MOTOR_CHANGED)
+    def home(self):
+        """Start homing routine for this motor. Has then to be driven via the update() method."""
+        self.publish(MOTOR_CHANGED)
 
 
 class LinearMotor(Motor):
@@ -387,7 +391,6 @@ class LinearMotor(Motor):
             node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = self.upper - self.lower
 
         yield HomingState.HOMED
-        self.publish(MOTOR_CHANGED)
 
     def end_switch_homing(self,
               homingMethod: int,
@@ -428,25 +431,23 @@ class LinearMotor(Motor):
                 node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION  # Abort homing
                 yield HomingState.FAILED
 
-            self.publish(MOTOR_CHANGED)
-
     def enabled(self):
         sw = self.node.sdo['Statusword'].raw  # This takes approx. 2.713 ms
         state = which_state(sw)
         return state is CiA402State.OPERATION_ENABLE
 
-    def home(self):
-        self.homingJob = self.crude_homing()
-        self.homing = HomingState.ONGOING
-        self.publish(MOTOR_CHANGED)
+    def enable(self, publish=True):
+        self.node.enable()
+        super().enable(publish)
 
     def disable(self, publish=True):
         self.node.disable()
         super().disable(publish)
 
-    def enable(self, publish=True):
-        self.node.enable()
-        super().enable(publish)
+    def home(self):
+        self.homingJob = self.crude_homing()
+        self.homing = HomingState.ONGOING
+        self.publish(MOTOR_CHANGED)
 
     def update(self):
         err = self.node.pdo['Error Register'].raw
@@ -468,6 +469,8 @@ class LinearMotor(Motor):
 
         elif self.homing is HomingState.ONGOING:
             self.homing = next(self.homingJob)
+            if self.homing is not HomingState.ONGOING:
+                self.publish(MOTOR_CHANGED)
 
         self.output.value = self.node.get_actual_position()
 
@@ -493,19 +496,8 @@ class DummyMotor(Motor):
         self.length = length
         self.state = KinematicState()
         self.dt = CONFIG['General']['INTERVAL']
-        self.homed = HomingState.HOMED
+        self.homing = HomingState.HOMED
         self._enabled = True
-
-    def enabled(self):
-        return self._enabled
-
-    def disable(self, publish=True):
-        self._enabled = False
-        super().disable(publish)
-
-    def enable(self, publish=True):
-        self._enabled = True
-        super().enable(publish)
 
     def dummy_homing(self, minDuration: float = 1., maxDuration: float = 2.) -> HomingProgress:
         duration = random.uniform(minDuration, maxDuration)
@@ -514,16 +506,30 @@ class DummyMotor(Motor):
             yield HomingState.ONGOING
 
         yield HomingState.HOMED
-        self.publish(MOTOR_CHANGED)
+
+    def enabled(self):
+        return self._enabled
+
+    def enable(self, publish=True):
+        self._enabled = True
+        super().enable(publish)
+
+    def disable(self, publish=True):
+        self._enabled = False
+        super().disable(publish)
 
     def home(self):
         self.homingJob = self.dummy_homing()
-        self.homed = HomingState.ONGOING
+        self.homing = HomingState.ONGOING
         self.publish(MOTOR_CHANGED)
 
     def update(self):
         # Kinematic filter input target position
         if self.homing is HomingState.ONGOING:
+            self.homing = next(self.homingJob)
+            if self.homing is not HomingState.ONGOING:
+                self.publish(MOTOR_CHANGED)
+
             target = 0.
         else:
             target = self.input.value

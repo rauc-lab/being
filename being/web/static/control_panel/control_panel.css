@@ -1,0 +1,11 @@
+@keyframes pulsating-black {
+    0% { background-color: white; }
+    40% { background-color: black; }
+    100% { background-color: white; }
+}
+
+div.toolbar button.home[checked] {
+    background-color: white;
+    color: black;
+    animation: pulsating-black 2s infinite;
+}

@@ -29,6 +29,13 @@ export class Api {
     }
 
     /**
+     * Trigger homing in all motors.
+     */
+    async home_motors() {
+        return put(API + "/motors/home");
+    }
+
+    /**
      * Get available motor infos from backend. 
      *
      * @returns Array of motor info dictionaries.

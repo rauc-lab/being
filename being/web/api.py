@@ -9,8 +9,8 @@ from aiohttp import web
 from being.behavior import State as BehaviorState, Behavior
 from being.content import Content
 from being.logging import get_logger
-from being.motors import MOTOR_CHANGED, Motor
-from being.serialization import loads, spline_from_dict
+from being.motors import MOTOR_CHANGED, Motor, HomingState
+from being.serialization import loads, spline_from_dict, register_enum
 from being.spline import fit_spline
 from being.web.responses import respond_ok, json_response
 
@@ -24,6 +24,8 @@ LOGGER = get_logger(__name__)
 """API module logger."""
 
 Being = ForwardRef('Being')
+
+register_enum(HomingState)
 
 
 # TODO: Why not replacing serializer functions with proper serialization? Block.to_dict()...
@@ -73,7 +75,7 @@ def serialize_motor(motor):
         ('motorType', type(motor).__name__),
         #('length', motor.length),
         ('enabled', motor.enabled()),
-        #('homed', motor.homed),
+        ('homing', motor.homing),
     ])
 
 
@@ -188,6 +190,13 @@ def being_controller(being: Being) -> web.RouteTableDef:
             motor.enable(publish=False)
 
         return json_response(serialize_motors(being.motors))
+
+    @routes.put('/motors/home')
+    async def home_motors(request):
+        for motor in being.motors:
+            motor.home()
+
+        return respond_ok()
 
     @routes.get('/motionPlayers')
     async def get_motion_players(request):

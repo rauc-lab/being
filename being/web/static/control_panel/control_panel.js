@@ -1,8 +1,11 @@
 import { Widget } from "/static/js/widget.js";
 import {switch_button_on, switch_button_off, is_checked } from "/static/js/button.js";
 import {Api} from "/static/js/api.js";
-import {assert} from "/static/js/utils.js";
 
+
+function get_enum_value_name(obj) {
+    return obj.members[obj.value];
+}
 
 class ControlPanel extends Widget {
     constructor() {
@@ -25,8 +28,10 @@ class ControlPanel extends Widget {
     }
 
     init_html_elements() {
-        this.powerBtn = this.add_button_to_toolbar("power_settings_new", "Home motors");
-        const homeBtn = this.add_button_to_toolbar("home", "Home motors");
+        this._append_link("static/control_panel/control_panel.css");
+        this.powerBtn = this.add_button_to_toolbar("power_settings_new", "Turn motors on / off");
+        this.homeBtn = this.add_button_to_toolbar("home", "Home motors");
+        this.homeBtn.classList.add('home');
 
         this.powerBtn.addEventListener("click", async evt => {
             let motorInfos = {};
@@ -37,21 +42,33 @@ class ControlPanel extends Widget {
             }
             this.new_motor_message(motorInfos);
         });
+
+        this.homeBtn.addEventListener("click", async evt => {
+            await this.api.home_motors();
+        });
     }
 
     update() {
         let enabled = true;
-        let homing = false;
+        let homingOngoing = false;
         for (const [motorId, motor] of Object.entries(this.motors)) {
-            console.log("motor:", motor);
             enabled &= motor.enabled;
-            //homing |= motor.
+            const name = get_enum_value_name(motor.homing);
+            if (name === "ONGOING") {
+                homingOngoing = true;
+            }
         }
 
         if (enabled) {
             switch_button_on(this.powerBtn);
         } else {
             switch_button_off(this.powerBtn);
+        }
+
+        if (homingOngoing) {
+            switch_button_on(this.homeBtn);
+        } else {
+            switch_button_off(this.homeBtn);
         }
     }
 
