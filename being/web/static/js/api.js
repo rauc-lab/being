@@ -18,14 +18,14 @@ export class Api {
      * Disable all motors in backend for motion recording.
      */
     async disable_motors() {
-        return put(API + "/motors/disable");
+        return put_json(API + "/motors/disable");
     }
 
     /**
      * Enable all motors in backend after motion recording.
      */
     async enable_motors() {
-        return put(API + "/motors/enable");
+        return put_json(API + "/motors/enable");
     }
 
     /**

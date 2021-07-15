@@ -77,6 +77,16 @@ def serialize_motor(motor):
     ])
 
 
+def serialize_motors(motors):
+    return collections.OrderedDict([
+        ('type', 'motor-updates'),
+        ('motors', [
+            serialize_motor(mot)
+            for mot in motors
+        ]),
+    ])
+
+
 def content_controller(content: Content) -> web.RouteTableDef:
     """Controller for content model. Build Rest API routes. Wrap content
     instance in API.
@@ -162,22 +172,22 @@ def being_controller(being: Being) -> web.RouteTableDef:
 
     @routes.get('/motors')
     async def get_motors(request):
-        return json_response([serialize_motor(motor) for motor in being.motors])
+        return json_response(serialize_motors(being.motors))
 
     @routes.put('/motors/disable')
     async def disable_motors(request):
         being.pause_behaviors()
         for motor in being.motors:
-            motor.disable()
+            motor.disable(publish=False)
 
-        return respond_ok()
+        return json_response(serialize_motors(being.motors))
 
     @routes.put('/motors/enable')
     async def enable_motors(request):
         for motor in being.motors:
-            motor.enable()
+            motor.enable(publish=False)
 
-        return respond_ok()
+        return json_response(serialize_motors(being.motors))
 
     @routes.get('/motionPlayers')
     async def get_motion_players(request):

@@ -75,6 +75,7 @@
         }
         for (let controlPanel of document.getElementsByTagName("being-control-panel")) {
             callbacks["motor-update"].push(msg => controlPanel.new_motor_message(msg));
+            callbacks["motor-updates"].push(msg => controlPanel.new_motor_message(msg));
         }
 
         receive_from_websocket(WS_ADDRESS, callbacks);

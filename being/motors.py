@@ -178,13 +178,15 @@ class Motor(Block, PubSub):
         """Start homing routine for this motor. Has then to be driven via the update() method."""
         self.publish(MOTOR_CHANGED)
 
-    def disable(self):
+    def disable(self, publish=True):
         """Switch motor on."""
-        self.publish(MOTOR_CHANGED)
+        if publish:
+            self.publish(MOTOR_CHANGED)
 
-    def enable(self):
+    def enable(self, publish=True):
         """Engage motor. This is switching motor on and engaging its drive."""
-        self.publish(MOTOR_CHANGED)
+        if publish:
+            self.publish(MOTOR_CHANGED)
 
 
 class LinearMotor(Motor):
@@ -438,13 +440,13 @@ class LinearMotor(Motor):
         self.homing = HomingState.ONGOING
         self.publish(MOTOR_CHANGED)
 
-    def disable(self):
+    def disable(self, publish=True):
         self.node.disable()
-        self.publish(MOTOR_CHANGED)
+        super().disable(publish)
 
-    def enable(self):
+    def enable(self, publish=True):
         self.node.enable()
-        self.publish(MOTOR_CHANGED)
+        super().enable(publish)
 
     def update(self):
         err = self.node.pdo['Error Register'].raw
@@ -497,13 +499,13 @@ class DummyMotor(Motor):
     def enabled(self):
         return self._enabled
 
-    def disable(self):
+    def disable(self, publish=True):
         self._enabled = False
-        self.publish(MOTOR_CHANGED)
+        super().disable(publish)
 
-    def enable(self):
+    def enable(self, publish=True):
         self._enabled = True
-        self.publish(MOTOR_CHANGED)
+        super().enable(publish)
 
     def dummy_homing(self, minDuration: float = 1., maxDuration: float = 2.) -> HomingProgress:
         duration = random.uniform(minDuration, maxDuration)
