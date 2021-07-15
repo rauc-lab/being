@@ -58,6 +58,8 @@
 
         // Wire up web socket to the different widgets.
         const callbacks = defaultdict(Array);
+        callbacks["motor-update"].push(msg => notificationCenter.new_motor_message(msg));
+        callbacks["motor-updates"].push(msg => notificationCenter.new_motor_message(msg));
 
         for (let editor of document.getElementsByTagName("being-editor")) {
             callbacks["output-values"].push(msg => editor.new_data(msg));
