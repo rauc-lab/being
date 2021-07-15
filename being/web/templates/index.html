@@ -54,7 +54,7 @@
         import { defaultdict } from "/static/js/utils.js";
         import { NotificationCenter } from "/static/js/notification_center.js";
 
-        const notifications = new NotificationCenter(alertify);
+        const notificationCenter = new NotificationCenter(alertify);
 
         // Wire up web socket to the different widgets.
         const callbacks = defaultdict(Array);
@@ -78,7 +78,7 @@
             callbacks["motor-updates"].push(msg => controlPanel.new_motor_message(msg));
         }
 
-        receive_from_websocket(WS_ADDRESS, callbacks);
+        receive_from_websocket(WS_ADDRESS, callbacks, notificationCenter);
     </script>
 {% endblock %}
 

@@ -55,7 +55,7 @@ class ControlPanel extends Widget {
             enabled &= motor.enabled;
             const name = get_enum_value_name(motor.homing);
             if (name === "ONGOING") {
-                homingOngoing = true;
+                homingOngoing |= true;
             }
         }
 
