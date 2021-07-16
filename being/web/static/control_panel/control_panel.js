@@ -31,7 +31,6 @@ class ControlPanel extends Widget {
         this._append_link("static/control_panel/control_panel.css");
         this.powerBtn = this.add_button_to_toolbar("power_settings_new", "Turn motors on / off");
         this.homeBtn = this.add_button_to_toolbar("home", "Home motors");
-        this.homeBtn.classList.add('home');
 
         this.powerBtn.addEventListener("click", async evt => {
             let motorInfos = {};
@@ -50,13 +49,10 @@ class ControlPanel extends Widget {
 
     update() {
         let enabled = true;
-        let homingOngoing = false;
+        let homing = 4;
         for (const [motorId, motor] of Object.entries(this.motors)) {
             enabled &= motor.enabled;
-            const name = get_enum_value_name(motor.homing);
-            if (name === "ONGOING") {
-                homingOngoing |= true;
-            }
+            homing = Math.min(homing, motor.homing.value);
         }
 
         if (enabled) {
@@ -65,11 +61,9 @@ class ControlPanel extends Widget {
             switch_button_off(this.powerBtn);
         }
 
-        if (homingOngoing) {
-            switch_button_on(this.homeBtn);
-        } else {
-            switch_button_off(this.homeBtn);
-        }
+        const homingClasses = ["homing-failed", "homing-unhomed", "homing-ongoing", "homing-homed" ];
+        this.homeBtn.classList.remove(...homingClasses);
+        this.homeBtn.classList.add( homingClasses[homing]);
     }
 
     new_motor_message(msg) {

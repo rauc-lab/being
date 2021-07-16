@@ -65,11 +65,10 @@ class HomingState(enum.Enum):
 
     """Possible homing states."""
 
-    UNHOMED = 0
-    HOMED = 1
+    FAILED = 0
+    UNHOMED = 1
     ONGOING = 2
-    FAILED = 3  # TODO: To be removed since it hides error trace back? Should
-                # we always raise an exception?
+    HOMED = 3
 
 
 HomingProgress = Generator[HomingState, None, None]
@@ -499,7 +498,7 @@ class DummyMotor(Motor):
         self.homing = HomingState.HOMED
         self._enabled = True
 
-    def dummy_homing(self, minDuration: float = 1., maxDuration: float = 2.) -> HomingProgress:
+    def dummy_homing(self, minDuration: float = 2., maxDuration: float = 5.) -> HomingProgress:
         duration = random.uniform(minDuration, maxDuration)
         endTime = time.perf_counter() + duration
         while time.perf_counter() < endTime:

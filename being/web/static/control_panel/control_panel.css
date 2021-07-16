@@ -1,11 +1,36 @@
 @keyframes pulsating-black {
-    0% { background-color: white; }
-    40% { background-color: black; }
+    0% {
+        background-color: white;
+        color: black;
+    }
+    40% {
+        background-color: black;
+        color: white;
+    }
+    100% {
+        background-color: white;
+        color: black;
+    }
+}
+
+@keyframes pulse-green {
+    0% { background-color: green; }
     100% { background-color: white; }
 }
 
-div.toolbar button.home[checked] {
-    background-color: white;
-    color: black;
-    animation: pulsating-black 2s infinite;
+div.toolbar button.homing-failed {
+    background-color: red;
+}
+
+div.toolbar button.homing-unhomed {
+    background-color: orange;
+}
+
+div.toolbar button.homing-ongoing {
+    color: white;
+    animation: pulsating-black 2s infinite !important;
+}
+
+div.toolbar button.homing-homed {
+    animation: pulse-green 2s 1;
 }
