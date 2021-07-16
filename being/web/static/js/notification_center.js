@@ -22,6 +22,20 @@ export function remodel_notification(noti, msg=null, type=null, wait=null) {
     }
 }
 
+/**
+ * Number of items in an object.
+ */
+function object_size(obj) {
+    let size = 0, key;
+    for (key in obj) {
+        if (obj.hasOwnProperty(key)) {
+            size++;
+        }
+    }
+
+    return size;
+}
+
 
 /**
  * Notification central. Wrapper around alertify. Allows for persistent
@@ -35,6 +49,7 @@ export class NotificationCenter {
         this.persistentNotifications = {};
         this.beenSaid = {};
         this.motorNotifications = defaultdict(Number);
+        this.motorNames = {};
     }
 
     notify_persistent(msg, type="message", wait=2, id=0) {
@@ -59,20 +74,26 @@ export class NotificationCenter {
     }
 
     process_motor(motor) {
+        // Motor name -> message prefix
+        if (!(motor.id in this.motorNames)) {
+            const size = object_size(this.motorNames);
+            this.motorNames[motor.id] = "Motor " + (size + 1) + " ";
+        }
+        const prefix = this.motorNames[motor.id];
+
         const notis = this.motorNotifications;
-        const prefix = "Motor " + motor.id + " ";
         switch(motor.homing.value) {
             case 0:
-                notis[motor.id] = this.notify_persistent(prefix + "unhomed", "warning", 0, notis[motor.id]);
+                notis[motor.id] = this.notify_persistent(prefix + "homing failed", "error", 0, notis[motor.id]);
                 break;
             case 1:
-                notis[motor.id] = this.notify_persistent(prefix + "homed", "success", 2, notis[motor.id]);
+                notis[motor.id] = this.notify_persistent(prefix + "unhomed", "warning", 0, notis[motor.id]);
                 break;
             case 2:
                 notis[motor.id] = this.notify_persistent(prefix + "homing ongoing", "warning", 0, notis[motor.id]);
                 break;
             case 3:
-                notis[motor.id] = this.notify_persistent(prefix + "homing failed", "error", 0, notis[motor.id]);
+                notis[motor.id] = this.notify_persistent(prefix + "homed", "success", 2, notis[motor.id]);
                 break;
         }
     }
