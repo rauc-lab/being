@@ -52,6 +52,10 @@ export class NotificationCenter {
         this.motorNames = {};
     }
 
+    notify(msg, type="message", wait=2) {
+        return this.alertify.notify(msg, type, wait);
+    }
+
     notify_persistent(msg, type="message", wait=2, id=0) {
         if (msg in this.beenSaid) {
             return

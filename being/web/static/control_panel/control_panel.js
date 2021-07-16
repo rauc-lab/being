@@ -36,6 +36,7 @@ class Console {
     constructor(list, maxlen=50) {
         this.list = list
         this.maxlen = maxlen;
+        this.records = [];
         this.blockedUntil = -Infinity;
         this.list.addEventListener("mouseover", () => {
             this.blockedUntil = Infinity;
@@ -58,6 +59,7 @@ class Console {
      */
     remove_oldest_log() {
         this.list.removeChild(this.list.childNodes[0]);
+        this.records.shift();
     }
 
     /**
@@ -79,9 +81,29 @@ class Console {
         this.list.appendChild(li);
         li.innerHTML = msg.name + "<i> " + msg.message.replaceAll("\n", "<br>") + "</i>";
         li.style.color = get_color(msg.level / MAX_LOG_LEVEL);
+
+        const record = msg.level + " - " + msg.name + " - " + msg.message;
+        this.records.push(record);
+
         if (this.auto_scrolling) {
             this.scroll_all_the_way_down();
         }
+    }
+
+    /**
+     * Copy current log messages to clipboard.
+     */
+    copy_log_records_to_clipboard() {
+        // Copy record texts to clipboard via dummy input element.
+        // Note: document.execCommand instead of the newer clipboard API so
+        // that not dependent on a seconds SSL / HTTPS connection.
+        const text = this.records.join("\n");
+        const input = document.createElement("textarea");
+        input.value = text;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        document.body.removeChild(input);
     }
 }
 
@@ -92,8 +114,13 @@ class ControlPanel extends Widget {
         this.api = new Api();
         this.motors = {};
         this.console = null;
+        this.notificationCenter = null;
         this.init_html_elements();
         this.collapse_console();
+    }
+
+    set_notification_center(notificationCenter) {
+        this.notificationCenter = notificationCenter;
     }
 
     init_html_elements() {
@@ -104,7 +131,8 @@ class ControlPanel extends Widget {
         this.homeBtn = this.add_button_to_toolbar("home", "Home motors");
         const space = this.add_space_to_toolbar();
         space.style.flexGrow = 1;
-        this.consoleBtn = this.add_button_to_toolbar("dehaze");
+        this.copyLogsToClipboardBtn = this.add_button_to_toolbar("content_copy", "Copy console messages to clipboard");
+        this.consoleBtn = this.add_button_to_toolbar("dehaze", "Toggle console");
         this.consoleBtn.style.marginRight = "-2px";
         switch_button_on(this.consoleBtn);
 
@@ -120,6 +148,7 @@ class ControlPanel extends Widget {
      */
     collapse_console() {
         switch_button_off(this.consoleBtn);
+        this.copyLogsToClipboardBtn.disabled = true;
         this.consoleList.style.display = "none";
     }
 
@@ -128,6 +157,7 @@ class ControlPanel extends Widget {
      */
     expand_console() {
         switch_button_on(this.consoleBtn);
+        this.copyLogsToClipboardBtn.disabled = false;
         this.consoleList.style.display = "";
     }
 
@@ -145,8 +175,8 @@ class ControlPanel extends Widget {
             this.new_motor_message(motorInfos);
         });
 
-        this.homeBtn.addEventListener("click", async evt => {
-            await this.api.home_motors();
+        this.homeBtn.addEventListener("click", () => {
+            this.api.home_motors();
         });
 
         this.consoleBtn.addEventListener("click", evt => {
@@ -154,6 +184,15 @@ class ControlPanel extends Widget {
                 this.collapse_console();
             } else {
                 this.expand_console();
+            }
+        });
+
+        this.copyLogsToClipboardBtn.addEventListener("click", () => {
+            this.console.copy_log_records_to_clipboard();
+            if (this.notificationCenter !== null) {
+                this.notificationCenter.notify(
+                    "Copied console logs to clipboard"
+                )
             }
         });
     }

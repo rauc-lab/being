@@ -54,6 +54,7 @@
         callbacks["motor-updates"].push(msg => notificationCenter.new_motor_message(msg));
 
         for (let controlPanel of document.getElementsByTagName("being-control-panel")) {
+            controlPanel.set_notification_center(notificationCenter);
             callbacks["motor-update"].push(msg => controlPanel.new_motor_message(msg));
             callbacks["motor-updates"].push(msg => controlPanel.new_motor_message(msg));
             callbacks["log"].push(msg => controlPanel.new_log_message(msg));
