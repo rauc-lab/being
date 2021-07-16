@@ -2,11 +2,6 @@
  * @module web_socket Small web socket wrapper.
  */
 import {MS} from "/static/js/constants.js";
-import {remodel_notification} from "/static/js/notification_center.js";
-
-
-const WEB_SOCKET_DOWN_MESSAGE = "WebSocket connection down";
-const WEB_SOCKET_UP_MESSAGE = "WebSocket connection up and running";
 
 
 let NOTIFICATION_ID = 0;
@@ -24,7 +19,7 @@ export function receive_from_websocket(url, callbacks, notificationCenter, recon
     const sock = new WebSocket(url);
     sock.onopen = function() {
         NOTIFICATION_ID = notificationCenter.notify_persistent(
-            "WebSocket connection up and running",
+            "Connected to Being",
             "success",
             2,
             NOTIFICATION_ID,
@@ -41,7 +36,7 @@ export function receive_from_websocket(url, callbacks, notificationCenter, recon
     };
     sock.onclose = function(evt) {
         NOTIFICATION_ID = notificationCenter.notify_persistent(
-            "WebSocket connection down",
+            "Being offline",
             "error",
             0,
             NOTIFICATION_ID,
