@@ -1,3 +1,14 @@
+:host ul.console {
+    margin: 0;
+    padding: 0 1em 1em 1em;
+    font-family: monospace;
+    height: 40vh;
+    overflow: hidden;
+    overflow-y: scroll;
+    list-style: none;
+    border-top: 2px solid black;
+}
+
 @keyframes pulsating-black {
     0% {
         background-color: white;

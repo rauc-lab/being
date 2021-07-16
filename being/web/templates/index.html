@@ -9,24 +9,23 @@
     <link rel="stylesheet" type="text/css" href="static/css/open_sans.css">
     <link rel="stylesheet" type="text/css" href="static/css/material_icons.css">
     <link rel="stylesheet" type="text/css" href="static/css/being.css">
+    <script type="module" src="static/control_panel/control_panel.js"></script>
     <script type="module" src="static/behavior/behavior.js"></script>
     <script type="module" src="static/motion_editor/motion_editor.js"></script>
-    <script type="module" src="static/console/console.js"></script>
-    <script type="module" src="static/control_panel/control_panel.js"></script>
 {% endblock %}
 
 {% block body%}
     <nav>
         <span>Being</span>
         <span class="filler"></span>
+        <a href="#control-panel-anchor">Control Panel</a>
         <a href="#behavior-anchor">Behavior</a>
         <a href="#editor-anchor">Motion Editor</a>
-        <a href="#console-anchor">Console</a>
     </nav>
     <hr>
 
+    <a class="anchor" id="control-panel-anchor"></a>
     <h1>Control Panel</h1>
-
     <being-control-panel></being-control-panel>
 
     {% if behaviors %}
@@ -39,14 +38,7 @@
 
     <a class="anchor" id="editor-anchor"></a>
     <h1>Motion Editor</h1>
-
     <being-editor id="editor"></being-editor>
-
-    <a class="anchor" id="console-anchor"></a>
-
-    <h1>Console</h1>
-
-    <being-console id="console"></being-console>
 
     <script type="module">
         import { WS_ADDRESS } from "/static/js/config.js";
@@ -61,13 +53,10 @@
         callbacks["motor-update"].push(msg => notificationCenter.new_motor_message(msg));
         callbacks["motor-updates"].push(msg => notificationCenter.new_motor_message(msg));
 
-        for (let editor of document.getElementsByTagName("being-editor")) {
-            callbacks["output-values"].push(msg => editor.new_data(msg));
-            callbacks["behavior-update"].push(msg => editor.behavior_message(msg));
-        }
-
-        for (let console of document.getElementsByTagName("being-console")) {
-            callbacks["log"].push(msg => console.new_log_messages(msg));
+        for (let controlPanel of document.getElementsByTagName("being-control-panel")) {
+            callbacks["motor-update"].push(msg => controlPanel.new_motor_message(msg));
+            callbacks["motor-updates"].push(msg => controlPanel.new_motor_message(msg));
+            callbacks["log"].push(msg => controlPanel.new_log_message(msg));
         }
 
         for (let behavior of document.getElementsByTagName("being-behavior")) {
@@ -75,9 +64,10 @@
             callbacks["motions"].push(msg => behavior.content_message(msg));
             callbacks["sensor-message"].push(() => behavior.pulse_led());
         }
-        for (let controlPanel of document.getElementsByTagName("being-control-panel")) {
-            callbacks["motor-update"].push(msg => controlPanel.new_motor_message(msg));
-            callbacks["motor-updates"].push(msg => controlPanel.new_motor_message(msg));
+
+        for (let editor of document.getElementsByTagName("being-editor")) {
+            callbacks["output-values"].push(msg => editor.new_data(msg));
+            callbacks["behavior-update"].push(msg => editor.behavior_message(msg));
         }
 
         receive_from_websocket(WS_ADDRESS, callbacks, notificationCenter);
