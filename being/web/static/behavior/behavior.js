@@ -33,20 +33,20 @@ class BehaviorApi extends Api {
         this.id = id;
     }
 
+    async load_behavior() {
+        return get_json(API + "/behaviors/" + this.id);
+    }
+
     async load_behavior_states() {
         return get_json(API + "/behaviors/" + this.id + "/states");
     }
 
-    async load_behavior_infos() {
-        return get_json(API + "/behaviors/" + this.id);
+    async toggle_behavior_playback() {
+        return put_json(API + "/behaviors/" + this.id + "/toggle_playback");
     }
 
     async send_behavior_params(params) {
         return put_json(API + "/behaviors/" + this.id + "/params", params);
-    }
-
-    async toggle_behavior_playback() {
-        return put_json(API + "/behaviors/" + this.id + "/toggle_playback");
     }
 }
 
@@ -122,9 +122,12 @@ class Behavior extends Widget {
         const names = Object.keys(motions.splines);
         this.populate_motions(names);
 
+        const behavior = await this.api.load_behavior();
+        this.update(behavior);
+
         this.playPauseBtn.addEventListener("click", async () => {
-            const infos = await this.api.toggle_behavior_playback();
-            this.update_ui(infos);
+            const behavior = await this.api.toggle_behavior_playback();
+            this.update(behavior);
         });
         this.attentionSpanSlider.addEventListener("change", () => {
             this.emit_params();
@@ -134,8 +137,6 @@ class Behavior extends Widget {
             this.update_attention_span_label(duration);
         });
 
-        const infos = await this.api.load_behavior_infos();
-        this.update_ui(infos);
     }
 
     /**
@@ -265,32 +266,33 @@ class Behavior extends Widget {
     /**
      * Update all UI elements from a behavior message.
      *
-     * @param {Object} infos Behavior info object.
+     * @param {Object} behavior Behavior info object.
      */
-    update_ui(infos) {
-        if (infos.id !== this.id) {
+    update(behavior) {
+        if (behavior.id !== this.id) {
+            console.log("Skipping behavior. Wrong id", behavior.id, "for this widget (id", this.id + ")!");
             return;
         }
 
-        this.playPauseBtn.innerHTML = infos.active ? "pause" : "play_arrow";
-        this.nowPlayingSpan.innerHTML = infos.lastPlayed;
-        this.update_attention_span_slider(infos.params.attentionSpan);
-        this.update_attention_span_label(infos.params.attentionSpan);
+        this.playPauseBtn.innerHTML = behavior.active ? "pause" : "play_arrow";
+        this.nowPlayingSpan.innerHTML = behavior.lastPlayed;
+        this.update_attention_span_slider(behavior.params.attentionSpan);
+        this.update_attention_span_label(behavior.params.attentionSpan);
         this.statesDiv.childNodes.forEach((stateDiv, nr) => {
-            const names = infos.params.motions[nr];
+            const names = behavior.params.motions[nr];
             const ul = stateDiv.querySelector("ul");
             ul.querySelectorAll("input[type='checkbox']").forEach(cb => {
                 cb.checked = names.includes(cb.name);
             });
             ul.querySelectorAll("label").forEach(label => {
-                if (label.innerHTML === infos.lastPlayed) {
+                if (label.innerHTML === behavior.lastPlayed) {
                     label.classList.add("now-playing-motion");
                 } else {
                     label.classList.remove("now-playing-motion");
                 }
             });
         });
-        this.mark_active_state(infos.active ? infos.state.value : -1);
+        this.mark_active_state(behavior.active ? behavior.state.value : -1);
     }
 
     /**
@@ -307,24 +309,29 @@ class Behavior extends Widget {
             });
             params.motions.push(selected);
         });
-        const infos = await this.api.send_behavior_params(params);
-        this.update_ui(infos);
+        const behavior = await this.api.send_behavior_params(params);
+        this.update(behavior);
     }
 
     /**
-     * New data message callback for web socket.
+     * New behavior message callback for web socket.
      *
      * @param {Object} msg Received message to process.
      */
-    async behavior_message(msg) {
-        this.update_ui(msg);
+    async new_behavior_message(msg) {
+        this.update(msg.behavior);
     }
 
+    /**
+     * New content changed message callback for web socket.
+     *
+     * @param {Object} msg ?
+     */
     async content_message(msg) {
         const names = Object.keys(msg.splines);
         this.populate_motions(names);
-        const infos = await this.api.load_behavior_infos();
-        this.update_ui(infos);
+        const behavior = await this.api.load_behavior();
+        this.update(behavior);
     }
 }
 

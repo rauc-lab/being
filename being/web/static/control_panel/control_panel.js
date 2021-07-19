@@ -112,7 +112,6 @@ class ControlPanel extends Widget {
     constructor() {
         super();
         this.api = new Api();
-        this.motors = {};
         this.console = null;
         this.notificationCenter = null;
         this.init_html_elements();
@@ -162,29 +161,23 @@ class ControlPanel extends Widget {
     }
 
     async connectedCallback() {
-        const motorInfos = await this.api.get_motor_infos();
-        this.new_motor_message(motorInfos)
+        // Initial data
+        const motors = await this.api.get_motor_infos();
+        this.update(motors);
 
+        // Connect event listerners
         this.powerBtn.addEventListener("click", async evt => {
-            let motorInfos = {};
+            let motors = [];
             if (is_checked(this.powerBtn)) {
-                motorInfos = await this.api.disable_motors();
+                motors = await this.api.disable_motors();
             } else {
-                motorInfos = await this.api.enable_motors();
+                motors = await this.api.enable_motors();
             }
-            this.new_motor_message(motorInfos);
+            this.update(motors);
         });
 
         this.homeBtn.addEventListener("click", () => {
             this.api.home_motors();
-        });
-
-        this.consoleBtn.addEventListener("click", evt => {
-            if (is_checked(this.consoleBtn)) {
-                this.collapse_console();
-            } else {
-                this.expand_console();
-            }
         });
 
         this.copyLogsToClipboardBtn.addEventListener("click", () => {
@@ -195,15 +188,28 @@ class ControlPanel extends Widget {
                 )
             }
         });
+
+        this.consoleBtn.addEventListener("click", () => {
+            if (is_checked(this.consoleBtn)) {
+                this.collapse_console();
+            } else {
+                this.expand_console();
+            }
+        });
     }
 
-    update() {
+    /**
+     * For new motor infos update widget.
+     *
+     * @param {Array} motors Current motor infos.
+     */
+    update(motors) {
         let enabled = true;
         let homing = 4;
-        for (const [motorId, motor] of Object.entries(this.motors)) {
+        motors.forEach(motor => {
             enabled &= motor.enabled;
             homing = Math.min(homing, motor.homing.value);
-        }
+        });
 
         if (enabled) {
             switch_button_on(this.powerBtn);
@@ -219,19 +225,17 @@ class ControlPanel extends Widget {
     /**
      * Process new motor update messages. These can be of type "motor-update"
      * or "motor-updates" for batch update of all motors.
+     * 
+     * @param {Object} msg Motor update message. Either for a single or multiple motors.
      */
     new_motor_message(msg) {
         if (msg.type === "motor-update") {
-            this.motors[msg.id] = msg;
+            this.update([msg.motor]);
         } else if (msg.type === "motor-updates") {
-            msg.motors.forEach(motor => {
-                this.motors[motor.id] = motor;
-            });
+            this.update(msg.motors);
         } else {
             throw "Unsupported message type: " + msg.type;
         }
-
-        this.update();
     }
 
     /**

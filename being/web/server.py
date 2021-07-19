@@ -1,5 +1,6 @@
 """Web server back end."""
 import asyncio
+import datetime
 import functools
 import logging
 import os
@@ -15,16 +16,15 @@ from being.config import  CONFIG
 from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
 from being.logging import BEING_LOGGERS, get_logger
-from being.motors import MOTOR_CHANGED, Motor
+from being.motors import MOTOR_CHANGED
 from being.sensors import Sensor
 from being.utils import filter_by_type
 from being.web.api import (
     behavior_controllers,
-    serialize_behavior,
     being_controller,
     content_controller,
+    messageify,
     misc_controller,
-    serialize_motor,
 )
 from being.web.web_socket import WebSocket
 
@@ -81,7 +81,7 @@ def init_api(being, ws: WebSocket) -> web.Application:
     api = web.Application()
 
 
-    def make_sender_func(obj, serializer=None):
+    def ws_emit(obj):
         """Function factory for creating callable sender task to emit the
         current state of an object via the web socket connection. Used for the
         PubSub pattern further down to register subscribers.
@@ -110,11 +110,7 @@ def init_api(being, ws: WebSocket) -> web.Application:
 
         The decision fell on the latter in order to protect posterity.
         """
-        if serializer:
-            return lambda: ws.send_json_buffered(serializer(obj))
-
-        return lambda: ws.send_json_buffered(obj)
-
+        return lambda: ws.send_json_buffered(messageify(obj))
 
     # Being
     api.add_routes(being_controller(being))
@@ -135,16 +131,25 @@ def init_api(being, ws: WebSocket) -> web.Application:
     # Behaviors
     api.add_routes(behavior_controllers(being.behaviors))
     for behavior in being.behaviors:
-        behavior.subscribe(BEHAVIOR_CHANGED, make_sender_func(behavior, serialize_behavior))
+        behavior.subscribe(BEHAVIOR_CHANGED, ws_emit(behavior))
         content.subscribe(CONTENT_CHANGED, behavior._purge_params)
 
     # Motors
     for motor in being.motors:
-        motor.subscribe(MOTOR_CHANGED, make_sender_func(motor, serialize_motor))
+        motor.subscribe(MOTOR_CHANGED, ws_emit(motor))
 
     wire_being_loggers_to_web_socket(ws)
 
     return api
+
+
+def which_year_is_it() -> int:
+    """Which year is it now?
+
+    Returns:
+        Year number.
+    """
+    return datetime.date.today().year
 
 
 def init_web_server(being) -> web.Application:
@@ -169,10 +174,8 @@ def init_web_server(being) -> web.Application:
     async def get_index(request):
         return {
             'version': BEING_VERSION_NUMBER,
-            'behaviors': [
-                serialize_behavior(behavior)
-                for behavior in being.behaviors
-            ],
+            'behaviors': being.behaviors,
+            'year': which_year_is_it(),
         }
 
     app.router.add_routes(routes)

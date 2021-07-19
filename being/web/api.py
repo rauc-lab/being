@@ -7,11 +7,13 @@ from typing import ForwardRef, Dict
 from aiohttp import web
 
 from being.behavior import State as BehaviorState, Behavior
+from being.connectables import ValueOutput
 from being.content import Content
 from being.logging import get_logger
 from being.motors import MOTOR_CHANGED, Motor, HomingState
 from being.serialization import loads, spline_from_dict, register_enum
 from being.spline import fit_spline
+from being.utils import filter_by_type
 from being.web.responses import respond_ok, json_response
 
 
@@ -28,65 +30,34 @@ Being = ForwardRef('Being')
 register_enum(HomingState)
 
 
-# TODO: Why not replacing serializer functions with proper serialization? Block.to_dict()...
+def messageify(obj) -> collections.OrderedDict:
+    """Serialize being objects and wrap them inside a message object.
 
+    Args:
+        obj: Some being object to send.
 
-def connected_motors(motionPlayer):
-    for output in motionPlayer.positionOutputs:
-        for input_ in output.outgoingConnections:
-            if isinstance(input_.owner, Motor):
-                yield input_.owner
+    Returns:
+        JSON serializable OrderedDict.
+    """
+    if isinstance(obj, Behavior):
+        return collections.OrderedDict([
+            ('type', 'behavior-update'),
+            ('behavior', obj),
+        ])
 
+    if isinstance(obj, Motor):
+        return collections.OrderedDict([
+            ('type', 'motor-update'),
+            ('motor', obj),
+        ])
 
-def serialize_behavior(behavior):
-    return {
-        'type': 'behavior-update',
-        'id': behavior.id,
-        'active': behavior.active,
-        'state': behavior.state,
-        'lastPlayed': behavior.lastPlayed,
-        'params': behavior._params,
-    }
+    if isinstance(obj, list) and all(isinstance(o, Motor) for o in obj):
+        return collections.OrderedDict([
+            ('type', 'motor-updates'),
+            ('motors', obj),
+        ])
 
-
-def serialize_motion_players(being):
-    """Return list of motion player / motors informations."""
-    for nr, mp in enumerate(being.motionPlayers):
-        actualOutputs = []
-        motors = []
-        lengths = []
-        for motor in connected_motors(mp):
-            motors.append(motor)
-            actualOutputs.append(motor.output)
-            lengths.append(motor.length)
-
-        yield {
-            'id': nr,
-            'actualValueIndices': [being.valueOutputs.index(out) for out in actualOutputs],
-            'lengths': lengths,
-            'ndim': mp.ndim,
-        }
-
-
-def serialize_motor(motor):
-    return collections.OrderedDict([
-        ('type', 'motor-update'),
-        ('id', motor.id),
-        ('motorType', type(motor).__name__),
-        #('length', motor.length),
-        ('enabled', motor.enabled()),
-        ('homing', motor.homing),
-    ])
-
-
-def serialize_motors(motors):
-    return collections.OrderedDict([
-        ('type', 'motor-updates'),
-        ('motors', [
-            serialize_motor(mot)
-            for mot in motors
-        ]),
-    ])
+    raise ValueError(f'Do not know how to messagiy {obj}!')
 
 
 def content_controller(content: Content) -> web.RouteTableDef:
@@ -172,9 +143,25 @@ def being_controller(being: Being) -> web.RouteTableDef:
     """
     routes = web.RouteTableDef()
 
+    @routes.get('/blocks')
+    async def get_blocks(request):
+        return json_response(being.blocks)
+
+    @routes.get('/blocks/{id}/index_of_value_outputs')
+    async def get_index_of_value_outputs(request):
+        id = int(request.match_info['id'])
+        try:
+            block = being.blocks[id]
+            return json_response([
+                being.valueOutputs.index(out)
+                for out in filter_by_type(block.outputs, ValueOutput)
+            ])
+        except KeyError:
+            return web.HTTPBadRequest(text=f'Unknown block with id {id}!')
+
     @routes.get('/motors')
     async def get_motors(request):
-        return json_response(serialize_motors(being.motors))
+        return json_response(being.motors)
 
     @routes.put('/motors/disable')
     async def disable_motors(request):
@@ -182,14 +169,14 @@ def being_controller(being: Being) -> web.RouteTableDef:
         for motor in being.motors:
             motor.disable(publish=False)
 
-        return json_response(serialize_motors(being.motors))
+        return json_response(being.motors)
 
     @routes.put('/motors/enable')
     async def enable_motors(request):
         for motor in being.motors:
             motor.enable(publish=False)
 
-        return json_response(serialize_motors(being.motors))
+        return json_response(being.motors)
 
     @routes.put('/motors/home')
     async def home_motors(request):
@@ -201,8 +188,7 @@ def being_controller(being: Being) -> web.RouteTableDef:
     @routes.get('/motionPlayers')
     async def get_motion_players(request):
         """Inform front end of available motion players / motors."""
-        infos = list(serialize_motion_players(being))
-        return json_response(infos)
+        return json_response(being.motionPlayers)
 
     @routes.post('/motionPlayers/{id}/play')
     async def start_spline_playback(request):
@@ -210,7 +196,7 @@ def being_controller(being: Being) -> web.RouteTableDef:
         being.pause_behaviors()
         id = int(request.match_info['id'])
         try:
-            mp = being.motionPlayers[id]
+            mp = being.blocks[id]
             dct = await request.json()
             spline = spline_from_dict(dct['spline'])
             startTime = mp.play_spline(spline, loop=dct['loop'], offset=dct['offset'])
@@ -232,7 +218,7 @@ def being_controller(being: Being) -> web.RouteTableDef:
         """Stop spline playback."""
         id = int(request.match_info['id'])
         try:
-            mp = being.motionPlayers[id]
+            mp = being.blocks[id]
             mp.stop()
             return respond_ok()
         except IndexError:
@@ -253,7 +239,7 @@ def being_controller(being: Being) -> web.RouteTableDef:
         id = int(request.match_info['id'])
         channel = int(request.match_info['channel'])
         try:
-            mp = being.motionPlayers[id]
+            mp = being.blocks[id]
             if mp.playing:
                 mp.stop()
 
@@ -288,10 +274,10 @@ def behavior_controllers(behaviors) -> web.RouteTableDef:
 
 
     @routes.get('/behaviors/{id}')
-    async def load_behavior_infos(request):
+    async def load_behavior(request):
         try:
             id = int(request.match_info['id'])
-            return json_response(serialize_behavior(behaviorLookup[id]))
+            return json_response(behaviorLookup[id])
         except (ValueError, KeyError):
             msg = f'Behavior with id {id} does not exist!'
             return web.HTTPBadRequest(text=msg)
@@ -306,8 +292,9 @@ def behavior_controllers(behaviors) -> web.RouteTableDef:
                 behavior.pause()
             else:
                 behavior.play()
+                behavior.update()  # Do one cycle so that we see which motion was last played
 
-            return json_response(serialize_behavior(behavior))
+            return json_response(behavior)
         except (ValueError, KeyError):
             msg = f'Behavior with id {id} does not exist!'
             return web.HTTPBadRequest(text=msg)
@@ -320,7 +307,7 @@ def behavior_controllers(behaviors) -> web.RouteTableDef:
             params = await request.json()
             behavior = behaviorLookup[id]
             behavior.params = params
-            return json_response(behavior.params)
+            return json_response(behavior)
         except json.JSONDecodeError:
             msg = f'Failed deserializing JSON behavior params!'
             return web.HTTPNotAcceptable(text=msg)

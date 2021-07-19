@@ -20,8 +20,9 @@ import numpy as np
 from numpy import ndarray
 from scipy.interpolate import PPoly, BPoly, CubicSpline
 
-from being.typing import Spline
+from being.block import Block
 from being.constants import EOT
+from being.typing import Spline
 
 
 NAMED_TUPLE_LOOKUP: Dict[str, type] = {}
@@ -224,6 +225,9 @@ class BeingEncoder(json.JSONEncoder):
 
         if objType is set:
             return {'type': set.__name__, 'values': list(o)}
+
+        if isinstance(o, Block):
+            return o.to_dict()
 
         return json.JSONEncoder.default(self, o)
 

@@ -238,3 +238,11 @@ class Behavior(Block, PubSub):
 
         if not playing:
             self.play_random_motion_for_current_state()
+
+    def to_dict(self):
+        dct = super().to_dict()
+        dct['active'] = self.active
+        dct['lastPlayed'] = self.lastPlayed
+        dct['params'] = self._params
+        dct['state'] = self.state
+        return dct

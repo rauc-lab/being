@@ -7,6 +7,14 @@ import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js
 
 
 export class Api {
+    async get_blocks() {
+        return get_json(API + "/blocks");
+    }
+
+    async get_index_of_value_outputs(id) {
+        return get_json(API + "/blocks/" + id + "/index_of_value_outputs");
+    }
+
     /**
      * Get current motor infos.
      */

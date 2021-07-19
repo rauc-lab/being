@@ -60,6 +60,16 @@ export class CurverBase extends Widget {
         this.trafoInv = new DOMMatrix();
         this.lines = [];
         this.colorPicker = cycle(COLORS);
+
+        this.graph = null;
+        this.canvas = null;
+        this.ctx = null;
+        this.svg = null;
+        this.splineGroup = null;
+        this.transportGroup = null;
+        this.backgroundGroup = null;
+        this.motionListDiv = null;
+
         this.init_elements();
     }
 
@@ -244,7 +254,6 @@ export class CurverBase extends Widget {
      * Draw all line artists.
      */
     draw_lines() {
-        //console.log("CurverBase.draw()");
         if (this.auto) {
             this.update_bbox();
             this.update_trafo();

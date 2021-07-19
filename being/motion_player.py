@@ -11,12 +11,13 @@ from typing import NamedTuple, Optional
 
 from scipy.interpolate import BPoly
 
-from being.behavior_tree import SUCCESS
-from being.block import Block
+from being.block import Block, output_neighbors
 from being.clock import Clock
 from being.content import Content
 from being.logging import get_logger
+from being.motors import Motor
 from being.spline import Spline, sample_spline, spline_shape
+from being.utils import filter_by_type
 
 
 """
@@ -43,6 +44,8 @@ def constant_spline(position=0, duration=1.) -> BPoly:
         Constant spline.
     """
     return BPoly(c=[[position]], x=[0., duration], extrapolate=True)
+
+
 
 
 class MotionCommand(NamedTuple):
@@ -170,6 +173,19 @@ class MotionPlayer(Block):
 
             if not self.looping and t >= self.spline.x[-1]:
                 self.stop()
+
+    def neighboring_motors(self):
+        for out in self.positionOutputs:
+            input_ = next(iter(out.connectedInputs))
+            if input_.owner:
+                yield input_.owner
+
+    def to_dict(self):
+        dct = super().to_dict()
+        dct['ndim'] = self.ndim
+        neighbors = output_neighbors(self)
+        dct['motors'] = list(filter_by_type(neighbors, Motor))
+        return dct
 
     def __str__(self):
         return type(self).__name__

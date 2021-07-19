@@ -56,6 +56,7 @@ from being.resources import register_resource
 
 MOTOR_CHANGED = 'MOTOR_CHANGED'
 
+
 class DriveError(BeingError):
 
     """Something went wrong on the drive."""
@@ -80,7 +81,6 @@ HomingRange = Tuple[int, int]
 MINIMUM_HOMING_WIDTH = 0.010
 """Minimum width of homing range for a successful homing."""
 
-LinearMotor = ForwardRef('LinearMotor')
 
 
 class HomingFailed(BeingError):
@@ -167,29 +167,40 @@ class Motor(Block, PubSub):
         PubSub.__init__(self, events=[MOTOR_CHANGED])
         self.homing = HomingState.UNHOMED
         self.homingJob = None
+        self._enabled = False
         self.add_value_input('targetPosition')
         self.add_value_output('actualPosition')
 
     @property
     def homed(self) -> bool:
+        """Is motor homed?"""
         return self.homing is HomingState.HOMED
 
     def enabled(self) -> bool:
+        """Is motor enabled?"""
         return self._enabled
 
     def enable(self, publish=True):
         """Engage motor. This is switching motor on and engaging its drive."""
+        self._enabled = True
         if publish:
             self.publish(MOTOR_CHANGED)
 
     def disable(self, publish=True):
         """Switch motor on."""
+        self._enabled = False
         if publish:
             self.publish(MOTOR_CHANGED)
 
     def home(self):
         """Start homing routine for this motor. Has then to be driven via the update() method."""
         self.publish(MOTOR_CHANGED)
+
+    def to_dict(self):
+        dct = super().to_dict()
+        dct['enabled'] = self.enabled()
+        dct['homing'] = self.homing
+        return dct
 
 
 class LinearMotor(Motor):
@@ -473,6 +484,11 @@ class LinearMotor(Motor):
 
         self.output.value = self.node.get_actual_position()
 
+    def to_dict(self):
+        dct = super().to_dict()
+        dct['length'] = self.length
+        return dct
+
 
 class RotaryMotor(Motor):
     def __init__(self, nodeId, *args, **kwargs):
@@ -496,7 +512,6 @@ class DummyMotor(Motor):
         self.state = KinematicState()
         self.dt = CONFIG['General']['INTERVAL']
         self.homing = HomingState.HOMED
-        self._enabled = True
 
     def dummy_homing(self, minDuration: float = 2., maxDuration: float = 5.) -> HomingProgress:
         duration = random.uniform(minDuration, maxDuration)
@@ -505,17 +520,6 @@ class DummyMotor(Motor):
             yield HomingState.ONGOING
 
         yield HomingState.HOMED
-
-    def enabled(self):
-        return self._enabled
-
-    def enable(self, publish=True):
-        self._enabled = True
-        super().enable(publish)
-
-    def disable(self, publish=True):
-        self._enabled = False
-        super().disable(publish)
 
     def home(self):
         self.homingJob = self.dummy_homing()
@@ -544,3 +548,8 @@ class DummyMotor(Motor):
         )
 
         self.output.value = self.state.position
+
+    def to_dict(self):
+        dct = super().to_dict()
+        dct['length'] = self.length
+        return dct

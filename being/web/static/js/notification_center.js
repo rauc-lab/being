@@ -83,8 +83,8 @@ export class NotificationCenter {
             const size = object_size(this.motorNames);
             this.motorNames[motor.id] = "Motor " + (size + 1) + " ";
         }
-        const prefix = this.motorNames[motor.id];
 
+        const prefix = this.motorNames[motor.id];
         const notis = this.motorNotifications;
         switch(motor.homing.value) {
             case 0:
@@ -104,7 +104,7 @@ export class NotificationCenter {
 
     new_motor_message(msg) {
         if (msg.type === "motor-update") {
-            this.process_motor(msg);
+            this.process_motor(msg.motor);
         } else if (msg.type === "motor-updates") {
             msg.motors.forEach(motor => this.process_motor(motor));
         } else {

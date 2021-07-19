@@ -4,20 +4,11 @@
  */
 import {remove_all_children, add_option} from "/static/js/utils.js";
 import {arange} from "/static/js/array.js";
+import {Api} from "/static/js/api.js";
 
 
 /** @const {number} - Nothing selected in HTML select yet */
 export const NOTHING_SELECTED = -1;
-
-/** @const {object} - Default motor info dictionary if nothing is selected */
-export const DEFAULT_MOTOR_INFOS = [
-    {
-        "id": -2,
-        "actualValueIndices": [0],
-        "length": [Infinity],
-        "ndim": 1,
-    },
-];
 
 
 /**
@@ -31,18 +22,28 @@ function dont_display_select_when_no_options(select) {
 
 
 export class MotorSelector {
-    constructor(editor) {
+    constructor(editor, mpSelect, channelSelect) {
         this.editor = editor;
-        this.motorSelect = null;
-        this.channelSelect = null;
-        this.motorInfos = [];
+        this.mpSelect = mpSelect;
+        this.channelSelect = channelSelect;
+        this.api = new Api();
+
+        this.motionPlayers = [];
+
+        this.mpSelect.addEventListener("change", () => {
+            this.update_channel_select();
+            this.editor.update_default_bbox();
+        });
+        this.channelSelect.addEventListener("change", () => {
+            this.editor.draw_current_spline();
+        });
     }
 
     /**
      * Disable UI components.
      */
     set disabled(value) {
-        this.motorSelect.disabled = value;
+        this.mpSelect.disabled = value;
         this.channelSelect.disabled = value;
     }
 
@@ -51,45 +52,38 @@ export class MotorSelector {
      */
     update_channel_select() {
         remove_all_children(this.channelSelect);
-        const motor = this.selected_motor_info();
-        arange(motor.ndim).forEach(dim => {
-            add_option(this.channelSelect, "Motor " + (dim + 1));  // TODO(atheler): Change back to "Curve " after ECAL workshop
+        const motionPlayer = this.selected_motion_player();
+        arange(motionPlayer.ndim).forEach(dim => {
+            add_option(this.channelSelect, "Curve " + (dim + 1));
         });
         dont_display_select_when_no_options(this.channelSelect);
-    }
-
-
-    /**
-     * Set MotorSelectors HTML selelct elements (indirect DI since selects are
-     * inside the toolbar).
-     *
-     * @param {HTMLElement} motorSelect HTML select element for motor selection.
-     * @param {HTMLElement} channelSelect HTML select element for motion channel selection.
-     */
-    attach_selects(motorSelect, channelSelect) {
-        this.motorSelect = motorSelect;
-        this.channelSelect = channelSelect;
-        motorSelect.addEventListener("change", () => {
-            this.update_channel_select();
-        });
-        channelSelect.addEventListener("change", () => {
-            this.editor.draw_current_spline();
-        });
+        this.editor.init_plotting_lines(motionPlayer.ndim);
     }
 
     /**
      * Populate select with the currently available motors.
      * 
-     * @param {Array} motorInfos List of motor info objects.
+     * @param {Array} motors List of motor info objects.
      */
-    populate(motorInfos) {
-        this.motorInfos = motorInfos;
-        remove_all_children(this.motorSelect);
-        motorInfos.forEach(motor => {
-            add_option(this.motorSelect, "Motor" + (motor.id + 1));
+    async populate(motionPlayers) {
+        this.motionPlayers = motionPlayers;
+        remove_all_children(this.mpSelect);
+        this.motionPlayers.forEach(async (mp, nr) => {
+            add_option(this.mpSelect, "Motor" + (nr + 1));  // TODO: This is a lie. It's a "Motion Player"
+
+            // TODO: Bit hacky. Find indices of the actual position value
+            // outputs of the connected motors.
+            mp.actualValueIndices = [];
+            mp.motors.forEach(async motor => {
+                const outs = await this.api.get_index_of_value_outputs(motor.id);
+                outs.forEach(out => {
+                    mp.actualValueIndices.push(out);
+                });
+            });
+
         });
 
-        dont_display_select_when_no_options(this.motorSelect);
+        dont_display_select_when_no_options(this.mpSelect);
         this.update_channel_select();
     }
 
@@ -98,8 +92,8 @@ export class MotorSelector {
      *
      * @returns {object} Motor info dictionary.
      */
-    selected_motor_info() {
-        return this.motorInfos[this.motorSelect.selectedIndex];
+    selected_motion_player() {
+        return this.motionPlayers[this.mpSelect.selectedIndex];
     }
 
     /**

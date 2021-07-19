@@ -1,6 +1,7 @@
 """Block base class.
 
 Some block related helpers."""
+import collections
 import functools
 import itertools
 from typing import List, ForwardRef, Generator, Union
@@ -252,3 +253,12 @@ class Block:
     def __ror__(self, output) -> Block:
         # Reverse operands. Maintain order.
         return pipe_operator(output, self)
+
+    def to_dict(self):
+        return collections.OrderedDict([
+            ('type', 'Block'),
+            ('blockType', type(self).__name__),
+            ('id', self.id),
+            ('inputNeighbors', [neighbor.id for neighbor in input_neighbors(self)]),
+            ('outputNeighbors', [neighbor.id for neighbor in output_neighbors(self)]),
+        ])

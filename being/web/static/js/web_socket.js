@@ -12,8 +12,11 @@ let NOTIFICATION_ID = 0;
  * function handler. Repeatedly try to reconnect if connection dead. Assumes
  * JSON data.
  *
- * @param url to fetch color data for panels from.
- * @param callbacks type name -> callback dictionary.
+ * @param url Web socket url to fetch data from.
+ * @param callbacks Message type name -> Callback functions.
+ * @param notificationCenter Notification instance to notify about web socket
+ *     down or up and running again.
+ * @param reconnectTimeout Reconnect timeout duration in seconds.
  */
 export function receive_from_websocket(url, callbacks, notificationCenter, reconnectTimeout=1.) {
     const sock = new WebSocket(url);
@@ -31,16 +34,22 @@ export function receive_from_websocket(url, callbacks, notificationCenter, recon
             func(msg);
         });
     };
-    sock.onerror = function(evt) {
+    sock.onerror = function() {
         sock.close();
     };
-    sock.onclose = function(evt) {
+    sock.onclose = function() {
         NOTIFICATION_ID = notificationCenter.notify_persistent(
             "Being offline",
             "error",
             0,
             NOTIFICATION_ID,
         );
-        window.setTimeout(receive_from_websocket, reconnectTimeout*MS, url, callbacks, notificationCenter);
+        window.setTimeout(
+            receive_from_websocket,
+            reconnectTimeout * MS,
+            url,
+            callbacks,
+            notificationCenter,
+        );
     };
 }

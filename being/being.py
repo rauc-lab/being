@@ -55,12 +55,12 @@ class Being:
         self.network = network
         self.graph = block_network_graph(blocks)
         self.execOrder = topological_sort(self.graph)
-        self.motors = list(filter_by_type(self.execOrder, Motor))
-        self.motionPlayers = list(filter_by_type(self.execOrder, MotionPlayer))
+
+        self.blocks = { block.id: block for block in self.execOrder }
         self.valueOutputs = list(value_outputs(self.execOrder))
         self.behaviors = list(filter_by_type(self.execOrder, Behavior))
-        if self.network is not None:
-            self.execOrder.append(self.network)
+        self.motionPlayers = list(filter_by_type(self.execOrder, MotionPlayer))
+        self.motors = list(filter_by_type(self.execOrder, Motor))
 
     def start_behaviors(self):
         """Start all behaviors."""
@@ -82,6 +82,9 @@ class Being:
     def single_cycle(self):
         """Execute single cycle of block networks."""
         execute(self.execOrder)
+        if self.network:
+            self.network.update()
+
         self.clock.step()
 
     def run(self):

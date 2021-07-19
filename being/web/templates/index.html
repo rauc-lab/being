@@ -31,8 +31,8 @@
     {% if behaviors %}
         <a class="anchor" id="behavior-anchor"></a>
         <h1>Behavior</h1>
-        {% for info in behaviors %}
-            <being-behavior behaviorId={{info.id}}></being-behavior>
+        {% for behavior in behaviors %}
+            <being-behavior behaviorId={{behavior.id}}></being-behavior>
         {% endfor %}
     {% endif %}
 
@@ -41,10 +41,10 @@
     <being-editor id="editor"></being-editor>
 
     <script type="module">
-        import { WS_ADDRESS } from "/static/js/config.js";
-        import { receive_from_websocket } from "/static/js/web_socket.js";
-        import { defaultdict } from "/static/js/utils.js";
-        import { NotificationCenter } from "/static/js/notification_center.js";
+        import {WS_ADDRESS} from "/static/js/config.js";
+        import {receive_from_websocket} from "/static/js/web_socket.js";
+        import {defaultdict} from "/static/js/utils.js";
+        import {NotificationCenter} from "/static/js/notification_center.js";
 
         const notificationCenter = new NotificationCenter(alertify);
 
@@ -61,14 +61,14 @@
         }
 
         for (let behavior of document.getElementsByTagName("being-behavior")) {
-            callbacks["behavior-update"].push(msg => behavior.behavior_message(msg));
+            callbacks["behavior-update"].push(msg => behavior.new_behavior_message(msg));
             callbacks["motions"].push(msg => behavior.content_message(msg));
             callbacks["sensor-message"].push(() => behavior.pulse_led());
         }
 
         for (let editor of document.getElementsByTagName("being-editor")) {
             callbacks["output-values"].push(msg => editor.new_data(msg));
-            callbacks["behavior-update"].push(msg => editor.behavior_message(msg));
+            callbacks["behavior-update"].push(msg => editor.new_behavior_message(msg));
         }
 
         receive_from_websocket(WS_ADDRESS, callbacks, notificationCenter);
@@ -77,6 +77,6 @@
 
 {% block footer %}
 <footer style="text-align: center;">
-    Being {{version}}. Escaped from <a href="http://rauc.ethz.ch">RAUC</a> LAB © 2021
+    PATHOS Being {{version}}. Escaped from <a href="http://rauc.ethz.ch">RAUC</a> lab © {{year}}
 </footer>
 {% endblock %}
