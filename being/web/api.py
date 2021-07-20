@@ -331,7 +331,7 @@ def motion_player_controllers(motionPlayers, behaviors) -> web.RouteTableDef:
     return routes
 
 
-def motor_controllers(motors, behaviors)  -> web.RouteTableDef:
+def motor_controllers(motors, behaviors, motionPlayers)  -> web.RouteTableDef:
     """API routes for motors. Also needs to know about behaviors. To pause them
     on some actions.
 
@@ -345,15 +345,20 @@ def motor_controllers(motors, behaviors)  -> web.RouteTableDef:
     """
     routes = web.RouteTableDef()
 
+    def pause_others():
+        for behavior in behaviors:
+            behavior.pause()
+
+        for mp in motionPlayers:
+            mp.stop()
+
     @routes.get('/motors')
     async def get_motors(request):
         return json_response(motors)
 
     @routes.put('/motors/disable')
     async def disable_motors(request):
-        for behavior in behaviors:
-            behavior.pause()
-
+        pause_others()
         for motor in motors:
             motor.disable(publish=False)
 
@@ -368,6 +373,7 @@ def motor_controllers(motors, behaviors)  -> web.RouteTableDef:
 
     @routes.put('/motors/home')
     async def home_motors(request):
+        pause_others()
         for motor in motors:
             motor.home()
 
