@@ -1,4 +1,4 @@
-from being.being import awake
+from being.awakening import awake
 from being.motion_player import MotionPlayer
 from being.motors import LinearMotor
 from being.resources import manage_resources

@@ -1,7 +1,7 @@
 #!/usr/local/python3
 """Being for ECAL workshop May 2021."""
 from being.behavior import Behavior
-from being.being import awake
+from being.awakening import awake
 from being.logging import setup_logging
 from being.motion_player import MotionPlayer
 from being.motors import LinearMotor

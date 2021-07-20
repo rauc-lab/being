@@ -1,4 +1,4 @@
-"""Awaking a being to live. Main start execution entry point."""
+"""Being object. Encapsulates the various blocks for a given programm."""
 import asyncio
 import os
 import signal
@@ -18,15 +18,9 @@ from being.logging import get_logger
 from being.motion_player import MotionPlayer
 from being.motors import Motor
 from being.utils import filter_by_type
-from being.web.server import init_web_server, run_web_server, init_api
-from being.web.web_socket import WebSocket
 
 
 INTERVAL = CONFIG['General']['INTERVAL']
-API_PREFIX = CONFIG['Web']['API_PREFIX']
-WEB_SOCKET_ADDRESS = CONFIG['Web']['WEB_SOCKET_ADDRESS']
-FILE_LOGGING = bool(CONFIG['Logging']['DIRECTORY'])
-LOGGER = get_logger(__name__)
 
 
 def value_outputs(blocks):
@@ -51,12 +45,12 @@ class Being:
         Kwargs:
             network: CanBackend instance (if any).
         """
+        self.logger = get_logger('Being')
         self.clock = clock
         self.network = network
         self.graph = block_network_graph(blocks)
         self.execOrder = topological_sort(self.graph)
 
-        self.blocks = { block.id: block for block in self.execOrder }
         self.valueOutputs = list(value_outputs(self.execOrder))
         self.behaviors = list(filter_by_type(self.execOrder, Behavior))
         self.motionPlayers = list(filter_by_type(self.execOrder, MotionPlayer))
@@ -93,7 +87,7 @@ class Being:
 
         def exit_gracefully(signum, frame):
             """Exit main loop gracefully."""
-            LOGGER.info('Graceful exit (signum %r)', signum)
+            self.logger.info('Graceful exit (signum %r)', signum)
             nonlocal running
             running = False
 
@@ -121,88 +115,3 @@ class Being:
             await asyncio.sleep(max(0, INTERVAL - (then - now)))
 
 
-async def send_being_state_to_front_end(being: Being, ws: WebSocket):
-    """Keep capturing the current being state and send it to the front-end.
-    Taken out from ex being._run_web() because web socket send might block our
-    main loop.
-    """
-    while True:
-        await ws.send_json({
-            'type': 'output-values',
-            'timestamp': being.clock.now(),
-            'values': being.capture_value_outputs()
-        })
-        await asyncio.sleep(2 * INTERVAL)
-
-
-def awake(*blocks, web: bool = True, clock: Optional[Clock] = None, network: Optional[CanBackend] = None):
-    """Run being block network.
-
-    Args:
-        blocks: Some blocks of the network.
-
-    Kwargs:
-        web: Run with web server.
-        clock: Clock instance.
-        network: CanBackend instance.
-    """
-    if clock is None:
-        clock = Clock.single_instance_setdefault()
-
-    if network is None:
-        network = CanBackend.single_instance_get()
-
-    being = Being(blocks, clock, network)
-    for motor in being.motors:
-        motor.enable()
-        motor.home()
-
-    try:
-        if not web:
-            return being.run()
-
-        asyncio.run(_awake_web(being))
-    except Exception as err:
-        LOGGER.fatal(err, exc_info=True)
-        # TODO(atheler): Log and throw anti pattern but we always want to see
-        # the error in stderr
-        raise
-
-
-def cancel_all_tasks():
-    """Shutdown all async tasks.
-
-    Resrouces:
-      https://gist.github.com/nvgoldin/30cea3c04ee0796ebd0489aa62bcf00a
-    """
-    LOGGER.info('Cancelling all async tasks')
-    for task in asyncio.all_tasks():
-        task.cancel()
-
-
-async def _awake_web(being):
-    """Run being with web server."""
-    app = init_web_server(being)
-    ws = WebSocket()
-    app.router.add_get(WEB_SOCKET_ADDRESS, ws.handle_web_socket)
-    app.on_shutdown.append(ws.close_all)
-    api = init_api(being, ws)
-    app.add_subapp(API_PREFIX, api)
-    if os.name == 'posix':
-        loop = asyncio.get_running_loop()
-        loop.add_signal_handler(signal.SIGTERM, cancel_all_tasks)
-    else:
-        warnings.warn((
-            'No signals available on your OS. Can not register SIGTERM'
-            ' signal for graceful program exit'
-    ))
-
-    try:
-        await asyncio.gather(
-            being.run_async(),
-            send_being_state_to_front_end(being, ws),
-            run_web_server(app),
-            ws.run_broker(),
-        )
-    except asyncio.CancelledError:
-        pass

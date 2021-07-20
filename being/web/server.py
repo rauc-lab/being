@@ -25,6 +25,8 @@ from being.web.api import (
     content_controller,
     messageify,
     misc_controller,
+    motion_player_controllers,
+    motor_controllers,
 )
 from being.web.web_socket import WebSocket
 
@@ -134,7 +136,11 @@ def init_api(being, ws: WebSocket) -> web.Application:
         behavior.subscribe(BEHAVIOR_CHANGED, ws_emit(behavior))
         content.subscribe(CONTENT_CHANGED, behavior._purge_params)
 
+    # Motion players
+    api.add_routes(motion_player_controllers(being.motionPlayers, being.behaviors))
+
     # Motors
+    api.add_routes(motor_controllers(being.motors, being.behaviors))
     for motor in being.motors:
         motor.subscribe(MOTOR_CHANGED, ws_emit(motor))
 

@@ -1,6 +1,6 @@
 #!/usr/local/python3
 """Slow Sine movement on the motors."""
-from being.being import awake
+from being.awakening import awake
 from being.blocks import Sine, Trafo
 from being.motors import LinearMotor
 from being.resources import manage_resources

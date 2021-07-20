@@ -2,7 +2,7 @@ import time
 import logging
 
 from being.behavior import Behavior
-from being.being import awake
+from being.awakening import awake
 from being.logging import setup_logging
 from being.logging import suppress_other_loggers
 from being.motion_player import MotionPlayer
