@@ -5,10 +5,11 @@ complicated but we do this so that we can move blocking aspects to the caller
 and home multiple motors / nodes in parallel. This results in quasi coroutines.
 We do not use asyncio because we want to keep the core async free for now.
 """
-from typing import Optional, Generator, Tuple, ForwardRef
 import enum
 import random
 import time
+import warnings
+from typing import Optional, Generator, Tuple
 
 from being.backends import CanBackend
 from being.block import Block
@@ -80,7 +81,6 @@ HomingRange = Tuple[int, int]
 
 MINIMUM_HOMING_WIDTH = 0.010
 """Minimum width of homing range for a successful homing."""
-
 
 
 class HomingFailed(BeingError):
@@ -156,6 +156,66 @@ def _align_in_the_middle(lower: int, upper: int, length: int) -> HomingRange:
 
     margin = (width - length) // 2
     return lower + margin, upper - margin
+
+
+def proper_homing(
+        node: CiA402Node,
+        homingMethod: int,
+        maxSpeed: float = 0.100,
+        maxAcc: float = 1.,
+        timeout: float = 3.,
+    ) -> HomingProgress:
+    """Proper CiA 402 homing."""
+    homed = False
+
+    warnings.warn('Proper homing is untested by now. Use at your own risk!')
+
+    with node.restore_states_and_operation_mode():
+        node.change_state(CiA402State.READY_TO_SWITCH_ON)
+        node.set_operation_mode(OperationMode.HOMING)
+        node.nmt.state = OPERATIONAL
+        node.change_state(CiA402State.OPERATION_ENABLE)
+
+        # TODO: Set Homing Switch(Objekt 0x2310). Manufacture dependent
+        # node.sdo['Homing Switch'] = ???
+        node.sdo[HOMING_OFFSET].raw = 0
+        node.sdo[HOMING_METHOD].raw = homingMethod
+        node.sdo[HOMING_SPEED].raw = abs(maxSpeed * node.units.speed)
+        node.sdo[HOMING_ACCELERATION].raw = abs(maxAcc * node.units.speed)
+
+        # Start homing
+        node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
+        startTime = time.perf_counter()
+        endTime = startTime + timeout
+
+        # Check if homing started (statusword bit 10 and 12 zero)
+        homingStarted = False
+        while not homingStarted and (time.perf_counter() < endTime):
+            yield HomingState.ONGOING
+            sw = node.sdo[STATUSWORD].raw
+            homingStarted = (not (sw & SW.TARGET_REACHED) and not (sw & SW.HOMING_ATTAINED))
+
+        # Check if homed (statusword bit 10 and 12 one)
+        while not homed and (time.perf_counter() < endTime):
+            yield HomingState.ONGOING
+            sw = node.sdo[STATUSWORD].raw
+            homed = (sw & SW.TARGET_REACHED) and (sw & SW.HOMING_ATTAINED)
+
+        #node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION  # Abort homing
+        node.sdo[CONTROLWORD].raw = 0  # Abort homing
+
+    if homed:
+        #lower = node.sdo[SOFTWARE_POSITION_LIMIT][1].raw
+        #node.sdo[HOMING_OFFSET].raw = lower
+        #node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
+        #node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = self.length * self.node.units.length
+        #print(self, 'HOMING_OFFSET:', node.sdo[HOMING_OFFSET].raw)
+        #print('SOFTWARE_POSITION_LIMIT:', node.sdo[SOFTWARE_POSITION_LIMIT][1].raw)
+        #print('SOFTWARE_POSITION_LIMIT:', node.sdo[SOFTWARE_POSITION_LIMIT][2].raw)
+        #node.sdo[HOMING_OFFSET].raw = 0
+        yield HomingState.HOMED
+    else:
+        yield HomingState.FAILED
 
 
 class Motor(Block, PubSub):
@@ -402,45 +462,6 @@ class LinearMotor(Motor):
 
         yield HomingState.HOMED
 
-    def end_switch_homing(self,
-              homingMethod: int,
-              maxSpeed: float = 0.050,
-              maxAcc: float = 1.,
-              relMargin: float = 0.01,
-              timeout: float = 5.,
-        ) -> HomingProgress:
-
-        raise NotImplementedError('Make me!')
-
-        node = self.node
-        with node.restore_states_and_operation_mode():
-            node.change_state(CiA402State.READY_TO_SWITCH_ON)
-            node.set_operation_mode(OperationMode.HOMING)
-            node.nmt.state = OPERATIONAL
-            node.change_state(CiA402State.OPERATION_ENABLE)
-
-            # TODO: Set Homing Switch(Objekt 0x2310). Manufacture dependent
-            # node.sdo['Homing Switch'] = ???
-            node.sdo[HOMING_METHOD] = homingMethod
-            node.sdo[HOMING_SPEED] = abs(maxSpeed * node.units.speed)
-            node.sdo[HOMING_ACCELERATION] = abs(maxAcc * node.units.speed)
-
-            node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
-            homed = False
-
-            # TODO: Check statusword bit 10 and 12 zero
-            endTime = time.perf_counter() + timeout
-            while (time.perf_counter() < endTime) and not homed:
-                yield HomingState.ONGOING
-                sw = node.sdo[STATUSWORD].raw
-                homed = (sw & SW.TARGET_REACHED) and (sw & SW.HOMING_ATTAINED)
-
-            if homed:
-                yield HomingState.HOMED
-            else:
-                node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION  # Abort homing
-                yield HomingState.FAILED
-
     def enabled(self):
         sw = self.node.sdo['Statusword'].raw  # This takes approx. 2.713 ms
         state = which_state(sw)
@@ -456,6 +477,11 @@ class LinearMotor(Motor):
 
     def home(self):
         self.homingJob = self.crude_homing()
+        #if self.homingDirection > 0:
+        #    self.homingJob = proper_homing(self.node, homingMethod=34)
+        #else:
+        #    self.homingJob = proper_homing(self.node, homingMethod=33)
+
         self.homing = HomingState.ONGOING
         self.publish(MOTOR_CHANGED)
 
@@ -488,6 +514,9 @@ class LinearMotor(Motor):
         dct = super().to_dict()
         dct['length'] = self.length
         return dct
+
+    def __str__(self):
+        return f'{type(self).__name__}(nodeId: {self.nodeId!r})'
 
 
 class RotaryMotor(Motor):
