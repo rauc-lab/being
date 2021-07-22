@@ -175,7 +175,10 @@ def being_controller(being: Being) -> web.RouteTableDef:
         # ELK style graph object
         graph = collections.OrderedDict([
             ('children', [
-                {'id': block.id}
+                {
+                    'id': block.id,
+                    'name': str(type(block).__name__),
+                }
                 for block in being.graph.vertices
             ]),
             ('edges', [

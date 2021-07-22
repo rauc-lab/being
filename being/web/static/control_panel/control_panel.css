@@ -1,3 +1,10 @@
+:host .container {
+    border-top: 2px solid black;
+}
+:host .container svg {
+    position: relative;
+}
+
 :host ul.console {
     margin: 0;
     padding: 0 1em 1em 1em;
@@ -6,7 +13,7 @@
     overflow: hidden;
     overflow-y: scroll;
     list-style: none;
-    border-top: 2px solid black;
+    border-left: 2px solid black;
 }
 
 @keyframes pulsating-black {

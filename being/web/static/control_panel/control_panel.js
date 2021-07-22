@@ -5,6 +5,7 @@ import {Api} from "/static/js/api.js";
 import {Widget} from "/static/js/widget.js";
 import {get_color} from "/static/js/color_map.js";
 import {switch_button_on, switch_button_off, is_checked} from "/static/js/button.js";
+import {draw_block_diagram} from "/static/control_panel/block_diagram.js";
 
 
 /** Maximum log level. */
@@ -108,6 +109,14 @@ class Console {
 }
 
 
+const CONTROL_PANEL_TEMPLATE = document.createElement("template");
+CONTROL_PANEL_TEMPLATE.innerHTML = `
+<div class="container">
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+    <ul id="console" class="console"></ul>
+</div>
+`;
+
 class ControlPanel extends Widget {
     constructor() {
         super();
@@ -125,6 +134,8 @@ class ControlPanel extends Widget {
     init_html_elements() {
         this._append_link("static/control_panel/control_panel.css");
 
+        this.add_template(CONTROL_PANEL_TEMPLATE);
+
         // Toolbar
         this.powerBtn = this.add_button_to_toolbar("power_settings_new", "Turn motors on / off");
         this.homeBtn = this.add_button_to_toolbar("home", "Home motors");
@@ -135,12 +146,8 @@ class ControlPanel extends Widget {
         this.consoleBtn.style.marginRight = "-2px";
         switch_button_on(this.consoleBtn);
 
-
-
         // Console
-        this.consoleList = document.createElement("ul");
-        this.consoleList.classList.add("console");
-        this.shadowRoot.appendChild(this.consoleList);
+        this.consoleList = this.shadowRoot.getElementById("console");
         this.console = new Console(this.consoleList);
     }
 
@@ -168,6 +175,7 @@ class ControlPanel extends Widget {
         this.update(motors);
 
         const graph = await this.api.get_graph();
+        draw_block_diagram(this.shadowRoot.getElementById("svg"), graph);
 
         // Connect event listerners
         this.powerBtn.addEventListener("click", async evt => {
