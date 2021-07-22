@@ -16,6 +16,15 @@ export class Api {
     }
 
     /**
+     * Get graph of block network.
+     *
+     * @returns Graph object.
+     */
+    async get_graph() {
+        return get_json(API + "/graph");
+    }
+
+    /**
      * Get current motor infos.
      */
     async get_motor_infos() {

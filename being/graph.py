@@ -79,8 +79,8 @@ class Graph(collections.namedtuple('Graph', ['vertices', 'edges', 'successors', 
     """Immutable graph.
 
     The graph vertices can be any hashable Python object. An edge is a source ->
-    destination tuple. A graph is a tuple of a vertex and a edges sets. We use
-    tuples instead of set to preserve order.
+    destination tuple. A graph is a tuple of a vertex and a edges sets. Tuples
+    instead of sets to preserve order.
 
     Attributes:
         vertices: Graph vertices.

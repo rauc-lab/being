@@ -135,6 +135,8 @@ class ControlPanel extends Widget {
         this.consoleBtn.style.marginRight = "-2px";
         switch_button_on(this.consoleBtn);
 
+
+
         // Console
         this.consoleList = document.createElement("ul");
         this.consoleList.classList.add("console");
@@ -164,6 +166,8 @@ class ControlPanel extends Widget {
         // Initial data
         const motors = await this.api.get_motor_infos();
         this.update(motors);
+
+        const graph = await this.api.get_graph();
 
         // Connect event listerners
         this.powerBtn.addEventListener("click", async evt => {

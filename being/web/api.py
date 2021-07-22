@@ -170,6 +170,24 @@ def being_controller(being: Being) -> web.RouteTableDef:
         except KeyError:
             return web.HTTPBadRequest(text=f'Unknown block with id {id}!')
 
+    @routes.get('/graph')
+    async def get_graph(request):
+        # ELK style graph object
+        graph = collections.OrderedDict([
+            ('children', [
+                {'id': block.id}
+                for block in being.graph.vertices
+            ]),
+            ('edges', [
+                {
+                    'id': 'edge ' + str(edgeNr),
+                    'sources': [src.id],
+                    'targets': [dst.id],
+                }
+                for edgeNr, (src, dst) in enumerate(being.graph.edges)
+            ]),
+        ])
+        return json_response(graph)
 
     return routes
 
