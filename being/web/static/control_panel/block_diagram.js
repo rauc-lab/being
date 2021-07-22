@@ -223,6 +223,10 @@ export async function draw_block_diagram(svg, graph) {
             const line = draw_curvy_line(svg, start, startDir, end, endDir);
 
             setattr(line, "marker-end", "url(#arrowhead)");
+
+            if (edge.connectionType === "message") {
+                setattr(line, "stroke-dasharray", "5,5");
+            }
         });
     });
 

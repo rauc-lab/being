@@ -1,5 +1,6 @@
 """API calls / controller for communication between front end and being components."""
 import collections
+import itertools
 import json
 import math
 from typing import Dict
@@ -8,7 +9,7 @@ from aiohttp import web
 
 from being.behavior import State as BehaviorState, Behavior
 from being.being import Being
-from being.connectables import ValueOutput
+from being.connectables import ValueOutput, _ValueContainer
 from being.content import Content
 from being.logging import get_logger
 from being.motors import Motor, HomingState
@@ -130,6 +131,45 @@ def content_controller(content: Content) -> web.RouteTableDef:
     return routes
 
 
+def serialize_elk_graph(blocks):
+    """Serialize blocks to ELK style graph dict serialization."""
+    # Why yet another graph serialization? Because of edge connection type and
+    # double edges. For execOrder double edges do not matter, but they do for
+    # the block diagram
+    # ELK style graph object
+    elkGraph = collections.OrderedDict([
+        ('id', 'root'),
+        ('children', []),
+        ('edges', []),
+    ])
+    queue = collections.deque(blocks)
+    visited = set()
+    edgeIdCounter = itertools.count()
+    while queue:
+        block = queue.popleft()
+        if block in visited:
+            continue
+
+        visited.add(block)
+        elkGraph['children'].append({
+            'id': block.id,
+            'name': type(block).__name__,
+        })
+
+        for output in block.outputs:
+            connectionType = 'value' if isinstance(output, _ValueContainer) else 'message'
+            for input_ in output.outgoingConnections:
+                if input_.owner and input_.owner is not block:
+                    elkGraph['edges'].append({
+                        'id': 'edge %d' % next(edgeIdCounter),
+                        'connectionType': connectionType,
+                        'sources': [block.id],
+                        'targets': [input_.owner.id],
+                    })
+
+    return elkGraph
+
+
 def being_controller(being: Being) -> web.RouteTableDef:
     """API routes for being object.
 
@@ -172,25 +212,8 @@ def being_controller(being: Being) -> web.RouteTableDef:
 
     @routes.get('/graph')
     async def get_graph(request):
-        # ELK style graph object
-        graph = collections.OrderedDict([
-            ('children', [
-                {
-                    'id': block.id,
-                    'name': str(type(block).__name__),
-                }
-                for block in being.graph.vertices
-            ]),
-            ('edges', [
-                {
-                    'id': 'edge ' + str(edgeNr),
-                    'sources': [src.id],
-                    'targets': [dst.id],
-                }
-                for edgeNr, (src, dst) in enumerate(being.graph.edges)
-            ]),
-        ])
-        return json_response(graph)
+        elkGraph = serialize_elk_graph(being.execOrder)
+        return json_response(elkGraph)
 
     return routes
 
