@@ -130,7 +130,7 @@ function curvy_path(start, startDir, end, endDir) {
 }
 
 
-function attach_moving_dot_animation(svg, start, d, duration=0.4) {
+function attach_moving_dot_animation(svg, d, duration=0.4) {
     const circle = create_element("circle");
     setattr(circle, "r", 5);
     setattr(circle, "fill", "red");
@@ -150,6 +150,7 @@ function attach_moving_dot_animation(svg, start, d, duration=0.4) {
     setattr(opacityAnim, "fill", "freeze");
     setattr(opacityAnim, "keyTimes", "0; .5; 1");
     setattr(opacityAnim, "values", "0; 1; 0");
+
     circle.appendChild(opacityAnim);
     svg.appendChild(circle);
 
@@ -220,7 +221,10 @@ export async function draw_block_diagram(svg, graph) {
     layout.children.forEach(child => {
         draw_block(svg, child);
     });
-    layout.edges.forEach((edge, nr) => {
+
+    const messageConnections = [];
+
+    layout.edges.forEach(edge => {
         edge.sections.forEach(section => {
             const start = pt_to_array(section.startPoint);
             const end = pt_to_array(section.endPoint);
@@ -235,12 +239,17 @@ export async function draw_block_diagram(svg, graph) {
             setattr(path, "d", d);
             setattr(path, "fill", "none");
             setattr(path, "stroke", "black");
-            setattr(path, "marker-end", "url(#arrowhead)");
             setattr(path, "stroke-width", STROKE_WIDTH);
             if (edge.connectionType === "message") {
                 setattr(path, "stroke-dasharray", "5,5");
-                const anim = attach_moving_dot_animation(svg, start, d);
-                //setInterval(() => { anim.trigger(); }, 1000);
+                const anim = attach_moving_dot_animation(svg, d);
+                messageConnections.push({
+                    "index": edge.index,
+                    "trigger": anim.trigger,
+                });
+            } else {
+                //setattr(path, "marker-end", "url(#arrowhead)");
+                //connections.push({ "index": edge.index, "path": path, });
             }
         });
     });
@@ -248,4 +257,6 @@ export async function draw_block_diagram(svg, graph) {
     // Adjust viewBox
     const viewBox = [layout.x, layout.y, layout.width, layout.height].join(" ");
     setattr(svg, "viewBox", viewBox);
+
+    return messageConnections;
 }

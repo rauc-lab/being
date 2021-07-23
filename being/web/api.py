@@ -132,7 +132,7 @@ def content_controller(content: Content) -> web.RouteTableDef:
     return routes
 
 
-def serialize_elk_graph(blocks):
+def serialize_elk_graph(being):
     """Serialize blocks to ELK style graph dict serialization."""
     # Why yet another graph serialization? Because of edge connection type and
     # double edges. For execOrder double edges do not matter, but they do for
@@ -143,7 +143,7 @@ def serialize_elk_graph(blocks):
         ('children', []),
         ('edges', []),
     ])
-    queue = collections.deque(blocks)
+    queue = collections.deque(being.execOrder)
     visited = set()
     edgeIdCounter = itertools.count()
     while queue:
@@ -158,11 +158,18 @@ def serialize_elk_graph(blocks):
         })
 
         for output in block.outputs:
-            connectionType = 'value' if isinstance(output, _ValueContainer) else 'message'
+            if isinstance(output, _ValueContainer):
+                connectionType = 'value'
+                index = being.valueOutputs.index(output)
+            else:
+                connectionType = 'message'
+                index = being.messageOutputs.index(output)
+
             for input_ in output.outgoingConnections:
                 if input_.owner and input_.owner is not block:
                     elkGraph['edges'].append({
                         'id': 'edge %d' % next(edgeIdCounter),
+                        'index': index,
                         'connectionType': connectionType,
                         'sources': [block.id],
                         'targets': [input_.owner.id],
@@ -213,7 +220,7 @@ def being_controller(being: Being) -> web.RouteTableDef:
 
     @routes.get('/graph')
     async def get_graph(request):
-        elkGraph = serialize_elk_graph(being.execOrder)
+        elkGraph = serialize_elk_graph(being)
         return json_response(elkGraph)
 
     @routes.get('/config')

@@ -25,6 +25,7 @@ export class ControlPanel extends Widget {
         this.notificationCenter = null;
         this.init_html_elements();
         this.collapse_console();
+        this.messageConnections = [];
     }
 
     set_notification_center(notificationCenter) {
@@ -75,7 +76,7 @@ export class ControlPanel extends Widget {
         this.update(motors);
 
         const graph = await this.api.get_graph();
-        draw_block_diagram(this.shadowRoot.getElementById("svg"), graph);
+        this.messageConnections = await draw_block_diagram(this.shadowRoot.getElementById("svg"), graph);
 
         // Connect event listerners
         this.powerBtn.addEventListener("click", async evt => {
@@ -155,5 +156,15 @@ export class ControlPanel extends Widget {
      */
     new_log_message(msg) {
         this.console.new_log_message(msg);
+    }
+
+
+    new_outputs_message(msg) {
+        this.messageConnections.forEach(con => {
+            const ms = msg.messages[con.index];
+            if (ms.length) {
+                con.trigger();
+            }
+        })
     }
 }

@@ -64,6 +64,7 @@
             callbacks["motor-update"].push(msg => controlPanel.new_motor_message(msg));
             callbacks["motor-updates"].push(msg => controlPanel.new_motor_message(msg));
             callbacks["log"].push(msg => controlPanel.new_log_message(msg));
+            callbacks["being-state"].push(msg => controlPanel.new_outputs_message(msg));
         }
 
         for (let behavior of document.getElementsByTagName("being-behavior")) {
@@ -73,7 +74,7 @@
         }
 
         for (let editor of document.getElementsByTagName("being-editor")) {
-            callbacks["output-values"].push(msg => editor.new_data(msg));
+            callbacks["outputs"].push(msg => editor.new_data(msg));
             callbacks["behavior-update"].push(msg => editor.new_behavior_message(msg));
         }
 

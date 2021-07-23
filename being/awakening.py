@@ -10,8 +10,9 @@ from being.backends import CanBackend
 from being.being import Being
 from being.clock import Clock
 from being.config import CONFIG
+from being.connectables import MessageInput
 from being.logging import get_logger
-from being.web.server import init_web_server, init_api, run_web_server
+from being.web.server import init_web_server, run_web_server
 from being.web.web_socket import WebSocket
 
 
@@ -59,11 +60,22 @@ async def _send_being_state_to_front_end(being: Being, ws: WebSocket):
         being: Being instance.
         ws: Active web socket.
     """
+    dummies = []
+    for out in being.messageOutputs:
+        dummy = MessageInput(owner=None)
+        out.connect(dummy)
+        dummies.append(dummy)
+
+
     while True:
         await ws.send_json({
-            'type': 'output-values',
+            'type': 'being-state',
             'timestamp': being.clock.now(),
-            'values': being.capture_value_outputs()
+            'values': [out.value for out in being.valueOutputs],
+            'messages': [
+                list(dummy.receive())
+                for dummy in dummies
+            ],
         })
         await asyncio.sleep(WEB_INTERVAL)
 
