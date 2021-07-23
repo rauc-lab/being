@@ -2,7 +2,8 @@
 import asyncio
 import os
 import signal
-import warnings
+import sys
+import time
 from typing import Optional
 
 from being.backends import CanBackend
@@ -21,15 +22,32 @@ WEB_INTERVAL = CONFIG['Web']['INTERVAL']
 LOGGER = get_logger(__name__)
 
 
-def _cancel_all_asyncio_tasks():
-    """Shutdown all async tasks.
+def _signal_handler(signum=None, frame=None):
+    """Signal handler for exit program."""
+    #pylint: disable=unused-argument
+    sys.exit(0)
 
-    Resrouces:
-      https://gist.github.com/nvgoldin/30cea3c04ee0796ebd0489aa62bcf00a
-    """
-    LOGGER.info('Cancelling all asyncio tasks')
-    for task in asyncio.all_tasks():
-        task.cancel()
+
+def _run_being_standalone(being):
+    """Run being standalone without web server / front-end."""
+    if os.name == 'posix':
+        signal.signal(signal.SIGTERM, _signal_handler)
+
+    while True:
+        now = time.perf_counter()
+        being.single_cycle()
+        then = time.perf_counter()
+        time.sleep(max(0, INTERVAL - (then - now)))
+
+
+async def _run_being_async(being):
+    """Run being inside async loop."""
+    time_func = asyncio.get_running_loop().time
+    while True:
+        now = time_func()
+        being.single_cycle()
+        then = time_func()
+        await asyncio.sleep(max(0, INTERVAL - (then - now)))
 
 
 async def _send_being_state_to_front_end(being: Being, ws: WebSocket):
@@ -50,32 +68,24 @@ async def _send_being_state_to_front_end(being: Being, ws: WebSocket):
         await asyncio.sleep(WEB_INTERVAL)
 
 
-async def _awake_web(being):
-    """Run being with web server."""
-    app = init_web_server(being)
-    ws = WebSocket()
-    app.router.add_get(WEB_SOCKET_ADDRESS, ws.handle_web_socket)
-    app.on_shutdown.append(ws.close_all)
-    api = init_api(being, ws)
-    app.add_subapp(API_PREFIX, api)
+async def _run_being_with_web_server(being):
+    """Run being with web server. Continuation for awake() for asyncio part.
+
+    Args:
+        being: Being instance.
+    """
     if os.name == 'posix':
         loop = asyncio.get_running_loop()
-        loop.add_signal_handler(signal.SIGTERM, _cancel_all_asyncio_tasks)
-    else:
-        warnings.warn((
-            'No signals available on your OS. Can not register SIGTERM'
-            ' signal for graceful program exit'
-    ))
+        loop.add_signal_handler(signal.SIGTERM, _signal_handler)
 
-    try:
-        await asyncio.gather(
-            being.run_async(),
-            _send_being_state_to_front_end(being, ws),
-            run_web_server(app),
-            ws.run_broker(),
-        )
-    except asyncio.CancelledError:
-        pass
+    ws = WebSocket()
+    app = init_web_server(being, ws)
+    await asyncio.gather(
+        _run_being_async(being),
+        _send_being_state_to_front_end(being, ws),
+        run_web_server(app),
+        ws.run_broker(),
+    )
 
 
 def awake(*blocks,
@@ -106,12 +116,13 @@ def awake(*blocks,
         motor.enable()
 
     try:
-        if not web:
-            return being.run()
+        if web:
+            asyncio.run(_run_being_with_web_server(being))
+        else:
+            _run_being_standalone(being)
 
-        return asyncio.run(_awake_web(being))
     except Exception as err:
         LOGGER.fatal(err, exc_info=True)
-        # TODO(atheler): Log and throw anti pattern but we always want to see
-        # the error in stderr
+        # TODO(atheler): Log and throw anti pattern. Want to see error in stderr
+        # as well.
         raise

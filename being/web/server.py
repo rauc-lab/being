@@ -12,7 +12,8 @@ import jinja2
 
 from being import __version__ as BEING_VERSION_NUMBER
 from being.behavior import BEHAVIOR_CHANGED
-from being.config import  CONFIG
+from being.config import CONFIG
+from being.config import CONFIG
 from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
 from being.logging import BEING_LOGGERS, get_logger
@@ -30,6 +31,11 @@ from being.web.api import (
 )
 from being.web.web_socket import WebSocket
 
+
+API_PREFIX = CONFIG['Web']['API_PREFIX']
+WEB_SOCKET_ADDRESS = CONFIG['Web']['WEB_SOCKET_ADDRESS']
+INTERVAL = CONFIG['General']['INTERVAL']
+WEB_INTERVAL = CONFIG['Web']['INTERVAL']
 
 LOGGER = get_logger(__name__)
 """Server module logger."""
@@ -158,17 +164,29 @@ def which_year_is_it() -> int:
     return datetime.date.today().year
 
 
-def init_web_server(being) -> web.Application:
+def init_web_server(being, ws) -> web.Application:
     """Initialize aiohttp web server application and setup some routes.
 
     Returns:
         app: Application instance.
     """
-    here = os.path.dirname(os.path.abspath(__file__))
-    staticDir = os.path.join(here, 'static')
     app = web.Application()
     aiohttp_jinja2.setup(app, loader=jinja2.PackageLoader('being.web', 'templates'))
+
+    # Web socket
+    app.router.add_get(WEB_SOCKET_ADDRESS, ws.handle_web_socket)
+    app.on_shutdown.append(ws.close_all)
+
+    # Static directory
+    here = os.path.dirname(os.path.abspath(__file__))
+    staticDir = os.path.join(here, 'static')
     app.router.add_static(prefix='/static', path=staticDir, show_index=True)
+
+    # API up api
+    api = init_api(being, ws)
+    app.add_subapp(API_PREFIX, api)
+
+
     routes = web.RouteTableDef()
 
     @routes.get('/favicon.ico')
