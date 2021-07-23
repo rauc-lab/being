@@ -1,26 +1,23 @@
 {% extends "base.html" %}
 
 {% block head %}
-    <!-- Include alertifyjs -->
+    <!-- Include third party libs -->
     <script src="static/libs/alertifyjs/1.13.1/alertify.min.js"></script>
     <link rel="stylesheet" href="static/libs/alertifyjs/1.13.1/css/alertify.min.css" />
     <link rel="stylesheet" href="static/libs/alertifyjs/1.13.1/css/themes/default.min.css" />
-
-    <!-- Include third party libs -->
-    <script src="static/libs/d3/7.0.0/d3.min.js"></script>
     <script src="static/libs/elk/0.7.1/elk.bundled.js"></script>
 
-    <!-- Include being web components and styling -->
-    <link rel="stylesheet" type="text/css" href="static/css/open_sans.css">
-    <link rel="stylesheet" type="text/css" href="static/css/material_icons.css">
-    <link rel="stylesheet" type="text/css" href="static/css/being.css">
-
+    <!-- Include being web components -->
     <script type="module">
         import {ControlPanel, Behavior, Editor} from "/static/components.js";
         customElements.define("being-behavior", Behavior);
         customElements.define("being-control-panel", ControlPanel);
         customElements.define("being-editor", Editor);
     </script>
+
+    <link rel="stylesheet" type="text/css" href="static/css/open_sans.css">
+    <link rel="stylesheet" type="text/css" href="static/css/material_icons.css">
+    <link rel="stylesheet" type="text/css" href="static/css/being.css">
 {% endblock %}
 
 {% block body%}
