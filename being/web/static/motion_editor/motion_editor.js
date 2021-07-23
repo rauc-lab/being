@@ -88,6 +88,7 @@ class Editor extends CurverBase {
         this.motionList = new MotionList(this);
         this.drawer = new SplineDrawer(this, this.splineGroup);
         this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
+        this.interval = null;
 
         this.motionPlayerSelect = null;
         this.channelSelect = null;
@@ -101,6 +102,9 @@ class Editor extends CurverBase {
 
     async connectedCallback() {
         super.connectedCallback();
+
+        const config = await this.api.get_config();
+        this.interval = config["Web"]["INTERVAL"];
 
         const motionPlayers = await this.api.get_motion_player_infos();
         this.motorSelector.populate(motionPlayers);
@@ -581,7 +585,7 @@ class Editor extends CurverBase {
         const duration = current.end;
         this.transport.duration = duration;
         this.lines.forEach(line => {
-            line.maxlen = .5 * .8 * duration / INTERVAL;  // Tmp workaround for the decoupling of web socket send in main loop
+            line.maxlen = duration / this.interval;
         });
 
         this.drawer.clear();

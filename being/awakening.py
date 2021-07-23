@@ -17,6 +17,7 @@ from being.web.web_socket import WebSocket
 API_PREFIX = CONFIG['Web']['API_PREFIX']
 WEB_SOCKET_ADDRESS = CONFIG['Web']['WEB_SOCKET_ADDRESS']
 INTERVAL = CONFIG['General']['INTERVAL']
+WEB_INTERVAL = CONFIG['Web']['INTERVAL']
 LOGGER = get_logger(__name__)
 
 
@@ -46,7 +47,7 @@ async def _send_being_state_to_front_end(being: Being, ws: WebSocket):
             'timestamp': being.clock.now(),
             'values': being.capture_value_outputs()
         })
-        await asyncio.sleep(2 * INTERVAL)
+        await asyncio.sleep(WEB_INTERVAL)
 
 
 async def _awake_web(being):

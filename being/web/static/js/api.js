@@ -24,6 +24,10 @@ export class Api {
         return get_json(API + "/graph");
     }
 
+    async get_config() {
+        return get_json(API + "/config");
+    }
+
     /**
      * Get current motor infos.
      */

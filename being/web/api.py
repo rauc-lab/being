@@ -9,6 +9,7 @@ from aiohttp import web
 
 from being.behavior import State as BehaviorState, Behavior
 from being.being import Being
+from being.config import CONFIG
 from being.connectables import ValueOutput, _ValueContainer
 from being.content import Content
 from being.logging import get_logger
@@ -214,6 +215,10 @@ def being_controller(being: Being) -> web.RouteTableDef:
     async def get_graph(request):
         elkGraph = serialize_elk_graph(being.execOrder)
         return json_response(elkGraph)
+
+    @routes.get('/config')
+    async def config(request):
+        return json_response(CONFIG)
 
     return routes
 

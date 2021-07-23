@@ -19,6 +19,7 @@ CONFIG = {
         'PORT': 8080,  # Port number of web server
         'API_PREFIX': '/api',  # API route prefix.
         'WEB_SOCKET_ADDRESS': '/stream',  # Web socket URL.
+        'INTERVAL': .050,  # Web socket stream interval in seconds.
     },
     'Logging': {
         'LEVEL': logging.WARNING,
