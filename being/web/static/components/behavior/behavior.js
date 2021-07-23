@@ -51,7 +51,7 @@ class BehaviorApi extends Api {
 }
 
 
-class Behavior extends Widget {
+export class Behavior extends Widget {
     constructor() {
         super();
         this.api = null;
@@ -87,7 +87,7 @@ class Behavior extends Widget {
      */
     init_html_elements() {
         this.playPauseBtn = this.add_button_to_toolbar("play_arrow");
-        this._append_link("static/behavior/behavior.css");
+        this._append_link("static/components/behavior/behavior.css");
         this.add_template(BEHAVIOR_TEMPLATE);
 
         this.statesDiv = this.shadowRoot.getElementById("statesDiv");
@@ -334,5 +334,3 @@ class Behavior extends Widget {
         this.update(behavior);
     }
 }
-
-customElements.define("being-behavior", Behavior);

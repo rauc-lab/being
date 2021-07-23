@@ -14,9 +14,13 @@
     <link rel="stylesheet" type="text/css" href="static/css/open_sans.css">
     <link rel="stylesheet" type="text/css" href="static/css/material_icons.css">
     <link rel="stylesheet" type="text/css" href="static/css/being.css">
-    <script type="module" src="static/control_panel/control_panel.js"></script>
-    <script type="module" src="static/behavior/behavior.js"></script>
-    <script type="module" src="static/motion_editor/motion_editor.js"></script>
+
+    <script type="module">
+        import {ControlPanel, Behavior, Editor} from "/static/components.js";
+        customElements.define("being-behavior", Behavior);
+        customElements.define("being-control-panel", ControlPanel);
+        customElements.define("being-editor", Editor);
+    </script>
 {% endblock %}
 
 {% block body%}

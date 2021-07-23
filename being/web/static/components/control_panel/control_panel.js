@@ -5,7 +5,7 @@ import {Api} from "/static/js/api.js";
 import {Widget} from "/static/js/widget.js";
 import {get_color} from "/static/js/color_map.js";
 import {switch_button_on, switch_button_off, is_checked} from "/static/js/button.js";
-import {draw_block_diagram} from "/static/control_panel/block_diagram.js";
+import {draw_block_diagram} from "/static/components/control_panel/block_diagram.js";
 
 
 /** Maximum log level. */
@@ -117,7 +117,7 @@ CONTROL_PANEL_TEMPLATE.innerHTML = `
 </div>
 `;
 
-class ControlPanel extends Widget {
+export class ControlPanel extends Widget {
     constructor() {
         super();
         this.api = new Api();
@@ -132,7 +132,7 @@ class ControlPanel extends Widget {
     }
 
     init_html_elements() {
-        this._append_link("static/control_panel/control_panel.css");
+        this._append_link("static/components/control_panel/control_panel.css");
 
         this.add_template(CONTROL_PANEL_TEMPLATE);
 
@@ -257,5 +257,3 @@ class ControlPanel extends Widget {
         this.console.new_log_message(msg);
     }
 }
-
-customElements.define("being-control-panel", ControlPanel);

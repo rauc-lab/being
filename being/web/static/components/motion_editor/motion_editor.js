@@ -11,12 +11,12 @@ import {History} from "/static/js/history.js";
 import {clip} from "/static/js/math.js";
 import {COEFFICIENTS_DEPTH, zero_spline, BPoly} from "/static/js/spline.js";
 import {clear_array} from "/static/js/utils.js";
-import {CurverBase} from "/static/motion_editor/curver.js";
-import {Line} from "/static/motion_editor/line.js";
-import {MotionList} from "/static/motion_editor/motion_list.js";
-import {MotorSelector} from "/static/motion_editor/motor_selector.js";
-import {SplineDrawer} from "/static/motion_editor/spline_drawer.js";
-import {PAUSED, PLAYING, RECORDING, Transport} from "/static/motion_editor/transport.js";
+import {CurverBase} from "/static/components/motion_editor/curver.js";
+import {Line} from "/static/components/motion_editor/line.js";
+import {MotionList} from "/static/components/motion_editor/motion_list.js";
+import {MotorSelector} from "/static/components/motion_editor/motor_selector.js";
+import {SplineDrawer} from "/static/components/motion_editor/spline_drawer.js";
+import {PAUSED, PLAYING, RECORDING, Transport} from "/static/components/motion_editor/transport.js";
 
 
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
@@ -77,11 +77,11 @@ function shift_spline(spline, offset) {
  *
  * Shadow root with canvas and SVG overlay.
  */
-class Editor extends CurverBase {
+export class Editor extends CurverBase {
     constructor() {
         const auto = false;
         super(auto);
-        this._append_link("static/motion_editor/motion_editor.css");
+        this._append_link("static/components/motion_editor/motion_editor.css");
         this.api = new Api();
         this.history = new History();
         this.transport = new Transport(this);
@@ -816,6 +816,3 @@ class Editor extends CurverBase {
         }
     }
 }
-
-
-customElements.define("being-editor", Editor);
