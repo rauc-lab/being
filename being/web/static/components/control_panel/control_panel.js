@@ -3,110 +3,9 @@
  */
 import {Api} from "/static/js/api.js";
 import {Widget} from "/static/js/widget.js";
-import {get_color} from "/static/js/color_map.js";
 import {switch_button_on, switch_button_off, is_checked} from "/static/js/button.js";
 import {draw_block_diagram} from "/static/components/control_panel/block_diagram.js";
-
-
-/** Maximum log level. */
-const MAX_LOG_LEVEL = 50;
-
-
-/**
- * Get name of enum value.
- */
-function get_enum_value_name(obj) {
-    return obj.members[obj.value];
-}
-
-
-/**
- * Get current time in seconds.
- */
-function time() {
-    return Date.now() / 1000;
-}
-
-
-/**
- * Console logic. Feeds new log messages in an associated ul list element. Has
- * *block auto scrolling* functionality -> Turn off auto scrolling when cursor
- * is over ul list element.
- */
-class Console {
-    constructor(list, maxlen=50) {
-        this.list = list
-        this.maxlen = maxlen;
-        this.records = [];
-        this.blockedUntil = -Infinity;
-        this.list.addEventListener("mouseover", () => {
-            this.blockedUntil = Infinity;
-        });
-        this.list.addEventListener("mouseleave", () => {
-            this.blockedUntil = time() + 2;
-        });
-    }
-
-    /**
-     * Check if auto scrolling enabled.
-     */
-    get auto_scrolling() {
-        const now = time();
-        return now >= this.blockedUntil;
-    }
-
-    /**
-     * Remove oldest log entry from list.
-     */
-    remove_oldest_log() {
-        this.list.removeChild(this.list.childNodes[0]);
-        this.records.shift();
-    }
-
-    /**
-     * Scroll to bottom.
-     */
-    scroll_all_the_way_down() {
-        this.list.scrollTop = this.list.scrollHeight;
-    }
-
-    /**
-     * Process new log record.
-     */
-    new_log_message(msg) {
-        while (this.list.childNodes.length > this.maxlen) {
-            this.remove_oldest_log();
-        }
-
-        const li = document.createElement("li");
-        this.list.appendChild(li);
-        li.innerHTML = msg.name + "<i> " + msg.message.replaceAll("\n", "<br>") + "</i>";
-        li.style.color = get_color(msg.level / MAX_LOG_LEVEL);
-
-        const record = msg.level + " - " + msg.name + " - " + msg.message;
-        this.records.push(record);
-
-        if (this.auto_scrolling) {
-            this.scroll_all_the_way_down();
-        }
-    }
-
-    /**
-     * Copy current log messages to clipboard.
-     */
-    copy_log_records_to_clipboard() {
-        // Copy record texts to clipboard via dummy input element.
-        // Note: document.execCommand instead of the newer clipboard API so
-        // that not dependent on a seconds SSL / HTTPS connection.
-        const text = this.records.join("\n");
-        const input = document.createElement("textarea");
-        input.value = text;
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand("copy");
-        document.body.removeChild(input);
-    }
-}
+import {Console} from "/static/components/control_panel/console.js";
 
 
 const CONTROL_PANEL_TEMPLATE = document.createElement("template");
@@ -116,6 +15,7 @@ CONTROL_PANEL_TEMPLATE.innerHTML = `
     <ul id="console" class="console"></ul>
 </div>
 `;
+
 
 export class ControlPanel extends Widget {
     constructor() {

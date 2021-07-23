@@ -1,5 +1,6 @@
 /**
- * Block diagram drawing. Assumes the following third-party Javascript libraries are loaded:
+ * Block diagram functionality for control panel. Assumes the following
+ * third-party Javascript libraries are loaded:
  *   - ELK
  */
 
@@ -235,10 +236,8 @@ export async function draw_block_diagram(svg, graph) {
             setattr(path, "fill", "none");
             setattr(path, "stroke", "black");
             setattr(path, "marker-end", "url(#arrowhead)");
-            setattr(path, "stroke-width", 2);
-
-            if (edge.connectionType === "value") {
-            } else if (edge.connectionType === "message") {
+            setattr(path, "stroke-width", STROKE_WIDTH);
+            if (edge.connectionType === "message") {
                 setattr(path, "stroke-dasharray", "5,5");
                 const anim = attach_moving_dot_animation(svg, start, d);
                 //setInterval(() => { anim.trigger(); }, 1000);
