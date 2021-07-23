@@ -109,20 +109,7 @@ function draw_line(svg, start, end) {
 }
 
 
-/**
- * Draw a curvy line on a SVG.
- *
- * @param {?} svg SVG HTML element.
- * @param {Array} start 2d start point.
- * @param {Direction} startDir Start direction.
- * @param {Array} end 2d end point.
- * @param {Direction} endDir End direction.
- * @returns SVG line element.
- */
-function draw_curvy_line(svg, start, startDir, end, endDir) {
-    const path = create_element("path");
-    svg.appendChild(path);
-
+function curvy_path(start, startDir, end, endDir) {
     // Offset vectors for each 4x possible connection direction
     const offsets = {};
     const [dx, dy] = subtract_arrays(end, start);
@@ -138,14 +125,39 @@ function draw_curvy_line(svg, start, startDir, end, endDir) {
         add_arrays(end, offsets[endDir]),
         end,
     ];
-    const d = "M" + cps[0] + "C" + cps.slice(1).flat();
-    setattr(path, "d", d);
+    return "M" + cps[0] + "C" + cps.slice(1).flat();
+}
 
-    // Rest
-    setattr(path, "fill", "none");
-    setattr(path, "stroke", "black");
-    setattr(path, "stroke-width", STROKE_WIDTH);
-    return path;
+
+function attach_moving_dot_animation(svg, start, d, duration=0.4) {
+    const circle = create_element("circle");
+    setattr(circle, "r", 5);
+    setattr(circle, "fill", "red");
+    setattr(circle, "opacity", "0");
+
+    const pathAnim = create_element("animateMotion");
+    setattr(pathAnim, "begin", "indefinite");
+    setattr(pathAnim, "dur", duration + "s");
+    setattr(pathAnim, "fill", "freeze");
+    setattr(pathAnim, "path", d);
+    circle.appendChild(pathAnim);
+
+    const opacityAnim = create_element("animate");
+    setattr(opacityAnim, "attributeName", "opacity");
+    setattr(opacityAnim, "begin", "indefinite");
+    setattr(opacityAnim, "dur", duration + "s");
+    setattr(opacityAnim, "fill", "freeze");
+    setattr(opacityAnim, "keyTimes", "0; .5; 1");
+    setattr(opacityAnim, "values", "0; 1; 0");
+    circle.appendChild(opacityAnim);
+    svg.appendChild(circle);
+
+    return {
+        trigger: () => {
+            pathAnim.beginElement();
+            opacityAnim.beginElement();
+        }
+    }
 }
 
 
@@ -211,21 +223,25 @@ export async function draw_block_diagram(svg, graph) {
         edge.sections.forEach(section => {
             const start = pt_to_array(section.startPoint);
             const end = pt_to_array(section.endPoint);
-
-            // Straight line
-            //const line = draw_line(svg, start, end);
-
-            // Curvy line
             const incoming = lookup[section.incomingShape];
             const outgoing = lookup[section.outgoingShape];
             const startDir = determine_connection_direction(start, incoming);
             const endDir = determine_connection_direction(end, outgoing);
-            const line = draw_curvy_line(svg, start, startDir, end, endDir);
+            const d = curvy_path(start, startDir, end, endDir);
 
-            setattr(line, "marker-end", "url(#arrowhead)");
+            const path = create_element("path");
+            svg.appendChild(path);
+            setattr(path, "d", d);
+            setattr(path, "fill", "none");
+            setattr(path, "stroke", "black");
+            setattr(path, "marker-end", "url(#arrowhead)");
+            setattr(path, "stroke-width", 2);
 
-            if (edge.connectionType === "message") {
-                setattr(line, "stroke-dasharray", "5,5");
+            if (edge.connectionType === "value") {
+            } else if (edge.connectionType === "message") {
+                setattr(path, "stroke-dasharray", "5,5");
+                const anim = attach_moving_dot_animation(svg, start, d);
+                //setInterval(() => { anim.trigger(); }, 1000);
             }
         });
     });
