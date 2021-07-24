@@ -1,11 +1,12 @@
 /**
  * Control panel widget with console.
  */
-import {Api} from "/static/js/api.js";
-import {Widget} from "/static/js/widget.js";
-import {switch_button_on, switch_button_off, is_checked} from "/static/js/button.js";
-import {draw_block_diagram} from "/static/components/control_panel/block_diagram.js";
-import {Console} from "/static/components/control_panel/console.js";
+import { draw_block_diagram } from "/static/components/control_panel/block_diagram.js";
+import { Console } from "/static/components/control_panel/console.js";
+import { Api } from "/static/js/api.js";
+import { Widget } from "/static/js/widget.js";
+import { switch_button_on, switch_button_off, is_checked } from "/static/js/button.js";
+import { isclose } from "/static/js/math.js";
 
 
 const CONTROL_PANEL_TEMPLATE = document.createElement("template");
@@ -25,7 +26,9 @@ export class ControlPanel extends Widget {
         this.notificationCenter = null;
         this.init_html_elements();
         this.collapse_console();
+        this.valueConnections = [];
         this.messageConnections = [];
+        this.lastValues = [];
     }
 
     set_notification_center(notificationCenter) {
@@ -76,7 +79,7 @@ export class ControlPanel extends Widget {
         this.update(motors);
 
         const graph = await this.api.get_graph();
-        this.messageConnections = await draw_block_diagram(this.svg, graph);
+        [this.valueConnections, this.messageConnections] = await draw_block_diagram(this.svg, graph);
 
         // Connect event listerners
         this.powerBtn.addEventListener("click", async evt => {
@@ -168,7 +171,19 @@ export class ControlPanel extends Widget {
             if (ms.length) {
                 con.trigger();
             }
-        })
+        });
+
+        if (this.lastValues !== []) {
+            this.valueConnections.forEach(con => {
+                if (isclose(msg.values[con.index], this.lastValues[con.index], 1e-3)) {
+                    con.pause();
+                } else {
+                    con.play();
+                }
+            });
+        }
+
+        this.lastValues = msg.values;
     }
 
     /**
@@ -176,12 +191,12 @@ export class ControlPanel extends Widget {
      * @param {Bool} - flowing Flow state true / false
      */
     set_value_connection_flow(flowing) {
-        for (let con of this.svg.getElementsByClassName("connection value")) {
+        this.valueConnections.forEach(con => {
             if (flowing) {
-                con.classList.add("flowing")
+                con.play();
             } else {
-                con.classList.remove("flowing")
+                con.pause();
             }
-        }
+        });
     }
 }

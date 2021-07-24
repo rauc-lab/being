@@ -19,17 +19,13 @@ const Direction = Object.freeze({
 const BLOCK_DIAGRAM_SVG_STYLE = `
     .connection {
         fill: none;
-        marker-end: url(#arrowhead);
         stroke: black;
         stroke-width: 2;
+        marker-end: url(#arrowhead);
     }
 
     .connection.value {
         stroke-dasharray: 5;
-
-    }
-
-    .connection.flowing {
         animation: dash 1.7s infinite linear;
     }
 
@@ -270,6 +266,7 @@ export async function draw_block_diagram(svg, graph) {
 
     // Draw edges / connections
     const messageConnections = [];
+    const valueConnections = [];
     layout.edges.forEach(edge => {
         edge.sections.forEach(section => {
             const path = create_element("path");
@@ -284,7 +281,16 @@ export async function draw_block_diagram(svg, graph) {
                     "trigger": anim.trigger,
                 });
             } else {
-                path.classList.add("value", "flowing");
+                path.classList.add("value");
+                valueConnections.push({
+                    "index": edge.index,
+                    "play": () => {
+                        path.style.animationPlayState = "running";
+                    },
+                    "pause": () => {
+                        path.style.animationPlayState = "paused";
+                    },
+                });
             }
             svg.appendChild(path);
         });
@@ -294,5 +300,5 @@ export async function draw_block_diagram(svg, graph) {
     const viewBox = [layout.x, layout.y, layout.width, layout.height].join(" ");
     setattr(svg, "viewBox", viewBox);
 
-    return messageConnections;
+    return [valueConnections, messageConnections];
 }
