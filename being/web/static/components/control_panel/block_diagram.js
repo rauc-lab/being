@@ -16,6 +16,30 @@ const Direction = Object.freeze({
     "SOUTH": 2,
     "EAST": 3,
 });
+const BLOCK_DIAGRAM_SVG_STYLE = `
+    .connection {
+        fill: none;
+        marker-end: url(#arrowhead);
+        stroke: black;
+        stroke-width: 2;
+    }
+
+    .connection.value {
+        stroke-dasharray: 5;
+
+    }
+
+    .connection.flowing {
+        animation: dash 1.7s infinite linear;
+    }
+
+    @keyframes dash {
+        to {
+            stroke-dashoffset: -50;
+        }
+    }
+`;
+
 
 /**
  * Convert a pont object into a 2d array.
@@ -34,8 +58,7 @@ function pt_to_array(pt) {
  *
  * @param {?} svg SVG HTML element.
  */
-function add_arrow_marker_definition(svg) {
-    const defs = create_element("defs");
+function arrow_marker_definition() {
     const marker = create_element("marker");
     setattr(marker, "id", "arrowhead");
     setattr(marker, "markerWidth", 10);
@@ -50,8 +73,7 @@ function add_arrow_marker_definition(svg) {
     setattr(polygon, "points", "0 0, 7 3.5, 0 7");
 
     marker.appendChild(polygon);
-    defs.appendChild(marker);
-    svg.appendChild(defs);
+    return marker
 }
 
 
@@ -62,14 +84,14 @@ function add_arrow_marker_definition(svg) {
  * @param {Object} child Node object from ELK layout graph.
  * @returns SVG group element representing the block.
  */
-function draw_block(svg, child) {
+function draw_block(svg, block) {
     const g = create_element("g");
-    setattr(g, "transform", "translate(" + child.x + " " + child.y + ")")
+    setattr(g, "transform", "translate(" + block.x + " " + block.y + ")")
     svg.appendChild(g);
 
     const rect = create_element("rect");
-    setattr(rect, "width", child.width);
-    setattr(rect, "height", child.height);
+    setattr(rect, "width", block.width);
+    setattr(rect, "height", block.height);
     setattr(rect, "stroke", "black");
     setattr(rect, "stroke-width", STROKE_WIDTH);
     setattr(rect, "fill", "none");
@@ -78,9 +100,9 @@ function draw_block(svg, child) {
     const text = create_element("text");
     setattr(text, "text-anchor", "middle");
     setattr(text, "alignment-baseline", "central");
-    setattr(text, "dx", child.width / 2);
-    setattr(text, "dy", child.height / 2);
-    text.innerHTML = child.name;
+    setattr(text, "dx", block.width / 2);
+    setattr(text, "dy", block.height / 2);
+    text.innerHTML = block.name;
     g.appendChild(text);
 
     return g;
@@ -171,22 +193,35 @@ function attach_moving_dot_animation(svg, d, duration=0.4) {
  * @param {Object} child ELK layout graph node.
  * @returns Connection direction.
  */
-function determine_connection_direction(pt, child) {
+function determine_connection_direction(pt, block) {
     // TODO: More sophisticated connection direction which also work for points
     // which do not lay on child's edge.
     const [x, y] = pt;
-    if (x === child.x) {
+    if (x === block.x) {
         return Direction.WEST;
-    } else if (x === child.x + child.width) {
+    } else if (x === block.x + block.width) {
         return Direction.EAST;
-    } else if (y === child.y) {
+    } else if (y === block.y) {
         return Direction.NORTH;
-    } else if (y === child.y + child.height) {
+    } else if (y === block.y + block.height) {
         return Direction.SOUTH;
     }
 
-    throw "Could not determine connection direction. pt " + pt + " not laying on child!";
+    throw "Could not determine connection direction. pt " + pt + " not laying on block!";
 }
+
+
+
+function get_connection_path_from_section(section, lookup) {
+    const start = pt_to_array(section.startPoint);
+    const end = pt_to_array(section.endPoint);
+    const incoming = lookup[section.incomingShape];
+    const outgoing = lookup[section.outgoingShape];
+    const startDir = determine_connection_direction(start, incoming);
+    const endDir = determine_connection_direction(end, outgoing);
+    return curvy_path(start, startDir, end, endDir);
+}
+
 
 /**
  * Draw block diagram on SVG.
@@ -196,9 +231,9 @@ function determine_connection_direction(pt, child) {
  */
 export async function draw_block_diagram(svg, graph) {
     const layout = deep_copy(graph);
-    layout.children.forEach(child => {
-        child.width = 120;
-        child.height = 60;
+    layout.children.forEach(block => {
+        block.width = 120;
+        block.height = 60;
     })
     layout.id = "root";
     const elk = new ELK();
@@ -213,44 +248,45 @@ export async function draw_block_diagram(svg, graph) {
     });
 
     const lookup = {};
-    layout.children.forEach(child => {
-        lookup[child.id] = child;
+    layout.children.forEach(block => {
+        lookup[block.id] = block;
     });
     remove_all_children(svg);
-    add_arrow_marker_definition(svg)
-    layout.children.forEach(child => {
-        draw_block(svg, child);
+
+    // Definitions
+    const defs = create_element("defs");
+    const marker = arrow_marker_definition();
+    defs.appendChild(marker);
+    const style = create_element("style");
+    setattr(style, "type", "text/css");
+    style.innerHTML = BLOCK_DIAGRAM_SVG_STYLE;
+    defs.appendChild(style);
+    svg.appendChild(defs);
+
+    // Draw blocks
+    layout.children.forEach(block => {
+        draw_block(svg, block);
     });
 
+    // Draw edges / connections
     const messageConnections = [];
-
     layout.edges.forEach(edge => {
         edge.sections.forEach(section => {
-            const start = pt_to_array(section.startPoint);
-            const end = pt_to_array(section.endPoint);
-            const incoming = lookup[section.incomingShape];
-            const outgoing = lookup[section.outgoingShape];
-            const startDir = determine_connection_direction(start, incoming);
-            const endDir = determine_connection_direction(end, outgoing);
-            const d = curvy_path(start, startDir, end, endDir);
-
             const path = create_element("path");
-            svg.appendChild(path);
+            const d = get_connection_path_from_section(section, lookup);
             setattr(path, "d", d);
-            setattr(path, "fill", "none");
-            setattr(path, "stroke", "black");
-            setattr(path, "stroke-width", STROKE_WIDTH);
+            path.classList.add("connection");
             if (edge.connectionType === "message") {
-                setattr(path, "stroke-dasharray", "5,5");
+                path.classList.add("message");
                 const anim = attach_moving_dot_animation(svg, d);
                 messageConnections.push({
                     "index": edge.index,
                     "trigger": anim.trigger,
                 });
             } else {
-                //setattr(path, "marker-end", "url(#arrowhead)");
-                //connections.push({ "index": edge.index, "path": path, });
+                path.classList.add("value", "flowing");
             }
+            svg.appendChild(path);
         });
     });
 
