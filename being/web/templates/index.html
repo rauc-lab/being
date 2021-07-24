@@ -47,38 +47,47 @@
     <being-editor id="editor"></being-editor>
 
     <script type="module">
-        import {WS_ADDRESS} from "/static/js/config.js";
-        import {receive_from_websocket} from "/static/js/web_socket.js";
-        import {defaultdict} from "/static/js/utils.js";
-        import {NotificationCenter} from "/static/js/notification_center.js";
+        import { WS_ADDRESS } from "/static/js/config.js";
+        import { WebSocketCentral } from "/static/js/web_socket.js";
+        import { defaultdict } from "/static/js/utils.js";
+        import { NotificationCenter } from "/static/js/notification_center.js";
 
+        const ws = new WebSocketCentral(WS_ADDRESS);
         const notificationCenter = new NotificationCenter(alertify);
 
+        // Web socket down or up & running notifications
+        let notiId = 0;
+        ws.subscribe("open", () => {
+            notiId = notificationCenter.notify_persistent("Connected to Being", "success", 2, notiId);
+        });
+        ws.subscribe("close", () => {
+            notiId = notificationCenter.notify_persistent("Being offline", "error", 0, notiId);
+        });
+
         // Wire up web socket to the different widgets.
-        const callbacks = defaultdict(Array);
-        callbacks["motor-update"].push(msg => notificationCenter.new_motor_message(msg));
-        callbacks["motor-updates"].push(msg => notificationCenter.new_motor_message(msg));
+        ws.subscribe_to_message("motor-update", msg => notificationCenter.new_motor_message(msg));
+        ws.subscribe_to_message("motor-updates", msg => notificationCenter.new_motor_message(msg));
 
         for (let controlPanel of document.getElementsByTagName("being-control-panel")) {
             controlPanel.set_notification_center(notificationCenter);
-            callbacks["motor-update"].push(msg => controlPanel.new_motor_message(msg));
-            callbacks["motor-updates"].push(msg => controlPanel.new_motor_message(msg));
-            callbacks["log"].push(msg => controlPanel.new_log_message(msg));
-            callbacks["being-state"].push(msg => controlPanel.new_outputs_message(msg));
+            ws.subscribe_to_message("motor-update", msg => controlPanel.new_motor_message(msg));
+            ws.subscribe_to_message("motor-updates", msg => controlPanel.new_motor_message(msg));
+            ws.subscribe_to_message("log", msg => controlPanel.new_log_message(msg));
+            ws.subscribe_to_message("being-state", msg => controlPanel.new_outputs_message(msg));
         }
 
         for (let behavior of document.getElementsByTagName("being-behavior")) {
-            callbacks["behavior-update"].push(msg => behavior.new_behavior_message(msg));
-            callbacks["motions"].push(msg => behavior.content_message(msg));
-            callbacks["sensor-message"].push(() => behavior.pulse_led());
+            ws.subscribe_to_message("behavior-update", msg => behavior.new_behavior_message(msg));
+            ws.subscribe_to_message("motions", msg => behavior.content_message(msg));
+            ws.subscribe_to_message("sensor-message", () => behavior.pulse_led());
         }
 
         for (let editor of document.getElementsByTagName("being-editor")) {
-            callbacks["outputs"].push(msg => editor.new_data(msg));
-            callbacks["behavior-update"].push(msg => editor.new_behavior_message(msg));
+            ws.subscribe_to_message("being-state", msg => editor.new_data(msg));
+            ws.subscribe_to_message("behavior-update", msg => editor.new_behavior_message(msg));
         }
 
-        receive_from_websocket(WS_ADDRESS, callbacks, notificationCenter);
+        ws.connect();
     </script>
 {% endblock %}
 
