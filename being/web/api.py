@@ -154,7 +154,7 @@ def serialize_elk_graph(being):
         visited.add(block)
         elkGraph['children'].append({
             'id': block.id,
-            'name': type(block).__name__,
+            'name': block.name,
         })
 
         for output in block.outputs:

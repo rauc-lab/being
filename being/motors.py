@@ -222,8 +222,8 @@ class Motor(Block, PubSub):
 
     """Motor base class."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         PubSub.__init__(self, events=[MOTOR_CHANGED])
         self.homing = HomingState.UNHOMED
         self.homingJob = None
@@ -285,6 +285,7 @@ class LinearMotor(Motor):
              network: Optional[CanBackend] = None,
              node: Optional[CiA402Node] = None,
              objectDictionary = None,
+             **kwargs,
         ):
         """Args:
             nodeId: CANopen node id.
@@ -300,7 +301,7 @@ class LinearMotor(Motor):
             objectDictionary: Object dictionary for CiA402Node. If will be tried
                 to identified from known EDS files.
         """
-        super().__init__()
+        super().__init__(**kwargs)
         if homingDirection is None:
             homingDirection = direction
 

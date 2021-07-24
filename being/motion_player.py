@@ -69,14 +69,14 @@ class MotionPlayer(Block):
         looping (bool): Looping motion.
     """
 
-    def __init__(self, ndim=1, clock=None, content=None):
+    def __init__(self, ndim=1, clock=None, content=None, **kwargs):
         if clock is None:
             clock = Clock.single_instance_setdefault()
 
         if content is None:
             content = Content.single_instance_setdefault()
 
-        super().__init__()
+        super().__init__(**kwargs)
         self.add_message_input('mcIn')
         #self.add_message_output('feedbackOut')
         self.positionOutputs = []

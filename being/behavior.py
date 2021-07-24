@@ -66,7 +66,7 @@ class Behavior(Block, PubSub):
     Extra Params class for JSON serialization / API.
     """
 
-    def __init__(self, params=None, clock=None, content=None):
+    def __init__(self, params=None, clock=None, content=None, **kwargs):
         if params is None:
             params = create_params()
 
@@ -76,7 +76,7 @@ class Behavior(Block, PubSub):
         if content is None:
             content = Content.single_instance_setdefault()
 
-        super().__init__()
+        super().__init__(**kwargs)
         PubSub.__init__(self, events=[BEHAVIOR_CHANGED])
         self.add_message_input('sensorIn')
         self.add_message_output('mcOut')

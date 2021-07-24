@@ -17,12 +17,12 @@ class Sine(Block):
 
     """Sine generator. Outputs sine wave for a given frequency."""
 
-    def __init__(self, frequency: float = 1., startPhase: float = 0.):
+    def __init__(self, frequency: float = 1., startPhase: float = 0., **kwargs):
         """Kwargs:
             frequency: Initial frequency value.
             startPhase: Inital phase.
         """
-        super().__init__()
+        super().__init__(**kwargs)
         self.phase = startPhase
         self.add_value_input('frequency')
         self.add_value_output()
@@ -41,12 +41,12 @@ class Trafo(Block):
 
     """Transforms input signal (by some fixed scale and offset)."""
 
-    def __init__(self, scale: float = 1., offset: float = 0.):
+    def __init__(self, scale: float = 1., offset: float = 0., **kwargs):
         """Kwargs:
             scale: Scaling factor.
             offset: Offset factor.
         """
-        super().__init__()
+        super().__init__(**kwargs)
         self.scale = scale
         self.offset = offset
         self.add_value_input()
@@ -70,7 +70,7 @@ class Mic(Block):
 
     # TODO: Make me!
 
-    def __init__(self, audioBackend=None):
+    def __init__(self, audioBackend=None, **kwargs):
         if audioBackend is None:
             audioBackend = AudioBackend.single_instance_setdefault()
             register_resource(audioBackend, duplicates=False)
@@ -82,11 +82,11 @@ class Printer(Block):
 
     """Print input values to stdout."""
 
-    def __init__(self, prefix=''):
+    def __init__(self, prefix='', **kwargs):
         """Kwargs:
             prefix: Prefix string to prepend.
         """
-        super().__init__()
+        super().__init__(**kwargs)
         self.prefix = prefix
         self.add_value_input()
 

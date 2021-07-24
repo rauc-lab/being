@@ -4,7 +4,7 @@ Some block related helpers."""
 import collections
 import functools
 import itertools
-from typing import List, ForwardRef, Generator, Union
+from typing import List, ForwardRef, Generator, Union, Optional
 
 from being.connectables import (
     Connection,
@@ -159,7 +159,14 @@ class Block:
     ID_COUNTER = itertools.count()
     """Counter used for id assignment."""
 
-    def __init__(self):
+    def __init__(self, name: Optional[str] = None):
+        """Kwargs:
+            name: Optional block name for UI. Block type name by default.
+        """
+        if name is None:
+            name = type(self).__name__
+
+        self.name = name
         self.inputs: List[InputBase] = []
         self.outputs: List[OutputBase] = []
         self.id: int = next(self.ID_COUNTER)
