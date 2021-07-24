@@ -73,7 +73,9 @@
             ws.subscribe_to_message("motor-update", msg => controlPanel.new_motor_message(msg));
             ws.subscribe_to_message("motor-updates", msg => controlPanel.new_motor_message(msg));
             ws.subscribe_to_message("log", msg => controlPanel.new_log_message(msg));
-            ws.subscribe_to_message("being-state", msg => controlPanel.new_outputs_message(msg));
+            ws.subscribe_to_message("being-state", msg => controlPanel.new_being_state_message(msg));
+            ws.subscribe("open", () => controlPanel.set_value_connection_flow(true));
+            ws.subscribe("close", () => controlPanel.set_value_connection_flow(false));
         }
 
         for (let behavior of document.getElementsByTagName("being-behavior")) {

@@ -34,8 +34,8 @@ export class ControlPanel extends Widget {
 
     init_html_elements() {
         this._append_link("static/components/control_panel/control_panel.css");
-
         this.add_template(CONTROL_PANEL_TEMPLATE);
+        this.svg = this.shadowRoot.getElementById("svg");
 
         // Toolbar
         this.powerBtn = this.add_button_to_toolbar("power_settings_new", "Turn motors on / off");
@@ -76,7 +76,7 @@ export class ControlPanel extends Widget {
         this.update(motors);
 
         const graph = await this.api.get_graph();
-        this.messageConnections = await draw_block_diagram(this.shadowRoot.getElementById("svg"), graph);
+        this.messageConnections = await draw_block_diagram(this.svg, graph);
 
         // Connect event listerners
         this.powerBtn.addEventListener("click", async evt => {
@@ -158,13 +158,30 @@ export class ControlPanel extends Widget {
         this.console.new_log_message(msg);
     }
 
-
-    new_outputs_message(msg) {
+    /**
+     * Process new being-state messages. Check for new messages and trigger
+     * message connection dot animation.
+     */
+    new_being_state_message(msg) {
         this.messageConnections.forEach(con => {
             const ms = msg.messages[con.index];
             if (ms.length) {
                 con.trigger();
             }
         })
+    }
+
+    /**
+     * Set flowing state / animation of value connection.
+     * @param {Bool} - flowing Flow state true / false
+     */
+    set_value_connection_flow(flowing) {
+        for (let con of this.svg.getElementsByClassName("connection value")) {
+            if (flowing) {
+                con.classList.add("flowing")
+            } else {
+                con.classList.remove("flowing")
+            }
+        }
     }
 }
