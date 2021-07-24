@@ -9,22 +9,35 @@ import {create_element, setattr} from "/static/js/svg.js";
 import {subtract_arrays, add_arrays} from "/static/js/array.js";
 
 
-const STROKE_WIDTH = 2;
+/** The 4x possible incoming / outgoing directions of a connection. */
 const Direction = Object.freeze({
     "NORTH": 0,
     "WEST": 1,
     "SOUTH": 2,
     "EAST": 3,
 });
+
+/** SVG CSS styling */
 const BLOCK_DIAGRAM_SVG_STYLE = `
-    .connection {
+    .block rect {
+        stroke: black;
+        stroke-width: 2;
+        fill: none;
+    }
+
+    .block text {
+        text-anchor: middle;
+        alignment-baseline: central;
+    }
+
+    path.connection {
         fill: none;
         stroke: black;
         stroke-width: 2;
         marker-end: url(#arrowhead);
     }
 
-    .connection.value {
+    path.connection.value {
         stroke-dasharray: 5;
         animation: dash 1.7s infinite linear;
     }
@@ -33,6 +46,12 @@ const BLOCK_DIAGRAM_SVG_STYLE = `
         to {
             stroke-dashoffset: -50;
         }
+    }
+
+    circle.moving-dot {
+        fill: red;
+        opacity: 0;
+        r: 5;
     }
 `;
 
@@ -82,25 +101,24 @@ function arrow_marker_definition() {
  */
 function draw_block(svg, block) {
     const g = create_element("g");
+    g.classList.add("block");
+
     setattr(g, "transform", "translate(" + block.x + " " + block.y + ")")
-    svg.appendChild(g);
 
     const rect = create_element("rect");
     setattr(rect, "width", block.width);
     setattr(rect, "height", block.height);
-    setattr(rect, "stroke", "black");
-    setattr(rect, "stroke-width", STROKE_WIDTH);
-    setattr(rect, "fill", "none");
+
     g.appendChild(rect);
 
     const text = create_element("text");
-    setattr(text, "text-anchor", "middle");
-    setattr(text, "alignment-baseline", "central");
+
     setattr(text, "dx", block.width / 2);
     setattr(text, "dy", block.height / 2);
     text.innerHTML = block.name;
     g.appendChild(text);
 
+    svg.appendChild(g);
     return g;
 }
 
@@ -117,17 +135,25 @@ function draw_line(svg, start, end) {
     const [x1, y1] = start;
     const [x2, y2] = end;
     const line = create_element("line");
+    line.classList.add("connection");
     setattr(line, "x1", x1);
     setattr(line, "y1", y1);
     setattr(line, "x2", x2);
     setattr(line, "y2", y2);
-    setattr(line, "stroke", "black");
-    setattr(line, "stroke-width", STROKE_WIDTH);
     svg.appendChild(line);
     return line;
 }
 
 
+/**
+ * Generate curvy connection line SVG cubic path string.
+ *
+ * @param {Array} start Start point.
+ * @param {Direction} startDir Start direction.
+ * @param {Array} end 2d end point.
+ * @param {Direction} endDir End direction.
+ * @returns SVG cubic path string.
+ */
 function curvy_path(start, startDir, end, endDir) {
     // Offset vectors for each 4x possible connection direction
     const offsets = {};
@@ -148,17 +174,23 @@ function curvy_path(start, startDir, end, endDir) {
 }
 
 
+/**
+ * Attache a moving dot animation to the SVG element. Along a path.
+ *
+ * @param {SVGElement} svg SVG element.
+ * @param {String} d SVG path string.
+ * @param {Number} duration Moving dot animation duration.
+ * @returns {Object} Object with trigger function to start the animation.
+ */
 function attach_moving_dot_animation(svg, d, duration=0.4) {
     const circle = create_element("circle");
-    setattr(circle, "r", 5);
-    setattr(circle, "fill", "red");
-    setattr(circle, "opacity", "0");
+    circle.classList.add("moving-dot");
 
     const pathAnim = create_element("animateMotion");
+    setattr(pathAnim, "path", d);
     setattr(pathAnim, "begin", "indefinite");
     setattr(pathAnim, "dur", duration + "s");
     setattr(pathAnim, "fill", "freeze");
-    setattr(pathAnim, "path", d);
     circle.appendChild(pathAnim);
 
     const opacityAnim = create_element("animate");
@@ -207,13 +239,19 @@ function determine_connection_direction(pt, block) {
 }
 
 
-
+/**
+ * Calculate curvy SVG path from elk edge section.
+ *
+ * @param {?} section ?
+ * @param {Object} lookup Block id -> block object lookup.
+ * @returns Cubic curvy SVG path string.
+ */
 function get_connection_path_from_section(section, lookup) {
     const start = pt_to_array(section.startPoint);
-    const end = pt_to_array(section.endPoint);
     const incoming = lookup[section.incomingShape];
-    const outgoing = lookup[section.outgoingShape];
     const startDir = determine_connection_direction(start, incoming);
+    const end = pt_to_array(section.endPoint);
+    const outgoing = lookup[section.outgoingShape];
     const endDir = determine_connection_direction(end, outgoing);
     return curvy_path(start, startDir, end, endDir);
 }
@@ -247,9 +285,14 @@ export async function draw_block_diagram(svg, graph) {
     layout.children.forEach(block => {
         lookup[block.id] = block;
     });
+
     remove_all_children(svg);
 
-    // Definitions
+    // Adjust viewBox
+    const viewBox = [layout.x, layout.y, layout.width, layout.height].join(" ");
+    setattr(svg, "viewBox", viewBox);
+
+    // Add definitions to SVG
     const defs = create_element("defs");
     const marker = arrow_marker_definition();
     defs.appendChild(marker);
@@ -264,15 +307,15 @@ export async function draw_block_diagram(svg, graph) {
         draw_block(svg, block);
     });
 
-    // Draw edges / connections
+    // Draw edges / connections lines
     const messageConnections = [];
     const valueConnections = [];
     layout.edges.forEach(edge => {
         edge.sections.forEach(section => {
             const path = create_element("path");
+            path.classList.add("connection");
             const d = get_connection_path_from_section(section, lookup);
             setattr(path, "d", d);
-            path.classList.add("connection");
             if (edge.connectionType === "message") {
                 path.classList.add("message");
                 const anim = attach_moving_dot_animation(svg, d);
@@ -295,10 +338,6 @@ export async function draw_block_diagram(svg, graph) {
             svg.appendChild(path);
         });
     });
-
-    // Adjust viewBox
-    const viewBox = [layout.x, layout.y, layout.width, layout.height].join(" ");
-    setattr(svg, "viewBox", viewBox);
 
     return [valueConnections, messageConnections];
 }
