@@ -9,6 +9,7 @@ import { switch_button_on, switch_button_off, is_checked } from "/static/js/butt
 import { isclose } from "/static/js/math.js";
 
 
+/** Control panel widget template. */
 const CONTROL_PANEL_TEMPLATE = document.createElement("template");
 CONTROL_PANEL_TEMPLATE.innerHTML = `
 <div class="container">
@@ -121,7 +122,7 @@ export class ControlPanel extends Widget {
      */
     update(motors) {
         let enabled = true;
-        let homing = 4;
+        let homing = 4;  // HomingState.HOMED + 1...
         motors.forEach(motor => {
             enabled &= motor.enabled;
             homing = Math.min(homing, motor.homing.value);
@@ -135,7 +136,7 @@ export class ControlPanel extends Widget {
 
         const homingClasses = ["homing-failed", "homing-unhomed", "homing-ongoing", "homing-homed" ];
         this.homeBtn.classList.remove(...homingClasses);
-        this.homeBtn.classList.add( homingClasses[homing]);
+        this.homeBtn.classList.add(homingClasses[homing]);
     }
 
     /**

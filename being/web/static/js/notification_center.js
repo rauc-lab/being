@@ -52,10 +52,26 @@ export class NotificationCenter {
         this.motorNames = {};
     }
 
+    /**
+     * Notify message.
+     *
+     * @param {String} msg Message.
+     * @param {String} type Notification type.
+     * @param {Number} wait Auto-dismiss wait time.
+     * @returns {Object} Notification object.
+     */
     notify(msg, type="message", wait=2) {
         return this.alertify.notify(msg, type, wait);
     }
 
+    /**
+     * Notify persistent message.
+     *
+     * @param {String} msg Message.
+     * @param {String} type Notification type.
+     * @param {Number} wait Auto-dismiss wait time.
+     * @returns {Number} Internal id of notification object.
+     */
     notify_persistent(msg, type="message", wait=2, id=0) {
         if (msg in this.beenSaid) {
             return
@@ -77,36 +93,57 @@ export class NotificationCenter {
         return id;
     }
 
-    process_motor(motor) {
-        // Motor name -> message prefix
+    /**
+     * Assign and return a name to a motor. If motor has a name assigned use
+     * this. If name is the same as blockType (name's default value) us
+     * blockType but assign a increasing number
+     *
+     * @param {Object} motor Motor object.
+     * @returns {String} Assigned motor name.
+     */
+    assign_motor_name(motor) {
         if (!(motor.id in this.motorNames)) {
-            const size = object_size(this.motorNames);
-            this.motorNames[motor.id] = "Motor " + (size + 1) + " ";
+            if (motor.name !== motor.blockType) {
+                this.motorNames[motor.id] = motor.name;
+            } else {
+                const size = object_size(this.motorNames);
+                this.motorNames[motor.id] = "Motor " + (size + 1) + " ";
+            }
         }
 
-        const prefix = this.motorNames[motor.id];
+        return this.motorNames[motor.id];
+    }
+
+    /**
+     * Process single motor message and update notifications.
+     *
+     * @param {Object} motor Motor object.
+     */
+    update_motor_notification(motor) {
+        // Motor name -> message prefix
+        const prefix = this.assign_motor_name(motor);
         const notis = this.motorNotifications;
         switch(motor.homing.value) {
             case 0:
-                notis[motor.id] = this.notify_persistent(prefix + "homing failed", "error", 0, notis[motor.id]);
+                notis[motor.id] = this.notify_persistent(prefix + " homing failed", "error", 0, notis[motor.id]);
                 break;
             case 1:
-                notis[motor.id] = this.notify_persistent(prefix + "unhomed", "warning", 0, notis[motor.id]);
+                notis[motor.id] = this.notify_persistent(prefix + " unhomed", "warning", 0, notis[motor.id]);
                 break;
             case 2:
-                notis[motor.id] = this.notify_persistent(prefix + "homing ongoing", "warning", 0, notis[motor.id]);
+                notis[motor.id] = this.notify_persistent(prefix + " homing ongoing", "warning", 0, notis[motor.id]);
                 break;
             case 3:
-                notis[motor.id] = this.notify_persistent(prefix + "homed", "success", 2, notis[motor.id]);
+                notis[motor.id] = this.notify_persistent(prefix + " homed", "success", 2, notis[motor.id]);
                 break;
         }
     }
 
     new_motor_message(msg) {
         if (msg.type === "motor-update") {
-            this.process_motor(msg.motor);
+            this.update_motor_notification(msg.motor);
         } else if (msg.type === "motor-updates") {
-            msg.motors.forEach(motor => this.process_motor(motor));
+            msg.motors.forEach(motor => this.update_motor_notification(motor));
         } else {
             throw "Unsupported message type: " + msg.type;
         }

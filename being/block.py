@@ -265,6 +265,7 @@ class Block:
         return collections.OrderedDict([
             ('type', 'Block'),
             ('blockType', type(self).__name__),
+            ('name', self.name),
             ('id', self.id),
             ('inputNeighbors', [neighbor.id for neighbor in input_neighbors(self)]),
             ('outputNeighbors', [neighbor.id for neighbor in output_neighbors(self)]),
