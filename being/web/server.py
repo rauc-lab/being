@@ -1,7 +1,6 @@
 """Web server back end."""
 import asyncio
 import datetime
-import functools
 import logging
 import os
 import types
@@ -12,7 +11,6 @@ import jinja2
 
 from being import __version__ as BEING_VERSION_NUMBER
 from being.behavior import BEHAVIOR_CHANGED
-from being.config import CONFIG
 from being.config import CONFIG
 from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
@@ -185,7 +183,6 @@ def init_web_server(being, ws) -> web.Application:
     # API up api
     api = init_api(being, ws)
     app.add_subapp(API_PREFIX, api)
-
 
     routes = web.RouteTableDef()
 

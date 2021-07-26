@@ -380,6 +380,27 @@ export class Editor extends CurverBase {
             const motionPlayer = this.motorSelector.selected_motion_player();
             this.spline_changed(zero_spline(motionPlayer.ndim));
         });
+
+        this.add_space_to_toolbar()
+
+        //this.add_button_to_toolbar("file_upload", "Upload some motions");
+        const btn = this.add_button_to_toolbar("file_download", "Download all motions");
+        btn.addEventListener("click", async evt => {
+            // https://stackoverflow.com/questions/3749231/download-file-using-javascript-jquery
+
+            const resp = await this.api.download_all_motions_as_zip();
+            const blob = await resp.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'being-content.zip' // the filename you want
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        });
+
     }
 
     /**

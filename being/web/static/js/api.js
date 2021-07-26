@@ -136,6 +136,11 @@ export class Api {
         return delete_fetch(url);
     }
 
+    async download_all_motions_as_zip() {
+        const url = encodeURI(API + "/download-zipped-motions");
+        return fetch(url);
+    }
+
     /**
      * Load entire content from backend / content.
      *

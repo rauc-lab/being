@@ -1,8 +1,12 @@
 """API calls / controller for communication between front end and being components."""
 import collections
+import glob
+import io
 import itertools
 import json
 import math
+import os
+import zipfile
 from typing import Dict
 
 from aiohttp import web
@@ -128,6 +132,22 @@ def content_controller(content: Content) -> web.RouteTableDef:
 
         content.delete_motion(name)
         return json_response()
+
+    @routes.get('/download-zipped-motions')
+    async def download_zipped_motions(request):
+        stream = io.BytesIO()
+        with zipfile.ZipFile(stream, 'w') as zf:
+            for fp in glob.glob(content.directory + '/*.json'):
+                zf.write(fp)
+
+        stream.seek(0)
+
+        return web.Response(
+            body=stream,
+            status=200,
+            reason='ok',
+            content_type='application/zip'
+        )
 
     return routes
 
