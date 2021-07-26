@@ -4,6 +4,14 @@
 import { defaultdict } from "/static/js/utils.js";
 
 
+/**
+ * Remodel alertify notification object after it was created.
+ *
+ * @param {Object} noti Notificaiton object.
+ * @param {String} msg New notification message text.
+ * @param {String} type New notification type.
+ * @param {Number} wait New notification wait time.
+ */
 export function remodel_notification(noti, msg=null, type=null, wait=null) {
     if (msg !== null) {
         noti.setContent(msg);
@@ -21,6 +29,7 @@ export function remodel_notification(noti, msg=null, type=null, wait=null) {
         noti.delay(wait);
     }
 }
+
 
 /**
  * Number of items in an object.
@@ -120,21 +129,20 @@ export class NotificationCenter {
      * @param {Object} motor Motor object.
      */
     update_motor_notification(motor) {
-        // Motor name -> message prefix
-        const prefix = this.assign_motor_name(motor);
+        const name = this.assign_motor_name(motor);
         const notis = this.motorNotifications;
         switch(motor.homing.value) {
             case 0:
-                notis[motor.id] = this.notify_persistent(prefix + " homing failed", "error", 0, notis[motor.id]);
+                notis[motor.id] = this.notify_persistent(name + " homing failed", "error", 0, notis[motor.id]);
                 break;
             case 1:
-                notis[motor.id] = this.notify_persistent(prefix + " unhomed", "warning", 0, notis[motor.id]);
+                notis[motor.id] = this.notify_persistent(name + " unhomed", "warning", 0, notis[motor.id]);
                 break;
             case 2:
-                notis[motor.id] = this.notify_persistent(prefix + " homing ongoing", "warning", 0, notis[motor.id]);
+                notis[motor.id] = this.notify_persistent(name + " homing ongoing", "warning", 0, notis[motor.id]);
                 break;
             case 3:
-                notis[motor.id] = this.notify_persistent(prefix + " homed", "success", 2, notis[motor.id]);
+                notis[motor.id] = this.notify_persistent(name + " homed", "success", 2, notis[motor.id]);
                 break;
         }
     }
