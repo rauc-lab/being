@@ -4,14 +4,19 @@
 import { BBox } from "/static/js/bbox.js";
 import { array_min, array_max } from "/static/js/array.js";
 import { Deque } from "/static/js/deque.js";
+import { last_element } from "/static/js/utils.js";
+
 
 
 /**
  * Line artist. Contains data ring buffer and knows how to draw itself.
  */
 export class Line {
-    constructor(ctx, color = "#000000", maxlen = 1000, lineWidth = 2) {
-        this.ctx = ctx;
+    constructor(editor, color = "#000000", maxlen = 1000, lineWidth = 2) {
+        this.editor = editor;
+        this.canvas = editor.canvas;
+        this.ctx = editor.ctx;
+
         this.data = new Deque(0, maxlen);
         this.color = color;
         this.lineWidth = lineWidth;
@@ -76,21 +81,36 @@ export class Line {
 
         const ctx = this.ctx;
         ctx.beginPath();
-        let prev = Infinity;
+        let prevTime = Infinity;
+        let prevValue = 0;
         this.data.forEach(pt => {
-            if (pt[0] < prev) {
+            if (pt[0] < prevTime) {
                 ctx.moveTo(...pt);
             } else {
                 ctx.lineTo(...pt);
             }
 
-            prev = pt[0];
+            prevTime = pt[0];
+            prevValue = pt[1];
         });
+
         ctx.save();
         ctx.resetTransform();
         ctx.lineWidth = this.lineWidth;
         ctx.strokeStyle = this.color;
         ctx.stroke();
+
+        const lastPt = [prevTime, prevValue];
+        const [_, y] = this.editor.transform_point(lastPt);
+        ctx.fillStyle = this.color;
+        ctx.fillRect(
+            this.canvas.width - 50,
+            y - this.lineWidth,
+            50,
+            2*this.lineWidth,
+        );
+        ctx.stroke();
+
         ctx.restore();
     }
 

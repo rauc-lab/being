@@ -178,7 +178,7 @@ export class Editor extends CurverBase {
     init_plotting_lines(maxLines = 1) {
         while (this.lines.length < maxLines) {
             const color = this.colorPicker.next();
-            this.lines.push(new Line(this.ctx, color, this.maxlen));
+            this.lines.push(new Line(this, color, this.maxlen));
         }
     }
 
