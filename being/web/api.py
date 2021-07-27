@@ -10,12 +10,13 @@ import zipfile
 from typing import Dict
 
 from aiohttp import web
+from aiohttp.typedefs import MultiDictProxy
 
 from being.behavior import State as BehaviorState, Behavior
 from being.being import Being
 from being.config import CONFIG
 from being.connectables import ValueOutput, _ValueContainer
-from being.content import Content
+from being.content import CONTENT_CHANGED, Content
 from being.logging import get_logger
 from being.motors import Motor, HomingState
 from being.serialization import loads, spline_from_dict, register_enum
@@ -144,10 +145,48 @@ def content_controller(content: Content) -> web.RouteTableDef:
 
         return web.Response(
             body=stream,
-            status=200,
-            reason='ok',
             content_type='application/zip'
         )
+
+    def pluck_files(dct: MultiDictProxy) -> tuple:
+        """Pluck JSON files (and data) from MultiDictProxy files dct. Also open up zip files if any.
+
+        Args:
+            dct: Multi dict proxy from file upload post request.
+
+        Yields:
+            File basename and raw data.
+        """
+        for _, fileField in dct.items():
+            fn = fileField.filename
+            if fn.lower().endswith('.json'):
+                yield os.path.basename(fn), fileField.file.read()
+            elif fn.lower().endswith('.zip'):
+                with zipfile.ZipFile(fileField.file, 'r') as zf:
+                    for fp in zf.namelist():
+                        if not fp.lower().endswith('.json'):
+                            raise ValueError('Not a JSON file inside ZIP!')
+
+                        yield os.path.basename(fp), zf.read(fp)
+            else:
+                raise ValueError('Only .json and .zip files are supported!')
+
+    @routes.post('/upload-motions')
+    async def upload_motions(request):
+        print(request)
+        data = await request.post()
+        try:
+            upload = list(pluck_files(data))
+        except ValueError as err:
+            return web.HTTPNotAcceptable(text=str(err))
+
+        for fn, data in upload:
+            fp = os.path.join(content.directory, fn)
+            with open(fp, 'wb') as f:
+                f.write(data)
+
+        content.publish(CONTENT_CHANGED)
+        return respond_ok()
 
     return routes
 
