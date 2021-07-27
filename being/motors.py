@@ -314,6 +314,8 @@ class LinearMotor(Motor):
                 objectDictionary = load_object_dictionary(network, nodeId)
 
             node = CiA402Node(nodeId, objectDictionary, network)
+            # EPOS4 has no PDO mapping for Error Regiser, thus re-register here
+            node.setup_txpdo(1, 'Statusword', 'Error Register')
 
         self.length = length
         self.direction = sign(direction)
@@ -521,9 +523,75 @@ class LinearMotor(Motor):
 
 
 class RotaryMotor(Motor):
-    def __init__(self, nodeId, *args, **kwargs):
-        raise NotImplementedError
-        # TODO: Make me!
+
+    """Motor block which takes set-point values through its inputs and outputs
+    the current actual position value through its output. The input position
+    values are filtered with a kinematic filter. Encapsulates a and setups a
+    CiA402Node. Currently only tested with Maxon EPOS4 controller.
+
+    Attributes:
+        network (CanBackend): Associsated network:
+        node (CiA402Node): Drive node.
+    """
+    def __init__(self,
+             nodeId: int,
+             direction: float = FORWARD,
+             homingDirection: Optional[float] = None,
+             maxSpeed: float = 1.,
+             maxAcc: float = 1.,
+             network: Optional[CanBackend] = None,
+             node: Optional[CiA402Node] = None,
+             objectDictionary = None,
+             **kwargs,
+        ):
+        """Args:
+            nodeId: CANOpen node id.
+
+        Kwargs:
+            direction: Movement orientation.
+            homingDirection: Initial homing direction. Default same as `direction`.
+            maxSpeed: Maximum speed.
+            maxAcc: Maximum acceleration.
+            network: External network (dependency injection).
+            node: Drive node (dependency injection).
+            objectDictionary: Object dictionary for CiA402Node. Will be tried
+                to be identified from known EDS files.
+        """
+        super().__init__(**kwargs)
+        if homingDirection is None:
+            homingDirection = direction
+
+        if network is None:
+            network = CanBackend.single_instance_setdefault()
+            register_resource(network, duplicates=False)
+
+        if node is None:
+            if objectDictionary is None:
+                objectDictionary = load_object_dictionary(network, nodeId)
+
+            node = CiA402Node(nodeId, objectDictionary, network)
+
+            deviceName = node.sdo[MANUFACTURER_DEVICE_NAME].raw
+            # TODO: Support other controllers
+            if deviceName != "EPOS4":
+                raise DriveError("Attached motor controller (%s) is not an EPOS4!", deviceName)
+
+        self.direction = sign(direction)
+        self.homingDirection = sign(homingDirection)
+        self.network = network
+        self.node = node
+        self.maxSpeed = maxSpeed
+        self.maxAcc = maxAcc
+
+        self.lower = -INF
+        self.upper = INF
+        self.logger = get_logger(str(self))
+
+        self.configure_node()
+
+        self.node.nmt.state = PRE_OPERATIONAL
+        self.node.set_state(CiA402State.READY_TO_SWITCH_ON)
+        self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
 
 
 class WindupMotor(Motor):

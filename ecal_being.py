@@ -4,12 +4,12 @@ from being.behavior import Behavior
 from being.awakening import awake
 from being.logging import setup_logging
 from being.motion_player import MotionPlayer
-from being.motors import LinearMotor
+from being.motors import LinearMotor, RotaryMotor
 from being.resources import manage_resources
 from being.sensors import SensorGpio
 
 
-NODE_IDS = [23, 24]
+NODE_IDS = [1]
 """Motor ids to use."""
 
 
@@ -17,7 +17,7 @@ def look_for_motors():
     """Look which motors for NODE_IDS are available."""
     for nodeId in NODE_IDS:
         try:
-            yield LinearMotor(nodeId, length=0.100)
+            yield RotaryMotor(nodeId)
         except RuntimeError:
             pass
 
