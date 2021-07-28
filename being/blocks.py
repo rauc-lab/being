@@ -37,6 +37,29 @@ class Sine(Block):
         return '%s()' % type(self).__name__
 
 
+class Sawtooth(Block):
+
+    """Sawtooth generator. Outputs [0, TAU) for a given frequency."""
+
+    def __init__(self, frequency=1., interval=INTERVAL, **kwargs):
+        super().__init__(**kwargs)
+        self.add_value_input('frequency')
+        self.add_value_output()
+
+        self.frequency.value = frequency
+        self.interval = interval
+
+        self.phase = 0.
+
+    def update(self):
+        self.output.value = self.phase
+        self.phase += self.interval * TAU * self.frequency.value
+        self.phase %= TAU
+
+    def __str__(self):
+        return '%s()' % type(self).__name__
+
+
 class Trafo(Block):
 
     """Transforms input signal (by some fixed scale and offset)."""

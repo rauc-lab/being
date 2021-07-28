@@ -723,7 +723,7 @@ class RotaryMotor(Motor):
 
     def to_dict(self):
         dct = super().to_dict()
-        dct['length'] = self.length
+        # dct['length'] = self.length 
         return dct
 
     def __str__(self):
