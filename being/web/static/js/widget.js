@@ -6,6 +6,25 @@ import { add_option } from "/static/js/utils.js";
 import { create_button } from "/static/js/button.js";
 
 
+/**
+ * Render template, clone it and append it to a target HTMLElement.
+ *
+ * @param {object or string} template Element or string
+ * @param {*} target Target HTMLElement to append rendered template to.
+ */
+ export function append_template_to(template, target) {
+    if (typeof template === "string") {
+        let temp;
+        temp = document.createElement("template");
+        temp.innerHTML = template;
+        template = temp;
+    }
+
+    const child = template.content.cloneNode(true);
+    target.appendChild(child);
+}
+
+
 export class Widget extends HTMLElement {
     constructor() {
         super();
@@ -81,11 +100,12 @@ export class Widget extends HTMLElement {
     }
 
     /**
-     * Add a HTML template to shadow root.
+     * Append HTML template to shadow root.
+     *
      * @param {HTMLElement} template to add.
      */
-    add_template(template) {
-        this.shadowRoot.appendChild(template.content.cloneNode(true));
+    append_template(template) {
+        append_template_to(template, this.shadowRoot);
     }
 }
 

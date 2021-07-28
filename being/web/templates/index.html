@@ -85,6 +85,7 @@
         }
 
         for (let editor of document.getElementsByTagName("being-editor")) {
+            editor.set_notification_center(notificationCenter);
             ws.subscribe_to_message("being-state", msg => editor.new_data(msg));
             ws.subscribe_to_message("behavior-update", msg => editor.new_behavior_message(msg));
         }

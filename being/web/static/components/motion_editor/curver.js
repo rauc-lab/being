@@ -30,8 +30,7 @@ const MARGIN = 50;
 const MIN_VIEWPORT = new BBox([Infinity, -0.001], [-Infinity, 0.001]);
 
 /** @const {HTMLElement} - Curver base template */
-const CURVER_TEMPLATE = document.createElement("template");
-CURVER_TEMPLATE.innerHTML = `
+const CURVER_TEMPLATE = `
 <div class="container">
     <div id="motion-list"></div>
     <div id="graph">
@@ -89,7 +88,7 @@ export class CurverBase extends Widget {
      */
     init_elements() {
         this._append_link("static/components/motion_editor/curver.css");
-        this.add_template(CURVER_TEMPLATE);
+        this.append_template(CURVER_TEMPLATE);
 
         this.graph = this.shadowRoot.getElementById("graph");
         this.canvas = this.shadowRoot.getElementById("canvas");

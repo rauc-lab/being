@@ -10,8 +10,7 @@ import { isclose } from "/static/js/math.js";
 
 
 /** Control panel widget template. */
-const CONTROL_PANEL_TEMPLATE = document.createElement("template");
-CONTROL_PANEL_TEMPLATE.innerHTML = `
+const CONTROL_PANEL_TEMPLATE = `
 <div class="container">
     <svg id="svg" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
     <ul id="console" class="console"></ul>
@@ -38,7 +37,7 @@ export class ControlPanel extends Widget {
 
     init_html_elements() {
         this._append_link("static/components/control_panel/control_panel.css");
-        this.add_template(CONTROL_PANEL_TEMPLATE);
+        this.append_template(CONTROL_PANEL_TEMPLATE);
         this.svg = this.shadowRoot.getElementById("svg");
 
         // Toolbar

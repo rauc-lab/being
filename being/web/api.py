@@ -21,6 +21,7 @@ from being.logging import get_logger
 from being.motors import Motor, HomingState
 from being.serialization import loads, spline_from_dict, register_enum
 from being.spline import fit_spline
+from being.typing import Spline
 from being.utils import filter_by_type
 from being.web.responses import respond_ok, json_response
 
@@ -157,36 +158,44 @@ def content_controller(content: Content) -> web.RouteTableDef:
         Yields:
             File basename and raw data.
         """
-        for _, fileField in dct.items():
-            fn = fileField.filename
-            if fn.lower().endswith('.json'):
-                yield os.path.basename(fn), fileField.file.read()
-            elif fn.lower().endswith('.zip'):
-                with zipfile.ZipFile(fileField.file, 'r') as zf:
+        for filefield in dct.values():
+            fn = filefield.filename
+            if fn.lower().endswith('.zip'):
+                with zipfile.ZipFile(filefield.file, 'r') as zf:
                     for fp in zf.namelist():
-                        if not fp.lower().endswith('.json'):
-                            raise ValueError('Not a JSON file inside ZIP!')
-
-                        yield os.path.basename(fp), zf.read(fp)
+                        yield fp, zf.read(fp)
             else:
-                raise ValueError('Only .json and .zip files are supported!')
+                yield fn, filefield.file.read()
 
     @routes.post('/upload-motions')
     async def upload_motions(request):
-        print(request)
         data = await request.post()
-        try:
-            upload = list(pluck_files(data))
-        except ValueError as err:
-            return web.HTTPNotAcceptable(text=str(err))
 
-        for fn, data in upload:
-            fp = os.path.join(content.directory, fn)
-            with open(fp, 'wb') as f:
-                f.write(data)
+        # Empty upload
+        if isinstance(data, bytearray):
+            return json_response([{'type': 'error', 'message': 'Nothing uploaded!'}])
+
+        notis = []
+        for fp, data in pluck_files(data):
+            if not fp.lower().endswith('.json'):
+                notis.append({'type': 'error', 'message': '%r is not a JSON file!' % fp})
+                continue
+
+            try:
+                thing = loads(data)
+                if not isinstance(thing, Spline.__args__):
+                    raise ValueError('is not a spline!')
+
+                fn = os.path.basename(fp)
+                with open(os.path.join(content.directory, fn), 'wb') as f:
+                    f.write(data)
+
+                notis.append({'type': 'success', 'message': 'Uploaded file %r' % fp})
+            except Exception as err:
+                notis.append({'type': 'error', 'message': '%r %s' % (fp, err)})
 
         content.publish(CONTENT_CHANGED)
-        return respond_ok()
+        return json_response(notis)
 
     return routes
 
@@ -309,7 +318,6 @@ def behavior_controllers(behaviors) -> web.RouteTableDef:
         stateNames = list(BehaviorState.__members__)
         return json_response(stateNames)
 
-
     @routes.get('/behaviors/{id}')
     async def load_behavior(request):
         id = int(request.match_info['id'])
@@ -318,7 +326,6 @@ def behavior_controllers(behaviors) -> web.RouteTableDef:
         except (ValueError, KeyError):
             msg = f'Behavior with id {id} does not exist!'
             return web.HTTPBadRequest(text=msg)
-
 
     @routes.put('/behaviors/{id}/toggle_playback')
     async def toggle_behavior_playback(request):
@@ -335,7 +342,6 @@ def behavior_controllers(behaviors) -> web.RouteTableDef:
         except (ValueError, KeyError):
             msg = f'Behavior with id {id} does not exist!'
             return web.HTTPBadRequest(text=msg)
-
 
     @routes.put('/behaviors/{id}/params')
     async def receive_behavior_params(request):

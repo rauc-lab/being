@@ -19,8 +19,7 @@ const MAX_ATTENTION_SPAN = 30.;
 const N_TICKS = 1000;
 
 /** @const {HTMLElement} - Main template for behavior widget. */
-const BEHAVIOR_TEMPLATE = document.createElement("template");
-BEHAVIOR_TEMPLATE.innerHTML = `
+const BEHAVIOR_TEMPLATE = `
 <div class="container">
     <div id="statesDiv" class="states"></div>
 </div>
@@ -88,7 +87,7 @@ export class Behavior extends Widget {
     init_html_elements() {
         this.playPauseBtn = this.add_button_to_toolbar("play_arrow");
         this._append_link("static/components/behavior/behavior.css");
-        this.add_template(BEHAVIOR_TEMPLATE);
+        this.append_template(BEHAVIOR_TEMPLATE);
 
         this.statesDiv = this.shadowRoot.getElementById("statesDiv");
 

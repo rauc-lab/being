@@ -7,6 +7,11 @@ import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js
 
 
 export class Api {
+
+
+    /** General being and misc API */
+
+
     async get_blocks() {
         return get_json(API + "/blocks");
     }
@@ -27,6 +32,21 @@ export class Api {
     async get_config() {
         return get_json(API + "/config");
     }
+
+    /**
+     * Fit spline from trajectory data.
+     *
+     * @param {Array} trajectory Recorded trajectory. Array of timestamps and position values.
+     * @returns Fitted smoothing spline instance.
+     */
+         async fit_spline(trajectory) {
+            const obj = await post_json(API + "/fit_spline", trajectory);
+            return BPoly.from_object(obj);
+        }
+
+
+    /** Motor API */
+
 
     /**
      * Get current motor infos.
@@ -65,6 +85,10 @@ export class Api {
         return get_json(API + "/motionPlayers");
     }
 
+
+    /** Motion player API */
+
+
     /**
      * Play spline in backend.
      */
@@ -95,16 +119,8 @@ export class Api {
         });
     }
 
-    /**
-     * Fit spline from trajectory data.
-     *
-     * @param {Array} trajectory Recorded trajectory. Array of timestamps and position values.
-     * @returns Fitted smoothing spline instance.
-     */
-    async fit_spline(trajectory) {
-        const obj = await post_json(API + "/fit_spline", trajectory);
-        return BPoly.from_object(obj);
-    }
+    /** Content API */
+
 
     async find_free_name(wishName=null) {
         let uri = API + "/find-free-name";
@@ -153,6 +169,10 @@ export class Api {
     async load_motions() {
         return get_json(API + "/motions2");
     }
+
+
+    /** Behavior API */
+
 
     async load_behavior_states() {
         return get_json(API + "/behavior/states");

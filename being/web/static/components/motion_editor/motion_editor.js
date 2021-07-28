@@ -17,6 +17,7 @@ import {MotionList} from "/static/components/motion_editor/motion_list.js";
 import {MotorSelector} from "/static/components/motion_editor/motor_selector.js";
 import {SplineDrawer} from "/static/components/motion_editor/spline_drawer.js";
 import {PAUSED, PLAYING, RECORDING, Transport} from "/static/components/motion_editor/transport.js";
+import {append_template_to} from "/static/js/widget.js";
 
 
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
@@ -89,6 +90,7 @@ export class Editor extends CurverBase {
         this.drawer = new SplineDrawer(this, this.splineGroup);
         this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
         this.interval = null;
+        this.notificationCenter = null;
 
         this.motionPlayerSelect = null;
         this.channelSelect = null;
@@ -152,6 +154,10 @@ export class Editor extends CurverBase {
      */
     get snapping_to_grid() {
         return is_checked(this.snapBtn);
+    }
+
+    set_notification_center(notificationCenter) {
+        this.notificationCenter = notificationCenter;
     }
 
     /**
@@ -383,11 +389,64 @@ export class Editor extends CurverBase {
 
         this.add_space_to_toolbar()
 
+        // Upload button. It is murky...
+        const form = document.createElement("form");
+        form.setAttribute("action", "api/upload-motions");
+        form.setAttribute("method", "post");
+        form.setAttribute("enctype", "multipart/form-data");
+        //form.setAttribute("accept-charset", "utf-8");
+        const templateStr = `
+        <label for="file-upload" class="mdl-button mdl-js-button mdl-button--icon mdl-button--file">
+            <i id="file-upload-button" class="material-icons"
+                title="Upload some motions. Multiple .json or .zip files."
+            >file_upload</i>
+            <input
+                type="file"
+                id="file-upload"
+                name="files"
+                accept=".json, .zip"
+                multiple="multiple"
+                onchange="//this.form.submit();"
+                hidden
+            ></input>
+        </label>
+        `;
+        append_template_to(templateStr, form);
+        const fileinput = form.querySelector("input[type='file']")
+        fileinput.addEventListener("change", async evt => {
+            console.log('this change:');
+            //evt.target.form.submit();
+            form.dispatchEvent(new Event('submit'));
+        });
+        form.addEventListener("submit", async evt => {
+            console.log("this submit");
+            evt.preventDefault();
+            const resp = await fetch(form.action, {
+                method: form.method,
+                body: new FormData(form),
+            });
+            console.log("resp:", resp);
+            const notifications = await resp.json();
+            /*
+            for (let i in notis) {
+                const dct = notis[i];
+                console.log("dct:", dct);
+                this.notificationCenter.notify(dct.message, dct.type)
+                await sleep(0.5);
+            }
+            */
+            if (this.notificationCenter !== null) {
+                notifications.forEach(async dct => {
+                    this.notificationCenter.notify(dct.message, dct.type, 3.5);
+                });
+            }
+        });
+
+        this.toolbar.appendChild(form);
         //this.add_button_to_toolbar("file_upload", "Upload some motions");
-        const btn = this.add_button_to_toolbar("file_download", "Download all motions");
+        const btn = this.add_button_to_toolbar("file_download", "Download all motions as a Zip archive");
         btn.addEventListener("click", async evt => {
             // https://stackoverflow.com/questions/3749231/download-file-using-javascript-jquery
-
             const resp = await this.api.download_all_motions_as_zip();
             const blob = await resp.blob();
             const url = window.URL.createObjectURL(blob);
