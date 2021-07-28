@@ -17,7 +17,6 @@ from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.definitions import TransmissionType
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.can.vendor import UNITS, Units
-from being.can import MCLM3002
 from being.logging import get_logger
 
 
@@ -507,6 +506,11 @@ class CiA402Node(RemoteNode):
     def set_target_position(self, pos):
         """Set target position in SI units"""
         self.pdo[TARGET_POSITION].raw = pos * self.units.length
+        self.rpdo[2].transmit()
+
+    def set_target_angle(self, angle):
+        """Set target angle in radians"""
+        self.pdo[TARGET_POSITION].raw = angle
         self.rpdo[2].transmit()
 
     def get_actual_position(self):

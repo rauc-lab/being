@@ -39,7 +39,7 @@ class Sine(Block):
 
 class Sawtooth(Block):
 
-    """Sawtooth generator. Outputs [0, TAU) for a given frequency."""
+    """Sawtooth generator. Outputs [0, TAU] for a given frequency."""
 
     def __init__(self, frequency=1., interval=INTERVAL, **kwargs):
         super().__init__(**kwargs)

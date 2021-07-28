@@ -1,4 +1,5 @@
 """Vendor specific definitions and lookups."""
+import enum
 from typing import NamedTuple, Dict
 
 from being.bitmagic import check_bit_mask
@@ -24,8 +25,8 @@ UNITS: Dict[bytes, Units] = {
         kinematics=1000,
         speed=1000,  # Speeds are in mm/s
     ),
-    r'EPOS4': Units( # TODO: Check units!
-        length=1e6,
+    r'EPOS4': Units(  # TODO: Check units!
+        length=1e6,  # increments
         current=1000,
         kinematics=1000,
         speed=1000,  # Speeds are in mm/s
@@ -34,7 +35,7 @@ UNITS: Dict[bytes, Units] = {
 """Raw MANUFACTURER_DEVICE_NAME byte string -> Vendor units lookup."""
 
 # TODO: Generalize for other vendors!
-FAULHABER_ERRORS: Dict[int, str] = {
+FAULHABER_ERROR_REGISTER: Dict[int, str] = {
     0x0001: 'Continuous Over Current',
     0x0002: 'Deviation',
     0x0004: 'Over Voltage',
@@ -50,7 +51,7 @@ FAULHABER_ERRORS: Dict[int, str] = {
     0x4000: 'PDO not processes due to length error',
 }
 
-MAXON_ERRORS = {
+MAXON_ERROR_REGISTER: Dict[int, str] = {
     1 << 0: 'Generic Error',
     1 << 1: 'Current Error',
     1 << 2: 'Voltage Error',
@@ -71,3 +72,118 @@ def stringify_error(value: int, errorDict: dict) -> str:
             messages.append(message)
 
     return ', '.join(messages)
+
+
+class MCLM3002:
+    """Faulhaber MCLM3002 motor controller definitions.
+    Vendor specific or not available with Maxon EPOS4.
+    For Faulhaber MCLM3002 registers, see page 103 in
+    https://www.faulhaber.com/fileadmin/Import/Media/DE_7000_00039.pdf
+    """
+
+    # Manufacturer specific objects
+    DIGITAL_INPUT_SETTINGS = 0x2310
+    DIGIAL_INPUT_STATUS = 0x2311
+    ANALOG_INPUT_STATUS = 0x2313
+    ANALOG_INPUT_STATUS_RAW = 0x2314
+    FAULT_PIN_SETTINGS = 0x2315
+
+    FILTER_SETTINGS = 0x2330
+    SAMPLING_RATE = 1
+    GAIN_SCHEDULING = 2
+
+    GENERAL_SETTINGS = 0x2338
+    PURE_SINUS_COMMUTATION = 2
+    ACITVATE_POSITION_LIMITS_IN_VELOCITY_MODE = 2
+    ACITVATE_POSITION_LIMITS_IN_POSITION_MODE = 3
+
+    VELOCITY_CONTROL_PARAMETER_SET = 0x2331
+    PROPORTIONAL_TERM_POR = 1
+    INTEGRAL_TERM_I = 2
+
+    POSITION_CONTROL_PARAMETER_SET = 0x2332
+    PROPORTIONAL_TERM_PP = 1
+    DERIVATIVE_TERM_PD = 2
+
+    CURRENT_CONTROL_PARAMETER_SET = 0x2333
+    CONTINUOUS_CURRENT_LIMIT = 1
+    PEAK_CURRENT_LIMIT = 2
+    INTEGRAL_TERM_CI = 3
+
+    MOTOR_DATA = 0x2350
+    ENCODER_DATA = 0x2351
+
+    # CiA 402 Objects but not with Maxon EPOS4!
+    POSITION_ACTUAL_INTERNAL_VALUE = 0x6063
+    VELOCITY_WINDOW = 0x606D
+    VELOCITY_WINDOW_TIME = 0x606E
+    VELOCITY_THRESHOLD = 0x606F
+    VELOCITY_THRESHOLD_TIME = 0x6070
+    CURRENT_ACTUAL_VALUE = 0x6078
+    HOMING_OFFSET = 0x607C
+    POLARITY = 0x607E
+    POSITION_ENCODER_RESOLUTION = 0x608F
+    GEAR_RATIO = 0x6091
+    FEED_CONSTANT = 0x6092
+    POSITION_FACTOR = 0x6093
+    CONTROL_EFFORT = 0x60FA
+
+
+class EPOS4:
+
+    """Maxon EPOS4 motor controller definitions.
+    Registers are listed starting at page 66 in
+     https://www.maxongroup.ch/medias/sys_master/root/8884070187038/EPOS4-Firmware-Specification-En.pdf
+    """
+
+    # Manufacturer specific objects
+
+    AXIS_CONFIGURATION = 0x3000
+    SENSORS_CONFIGURATION = 1
+    CONTROL_STRUCTURE = 2
+    COMMUTATION_SENSORS = 3
+    AXIS_CONFIGURATION_MISCELLANEOUS = 4
+    MAIN_SENSOR_RESOLUTION = 5
+    MAX_SYSTEM_SPEED = 6
+
+    MOTOR_DATA_MAXON = 0x3001
+    NOMINAL_CURRENT = 1
+    OUTPUT_CURRENT_LIMIT = 2
+    NUMBER_OF_POLE_PAIRS = 3
+    THERMAL_TIME_CONSTANT_WINDING = 4
+    MOTOR_TORQUE_CONSTANT = 5
+
+    GEAR_CONFIGURATION = 0x3003
+    GEAR_REDUCTION_NUMERATOR = 1
+    GEAR_REDUCTION_DENOMINATOR = 2
+    MAX_GEAR_INPUT_SPEED = 3
+
+    DIGITAL_INCREMENTAL_ENCODER_1 = 0x3010
+    DIGITAL_INCREMENTAL_ENCODER_1_NUMBER_OF_PULSES = 1
+    DIGITAL_INCREMENTAL_ENCODER_1_TYPE = 2
+    DIGITAL_INCREMENTAL_ENCODER_1_INDEX_POSITION = 4
+
+    CURRENT_CONTROL_PARAMETER_SET_MAXON = 0x30A0
+    CURRENT_CONTROLLER_P_GAIN = 1
+    CURRENT_CONTROLLER_I_GAIN = 2
+
+    VELOCITY_CONTROL_PARAMETER_SET_MAXON = 0x30A2
+    VELOCITY_CONTROLLER_P_GAIN = 1
+    VELOCITY_CONTROLLER_I_GAIN = 2
+
+    HOME_OFFSET_MOVE_DISTANCE = 0x30B1
+
+    # Standardized but not available with Faulhaber
+
+    MOTOR_RATED_TORQUE = 0x6076  # Not with FH
+    MAX_MOTOR_SPEED = 0x6080  # Not with FH
+
+    INTERPOLATION_TIME_PERIOD = 0x60C2   # Not with FH
+    INTERPOLATION_TIME_PERIOD_VALUE = 1
+
+    MOTOR_TYPE = 0x6402   # Not with FH
+
+    class AxisPolarity(enum.IntEnum):
+        """Axis polarity for DC motors"""
+        CCW = 0
+        CW = 1

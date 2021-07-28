@@ -13,7 +13,6 @@ from typing import Optional, Generator, Tuple
 
 from being.backends import CanBackend
 from being.block import Block
-from being.can import EPOS4
 from being.can import load_object_dictionary
 from being.can.cia_301 import MANUFACTURER_DEVICE_NAME, ERROR_REGISTER
 from being.can.cia_402 import (
@@ -40,7 +39,13 @@ from being.can.cia_402 import (
 )
 from being.can.definitions import HOMING_OFFSET
 from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL
-from being.can.vendor import stringify_error, MAXON_ERRORS, FAULHABER_ERRORS
+from being.can.vendor import (
+    stringify_error,
+    MAXON_ERROR_REGISTER,
+    FAULHABER_ERROR_REGISTER,
+    MCLM3002,
+    EPOS4,
+)
 from being.config import CONFIG
 from being.constants import INF, FORWARD
 from being.error import BeingError
@@ -171,6 +176,8 @@ def proper_homing(
         maxSpeed: float = 0.100,
         maxAcc: float = 1.,
         timeout: float = 3.,
+        lowerLimit: int = 0,
+        upperLimit: int = 0, 
     ) -> HomingProgress:
     """Proper CiA 402 homing."""
     homed = False
@@ -210,18 +217,18 @@ def proper_homing(
             sw = node.sdo[STATUSWORD].raw
             homed = (sw & SW.TARGET_REACHED) and (sw & SW.HOMING_ATTAINED)
 
-        #node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION  # Abort homing
+        node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION  # Abort homing
         # node.sdo[CONTROLWORD].raw = 0  # Abort homing
 
     if homed:
-        #lower = node.sdo[SOFTWARE_POSITION_LIMIT][1].raw
+        # lower = node.sdo[SOFTWARE_POSITION_LIMIT][1].raw
         #node.sdo[HOMING_OFFSET].raw = lower
-        #node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
-        #node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = self.length * self.node.units.length
+        node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0  # 0 == disabled
+        node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = 0  # 0 == disabled
         #print(self, 'HOMING_OFFSET:', node.sdo[HOMING_OFFSET].raw)
         #print('SOFTWARE_POSITION_LIMIT:', node.sdo[SOFTWARE_POSITION_LIMIT][1].raw)
         #print('SOFTWARE_POSITION_LIMIT:', node.sdo[SOFTWARE_POSITION_LIMIT][2].raw)
-        #node.sdo[HOMING_OFFSET].raw = 0
+        # node.sdo[HOMING_OFFSET].raw = 0
         yield HomingState.HOMED
     else:
         yield HomingState.FAILED
@@ -498,11 +505,13 @@ class LinearMotor(Motor):
         self.publish(MOTOR_CHANGED)
 
     def update(self):
-        err = self.node.pdo[ERROR_REGISTER].raw
-        if err:
-            msg = stringify_error(err, FAULHABER_ERRORS)
+
+        if self.node.emcy.active:
             #raise DriveError(msg)
-            self.logger.error('DriveError: %s', msg)
+            for emcy in self.node.emcy.active:
+                msg = stringify_error(emcy.register, FAULHABER_ERROR_REGISTER)
+                # note: error codes are more specific than error register only
+                self.logger.error(f'DriveError: {msg} with Error code: {emcy.code}')
 
         if self.homing is HomingState.HOMED:
             sw = self.node.pdo[STATUSWORD].raw  # This takes approx. 0.027 ms
@@ -645,12 +654,11 @@ class RotaryMotor(Motor):
         axisConf[EPOS4.AXIS_CONFIGURATION_MISCELLANEOUS].raw = 0x0 | EPOS4.AxisPolarity.CCW  # positive value are CCW
 
         digitalEncoder = self.node.sdo[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1]
-        #  TODO: Check difference btwn. pulses / increments.
-        #  We SHOULD have mounted an encoder with 1024 counts (= pulses or increments?) per minute
-        #  However, 1024 leads to an very noisy movement, the stored value 2048 was prob. set by
-        #  Maxon desktop software ? 
+        #  4 * pulses = 1 * increment
+        #  We SHOULD have mounted an encoder with 1024 counts (= pulses or increments?) per turn
+        #  However, 1024 leads to an very noisy movement, the default value 2048 works well
         digitalEncoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_NUMBER_OF_PULSES].raw = 2048
-        digitalEncoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_TYPE].raw = 0  # 1 = with index (3 channel)
+        digitalEncoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_TYPE].raw = 0 # 1 = with index (3 channel)
 
         # TODO: add SSI configuration. Required for BLDC?
 
@@ -697,22 +705,25 @@ class RotaryMotor(Motor):
         self.publish(MOTOR_CHANGED)
 
     def update(self):
-        err = self.node.sdo[ERROR_REGISTER].raw  # PDO Mapping not possible here
-        if err:
-            msg = stringify_error(err, MAXON_ERRORS)
+        if self.node.emcy.active:
             #raise DriveError(msg)
-            self.logger.error('DriveError: %s', msg)
+            for emcy in self.node.emcy.active:
+                msg = stringify_error(emcy.register, MAXON_ERROR_REGISTER)
+                # note: error codes are more specific than error register only
+                self.logger.error(f'DriveError: {msg} with Error code: {emcy.code}')
 
         if self.homing is HomingState.HOMED:
             sw = self.node.pdo[STATUSWORD].raw  # This takes approx. 0.027 ms
             state = which_state(sw)
             if state is CiA402State.OPERATION_ENABLE:
+                # TODO: let the controller handle the direction ?
                 if self.direction > 0:
                     tarPos = self.targetPosition.value
                 else:
                     tarPos = self.length - self.targetPosition.value
 
-                self.node.set_target_position(tarPos)
+                self.node.set_target_angle(tarPos)
+                # self.node.set_target_position(tarPos)
 
         elif self.homing is HomingState.ONGOING:
             self.homing = next(self.homingJob)
