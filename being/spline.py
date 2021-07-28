@@ -9,10 +9,14 @@ Resources:
     http://www.idav.ucdavis.edu/education/CAGDNotes/Bernstein-Polynomials.pdf
     https://geom.ivd.kit.edu/downloads/pubs/pub-boehm-prautzsch_2002_preview.pdf
 """
+import functools
+import math
 from typing import Sequence
 from enum import IntEnum
 
+
 import numpy as np
+from numpy import ndarray
 from scipy.interpolate import PPoly, BPoly, splrep, splprep
 
 from being.constants import ONE_D, TWO_D
@@ -31,12 +35,12 @@ class Degree(IntEnum):
 
 
 def build_spline(
-    accelerations: Sequence,
-    knots: Sequence,
-    x0: float = 0.,
-    v0: float = 0.,
-    extrapolate: bool = False,
-    axis: int = 0,
+        accelerations: Sequence,
+        knots: Sequence,
+        x0: float = 0.,
+        v0: float = 0.,
+        extrapolate: bool = False,
+        axis: int = 0,
     ) -> PPoly:
     """Build quadratic position spline from acceleration segments. Also include
     initial velocity and position.
@@ -133,12 +137,12 @@ def smoothing_factor(smoothing: float, length: int) -> float:
 
 
 def smoothing_spline(
-    x: Sequence,
-    y: Sequence,
-    degree: Degree = Degree.CUBIC,
-    smoothing: float = 1e-3,
-    periodic: bool = False,
-    extrapolate: bool = False,
+        x: Sequence,
+        y: Sequence,
+        degree: Degree = Degree.CUBIC,
+        smoothing: float = 1e-3,
+        periodic: bool = False,
+        extrapolate: bool = False,
     ) -> PPoly:
     """Fit smoothing spline through uni- or multivariate data points.
 
@@ -186,12 +190,12 @@ def smoothing_spline(
 
 
 def optimal_trajectory_spline(
-    xEnd: float,
-    vEnd: float = 0.,
-    x0: float = 0.,
-    v0: float = 0.,
-    maxSpeed: float = 1.,
-    maxAcc: float = 1.,
+        xEnd: float,
+        vEnd: float = 0.,
+        x0: float = 0.,
+        v0: float = 0.,
+        maxSpeed: float = 1.,
+        maxAcc: float = 1.,
     ) -> PPoly:
     """Build spline following the optimal trajectory.
 
@@ -237,7 +241,7 @@ def sample_spline(spline: Spline, t, loop: bool = False):
     return spline(np.clip(t, start, end))
 
 
-def fit_spline(trajectory, smoothing=1e-6):
+def fit_spline(trajectory, smoothing=1e-6) -> BPoly:
     """Fit a smoothing spline through a trajectory."""
     trajectory = np.asarray(trajectory)
     if trajectory.ndim != TWO_D:
@@ -246,9 +250,94 @@ def fit_spline(trajectory, smoothing=1e-6):
     t = trajectory[:, 0]
     x = trajectory[:, 1:]
     x = x.squeeze()
-    ppoly = smoothing_spline(t, x, smoothing=1e-6, extrapolate=False)
+    ppoly = smoothing_spline(t, x, smoothing=smoothing, extrapolate=False)
     ppoly = remove_duplicates(ppoly)
     return BPoly.from_power_basis(ppoly)
+
+
+def find_segment(ascending, x: float) -> int:
+    """Find segment index for a given value inside a .
+
+    Args:
+        ascending: Sorted array.
+        x: Value to check where it falls.
+
+    Returns:
+        Segment index of value.
+    """
+    return np.searchsorted(ascending, x, side='right') - 1
+
+
+@functools.lru_cache(maxsize=128, typed=False)
+def _factorial(x: int) -> int:
+    """Cached recursive factorial function in case someone wants to call
+    `power_basis` with a large order.
+    """
+    if x < 0:
+        raise ValueError('_factorial() not defined for negative values')
+
+    if x < 2:
+        return 1
+
+    return _factorial(x - 1) * x
+
+
+for x in range(10):
+    assert _factorial(x) == math.factorial(x)
+
+
+def power_basis(order: int) -> ndarray:
+    """Create power basis vector. Ordered so that it fits the spline
+    coefficients matrix.
+
+    Args:
+        order: Order of the spline.
+
+    Returns:
+        Power basis coefficients.
+    """
+    return np.array([
+        _factorial(x) for x in reversed(range(order))
+    ])
+
+
+def ppoly_insert(newX: float, spline: PPoly):
+    """Insert a new knot / breakpoint somewhere in a spline segment."""
+    if not isinstance(spline, PPoly):
+        raise ValueError('Not a PPoly spline!')
+
+    if newX in spline.x:
+        return spline
+
+    seg = find_segment(spline.x, newX)
+    assert 0 <= seg < len(spline.x)
+
+    x = spline.x
+    c = spline.c
+
+    # Up to target segment
+    ret = PPoly.construct_fast(
+        c[:, :seg],
+        x[:seg+1],
+        spline.extrapolate,
+        spline.axis,
+    )
+
+    # Target segment left of newX
+    ret.extend(c[:, seg:seg+1], [newX])
+
+    # Target segment right of newX
+    order = spline.c.shape[0]
+    vals = [spline(newX, nu) for nu in range(order)]
+    intermediateCoeffs = vals[::-1] / power_basis(order)
+    ret.extend(
+        intermediateCoeffs.reshape((-1, 1)),
+        [spline.x[seg+1]]
+    )
+
+    # And the rest
+    ret.extend(c[:, seg:], x[seg+1:])
+    return ret
 
 
 def smoothing_spline_demo():

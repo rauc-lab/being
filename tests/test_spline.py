@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from numpy.testing import assert_almost_equal
 
-from being.spline import build_spline, smoothing_spline
+from being.spline import build_spline, smoothing_spline, find_segment
 
 
 class TestBuildSpline(unittest.TestCase):
@@ -41,6 +41,20 @@ class TestSmoothingSpline(unittest.TestCase):
         spline = smoothing_spline(x, pts)
 
         assert_almost_equal(spline(x), pts)
+
+
+class TestFindSegment(unittest.TestCase):
+    def test_with_examples(self):
+        x = [1., 2., 4.]
+
+        self.assertEqual(find_segment(x, 0.), -1)
+        self.assertEqual(find_segment(x, 1.), 0)
+        self.assertEqual(find_segment(x, 2. - 1e-6), 0)
+        self.assertEqual(find_segment(x, 2.), 1)
+        self.assertEqual(find_segment(x, 2.5), 1)
+        self.assertEqual(find_segment(x, 3.5), 1)
+        self.assertEqual(find_segment(x, 4.), 2)
+        self.assertEqual(find_segment(x, 1234), 2)
 
 
 if __name__ == '__main__':
