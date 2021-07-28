@@ -8,6 +8,7 @@ import contextlib
 from enum import auto, IntEnum, Enum
 from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union, Optional
 from collections import deque, defaultdict
+import time
 
 from canopen import RemoteNode
 
@@ -16,12 +17,12 @@ from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.definitions import TransmissionType
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.can.vendor import UNITS, Units
+from being.can import MCLM3002
 from being.logging import get_logger
 
 
 # Mandatory (?) CiA 402 object dictionary entries
 # (SJA): CiA 402 is still a Draft Specification Proposal (DSP).
-# Many registers from here don't exist for Maxon EPOS4 (but all exist for FH MCLM3002)
 
 CONTROLWORD = 0x6040
 STATUSWORD = 0x6041
@@ -183,6 +184,7 @@ VALID_OP_MODE_CHANGE_STATES: Set[State] = {
     State.SWITCH_ON_DISABLED,
     State.READY_TO_SWITCH_ON,
     State.SWITCHED_ON,
+    State.OPERATION_ENABLE,  # (SJA): Should work no?!
 }
 """Not every state support switching of operation mode."""
 
@@ -409,7 +411,7 @@ class CiA402Node(RemoteNode):
         if target is current:
             return
 
-        if not target in POSSIBLE_TRANSITIONS[current]:
+        if target not in POSSIBLE_TRANSITIONS[current]:
             raise RuntimeError(f'Invalid state transition from {current!r} to {target!r}!')
 
         edge = (current, target)
@@ -430,6 +432,16 @@ class CiA402Node(RemoteNode):
         path = find_shortest_state_path(current, target)
         for state in path[1:]:
             self.set_state(state)
+
+            # EPOS is too slow while state switching.
+            # set_state() will throw an exception otherwise
+            startTime = time.perf_counter()
+            endTime = startTime + 0.05
+
+            while self.get_state() != state:
+                if time.perf_counter() > endTime:
+                    raise RuntimeError(f'Timeout while trying to transition from state {current!r} to {target!r}!')
+                time.sleep(0.002)
 
     def get_operation_mode(self) -> OperationMode:
         """Get current operation mode."""
@@ -494,21 +506,21 @@ class CiA402Node(RemoteNode):
 
     def set_target_position(self, pos):
         """Set target position in SI units"""
-        self.pdo['Target Position'].raw = pos * self.units.length
+        self.pdo[TARGET_POSITION].raw = pos * self.units.length
         self.rpdo[2].transmit()
 
     def get_actual_position(self):
         """Get actual position in SI units"""
-        return self.pdo['Position Actual Value'].raw / self.units.length
+        return self.pdo[POSITION_ACTUAL_VALUE].raw / self.units.length
 
     def set_target_velocity(self, vel):
         """Set target velocity in SI units."""
-        self.pdo['Target Velocity'].raw = vel * self.units.speed
+        self.pdo[TARGET_VELOCITY].raw = vel * self.units.speed
         self.rpdo[3].transmit()
 
     def get_actual_velocity(self):
         """Get actual velocity in SI units."""
-        return self.pdo['Velocity Actual Value'].raw / self.units.speed
+        return self.pdo[VELOCITY_ACTUAL_VALUE].raw / self.units.speed
 
     def _get_info(self) -> dict:
         """Get the current states."""

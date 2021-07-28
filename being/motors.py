@@ -13,7 +13,9 @@ from typing import Optional, Generator, Tuple
 
 from being.backends import CanBackend
 from being.block import Block
+from being.can import EPOS4
 from being.can import load_object_dictionary
+from being.can.cia_301 import MANUFACTURER_DEVICE_NAME, ERROR_REGISTER
 from being.can.cia_402 import (
     CONTROLWORD,
     CW,
@@ -32,10 +34,13 @@ from being.can.cia_402 import (
     VELOCITY_ACTUAL_VALUE,
     target_reached,
     which_state,
+    MAX_PROFILE_VELOCITY,
+    PROFILE_ACCELERATION,
+    PROFILE_DECELERATION,
 )
 from being.can.definitions import HOMING_OFFSET
 from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL
-from being.can.vendor import stringify_faulhaber_error
+from being.can.vendor import stringify_error, MAXON_ERRORS, FAULHABER_ERRORS
 from being.config import CONFIG
 from being.constants import INF, FORWARD
 from being.error import BeingError
@@ -81,6 +86,8 @@ HomingRange = Tuple[int, int]
 
 MINIMUM_HOMING_WIDTH = 0.010
 """Minimum width of homing range for a successful homing."""
+
+INTERVAL = CONFIG['General']['INTERVAL']
 
 
 class HomingFailed(BeingError):
@@ -174,11 +181,13 @@ def proper_homing(
         node.change_state(CiA402State.READY_TO_SWITCH_ON)
         node.set_operation_mode(OperationMode.HOMING)
         node.nmt.state = OPERATIONAL
+        # node.change_state(CiA402State.SWITCHED_ON)
         node.change_state(CiA402State.OPERATION_ENABLE)
 
         # TODO: Set Homing Switch(Objekt 0x2310). Manufacture dependent
         # node.sdo['Homing Switch'] = ???
-        node.sdo[HOMING_OFFSET].raw = 0
+        # TODO: Manufacture dependent, done before calling method
+        # node.sdo[HOMING_OFFSET].raw = 0
         node.sdo[HOMING_METHOD].raw = homingMethod
         node.sdo[HOMING_SPEED].raw = abs(maxSpeed * node.units.speed)
         node.sdo[HOMING_ACCELERATION].raw = abs(maxAcc * node.units.speed)
@@ -202,7 +211,7 @@ def proper_homing(
             homed = (sw & SW.TARGET_REACHED) and (sw & SW.HOMING_ATTAINED)
 
         #node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION  # Abort homing
-        node.sdo[CONTROLWORD].raw = 0  # Abort homing
+        # node.sdo[CONTROLWORD].raw = 0  # Abort homing
 
     if homed:
         #lower = node.sdo[SOFTWARE_POSITION_LIMIT][1].raw
@@ -466,7 +475,7 @@ class LinearMotor(Motor):
         yield HomingState.HOMED
 
     def enabled(self):
-        sw = self.node.sdo['Statusword'].raw  # This takes approx. 2.713 ms
+        sw = self.node.sdo[STATUSWORD].raw  # This takes approx. 2.713 ms
         state = which_state(sw)
         return state is CiA402State.OPERATION_ENABLE
 
@@ -489,14 +498,14 @@ class LinearMotor(Motor):
         self.publish(MOTOR_CHANGED)
 
     def update(self):
-        err = self.node.pdo['Error Register'].raw
+        err = self.node.pdo[ERROR_REGISTER].raw
         if err:
-            msg = stringify_faulhaber_error(err)
+            msg = stringify_error(err, FAULHABER_ERRORS)
             #raise DriveError(msg)
             self.logger.error('DriveError: %s', msg)
 
         if self.homing is HomingState.HOMED:
-            sw = self.node.pdo['Statusword'].raw  # This takes approx. 0.027 ms
+            sw = self.node.pdo[STATUSWORD].raw  # This takes approx. 0.027 ms
             state = which_state(sw)
             if state is CiA402State.OPERATION_ENABLE:
                 if self.direction > 0:
@@ -583,15 +592,142 @@ class RotaryMotor(Motor):
         self.maxSpeed = maxSpeed
         self.maxAcc = maxAcc
 
-        self.lower = -INF
-        self.upper = INF
         self.logger = get_logger(str(self))
-
-        self.configure_node()
 
         self.node.nmt.state = PRE_OPERATIONAL
         self.node.set_state(CiA402State.READY_TO_SWITCH_ON)
+
+        self.configure_node()  # Some registers dont' have write access when in OPERATION_ENABLE mode!
+
         self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
+
+    @property
+    def nodeId(self) -> int:
+        """CAN node id."""
+        return self.node.id
+
+    def configure_node(self,
+                       maxSpeed: float = 6000.,
+                       maxAcc: float = 5,
+                       hasGear: bool = True,
+                       isBrushed: bool = True):
+        """Configure Maxon EPOS4 node (some settings via SDO)."""
+
+        units = self.node.units
+
+        # TODO: These parameters have to come from the outside. Question: How
+        # can we identify the motor and choose sensible defaults?
+
+        # TODO: Load defaults from external (per motor) library or DCF file ?!
+
+        # Set motor parameters
+
+        self.node.sdo[EPOS4.MOTOR_TYPE].raw = 1  # 1 = Brushed DC, 10 = BLDC sinus-commutated
+        motorData = self.node.sdo[EPOS4.MOTOR_DATA_MAXON]
+        motorData[EPOS4.NOMINAL_CURRENT].raw = 0.397 * units.current # [mA]
+        motorData[EPOS4.OUTPUT_CURRENT_LIMIT].raw = 2 * 0.397 * units.current # [mA] Recommended to set to double of nominal current
+        motorData[EPOS4.NUMBER_OF_POLE_PAIRS].raw = 1  # only relevant for BLDC motors
+        motorData[EPOS4.THERMAL_TIME_CONSTANT_WINDING].raw = 143  # [0.1 s]
+        motorData[EPOS4.MOTOR_TORQUE_CONSTANT].raw = 1000 * 30.8  # [μNm/A]
+        self.node.sdo[EPOS4.MAX_MOTOR_SPEED].raw = 9000  # [rpm]
+
+        gearConf = self.node.sdo[EPOS4.GEAR_CONFIGURATION]
+        gearConf[EPOS4.GEAR_REDUCTION_NUMERATOR].raw = 69  # [rpm]
+        gearConf[EPOS4.GEAR_REDUCTION_DENOMINATOR].raw = 13  # [rpm]
+        gearConf[EPOS4.MAX_GEAR_INPUT_SPEED].raw = 7000  # [rpm]
+
+        # Set position sensor parameters
+
+        axisConf = self.node.sdo[EPOS4.AXIS_CONFIGURATION]
+        axisConf[EPOS4.SENSORS_CONFIGURATION].raw = 1  # Adjust for Hallsensors in BLDC
+        axisConf[EPOS4.CONTROL_STRUCTURE].raw = (hasGear << 12 | 0x10111)  # TODO: Break down more
+        axisConf[EPOS4.COMMUTATION_SENSORS].raw = 0 if isBrushed else 0x31
+        axisConf[EPOS4.AXIS_CONFIGURATION_MISCELLANEOUS].raw = 0x0 | EPOS4.AxisPolarity.CCW  # positive value are CCW
+
+        digitalEncoder = self.node.sdo[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1]
+        #  TODO: Check difference btwn. pulses / increments.
+        #  We SHOULD have mounted an encoder with 1024 counts (= pulses or increments?) per minute
+        #  However, 1024 leads to an very noisy movement, the stored value 2048 was prob. set by
+        #  Maxon desktop software ? 
+        digitalEncoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_NUMBER_OF_PULSES].raw = 2048
+        digitalEncoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_TYPE].raw = 0  # 1 = with index (3 channel)
+
+        # TODO: add SSI configuration. Required for BLDC?
+
+        # Set current control gains
+
+        currentCtrlParamSet = self.node.sdo[EPOS4.CURRENT_CONTROL_PARAMETER_SET_MAXON]
+        currentCtrlParamSet[EPOS4.CURRENT_CONTROLLER_P_GAIN].raw = 9138837  # [uV / A]
+        currentCtrlParamSet[EPOS4.CURRENT_CONTROLLER_I_GAIN].raw = 133651205  # [uV / (A * ms)]
+
+        # Set additional parameters
+
+        self.node.sdo[EPOS4.MOTOR_RATED_TORQUE].raw = 12228  # [μNm]
+        interpolPer = self.node.sdo[EPOS4.INTERPOLATION_TIME_PERIOD]
+        interpolPer[EPOS4.INTERPOLATION_TIME_PERIOD_VALUE].raw = INTERVAL * 1000  # [ms]
+
+        self.node.sdo[MAX_PROFILE_VELOCITY].raw = maxSpeed  # [rpm]
+        self.node.sdo[PROFILE_ACCELERATION].raw = units.kinematics * maxAcc  # [mm / s^2] or [rpm / s]
+        self.node.sdo[PROFILE_DECELERATION].raw = units.kinematics * maxAcc  # [mm / s^2]
+
+    def enabled(self):
+        sw = self.node.sdo[STATUSWORD].raw  # This takes approx. 2.713 ms
+        state = which_state(sw)
+        return state is CiA402State.OPERATION_ENABLE
+
+    def enable(self, publish=True):
+        self.node.enable()
+        super().enable(publish)
+
+    def disable(self, publish=True):
+        self.node.disable()
+        super().disable(publish)
+
+    def home(self, offset: int = 0):
+        self.node.sdo[EPOS4.HOME_OFFSET_MOVE_DISTANCE].raw = offset
+
+        if self.homingDirection > 0:
+            self.homingJob = proper_homing(
+                self.node, homingMethod=-4, timeout=5)
+        else:
+            self.homingJob = proper_homing(
+                self.node, homingMethod=-3, timeout=5)
+
+        self.homing = HomingState.ONGOING
+        self.publish(MOTOR_CHANGED)
+
+    def update(self):
+        err = self.node.sdo[ERROR_REGISTER].raw  # PDO Mapping not possible here
+        if err:
+            msg = stringify_error(err, MAXON_ERRORS)
+            #raise DriveError(msg)
+            self.logger.error('DriveError: %s', msg)
+
+        if self.homing is HomingState.HOMED:
+            sw = self.node.pdo[STATUSWORD].raw  # This takes approx. 0.027 ms
+            state = which_state(sw)
+            if state is CiA402State.OPERATION_ENABLE:
+                if self.direction > 0:
+                    tarPos = self.targetPosition.value
+                else:
+                    tarPos = self.length - self.targetPosition.value
+
+                self.node.set_target_position(tarPos)
+
+        elif self.homing is HomingState.ONGOING:
+            self.homing = next(self.homingJob)
+            if self.homing is not HomingState.ONGOING:
+                self.publish(MOTOR_CHANGED)
+
+        self.output.value = self.node.get_actual_position()
+
+    def to_dict(self):
+        dct = super().to_dict()
+        dct['length'] = self.length
+        return dct
+
+    def __str__(self):
+        return f'{type(self).__name__}(nodeId: {self.nodeId!r})'
 
 
 class WindupMotor(Motor):
@@ -608,7 +744,7 @@ class DummyMotor(Motor):
         super().__init__()
         self.length = length
         self.state = KinematicState()
-        self.dt = CONFIG['General']['INTERVAL']
+        self.dt = INTERVAL
         self.homing = HomingState.HOMED
 
     def dummy_homing(self, minDuration: float = 2., maxDuration: float = 5.) -> HomingProgress:

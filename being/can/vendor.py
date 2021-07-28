@@ -24,6 +24,12 @@ UNITS: Dict[bytes, Units] = {
         kinematics=1000,
         speed=1000,  # Speeds are in mm/s
     ),
+    r'EPOS4': Units( # TODO: Check units!
+        length=1e6,
+        current=1000,
+        kinematics=1000,
+        speed=1000,  # Speeds are in mm/s
+    ),
 }
 """Raw MANUFACTURER_DEVICE_NAME byte string -> Vendor units lookup."""
 
@@ -43,13 +49,24 @@ FAULHABER_ERRORS: Dict[int, str] = {
     0x2000: 'PDO Length Exceeded',
     0x4000: 'PDO not processes due to length error',
 }
+
+MAXON_ERRORS = {
+    1 << 0: 'Generic Error',
+    1 << 1: 'Current Error',
+    1 << 2: 'Voltage Error',
+    1 << 3: 'Temperature Error',
+    1 << 4: 'Communication Error',
+    1 << 5: 'Device profile-specific',
+    1 << 6: 'Reserved (always 0)',
+    1 << 7: 'Motion Error',
+}
 """Error code -> Error message string lookup."""
 
 
-def stringify_faulhaber_error(value: int) -> str:
+def stringify_error(value: int, errorDict: dict) -> str:
     """Concatenate error messages for a given error value."""
     messages = []
-    for mask, message in FAULHABER_ERRORS.items():
+    for mask, message in errorDict.items():
         if check_bit_mask(value, mask):
             messages.append(message)
 
