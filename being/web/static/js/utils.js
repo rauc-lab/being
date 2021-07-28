@@ -187,3 +187,14 @@ export function defaultdict(default_factory) {
 
     return new Proxy({}, handler);
 }
+
+
+/**
+ * Sleep for some time (async).
+ *
+ * @param {Number} duration Sleep duration in seconds.
+ * @returns {Promise} Awaitable setTimeout promis;
+ */
+export function sleep(duration) {
+    return new Promise(resolve => setTimeout(resolve, 1000 * duration));
+}
