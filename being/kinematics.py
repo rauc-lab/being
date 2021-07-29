@@ -1,6 +1,7 @@
 """Optimal trajectory and kinematic filtering."""
 import collections
 import functools
+from typing import NamedTuple
 
 import numpy as np
 
@@ -8,15 +9,21 @@ from being.constants import INF
 from being.math import sign, clip
 
 
-State = collections.namedtuple('State', 'position velocity acceleration', defaults=(0., 0., 0.))
+class State(NamedTuple):
+
+    """Kinematic state."""
+
+    position: float = 0.
+    velocity: float = 0.
+    acceleration: float = 0.
 
 
 def optimal_trajectory(
-    xEnd: float,
-    vEnd: float = 0.,
-    state: State = State(),
-    maxSpeed: float = 1.,
-    maxAcc: float = 1.,
+        xEnd: float,
+        vEnd: float = 0.,
+        state: State = State(),
+        maxSpeed: float = 1.,
+        maxAcc: float = 1.,
     ) -> list:
     """Calculate acceleration bang profiles for optimal trajectory from initial
     `state` to target position / velocity. Respecting the kinematic limits. Bang
@@ -44,11 +51,12 @@ def optimal_trajectory(
         Manipulators.
         http://webarchiv.ethz.ch/roboearth/wp-content/uploads/2013/02/OMG.pdf
     """
-    x0, v0, _ = state
+    x0 = state[0]
+    v0 = state[1]
     dx = xEnd - x0
     dv = vEnd - v0
     if dx == dv == 0:
-        return [(0., 0.)]
+        return []
 
     # Determine critical profile
     sv = sign(dv)
@@ -72,8 +80,7 @@ def optimal_trajectory(
 
     # Trapezoidal speed profile
     accDuration = (s * maxSpeed - v0) / (s * maxAcc)
-    t2 = ((vEnd**2 + v0**2 - 2 * s * maxSpeed * v0) /
-          (2 * maxAcc) + s * dx) / maxSpeed
+    t2 = ((vEnd**2 + v0**2 - 2 * s * maxSpeed * v0) / (2 * maxAcc) + s * dx) / maxSpeed
     cruiseDuration = t2 - accDuration
     decDuration = (vEnd - s * maxSpeed) / (-s * maxAcc)
     return [
@@ -113,14 +120,14 @@ def step(state: State, dt: float) -> State:
 
 
 def kinematic_filter(
-    targetPosition: float,
-    dt: float,
-    state: State = State(),
-    targetVelocity: float = 0.,
-    maxSpeed: float = 1.,
-    maxAcc: float = 1.,
-    lower: float = -INF,
-    upper: float = INF,
+        targetPosition: float,
+        dt: float,
+        state: State = State(),
+        targetVelocity: float = 0.,
+        maxSpeed: float = 1.,
+        maxAcc: float = 1.,
+        lower: float = -INF,
+        upper: float = INF,
     ) -> State:
     """Filter target position with respect to the kinematic limits (maximum
     speed and maximum acceleration / deceleration). Online optimal trajectory.

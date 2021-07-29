@@ -64,8 +64,8 @@ def build_spline(
         ... print(spline(0.) == x0)
         True
     """
-    coefficients = np.atleast_2d(accelerations)
-    velSpl = PPoly(coefficients, knots, extrapolate, axis).antiderivative(nu=1)
+    coeffs = np.atleast_2d(accelerations)
+    velSpl = PPoly(coeffs, knots, extrapolate, axis).antiderivative(nu=1)
     velSpl.c[-1] += v0
     posSpl = velSpl.antiderivative(nu=1)
     posSpl.c[-1] += x0
@@ -100,14 +100,21 @@ def spline_duration(spline: Spline) -> float:
     return knots[-1] - knots[0]
 
 
-def shift_spline(spline: Spline, offset=0.) -> Spline:
-    """Shift spline by some offset in time."""
+def copy_spline(spline: Spline) -> Spline:
+    """Make a copy of the spline."""
     return type(spline).construct_fast(
         c=spline.c,
-        x=spline.x + offset,
+        x=spline.x,
         extrapolate=spline.extrapolate,
         axis=spline.axis,
     )
+
+
+def shift_spline(spline: Spline, offset=0.) -> Spline:
+    """Shift spline by some offset in time."""
+    ret = copy_spline(spline)
+    ret.x += offset
+    return ret
 
 
 def remove_duplicates(spline: Spline) -> Spline:
