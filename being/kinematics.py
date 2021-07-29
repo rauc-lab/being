@@ -19,22 +19,23 @@ class State(NamedTuple):
 
 
 def optimal_trajectory(
-        xEnd: float,
-        vEnd: float = 0.,
-        state: State = State(),
+        target: State,
+        start: State = State(),
         maxSpeed: float = 1.,
         maxAcc: float = 1.,
     ) -> list:
     """Calculate acceleration bang profiles for optimal trajectory from initial
-    `state` to target position / velocity. Respecting the kinematic limits. Bang
-    profiles are given by their duration and the acceleration value.
+    state `start` to `target` state. Respecting the kinematic limits. Bang
+    profiles are given by their duration and the acceleration values.
+
+    Both target and start velocities have to be below the `maxSpeed` limit.
+    Error otherwise.
 
     Args:
-        xEnd: Target position.
+        target: Target state.
 
     Kwargs:
-        vEnd: Target velocity.
-        state: Initial state.
+        start: Initial state.
         maxSpeed: Maximum speed.
         maxAcc: Maximum acceleration (and deceleration).
 
@@ -51,8 +52,10 @@ def optimal_trajectory(
         Manipulators.
         http://webarchiv.ethz.ch/roboearth/wp-content/uploads/2013/02/OMG.pdf
     """
-    x0 = state[0]
-    v0 = state[1]
+    x0 = start[0]
+    v0 = start[1]
+    xEnd = target[0]
+    vEnd = target[1]
     dx = xEnd - x0
     dv = vEnd - v0
     if dx == dv == 0:
@@ -122,7 +125,7 @@ def step(state: State, dt: float) -> State:
 def kinematic_filter(
         targetPosition: float,
         dt: float,
-        state: State = State(),
+        start: State = State(),
         targetVelocity: float = 0.,
         maxSpeed: float = 1.,
         maxAcc: float = 1.,
@@ -148,10 +151,10 @@ def kinematic_filter(
     Returns:
         The next state.
     """
+    target = (clip(targetPosition, lower, upper), targetVelocity)
     bangProfiles = optimal_trajectory(
-        clip(targetPosition, lower, upper),
-        targetVelocity,
-        state,
+        target,
+        start,
         maxSpeed,
         maxAcc,
     )
@@ -160,18 +163,18 @@ def kinematic_filter(
     # are at `dt`. Update state for intermediate steps.
     for duration, acc in bangProfiles:
         if dt <= duration:
-            return step((state.position, state.velocity, acc), dt)
+            return step((start.position, start.velocity, acc), dt)
 
-        state = step((state.position, state.velocity, acc), duration)
+        start = step((start.position, start.velocity, acc), duration)
         dt -= duration
 
-    return state._replace(acceleration=0.)
+    return start._replace(acceleration=0.)
 
 
 def kinematic_filter_vec(targets, dt, state=State(), **kwargs):
     traj = []
     for target in targets:
-        state = kinematic_filter(target, dt, state=state, **kwargs)
+        state = kinematic_filter(target, dt, start=state, **kwargs)
         traj.append(state)
 
     return np.array(traj)

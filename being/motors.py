@@ -570,7 +570,7 @@ class DummyMotor(Motor):
         self.state = kinematic_filter(
             target,
             dt=self.dt,
-            state=self.state,
+            start=self.state,
             maxSpeed=1.,
             maxAcc=1.,
             lower=0.,

@@ -20,7 +20,7 @@ from numpy import ndarray
 from scipy.interpolate import PPoly, BPoly, splrep, splprep
 
 from being.constants import ONE_D, TWO_D
-from being.kinematics import optimal_trajectory
+from being.kinematics import State, optimal_trajectory
 from being.typing import Spline
 
 
@@ -197,27 +197,25 @@ def smoothing_spline(
 
 
 def optimal_trajectory_spline(
-        xEnd: float,
-        vEnd: float = 0.,
-        x0: float = 0.,
-        v0: float = 0.,
+        target,
+        start=State(),
         maxSpeed: float = 1.,
         maxAcc: float = 1.,
     ) -> PPoly:
     """Build spline following the optimal trajectory.
 
+    Args:
+        target: Target state.
+
     Kwargs:
-        xEnd: Target position.
-        vEnd: Target velocity.
-        x0: Initial position.
-        v0: Initial velocity.
-        maxSpeed: Maximum speed value.
-        maxAcc: Maximum acceleration value.
+        start: Initial state.
+        maxSpeed: Maximum speed.
+        maxAcc: Maximum acceleration (and deceleration).
 
     Returns:
         Optimal trajectory spline.
     """
-    profiles = optimal_trajectory(xEnd, vEnd, state=(x0, v0, 0.), maxSpeed=maxSpeed, maxAcc=maxAcc)
+    profiles = optimal_trajectory(target, start, maxSpeed=maxSpeed, maxAcc=maxAcc)
     durations, accelerations = zip(*profiles)
     knots = np.r_[0., np.cumsum(durations)]
     return build_spline(accelerations, knots, x0=x0, v0=v0)
