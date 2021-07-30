@@ -20,7 +20,8 @@ from numpy import ndarray
 from scipy.interpolate import PPoly, BPoly, splrep, splprep
 
 from being.constants import ONE_D, TWO_D
-from being.kinematics import State, optimal_trajectory
+from being.kinematics import optimal_trajectory
+from being.math import clip
 from being.typing import Spline
 
 
@@ -196,7 +197,13 @@ def smoothing_spline(
     return ppoly
 
 
-def optimal_trajectory_spline(initial, target, maxSpeed: float = 1., maxAcc: float = 1.) -> PPoly:
+def optimal_trajectory_spline(
+        initial,
+        target,
+        maxSpeed: float = 1.,
+        maxAcc: float = 1.,
+        extrapolate: bool = False,
+    ) -> PPoly:
     """Build spline following the optimal trajectory.
 
     Args:
@@ -213,7 +220,7 @@ def optimal_trajectory_spline(initial, target, maxSpeed: float = 1., maxAcc: flo
     profiles = optimal_trajectory(initial, target, maxSpeed=maxSpeed, maxAcc=maxAcc)
     durations, accelerations = zip(*profiles)
     knots = np.r_[0., np.cumsum(durations)]
-    return build_spline(accelerations, knots, x0=x0, v0=v0)
+    return build_spline(accelerations, knots, x0=initial.position, v0=initial.velocity, extrapolate=extrapolate)
 
 
 def sample_spline(spline: Spline, t, loop: bool = False):
@@ -255,17 +262,15 @@ def fit_spline(trajectory, smoothing=1e-6) -> BPoly:
     return BPoly.from_power_basis(ppoly)
 
 
-def find_segment(ascending, x: float) -> int:
-    """Find segment index for a given value inside a .
+def spline_coefficients(spline: Spline, segment: int) -> ndarray:
+    """Get spline coefficients for a given segment."""
+    nSegments = spline.c.shape[1]
+    if 0 <= segment < nSegments:
+        return spline.c[:, segment].copy()
 
-    Args:
-        ascending: Sorted array.
-        x: Value to check where it falls.
+    raise ValueError(f'segment number {segment} not in [0, {nSegments})!')
 
-    Returns:
-        Segment index of value.
-    """
-    return np.searchsorted(ascending, x, side='right') - 1
+
 
 
 @functools.lru_cache(maxsize=128, typed=False)
@@ -301,7 +306,14 @@ def power_basis(order: int) -> ndarray:
     ])
 
 
-def ppoly_insert(newX: float, spline: PPoly):
+def ppoly_coefficients_at(spline: PPoly, x: float) -> ndarray:
+    """Get PPoly coefficients for a given `x` value."""
+    order = spline.c.shape[0]
+    vals = [spline(x, nu) for nu in range(order)]
+    return vals[::-1] / power_basis(order)
+
+
+def ppoly_insert(newX: float, spline: PPoly) -> PPoly:
     """Insert a new knot / breakpoint somewhere in a spline segment."""
     if not isinstance(spline, PPoly):
         raise ValueError('Not a PPoly spline!')
@@ -309,35 +321,29 @@ def ppoly_insert(newX: float, spline: PPoly):
     if newX in spline.x:
         return spline
 
-    seg = find_segment(spline.x, newX)
-    assert 0 <= seg < len(spline.x)
+    # New coefficients to insert
+    start = spline.x[0]
+    end = spline.x[-1]
+    inbetween = (start <= newX <= end)
+    if inbetween or spline.extrapolate:
+        coeffs = ppoly_coefficients_at(spline, newX)
+    else:
+        order = spline.c.shape[0]
+        coeffs = np.zeros(order)
+        coeffs[-1] = spline(clip(newX, start, end))
 
-    x = spline.x
-    c = spline.c
-
-    # Up to target segment
-    ret = PPoly.construct_fast(
-        c[:, :seg],
-        x[:seg+1],
+    idx = np.searchsorted(spline.x, newX)
+    nSegments = spline.c.shape[1]
+    seg = min(idx, nSegments)
+    return type(spline).construct_fast(
+        np.insert(spline.c, seg, coeffs, axis=-1),
+        np.insert(spline.x, idx, newX),
         spline.extrapolate,
         spline.axis,
     )
 
-    # Target segment left of newX
-    ret.extend(c[:, seg:seg+1], [newX])
 
-    # Target segment right of newX
-    order = spline.c.shape[0]
-    vals = [spline(newX, nu) for nu in range(order)]
-    intermediateCoeffs = vals[::-1] / power_basis(order)
-    ret.extend(
-        intermediateCoeffs.reshape((-1, 1)),
-        [spline.x[seg+1]]
-    )
 
-    # And the rest
-    ret.extend(c[:, seg:], x[seg+1:])
-    return ret
 
 
 def smoothing_spline_demo():
@@ -386,6 +392,8 @@ def smoothing_spline_demo():
     plt.legend()
     plt.title('Periodic vs. Non-Periodic Spline Fitting')
     plt.show()
+
+
 
 
 if __name__ == '__main__':
