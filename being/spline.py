@@ -196,12 +196,7 @@ def smoothing_spline(
     return ppoly
 
 
-def optimal_trajectory_spline(
-        target,
-        start=State(),
-        maxSpeed: float = 1.,
-        maxAcc: float = 1.,
-    ) -> PPoly:
+def optimal_trajectory_spline(initial, target, maxSpeed: float = 1., maxAcc: float = 1.) -> PPoly:
     """Build spline following the optimal trajectory.
 
     Args:
@@ -215,7 +210,7 @@ def optimal_trajectory_spline(
     Returns:
         Optimal trajectory spline.
     """
-    profiles = optimal_trajectory(target, start, maxSpeed=maxSpeed, maxAcc=maxAcc)
+    profiles = optimal_trajectory(initial, target, maxSpeed=maxSpeed, maxAcc=maxAcc)
     durations, accelerations = zip(*profiles)
     knots = np.r_[0., np.cumsum(durations)]
     return build_spline(accelerations, knots, x0=x0, v0=v0)

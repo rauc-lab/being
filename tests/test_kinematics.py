@@ -26,9 +26,9 @@ def final_state(initialState: State, profiles) -> State:
 
 class TestOptimalTrajectory(unittest.TestCase):
     def test_standing_still_when_nothing_to_do(self):
-        start = target = State(1.234, 0.)
-        profiles = optimal_trajectory(target, start)
-        final = final_state(start, profiles)
+        initial = target = State(1.234, 0.)
+        profiles = optimal_trajectory(initial, target)
+        final = final_state(initial, profiles)
 
         self.assertEqual(profiles, [])
         self.assertEqual(final, target)
@@ -37,135 +37,135 @@ class TestOptimalTrajectory(unittest.TestCase):
         maxAcc = 1.
 
         # Accelerate upwards
-        start = State(0.0, 1.0)
+        initial = State(0.0, 1.0)
         target = State(1.5, 2.)
-        profiles = optimal_trajectory(target, start, maxAcc=maxAcc)
+        profiles = optimal_trajectory(initial, target, maxAcc=maxAcc)
 
         self.assertEqual(profiles, [(1.0, maxAcc)])
-        self.assertEqual(final_state(start, profiles), target)
+        self.assertEqual(final_state(initial, profiles), target)
 
         # Decelerate upwards
-        start = State(0.0, 1.0)
+        initial = State(0.0, 1.0)
         target = State(0.5, 0.0)
-        profiles = optimal_trajectory(target, start, maxAcc=maxAcc)
+        profiles = optimal_trajectory(initial, target, maxAcc=maxAcc)
 
         self.assertEqual(profiles, [(1.0, -maxAcc)])
-        self.assertEqual(final_state(start, profiles), target)
+        self.assertEqual(final_state(initial, profiles), target)
 
         # Decelerate downwards
-        start = State(0.0, -1.0)
+        initial = State(0.0, -1.0)
         target = State(-0.5, 0.0)
-        profiles = optimal_trajectory(target, start, maxAcc=maxAcc)
+        profiles = optimal_trajectory(initial, target, maxAcc=maxAcc)
 
         self.assertEqual(profiles, [(1.0, maxAcc)])
-        self.assertEqual(final_state(start, profiles), target)
+        self.assertEqual(final_state(initial, profiles), target)
 
         # Accelerate downwards
-        start = State(0, -1)
+        initial = State(0, -1)
         target = State(-1.5, -2.0)
-        profiles = optimal_trajectory(target, start, maxAcc=maxAcc)
+        profiles = optimal_trajectory(initial, target, maxAcc=maxAcc)
 
         self.assertEqual(profiles, [(1.0, -maxAcc)])
-        self.assertEqual(final_state(start, profiles), target)
+        self.assertEqual(final_state(initial, profiles), target)
 
     def test_steady_state_triangular_profiles(self):
         maxAcc = 1.0
 
         # Up up
-        start = State(1.0)
+        initial = State(1.0)
         target = State(2.0)
-        profiles = optimal_trajectory(target, start, maxAcc=maxAcc)
+        profiles = optimal_trajectory(initial, target, maxAcc=maxAcc)
 
         self.assertEqual(profiles, [(1.0, maxAcc), (1.0, -maxAcc)])
-        self.assertEqual(final_state(start, profiles), target)
+        self.assertEqual(final_state(initial, profiles), target)
 
         # Up down
-        start = State(1.0)
+        initial = State(1.0)
         target = State(0.0)
-        profiles = optimal_trajectory(target, start, maxAcc=maxAcc)
+        profiles = optimal_trajectory(initial, target, maxAcc=maxAcc)
 
         self.assertEqual(profiles, [(1.0, -maxAcc), (1.0, maxAcc)])
-        self.assertEqual(final_state(start, profiles), target)
+        self.assertEqual(final_state(initial, profiles), target)
 
         # Down up
-        start = State(-1.0)
+        initial = State(-1.0)
         target = State(0.0)
-        profiles = optimal_trajectory(target, start, maxAcc=maxAcc)
+        profiles = optimal_trajectory(initial, target, maxAcc=maxAcc)
 
         self.assertEqual(profiles, [(1.0, maxAcc), (1.0, -maxAcc)])
-        self.assertEqual(final_state(start, profiles), target)
+        self.assertEqual(final_state(initial, profiles), target)
 
         # Down down
-        start = State(-1.0)
+        initial = State(-1.0)
         target = State(-2.0)
-        profiles = optimal_trajectory(target, start, maxAcc=maxAcc)
+        profiles = optimal_trajectory(initial, target, maxAcc=maxAcc)
 
         self.assertEqual(profiles, [(1.0, -maxAcc), (1.0, maxAcc)])
-        self.assertEqual(final_state(start, profiles), target)
+        self.assertEqual(final_state(initial, profiles), target)
 
     def test_steady_state_trapezoidal_profiles(self):
         maxAcc = 1.0
 
         # Up up
-        start = State(2.0)
+        initial = State(2.0)
         target = State(4.0)
-        profiles = optimal_trajectory(target, start, maxAcc=maxAcc)
+        profiles = optimal_trajectory(initial, target, maxAcc=maxAcc)
 
         self.assertEqual(profiles, [(1.0, maxAcc), (1.0, 0.0), (1.0, -maxAcc)])
-        self.assertEqual(final_state(start, profiles), target)
+        self.assertEqual(final_state(initial, profiles), target)
 
         # Up down
-        start = State(2.0)
+        initial = State(2.0)
         target = State(0.0)
-        profiles = optimal_trajectory(target, start, maxAcc=maxAcc)
+        profiles = optimal_trajectory(initial, target, maxAcc=maxAcc)
 
         self.assertEqual(profiles, [(1.0, -maxAcc), (1.00, 0.), (1.0, maxAcc)])
-        self.assertEqual(final_state(start, profiles), target)
+        self.assertEqual(final_state(initial, profiles), target)
 
         # Down up
-        start = State(-2.0)
+        initial = State(-2.0)
         target = State(0.0)
-        profiles = optimal_trajectory(target, start, maxAcc=maxAcc)
+        profiles = optimal_trajectory(initial, target, maxAcc=maxAcc)
 
         self.assertEqual(profiles, [(1.0, maxAcc), (1.0, 0.0), (1.0, -maxAcc)])
-        self.assertEqual(final_state(start, profiles), target)
+        self.assertEqual(final_state(initial, profiles), target)
 
         # Down down up
-        start = State(-2.0)
+        initial = State(-2.0)
         target = State(-4.0)
-        profiles = optimal_trajectory(target, start, maxAcc=maxAcc)
+        profiles = optimal_trajectory(initial, target, maxAcc=maxAcc)
 
         self.assertEqual(profiles, [(1.0, -maxAcc), (1.0, 0.), (1.0, maxAcc)])
-        self.assertEqual(final_state(start, profiles), target)
+        self.assertEqual(final_state(initial, profiles), target)
 
     def test_right_place_but_not_the_right_speed(self):
         maxAcc = 1.0
         magic = 2 ** .5 / 2
-        start = State(10.0)
+        initial = State(10.0)
         target = State(10.0, 1.0)
-        profiles = optimal_trajectory(target, start, maxAcc=maxAcc)
+        profiles = optimal_trajectory(initial, target, maxAcc=maxAcc)
 
         self.assertEqual(profiles, [(magic, -maxAcc), (1.0 + magic, maxAcc)])
-        assert_allclose(final_state(start, profiles), target)
+        assert_allclose(final_state(initial, profiles), target)
 
     def test_right_velocity_but_not_the_right_position(self):
         maxAcc = 1.0
-        start = State(10.0, -1.0)
+        initial = State(10.0, -1.0)
         target = State(11.0, -1.0)
-        profiles = optimal_trajectory(target, start, maxAcc=maxAcc)
+        profiles = optimal_trajectory(initial, target, maxAcc=maxAcc)
 
         self.assertEqual(profiles, [(2.0, maxAcc), (1.0, 0.0), (2.0, -maxAcc)])
-        self.assertEqual(final_state(start, profiles), target)
+        self.assertEqual(final_state(initial, profiles), target)
 
     def test_we_can_cruise_for_some_time(self):
-        start = State(0.0)
+        initial = State(0.0)
         target = State(10.0)
         maxSpeed = 2.0
         maxAcc = 1.0
-        profiles = optimal_trajectory(target, start, maxSpeed=maxSpeed, maxAcc=maxAcc)
+        profiles = optimal_trajectory(initial, target, maxSpeed=maxSpeed, maxAcc=maxAcc)
 
         self.assertEqual(profiles, [(2.0, maxAcc), (3.0, 0.0), (2.0, -maxAcc)])
-        self.assertEqual(final_state(start, profiles), target)
+        self.assertEqual(final_state(initial, profiles), target)
 
 
 if __name__ == '__main__':

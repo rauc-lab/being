@@ -52,7 +52,7 @@ for _ in range(10):
     t = np.arange(0, duration, DT)
     n = t.shape[0]
     r = np.random.random(n)
-    data = kinematic_filter_vec(r, dt=DT, state=State(r[0]))
+    data = kinematic_filter_vec(r, dt=DT, initial=State(r[0]))
     y, _, _ = data.T
 
     ppoly = smoothing_spline(t, y, smoothing=1e-3)

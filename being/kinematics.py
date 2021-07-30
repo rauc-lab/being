@@ -18,12 +18,7 @@ class State(NamedTuple):
     acceleration: float = 0.
 
 
-def optimal_trajectory(
-        target: State,
-        start: State = State(),
-        maxSpeed: float = 1.,
-        maxAcc: float = 1.,
-    ) -> list:
+def optimal_trajectory(initial: State, target: State, maxSpeed: float = 1., maxAcc: float = 1.) -> list:
     """Calculate acceleration bang profiles for optimal trajectory from initial
     state `start` to `target` state. Respecting the kinematic limits. Bang
     profiles are given by their duration and the acceleration values.
@@ -32,10 +27,10 @@ def optimal_trajectory(
     Error otherwise.
 
     Args:
+        initial: Initial state.
         target: Target state.
 
     Kwargs:
-        start: Initial state.
         maxSpeed: Maximum speed.
         maxAcc: Maximum acceleration (and deceleration).
 
@@ -43,7 +38,7 @@ def optimal_trajectory(
         List of bang speed profiles.
 
     Usage:
-        >>> optimal_trajectory(xEnd=1., maxSpeed=.5, maxAcc=1.)
+        >>> optimal_trajectory(,
         [(0.5, 1.0), (1.5, 0.0), (0.5, -1.0)]
 
     Resources:
@@ -52,8 +47,8 @@ def optimal_trajectory(
         Manipulators.
         http://webarchiv.ethz.ch/roboearth/wp-content/uploads/2013/02/OMG.pdf
     """
-    x0 = start[0]
-    v0 = start[1]
+    x0 = initial[0]
+    v0 = initial[1]
     xEnd = target[0]
     vEnd = target[1]
     dx = xEnd - x0
@@ -125,7 +120,7 @@ def step(state: State, dt: float) -> State:
 def kinematic_filter(
         targetPosition: float,
         dt: float,
-        start: State = State(),
+        initial: State = State(),
         targetVelocity: float = 0.,
         maxSpeed: float = 1.,
         maxAcc: float = 1.,
@@ -152,29 +147,24 @@ def kinematic_filter(
         The next state.
     """
     target = (clip(targetPosition, lower, upper), targetVelocity)
-    bangProfiles = optimal_trajectory(
-        target,
-        start,
-        maxSpeed,
-        maxAcc,
-    )
+    bangProfiles = optimal_trajectory(initial, target, maxSpeed, maxAcc)
 
     # Effectively spline evaluation. Go through all segments and see where we
     # are at `dt`. Update state for intermediate steps.
     for duration, acc in bangProfiles:
         if dt <= duration:
-            return step((start.position, start.velocity, acc), dt)
+            return step((initial.position, initial.velocity, acc), dt)
 
-        start = step((start.position, start.velocity, acc), duration)
+        initial = step((initial.position, initial.velocity, acc), duration)
         dt -= duration
 
-    return start._replace(acceleration=0.)
+    return initial._replace(acceleration=0.)
 
 
-def kinematic_filter_vec(targets, dt, state=State(), **kwargs):
+def kinematic_filter_vec(targets, dt, initial=State(), **kwargs):
     traj = []
     for target in targets:
-        state = kinematic_filter(target, dt, start=state, **kwargs)
-        traj.append(state)
+        initial = kinematic_filter(target, dt, initial=initial, **kwargs)
+        traj.append(initial)
 
     return np.array(traj)
