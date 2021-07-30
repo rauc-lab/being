@@ -35,44 +35,6 @@ class Degree(IntEnum):
     CUBIC = 3
 
 
-def build_spline(
-        accelerations: Sequence,
-        knots: Sequence,
-        x0: float = 0.,
-        v0: float = 0.,
-        extrapolate: bool = False,
-        axis: int = 0,
-    ) -> PPoly:
-    """Build quadratic position spline from acceleration segments. Also include
-    initial velocity and position.
-
-    Args:
-        accelerations: Acceleration values.
-        knots: Increasing time values.
-
-    Kwargs:
-        x0: Initial position.
-        v0: Initial velocity.
-        extrapolate: TODO.
-        axis: TODO
-
-    Returns:
-        Position spline.
-
-    Usage:
-        >>> x0 = 1.234
-        ... spline = build_spline([1, 0, -1], [0, 1, 2, 3], x0=x0)
-        ... print(spline(0.) == x0)
-        True
-    """
-    coeffs = np.atleast_2d(accelerations)
-    velSpl = PPoly(coeffs, knots, extrapolate, axis).antiderivative(nu=1)
-    velSpl.c[-1] += v0
-    posSpl = velSpl.antiderivative(nu=1)
-    posSpl.c[-1] += x0
-    return posSpl
-
-
 def spline_order(spline: Spline) -> int:
     """Order of spline. order = degree + 1."""
     return spline.c.shape[0]
@@ -129,100 +91,6 @@ def remove_duplicates(spline: Spline) -> Spline:
     )
 
 
-def smoothing_factor(smoothing: float, length: int) -> float:
-    """Smoothing parameter s for splprep / splprep. Chosen in such a way that 1)
-    the smoothing ~ mean square error of fitting the process and 2) it is length
-    independent.
-
-    Args:
-        smoothing: Smoothing factor.
-        length: Number of data points.
-
-    Returns:
-        splrep / splprep smoothing parameter s.
-    """
-    return smoothing * length
-
-
-def smoothing_spline(
-        x: Sequence,
-        y: Sequence,
-        degree: Degree = Degree.CUBIC,
-        smoothing: float = 1e-3,
-        periodic: bool = False,
-        extrapolate: bool = False,
-    ) -> PPoly:
-    """Fit smoothing spline through uni- or multivariate data points.
-
-    Args:
-        x, y: The data points defining a curve y = f(x).
-        degree: The degree of the spline fit. It is recommended to use cubic splines.
-        smoothing: Tradeoff between closeness and smoothness of fit.
-        extrapolate: If to extrapolate data.
-        periodic: Periodic data. Will overwrite extrapolate = 'periodic'.
-
-    Returns:
-        Piecewise polynomial smoothing spline.
-
-    Resources:
-      - https://en.wikipedia.org/wiki/Smoothing_spline
-      - https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.splrep.html
-      - https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.splprep.html
-    """
-    ndim = np.ndim(y)
-    if ndim > TWO_D:
-        raise ValueError('Only uni- and multivariate data is supported!')
-
-    s = smoothing_factor(smoothing, len(x))
-    if periodic:
-        extrapolate = 'periodic'
-
-    # TODO: Should we directly go with BPoly instead of PPoly?
-    if ndim == ONE_D:
-        tck = splrep(x, y, k=degree, s=s, per=periodic)
-        ppoly = PPoly.from_spline(tck, extrapolate)
-
-    else:
-        (t, cMatrix, k), _ = splprep(y.T, u=x, k=degree, s=s, per=periodic)
-
-        # PPoly.from_spline does not support multivariate data.
-        # Workaround: Construct multiple 1d splines, stack their coefficients
-        # and create a new multivariate PPoly.
-        splines = [PPoly.from_spline((t, cRow, k), extrapolate) for cRow in cMatrix]
-        coeffs = np.stack([spline.c for spline in splines], axis=-1)
-        ppoly = PPoly.construct_fast(coeffs, t, extrapolate)
-
-    # TODO: Cutting off excess knots / duplicates in ppoly.x (ppoly.x[:degree]
-    # and ppoly.x[-degree:])? Is this necessary?
-    return ppoly
-
-
-def optimal_trajectory_spline(
-        initial,
-        target,
-        maxSpeed: float = 1.,
-        maxAcc: float = 1.,
-        extrapolate: bool = False,
-    ) -> PPoly:
-    """Build spline following the optimal trajectory.
-
-    Args:
-        target: Target state.
-
-    Kwargs:
-        start: Initial state.
-        maxSpeed: Maximum speed.
-        maxAcc: Maximum acceleration (and deceleration).
-
-    Returns:
-        Optimal trajectory spline.
-    """
-    profiles = optimal_trajectory(initial, target, maxSpeed=maxSpeed, maxAcc=maxAcc)
-    durations, accelerations = zip(*profiles)
-    knots = np.r_[0., np.cumsum(durations)]
-    return build_spline(accelerations, knots, x0=initial.position, v0=initial.velocity, extrapolate=extrapolate)
-
-
 def sample_spline(spline: Spline, t, loop: bool = False):
     """Sample spline. Clips time values for non extrapolating splines. Also
     supports looping.
@@ -248,20 +116,6 @@ def sample_spline(spline: Spline, t, loop: bool = False):
     return spline(np.clip(t, start, end))
 
 
-def fit_spline(trajectory, smoothing=1e-6) -> BPoly:
-    """Fit a smoothing spline through a trajectory."""
-    trajectory = np.asarray(trajectory)
-    if trajectory.ndim != TWO_D:
-        raise ValueError('trajectory has to be 2d!')
-
-    t = trajectory[:, 0]
-    x = trajectory[:, 1:]
-    x = x.squeeze()
-    ppoly = smoothing_spline(t, x, smoothing=smoothing, extrapolate=False)
-    ppoly = remove_duplicates(ppoly)
-    return BPoly.from_power_basis(ppoly)
-
-
 def spline_coefficients(spline: Spline, segment: int) -> ndarray:
     """Get spline coefficients for a given segment."""
     nSegments = spline.c.shape[1]
@@ -271,6 +125,45 @@ def spline_coefficients(spline: Spline, segment: int) -> ndarray:
     raise ValueError(f'segment number {segment} not in [0, {nSegments})!')
 
 
+"""PPoly exclusives"""
+
+
+def build_ppoly(
+        accelerations: Sequence,
+        knots: Sequence,
+        x0: float = 0.,
+        v0: float = 0.,
+        extrapolate: bool = False,
+        axis: int = 0,
+    ) -> PPoly:
+    """Build quadratic position spline from acceleration segments. Also include
+    initial velocity and position.
+
+    Args:
+        accelerations: Acceleration values.
+        knots: Increasing time values.
+
+    Kwargs:
+        x0: Initial position.
+        v0: Initial velocity.
+        extrapolate: TODO.
+        axis: TODO
+
+    Returns:
+        Position spline.
+
+    Usage:
+        >>> x0 = 1.234
+        ... spline = build_ppoly([1, 0, -1], [0, 1, 2, 3], x0=x0)
+        ... print(spline(0.) == x0)
+        True
+    """
+    coeffs = np.atleast_2d(accelerations)
+    velSpl = PPoly(coeffs, knots, extrapolate, axis).antiderivative(nu=1)
+    velSpl.c[-1] += v0
+    posSpl = velSpl.antiderivative(nu=1)
+    posSpl.c[-1] += x0
+    return posSpl
 
 
 @functools.lru_cache(maxsize=128, typed=False)
@@ -343,7 +236,89 @@ def ppoly_insert(newX: float, spline: PPoly) -> PPoly:
     )
 
 
+"""Smoothing splines"""
 
+
+def smoothing_factor(smoothing: float, length: int) -> float:
+    """Smoothing parameter s for splprep / splprep. Chosen in such a way that 1)
+    the smoothing ~ mean square error of fitting the process and 2) it is length
+    independent.
+
+    Args:
+        smoothing: Smoothing factor.
+        length: Number of data points.
+
+    Returns:
+        splrep / splprep smoothing parameter s.
+    """
+    return smoothing * length
+
+
+def smoothing_spline(
+        x: Sequence,
+        y: Sequence,
+        degree: Degree = Degree.CUBIC,
+        smoothing: float = 1e-3,
+        periodic: bool = False,
+        extrapolate: bool = False,
+    ) -> PPoly:
+    """Fit smoothing spline through uni- or multivariate data points.
+
+    Args:
+        x, y: The data points defining a curve y = f(x).
+        degree: The degree of the spline fit. It is recommended to use cubic splines.
+        smoothing: Tradeoff between closeness and smoothness of fit.
+        extrapolate: If to extrapolate data.
+        periodic: Periodic data. Will overwrite extrapolate = 'periodic'.
+
+    Returns:
+        Piecewise polynomial smoothing spline.
+
+    Resources:
+      - https://en.wikipedia.org/wiki/Smoothing_spline
+      - https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.splrep.html
+      - https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.splprep.html
+    """
+    ndim = np.ndim(y)
+    if ndim > TWO_D:
+        raise ValueError('Only uni- and multivariate data is supported!')
+
+    s = smoothing_factor(smoothing, len(x))
+    if periodic:
+        extrapolate = 'periodic'
+
+    # TODO: Should we directly go with BPoly instead of PPoly?
+    if ndim == ONE_D:
+        tck = splrep(x, y, k=degree, s=s, per=periodic)
+        ppoly = PPoly.from_spline(tck, extrapolate)
+
+    else:
+        (t, cMatrix, k), _ = splprep(y.T, u=x, k=degree, s=s, per=periodic)
+
+        # PPoly.from_spline does not support multivariate data.
+        # Workaround: Construct multiple 1d splines, stack their coefficients
+        # and create a new multivariate PPoly.
+        splines = [PPoly.from_spline((t, cRow, k), extrapolate) for cRow in cMatrix]
+        coeffs = np.stack([spline.c for spline in splines], axis=-1)
+        ppoly = PPoly.construct_fast(coeffs, t, extrapolate)
+
+    # TODO: Cutting off excess knots / duplicates in ppoly.x (ppoly.x[:degree]
+    # and ppoly.x[-degree:])? Is this necessary?
+    return ppoly
+
+
+def fit_spline(trajectory, smoothing=1e-6) -> BPoly:
+    """Fit a smoothing spline through a trajectory."""
+    trajectory = np.asarray(trajectory)
+    if trajectory.ndim != TWO_D:
+        raise ValueError('trajectory has to be 2d!')
+
+    t = trajectory[:, 0]
+    x = trajectory[:, 1:]
+    x = x.squeeze()
+    ppoly = smoothing_spline(t, x, smoothing=smoothing, extrapolate=False)
+    ppoly = remove_duplicates(ppoly)
+    return BPoly.from_power_basis(ppoly)
 
 
 def smoothing_spline_demo():
@@ -394,6 +369,34 @@ def smoothing_spline_demo():
     plt.show()
 
 
+"""Optimal trajectory spline"""
+
+
+def optimal_trajectory_spline(
+        initial,
+        target,
+        maxSpeed: float = 1.,
+        maxAcc: float = 1.,
+        extrapolate: bool = False,
+    ) -> PPoly:
+    """Build spline following the optimal trajectory.
+
+    Args:
+        initial: Start state.
+        target: Final end state.
+
+    Kwargs:
+        maxSpeed: Maximum speed.
+        maxAcc: Maximum acceleration (and deceleration).
+        extrapolate: Extrapolate splines over borders.
+
+    Returns:
+        Optimal trajectory spline.
+    """
+    profiles = optimal_trajectory(initial, target, maxSpeed=maxSpeed, maxAcc=maxAcc)
+    durations, accelerations = zip(*profiles)
+    knots = np.r_[0., np.cumsum(durations)]
+    return build_ppoly(accelerations, knots, x0=initial.position, v0=initial.velocity, extrapolate=extrapolate)
 
 
 if __name__ == '__main__':

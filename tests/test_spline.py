@@ -5,7 +5,7 @@ from numpy.testing import assert_almost_equal, assert_equal
 from scipy.interpolate import BPoly
 
 from being.spline import (
-    build_spline,
+    build_ppoly,
     ppoly_coefficients_at,
     ppoly_insert,
     smoothing_spline,
@@ -15,7 +15,7 @@ from being.spline import (
 
 class TestBuildSpline(unittest.TestCase):
     def test_simple_acceleration_segment(self):
-        spline = build_spline([0.5, 0.0, -0.5], [0.0, 1.0, 2.0, 3.0])
+        spline = build_ppoly([0.5, 0.0, -0.5], [0.0, 1.0, 2.0, 3.0])
 
         self.assertEqual(spline(0.0), 0.0)
         self.assertEqual(spline(0.0, nu=1), 0.0)
@@ -25,7 +25,7 @@ class TestBuildSpline(unittest.TestCase):
     def test_spline_follows_initial_conditions(self):
         x0 = 1.234
         v0 = 2.345
-        spline = build_spline([0.5, 0.0, -0.5], [0.0, 1.0, 2.0, 3.0], x0=x0, v0=v0)
+        spline = build_ppoly([0.5, 0.0, -0.5], [0.0, 1.0, 2.0, 3.0], x0=x0, v0=v0)
 
         self.assertEqual(spline(0.0, nu=0), x0)
         self.assertEqual(spline(0.0, nu=1), v0)
@@ -52,7 +52,7 @@ class TestSmoothingSpline(unittest.TestCase):
 
 class TestHelpers(unittest.TestCase):
     def test_spline_coefficients(self):
-        spline = build_spline([1, 0, -1], [0, 1, 3, 4])
+        spline = build_ppoly([1, 0, -1], [0, 1, 3, 4])
 
         with self.assertRaises(ValueError):
             spline_coefficients(spline, -1)
@@ -65,7 +65,7 @@ class TestHelpers(unittest.TestCase):
             spline_coefficients(spline, 3)
 
     def test_ppoly_coefficients_at(self):
-        spline = build_spline([1, 0, -1], [0.0, 1.0, 3.0, 4.0])
+        spline = build_ppoly([1, 0, -1], [0.0, 1.0, 3.0, 4.0])
 
         assert_equal(ppoly_coefficients_at(spline, 0.0), spline_coefficients(spline, 0))
         assert_equal(ppoly_coefficients_at(spline, 1.0), spline_coefficients(spline, 1))
@@ -81,7 +81,7 @@ class TestPPolyKnotInsertion(unittest.TestCase):
         self.assertEqual(a.axis, b.axis)
 
     def test_duplicate_knots_get_not_inserted(self):
-        a = build_spline([1, 0, -1], [0, 1, 3, 4])
+        a = build_ppoly([1, 0, -1], [0, 1, 3, 4])
         b = ppoly_insert(0.0, a)
 
         self.assert_splines_equal(a, b)
@@ -93,7 +93,7 @@ class TestPPolyKnotInsertion(unittest.TestCase):
             ppoly_insert(not_a_ppoly, 1234)
 
     def test_prepending_knot(self):
-        orig = build_spline([1, 0, -1], [0, 1, 3, 4], extrapolate=False)
+        orig = build_ppoly([1, 0, -1], [0, 1, 3, 4], extrapolate=False)
         spline = ppoly_insert(-1.0, orig)
 
         assert_equal(spline.x, np.r_[-1.0, orig.x])
@@ -101,7 +101,7 @@ class TestPPolyKnotInsertion(unittest.TestCase):
 
     def test_insertin_knot(self):
         # Inserting in segment 0
-        orig = build_spline([1, 0, -1], [0, 1, 3, 4], extrapolate=False)
+        orig = build_ppoly([1, 0, -1], [0, 1, 3, 4], extrapolate=False)
         spline = ppoly_insert(0.5, orig)
 
         assert_equal(spline.x, [0, 0.5, 1, 3, 4])
@@ -109,7 +109,7 @@ class TestPPolyKnotInsertion(unittest.TestCase):
         assert_equal(spline.c[:, 2:], orig.c[:, 1:])
 
         # Inserting in segment 1
-        orig = build_spline([1, 0, -1], [0, 1, 3, 4], extrapolate=False)
+        orig = build_ppoly([1, 0, -1], [0, 1, 3, 4], extrapolate=False)
         spline = ppoly_insert(1.5, orig)
 
         assert_equal(spline.x, [0, 1, 1.5, 3, 4])
@@ -117,7 +117,7 @@ class TestPPolyKnotInsertion(unittest.TestCase):
         assert_equal(spline.c[:, 3:], orig.c[:, 2:])
 
         # Inserting in segment 2
-        orig = build_spline([1, 0, -1], [0, 1, 3, 4], extrapolate=False)
+        orig = build_ppoly([1, 0, -1], [0, 1, 3, 4], extrapolate=False)
         spline = ppoly_insert(3.5, orig)
 
         assert_equal(spline.x, [0, 1, 3, 3.5, 4])
@@ -125,7 +125,7 @@ class TestPPolyKnotInsertion(unittest.TestCase):
         assert_equal(spline.c[:, 4:], orig.c[:, 3:])
 
     def test_appending_knot(self):
-        orig = build_spline([1, 0, -1], [0, 1, 3, 4], extrapolate=False)
+        orig = build_ppoly([1, 0, -1], [0, 1, 3, 4], extrapolate=False)
         spline = ppoly_insert(6.0, orig)
 
         assert_equal(spline.x, np.r_[orig.x, 6.0])
