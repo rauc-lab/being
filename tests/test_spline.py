@@ -2,10 +2,11 @@ import unittest
 
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_equal
-from scipy.interpolate import BPoly
+from scipy.interpolate import BPoly, PPoly
 
 from being.spline import (
     build_ppoly,
+    copy_spline,
     ppoly_coefficients_at,
     ppoly_insert,
     smoothing_spline,
@@ -130,6 +131,22 @@ class TestPPolyKnotInsertion(unittest.TestCase):
 
         assert_equal(spline.x, np.r_[orig.x, 6.0])
         assert_equal(spline.c[:, :-1], orig.c)
+
+
+class TestCopySpline(unittest.TestCase):
+    def test_spline_copy_does_not_share_numpy_array_with_original(self):
+        orig = BPoly([[0.0], [0.0], [1.0], [1.0]], [0.0, 1.0])
+        copy = copy_spline(orig)
+
+        self.assertIsNot(copy.x, orig.x)
+        self.assertIsNot(copy.c, orig.c)
+
+    def test_copy_has_same_extrapolate_and_axis_attributes(self):
+        orig = BPoly([[0.0], [0.0], [1.0], [1.0]], [0.0, 1.0], extrapolate=True, axis=0)
+        copy = copy_spline(orig)
+
+        self.assertEqual(copy.extrapolate, orig.extrapolate)
+        self.assertEqual(copy.axis, orig.axis)
 
 
 if __name__ == '__main__':

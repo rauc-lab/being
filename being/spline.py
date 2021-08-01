@@ -66,8 +66,8 @@ def spline_duration(spline: Spline) -> float:
 def copy_spline(spline: Spline) -> Spline:
     """Make a copy of the spline."""
     return type(spline).construct_fast(
-        c=spline.c,
-        x=spline.x,
+        c=spline.c.copy(),
+        x=spline.x.copy(),
         extrapolate=spline.extrapolate,
         axis=spline.axis,
     )

@@ -4,10 +4,11 @@ import os
 import signal
 import sys
 import time
-from typing import Optional
+from typing import Optional, Iterable
 
 from being.backends import CanBackend
 from being.being import Being
+from being.block import Block
 from being.clock import Clock
 from being.config import CONFIG
 from being.connectables import MessageInput
@@ -100,7 +101,8 @@ async def _run_being_with_web_server(being):
     )
 
 
-def awake(*blocks,
+def awake(
+        *blocks: Iterable[Block],
         web: bool = True,
         clock: Optional[Clock] = None,
         network: Optional[CanBackend] = None,
