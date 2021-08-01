@@ -206,10 +206,13 @@ def ppoly_coefficients_at(spline: PPoly, x: float) -> ndarray:
     return vals[::-1] / power_basis(order)
 
 
-def ppoly_insert(newX: float, spline: PPoly) -> PPoly:
+def ppoly_insert(newX: float, spline: PPoly, extrapolate: bool = None) -> PPoly:
     """Insert a new knot / breakpoint somewhere in a spline segment."""
     if not isinstance(spline, PPoly):
         raise ValueError('Not a PPoly spline!')
+
+    if extrapolate is None:
+        extrapolate = spline.extrapolate
 
     if newX in spline.x:
         return spline
@@ -218,7 +221,7 @@ def ppoly_insert(newX: float, spline: PPoly) -> PPoly:
     start = spline.x[0]
     end = spline.x[-1]
     inbetween = (start <= newX <= end)
-    if inbetween or spline.extrapolate:
+    if inbetween or extrapolate:
         coeffs = ppoly_coefficients_at(spline, newX)
     else:
         order = spline.c.shape[0]

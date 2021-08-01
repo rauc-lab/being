@@ -35,7 +35,14 @@ Segments = Generator[Segment, None, None]
 
 
 def collect_segments_from_section(section) -> Segments:
-    """Collect motion segments from section."""
+    """Collect motion segments from section.
+
+    Args:
+        section: ConfigParser section representing a single motion curve.
+
+    Yields:
+        Motion segments.
+    """
     for when, what in section.items():
         t = float(when)
         pos, maxVel, maxAcc, maxDec = map(float, what.split(','))
@@ -45,17 +52,31 @@ def collect_segments_from_section(section) -> Segments:
         yield t, pos, maxVel, maxAcc
 
 
-def collect_segments_from_choreo(choreo: Choreo):
-    """Collect motion segments for each motion channel from choreo."""
+def collect_segments_from_choreo(choreo: Choreo) -> Generator[Segments, None, None]:
+    """Collect motion segments for each motion channel from choreo.
+
+    Args:
+        Choreo ConfigParser intance
+
+    Yields:
+        Segments generator for each motion channel.
+    """
     for name in choreo.sections():  # Skips DEFAULT section
         section = choreo[name]
         yield collect_segments_from_section(section)
 
 
-def convert_segments_to_spline(segments, start=State()) -> Generator[PPoly, None, None]:
+def convert_segments_to_splines(segments, start=State()) -> Generator[PPoly, None, None]:
     """Convert motion segments to multiple disjoint optimal trajectory splines.
     Each optimal trajectory splines represents a choreo segment (best
     effort). They can overlap but do not have to.
+
+    Args:
+        segments: Motion segments. Each row with [time, targetPosition,
+            maxSpeed, maxAcceleration].
+
+    Yield:
+        Optimal trajectory spline for each segment.
     """
     prevSpline = None
     for t, pos, maxSpeed, maxAcc in segments:
@@ -78,9 +99,9 @@ def combine_splines_in_time(splines: Iterable[PPoly]) -> PPoly:
     splines = iter(splines)
     spline = copy_spline(next(splines))
     for s in splines:
-        overlap = spline.x[-1] - s.x[0]
+        overlap = spline.x[-1] - s.x[0]  # Overlap to previous spline. overlap < 0 -> No overlap
         if overlap < 0:
-            spline = ppoly_insert(s.x[0], spline)
+            spline = ppoly_insert(s.x[0], spline)  # Append knot
         elif overlap > 0:
             spline.x[-1] -= overlap
 
@@ -89,33 +110,50 @@ def combine_splines_in_time(splines: Iterable[PPoly]) -> PPoly:
     return spline
 
 
+def _ppoly_insert_inplace(newX, spline, extrapolate):
+    """In-place PPoly insert function. Doc: See original ppoly_insert()."""
+    new = ppoly_insert(newX, spline, extrapolate)
+    spline.x = new.x
+    spline.c = new.c
+
+
 def combine_splines_in_dimensions(splines):
-    """Pack / stack mutiple single dimensional splines into one. Inserts missing
-    knots if the single dimensional splines do not align up.
+    """Pack / stack multiple single dimensional splines into one. Inserts
+    missing knots if the single dimensional splines do not align up.
     """
     splines = [copy_spline(s) for s in splines]
-    allXs = np.concatenate([s.x for s in splines])
-    unique = np.unique(allXs)
-    unique.sort()
+    allKnots = np.concatenate([s.x for s in splines])
+    uniqueKnots = np.unique(allKnots)
+    uniqueKnots.sort()
 
-    for i in range(len(splines)):
-        for x in unique:
-            if x not in splines[i].x:
-                splines[i].extrapolate = False
-                splines[i] = ppoly_insert(x, splines[i])
+    # Add missing knots for each spline
+    for spline in splines:
+        for knot in uniqueKnots:
+            if knot not in spline.x:
+                _ppoly_insert_inplace(knot, spline, extrapolate=False)
 
-    c = np.dstack([s.c for s in splines])
+    coeffs = np.dstack([s.c for s in splines])
     return PPoly.construct_fast(
-        c,
-        unique,
+        coeffs,
+        uniqueKnots,
         extrapolate=False,
         axis=0
     )
 
 
 def convert_choreo_to_spline(choreo: Choreo) -> PPoly:
-    """Convert choreo to spline."""
-    segmentsPerChannel = collect_segments_from_choreo(choreo)
-    splines = map(convert_segments_to_spline, segmentsPerChannel)
-    channels = map(combine_splines_in_time, splines)
-    return combine_splines_in_dimensions(channels)
+    """Convert choreo to spline. If there are multiple motion curves defined in
+    choreo return multi dimensional spline.
+
+    Args:
+        choreo: Configparser for chore file.
+
+    Returns:
+        Extracted simulated motion curves.
+    """
+    segments = collect_segments_from_choreo(choreo)
+    splines = map(convert_segments_to_splines, segments)
+    curves = map(combine_splines_in_time, splines)
+    spline = combine_splines_in_dimensions(curves)
+    #return BPoly.from_power_basis(spline)
+    return spline
