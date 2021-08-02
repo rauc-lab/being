@@ -66,6 +66,6 @@ class Being:
         """Execute single cycle of block networks."""
         execute(self.execOrder)
         if self.network:
-            self.network.update()
+            self.network.send_sync()
 
         self.clock.step()
