@@ -54,7 +54,7 @@ class Sawtooth(Block):
     def update(self):
         self.output.value = self.phase
         self.phase += self.interval * TAU * self.frequency.value
-        self.phase %= TAU
+        # self.phase %= TAU
 
     def __str__(self):
         return '%s()' % type(self).__name__
