@@ -26,10 +26,10 @@ UNITS: Dict[bytes, Units] = {
         speed=1000,  # Speeds are in mm/s
     ),
     r'EPOS4': Units(  # TODO: Check units!
-        length=1e6,  # increments
+        length=1,  # here: [increments] set conversion on node configuration
         current=1000,
         kinematics=1000,
-        speed=1000,  # Speeds are in mm/s
+        speed=1000,  # [rpm] or [rad/s]
     ),
 }
 """Raw MANUFACTURER_DEVICE_NAME byte string -> Vendor units lookup."""
@@ -175,6 +175,7 @@ class EPOS4:
 
     # Standardized but not available with Faulhaber
 
+    FOLLOWING_ERROR_WINDOW = 0x6065  # Not with FH
     MOTOR_RATED_TORQUE = 0x6076  # Not with FH
     MAX_MOTOR_SPEED = 0x6080  # Not with FH
 

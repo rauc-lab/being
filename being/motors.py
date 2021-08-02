@@ -40,6 +40,7 @@ from being.can.cia_402 import (
 from being.can.definitions import HOMING_OFFSET
 from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL
 from being.can.vendor import (
+    Units,
     stringify_error,
     MAXON_ERROR_REGISTER,
     FAULHABER_ERROR_REGISTER,
@@ -47,7 +48,7 @@ from being.can.vendor import (
     EPOS4,
 )
 from being.config import CONFIG
-from being.constants import INF, FORWARD
+from being.constants import INF, FORWARD, TAU
 from being.error import BeingError
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
@@ -175,9 +176,9 @@ def proper_homing(
         homingMethod: int,
         maxSpeed: float = 0.100,
         maxAcc: float = 1.,
-        timeout: float = 3.,
+        timeout: float = 5.,
         lowerLimit: int = 0,
-        upperLimit: int = 0, 
+        upperLimit: int = 0,
     ) -> HomingProgress:
     """Proper CiA 402 homing."""
     homed = False
@@ -557,6 +558,9 @@ class RotaryMotor(Motor):
              homingDirection: Optional[float] = None,
              maxSpeed: float = 1.,
              maxAcc: float = 1.,
+             gearNumerator : int = 1,
+             gearDenumerator: int = 1,
+             encoderNumberOfPulses = 1024,
              network: Optional[CanBackend] = None,
              node: Optional[CiA402Node] = None,
              objectDictionary = None,
@@ -600,6 +604,9 @@ class RotaryMotor(Motor):
         self.node = node
         self.maxSpeed = maxSpeed
         self.maxAcc = maxAcc
+        self.gearNumerator = gearDenumerator
+        self.gearDenumerator = gearDenumerator
+        self.encoderNumberOfPulses = encoderNumberOfPulses
 
         self.logger = get_logger(str(self))
 
@@ -615,6 +622,11 @@ class RotaryMotor(Motor):
         """CAN node id."""
         return self.node.id
 
+    @property
+    def gearRatio(self) -> float:
+        """Motor gear ratio."""
+        return self.gearNumerator / self.gearDenumerator
+
     def configure_node(self,
                        maxSpeed: float = 6000.,
                        maxAcc: float = 5,
@@ -622,6 +634,13 @@ class RotaryMotor(Motor):
                        isBrushed: bool = True):
         """Configure Maxon EPOS4 node (some settings via SDO)."""
 
+        self.node.units = Units(
+            # length here: convertion factor radians to increments
+            length=self.gearRatio * self.encoderNumberOfPulses * 4 / TAU,
+            current=1000,
+            kinematics=1000,  # TODO: correct=
+            speed=self.gearRatio * 60 / TAU,  # [rpm] or [rad/s]
+        )
         units = self.node.units
 
         # TODO: These parameters have to come from the outside. Question: How
@@ -633,32 +652,35 @@ class RotaryMotor(Motor):
 
         self.node.sdo[EPOS4.MOTOR_TYPE].raw = 1  # 1 = Brushed DC, 10 = BLDC sinus-commutated
         motorData = self.node.sdo[EPOS4.MOTOR_DATA_MAXON]
-        motorData[EPOS4.NOMINAL_CURRENT].raw = 0.397 * units.current # [mA]
-        motorData[EPOS4.OUTPUT_CURRENT_LIMIT].raw = 2 * 0.397 * units.current # [mA] Recommended to set to double of nominal current
+        motorData[EPOS4.NOMINAL_CURRENT].raw = 0.397 * units.current  # [mA]
+        # Recommended to set current limit to double of nominal current
+        motorData[EPOS4.OUTPUT_CURRENT_LIMIT].raw = 2 * 0.397 * units.current  # [mA]
         motorData[EPOS4.NUMBER_OF_POLE_PAIRS].raw = 1  # only relevant for BLDC motors
         motorData[EPOS4.THERMAL_TIME_CONSTANT_WINDING].raw = 143  # [0.1 s]
         motorData[EPOS4.MOTOR_TORQUE_CONSTANT].raw = 1000 * 30.8  # [μNm/A]
         self.node.sdo[EPOS4.MAX_MOTOR_SPEED].raw = 9000  # [rpm]
 
         gearConf = self.node.sdo[EPOS4.GEAR_CONFIGURATION]
-        gearConf[EPOS4.GEAR_REDUCTION_NUMERATOR].raw = 69  # [rpm]
-        gearConf[EPOS4.GEAR_REDUCTION_DENOMINATOR].raw = 13  # [rpm]
-        gearConf[EPOS4.MAX_GEAR_INPUT_SPEED].raw = 7000  # [rpm]
+        gearConf[EPOS4.GEAR_REDUCTION_NUMERATOR].raw = self.gearNumerator  # [rpm]
+        gearConf[EPOS4.GEAR_REDUCTION_DENOMINATOR].raw = self.gearDenumerator  # [rpm]
+        gearConf[EPOS4.MAX_GEAR_INPUT_SPEED].raw = 8000  # [rpm]
 
         # Set position sensor parameters
 
         axisConf = self.node.sdo[EPOS4.AXIS_CONFIGURATION]
         axisConf[EPOS4.SENSORS_CONFIGURATION].raw = 1  # Adjust for Hallsensors in BLDC
-        axisConf[EPOS4.CONTROL_STRUCTURE].raw = (hasGear << 12 | 0x10111)  # TODO: Break down more
+
+        # TODO: Break down more, see table page 141 in EPOS4-Firmware-Specification-En.pdf
+        axisConf[EPOS4.CONTROL_STRUCTURE].raw = 0x00010111 | (hasGear << 12)
+
         axisConf[EPOS4.COMMUTATION_SENSORS].raw = 0 if isBrushed else 0x31
         axisConf[EPOS4.AXIS_CONFIGURATION_MISCELLANEOUS].raw = 0x0 | EPOS4.AxisPolarity.CCW  # positive value are CCW
 
         digitalEncoder = self.node.sdo[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1]
-        #  4 * pulses = 1 * increment
-        #  We SHOULD have mounted an encoder with 1024 counts (= pulses or increments?) per turn
-        #  However, 1024 leads to an very noisy movement, the default value 2048 works well
-        digitalEncoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_NUMBER_OF_PULSES].raw = 2048
-        digitalEncoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_TYPE].raw = 0 # 1 = with index (3 channel)
+        #  4 * (pulses / revolutions) = increments / revolutions
+        # eg 4 * 1024 = 4096 increments / rev.
+        digitalEncoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_NUMBER_OF_PULSES].raw = self.encoderNumberOfPulses
+        digitalEncoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_TYPE].raw = 1 # 1 = with index (3 channel)
 
         # TODO: add SSI configuration. Required for BLDC?
 
@@ -667,6 +689,8 @@ class RotaryMotor(Motor):
         currentCtrlParamSet = self.node.sdo[EPOS4.CURRENT_CONTROL_PARAMETER_SET_MAXON]
         currentCtrlParamSet[EPOS4.CURRENT_CONTROLLER_P_GAIN].raw = 9138837  # [uV / A]
         currentCtrlParamSet[EPOS4.CURRENT_CONTROLLER_I_GAIN].raw = 133651205  # [uV / (A * ms)]
+
+        # TODO: position PID and velocity PI values ??!
 
         # Set additional parameters
 
@@ -677,6 +701,8 @@ class RotaryMotor(Motor):
         self.node.sdo[MAX_PROFILE_VELOCITY].raw = maxSpeed  # [rpm]
         self.node.sdo[PROFILE_ACCELERATION].raw = units.kinematics * maxAcc  # [mm / s^2] or [rpm / s]
         self.node.sdo[PROFILE_DECELERATION].raw = units.kinematics * maxAcc  # [mm / s^2]
+
+        self.node.sdo[EPOS4.FOLLOWING_ERROR_WINDOW].raw = 4294967295  # disabled
 
     def enabled(self):
         sw = self.node.sdo[STATUSWORD].raw  # This takes approx. 2.713 ms
@@ -696,10 +722,10 @@ class RotaryMotor(Motor):
 
         if self.homingDirection > 0:
             self.homingJob = proper_homing(
-                self.node, homingMethod=-4, timeout=5)
+                self.node, homingMethod=-4, timeout=5, maxSpeed=60)
         else:
             self.homingJob = proper_homing(
-                self.node, homingMethod=-3, timeout=5)
+                self.node, homingMethod=-3, timeout=5, maxSpeed=60)
 
         self.homing = HomingState.ONGOING
         self.publish(MOTOR_CHANGED)
@@ -722,8 +748,8 @@ class RotaryMotor(Motor):
                 else:
                     tarPos = self.length - self.targetPosition.value
 
-                self.node.set_target_angle(tarPos)
-                # self.node.set_target_position(tarPos)
+                self.logger.warning(f'next position {self.targetPosition.value}')
+                self.node.set_target_position(tarPos)
 
         elif self.homing is HomingState.ONGOING:
             self.homing = next(self.homingJob)
@@ -731,6 +757,7 @@ class RotaryMotor(Motor):
                 self.publish(MOTOR_CHANGED)
 
         self.output.value = self.node.get_actual_position()
+
 
     def to_dict(self):
         dct = super().to_dict()

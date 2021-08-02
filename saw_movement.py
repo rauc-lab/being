@@ -6,20 +6,19 @@ from being.motors import RotaryMotor
 from being.resources import manage_resources
 from being.constants import TAU
 from being.logging import setup_logging
+import logging
 
 
 # Params
 MOTOR_IDS = [1]
-FREQUENCY = 0.5
+FREQUENCY = 1.0
 
-setup_logging()
+setup_logging(level=logging.WARNING)
 
 with manage_resources():
     saw = Sawtooth(FREQUENCY)
-    trafo = Trafo.from_ranges(inRange=[0, TAU], outRange=[0, 5.3 * 2048])  # radians to increments
-    saw | trafo
     for nodeId in MOTOR_IDS:
-        mot = RotaryMotor(nodeId)
-        trafo | mot
+        mot = RotaryMotor(nodeId, gearNumerator=69, gearDenumerator=13)
+        saw | mot
 
     awake(saw)

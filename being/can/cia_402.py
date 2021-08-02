@@ -508,11 +508,6 @@ class CiA402Node(RemoteNode):
         self.pdo[TARGET_POSITION].raw = pos * self.units.length
         self.rpdo[2].transmit()
 
-    def set_target_angle(self, angle):
-        """Set target angle in radians"""
-        self.pdo[TARGET_POSITION].raw = angle
-        self.rpdo[2].transmit()
-
     def get_actual_position(self):
         """Get actual position in SI units"""
         return self.pdo[POSITION_ACTUAL_VALUE].raw / self.units.length
