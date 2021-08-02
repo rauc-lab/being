@@ -16,6 +16,7 @@ class Units(NamedTuple):
     current: float = 1.
     kinematics: float = 1.
     speed: float = 1.
+    torque: float = 1.
 
 
 UNITS: Dict[bytes, Units] = {
@@ -25,11 +26,12 @@ UNITS: Dict[bytes, Units] = {
         kinematics=1000,
         speed=1000,  # Speeds are in mm/s
     ),
-    r'EPOS4': Units(  # TODO: Check units!
-        length=1,  # here: [increments] set conversion on node configuration
+    # TODO: conversion depends on system configuration (-> gear ratio). How to solve?
+    r'EPOS4': Units(  # set conversions on node configuration
+        length=1,  # [increments]
         current=1000,
-        kinematics=1000,
-        speed=1000,  # [rpm] or [rad/s]
+        kinematics=1000,  # [rad/s^2]
+        speed=1000,  # [rad/s]
     ),
 }
 """Raw MANUFACTURER_DEVICE_NAME byte string -> Vendor units lookup."""
@@ -163,9 +165,16 @@ class EPOS4:
     DIGITAL_INCREMENTAL_ENCODER_1_TYPE = 2
     DIGITAL_INCREMENTAL_ENCODER_1_INDEX_POSITION = 4
 
-    CURRENT_CONTROL_PARAMETER_SET_MAXON = 0x30A0
+    CURRENT_CONTROL_PARAMETER_SET = 0x30A0
     CURRENT_CONTROLLER_P_GAIN = 1
     CURRENT_CONTROLLER_I_GAIN = 2
+
+    POSITION_CONTROL_PARAMETER_SET = 0x30A1
+    POSITION_CONTROLLER_P_GAIN = 1
+    POSITION_CONTROLLER_I_GAIN = 2
+    POSITION_CONTROLLER_D_GAIN = 3
+    POSITION_CONTROLLER_FF_VELOCITY_GAIN = 4
+    POSITION_CONTROLLER_FF_ACCELERATION_GAIN = 5
 
     VELOCITY_CONTROL_PARAMETER_SET_MAXON = 0x30A2
     VELOCITY_CONTROLLER_P_GAIN = 1

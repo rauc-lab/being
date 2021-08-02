@@ -22,7 +22,9 @@ from being.can.cia_402 import (
     Command,
     HOMING_ACCELERATION,
     HOMING_METHOD,
-    HOMING_SPEED,
+    HOMING_SPEEDS,
+    SPEED_FOR_SWITCH_SEARCH,
+    SPEED_FOR_ZERO_SEARCH,
     OperationMode,
     POSITION_ACTUAL_VALUE,
     SOFTWARE_POSITION_LIMIT,
@@ -53,7 +55,12 @@ from being.error import BeingError
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
 from being.pubsub import PubSub
-from being.math import sign, clip
+from being.math import (
+    sign,
+    clip,
+    rpm_to_angular_velocity,
+    angular_velocity_to_rpm,
+)
 from being.resources import register_resource
 
 
@@ -197,8 +204,9 @@ def proper_homing(
         # TODO: Manufacture dependent, done before calling method
         # node.sdo[HOMING_OFFSET].raw = 0
         node.sdo[HOMING_METHOD].raw = homingMethod
-        node.sdo[HOMING_SPEED].raw = abs(maxSpeed * node.units.speed)
-        node.sdo[HOMING_ACCELERATION].raw = abs(maxAcc * node.units.speed)
+        node.sdo[HOMING_SPEEDS][SPEED_FOR_SWITCH_SEARCH].raw = abs(maxSpeed * node.units.speed)
+        node.sdo[HOMING_SPEEDS][SPEED_FOR_ZERO_SEARCH].raw = abs(maxSpeed * node.units.speed)
+        node.sdo[HOMING_ACCELERATION].raw = abs(maxAcc * node.units.kinematics)
 
         # Start homing
         node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
@@ -552,27 +560,28 @@ class RotaryMotor(Motor):
         network (CanBackend): Associsated network:
         node (CiA402Node): Drive node.
     """
+
     def __init__(self,
-             nodeId: int,
-             direction: float = FORWARD,
-             homingDirection: Optional[float] = None,
-             maxSpeed: float = 1.,
-             maxAcc: float = 1.,
-             gearNumerator : int = 1,
-             gearDenumerator: int = 1,
-             encoderNumberOfPulses = 1024,
-             network: Optional[CanBackend] = None,
-             node: Optional[CiA402Node] = None,
-             objectDictionary = None,
-             **kwargs,
-        ):
+                 nodeId: int,
+                 direction: float = FORWARD,
+                 homingDirection: Optional[float] = None,
+                 maxSpeed: float = 942,  # [rad /s ] -> 9000 rpm
+                 maxAcc: float = 4294967295,  # TODO: how much? 
+                 gearNumerator: int = 1,
+                 gearDenumerator: int = 1,
+                 encoderNumberOfPulses=1024,
+                 network: Optional[CanBackend] = None,
+                 node: Optional[CiA402Node] = None,
+                 objectDictionary=None,
+                 **kwargs,
+                 ):
         """Args:
             nodeId: CANOpen node id.
 
         Kwargs:
             direction: Movement orientation.
             homingDirection: Initial homing direction. Default same as `direction`.
-            maxSpeed: Maximum speed.
+            maxSpeed: Maximum speed [rad / s].
             maxAcc: Maximum acceleration.
             network: External network (dependency injection).
             node: Drive node (dependency injection).
@@ -628,8 +637,8 @@ class RotaryMotor(Motor):
         return self.gearNumerator / self.gearDenumerator
 
     def configure_node(self,
-                       maxSpeed: float = 6000.,
-                       maxAcc: float = 5,
+                       maxGearInputSpeed: float = 8000,  # [rpm]
+                       maxAcc: float = 4294967295,
                        hasGear: bool = True,
                        isBrushed: bool = True):
         """Configure Maxon EPOS4 node (some settings via SDO)."""
@@ -638,8 +647,8 @@ class RotaryMotor(Motor):
             # length here: convertion factor radians to increments
             length=self.gearRatio * self.encoderNumberOfPulses * 4 / TAU,
             current=1000,
-            kinematics=1000,  # TODO: correct=
-            speed=self.gearRatio * 60 / TAU,  # [rpm] or [rad/s]
+            kinematics= self.gearRatio * 60 / TAU,
+            speed=self.gearRatio * 60 / TAU,
         )
         units = self.node.units
 
@@ -658,17 +667,17 @@ class RotaryMotor(Motor):
         motorData[EPOS4.NUMBER_OF_POLE_PAIRS].raw = 1  # only relevant for BLDC motors
         motorData[EPOS4.THERMAL_TIME_CONSTANT_WINDING].raw = 143  # [0.1 s]
         motorData[EPOS4.MOTOR_TORQUE_CONSTANT].raw = 1000 * 30.8  # [μNm/A]
-        self.node.sdo[EPOS4.MAX_MOTOR_SPEED].raw = 9000  # [rpm]
+        self.node.sdo[EPOS4.MAX_MOTOR_SPEED].raw = angular_velocity_to_rpm(self.maxSpeed)  # [rpm]
 
         gearConf = self.node.sdo[EPOS4.GEAR_CONFIGURATION]
         gearConf[EPOS4.GEAR_REDUCTION_NUMERATOR].raw = self.gearNumerator  # [rpm]
         gearConf[EPOS4.GEAR_REDUCTION_DENOMINATOR].raw = self.gearDenumerator  # [rpm]
-        gearConf[EPOS4.MAX_GEAR_INPUT_SPEED].raw = 8000  # [rpm]
+        gearConf[EPOS4.MAX_GEAR_INPUT_SPEED].raw = maxGearInputSpeed  # [rpm]
 
         # Set position sensor parameters
 
         axisConf = self.node.sdo[EPOS4.AXIS_CONFIGURATION]
-        axisConf[EPOS4.SENSORS_CONFIGURATION].raw = 1  # Adjust for Hallsensors in BLDC
+        axisConf[EPOS4.SENSORS_CONFIGURATION].raw = 1  # Adjust for Hall sensors for BLDC
 
         # TODO: Break down more, see table page 141 in EPOS4-Firmware-Specification-En.pdf
         axisConf[EPOS4.CONTROL_STRUCTURE].raw = 0x00010111 | (hasGear << 12)
@@ -686,11 +695,17 @@ class RotaryMotor(Motor):
 
         # Set current control gains
 
-        currentCtrlParamSet = self.node.sdo[EPOS4.CURRENT_CONTROL_PARAMETER_SET_MAXON]
+        currentCtrlParamSet = self.node.sdo[EPOS4.CURRENT_CONTROL_PARAMETER_SET]
         currentCtrlParamSet[EPOS4.CURRENT_CONTROLLER_P_GAIN].raw = 9138837  # [uV / A]
         currentCtrlParamSet[EPOS4.CURRENT_CONTROLLER_I_GAIN].raw = 133651205  # [uV / (A * ms)]
 
-        # TODO: position PID and velocity PI values ??!
+        # Set position PID
+        positionPID = self.node.sdo[EPOS4.POSITION_CONTROL_PARAMETER_SET]
+        positionPID[EPOS4.POSITION_CONTROLLER_P_GAIN].raw = 1008733
+        positionPID[EPOS4.POSITION_CONTROLLER_I_GAIN].raw = 1849714
+        positionPID[EPOS4.POSITION_CONTROLLER_D_GAIN].raw = 36191
+        positionPID[EPOS4.POSITION_CONTROLLER_FF_VELOCITY_GAIN].raw = 0
+        positionPID[EPOS4.POSITION_CONTROLLER_FF_ACCELERATION_GAIN].raw = 342
 
         # Set additional parameters
 
@@ -698,9 +713,10 @@ class RotaryMotor(Motor):
         interpolPer = self.node.sdo[EPOS4.INTERPOLATION_TIME_PERIOD]
         interpolPer[EPOS4.INTERPOLATION_TIME_PERIOD_VALUE].raw = INTERVAL * 1000  # [ms]
 
-        self.node.sdo[MAX_PROFILE_VELOCITY].raw = maxSpeed  # [rpm]
-        self.node.sdo[PROFILE_ACCELERATION].raw = units.kinematics * maxAcc  # [mm / s^2] or [rpm / s]
-        self.node.sdo[PROFILE_DECELERATION].raw = units.kinematics * maxAcc  # [mm / s^2]
+        maxSystemSpeed = self.node.sdo[EPOS4.AXIS_CONFIGURATION][EPOS4.MAX_SYSTEM_SPEED].raw
+        self.node.sdo[MAX_PROFILE_VELOCITY].raw = maxSystemSpeed
+        self.node.sdo[PROFILE_ACCELERATION].raw = maxAcc
+        self.node.sdo[PROFILE_DECELERATION].raw = maxAcc
 
         self.node.sdo[EPOS4.FOLLOWING_ERROR_WINDOW].raw = 4294967295  # disabled
 
@@ -722,10 +738,10 @@ class RotaryMotor(Motor):
 
         if self.homingDirection > 0:
             self.homingJob = proper_homing(
-                self.node, homingMethod=-4, timeout=5, maxSpeed=60)
+                self.node, homingMethod=-4, timeout=5, maxSpeed=TAU, maxAcc=100)
         else:
             self.homingJob = proper_homing(
-                self.node, homingMethod=-3, timeout=5, maxSpeed=60)
+                self.node, homingMethod=-3, timeout=5, maxSpeed=TAU, maxAcc=100)
 
         self.homing = HomingState.ONGOING
         self.publish(MOTOR_CHANGED)
@@ -748,7 +764,7 @@ class RotaryMotor(Motor):
                 else:
                     tarPos = self.length - self.targetPosition.value
 
-                self.logger.warning(f'next position {self.targetPosition.value}')
+                self.logger.debug(f'next position {self.targetPosition.value}')
                 self.node.set_target_position(tarPos)
 
         elif self.homing is HomingState.ONGOING:

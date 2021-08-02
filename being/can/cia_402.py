@@ -44,7 +44,11 @@ PROFILE_ACCELERATION = 0x6083
 PROFILE_DECELERATION = 0x6084
 QUICK_STOP_DECELERATION = 0x6085
 HOMING_METHOD = 0x6098
-HOMING_SPEED = 0x6099
+
+HOMING_SPEEDS = 0x6099
+SPEED_FOR_SWITCH_SEARCH = 1
+SPEED_FOR_ZERO_SEARCH = 2
+
 HOMING_ACCELERATION = 0x609A
 DIGITAL_INPUTS = 0x60FD
 TARGET_VELOCITY = 0x60FF
@@ -440,7 +444,7 @@ class CiA402Node(RemoteNode):
             while self.get_state() != state:
                 if time.perf_counter() > endTime:
                     raise RuntimeError(f'Timeout while trying to transition from state {current!r} to {target!r}!')
-                time.sleep(0.002)
+                # time.sleep(0.002)  #sdo operation already takes ~2ms
 
     def get_operation_mode(self) -> OperationMode:
         """Get current operation mode."""
