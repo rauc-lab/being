@@ -563,6 +563,7 @@ class RotaryMotor(Motor):
 
     def __init__(self,
                  nodeId: int,
+                 length: float = TAU,
                  direction: float = FORWARD,
                  homingDirection: Optional[float] = None,
                  maxSpeed: float = 942,  # [rad /s ] -> 9000 rpm
@@ -610,6 +611,7 @@ class RotaryMotor(Motor):
         self.direction = sign(direction)
         self.homingDirection = sign(homingDirection)
         self.network = network
+        self.length = length
         self.node = node
         self.maxSpeed = maxSpeed
         self.maxAcc = maxAcc
@@ -712,7 +714,10 @@ class RotaryMotor(Motor):
 
         self.node.sdo[EPOS4.MOTOR_RATED_TORQUE].raw = 12228  # [μNm]
         interpolPer = self.node.sdo[EPOS4.INTERPOLATION_TIME_PERIOD]
-        interpolPer[EPOS4.INTERPOLATION_TIME_PERIOD_VALUE].raw = INTERVAL * 1000  # [ms]
+
+        # Will run smoother if set. 
+        # However, will throw an RPDO timeout error when reloading web page
+        interpolPer[EPOS4.INTERPOLATION_TIME_PERIOD_VALUE].raw = 0 # INTERVAL * 1000  # [ms]
 
         self.maxSystemSpeed = self.node.sdo[EPOS4.AXIS_CONFIGURATION][EPOS4.MAX_SYSTEM_SPEED].raw
         self.node.sdo[MAX_PROFILE_VELOCITY].raw = self.maxSystemSpeed
@@ -738,12 +743,15 @@ class RotaryMotor(Motor):
         self.node.sdo[EPOS4.HOME_OFFSET_MOVE_DISTANCE].raw = offset
 
         if self.homingDirection > 0:
-            self.homingJob = proper_homing(
-                self.node, homingMethod=-4, timeout=5, maxSpeed=rpm_to_angular_velocity(60), maxAcc=100)
+            homingMethod = -4
         else:
-            self.homingJob = proper_homing(
-                self.node, homingMethod=-3, timeout=5, maxSpeed=rpm_to_angular_velocity(60), maxAcc=100)
+            homingMethod = -3
 
+        self.homingJob = proper_homing(self.node,
+                                       homingMethod=homingMethod,
+                                       timeout=5,
+                                       maxSpeed=rpm_to_angular_velocity(60),
+                                       maxAcc=100)
         self.homing = HomingState.ONGOING
         self.publish(MOTOR_CHANGED)
 
@@ -774,10 +782,9 @@ class RotaryMotor(Motor):
 
         self.output.value = self.node.get_actual_position()
 
-
     def to_dict(self):
         dct = super().to_dict()
-        # dct['length'] = self.length 
+        # dct['length'] = self.length
         return dct
 
     def __str__(self):
