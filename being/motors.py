@@ -205,6 +205,7 @@ def proper_homing(
         # node.sdo[HOMING_OFFSET].raw = 0
         node.sdo[HOMING_METHOD].raw = homingMethod
         node.sdo[HOMING_SPEEDS][SPEED_FOR_SWITCH_SEARCH].raw = abs(maxSpeed * node.units.speed)
+        print("speed homing : ", abs(maxSpeed * node.units.speed))
         node.sdo[HOMING_SPEEDS][SPEED_FOR_ZERO_SEARCH].raw = abs(maxSpeed * node.units.speed)
         node.sdo[HOMING_ACCELERATION].raw = abs(maxAcc * node.units.kinematics)
 
@@ -613,7 +614,7 @@ class RotaryMotor(Motor):
         self.node = node
         self.maxSpeed = maxSpeed
         self.maxAcc = maxAcc
-        self.gearNumerator = gearDenumerator
+        self.gearNumerator = gearNumerator
         self.gearDenumerator = gearDenumerator
         self.encoderNumberOfPulses = encoderNumberOfPulses
 
@@ -738,10 +739,10 @@ class RotaryMotor(Motor):
 
         if self.homingDirection > 0:
             self.homingJob = proper_homing(
-                self.node, homingMethod=-4, timeout=5, maxSpeed=TAU, maxAcc=100)
+                self.node, homingMethod=-4, timeout=5, maxSpeed=rpm_to_angular_velocity(240), maxAcc=1000)
         else:
             self.homingJob = proper_homing(
-                self.node, homingMethod=-3, timeout=5, maxSpeed=TAU, maxAcc=100)
+                self.node, homingMethod=-3, timeout=5, maxSpeed=rpm_to_angular_velocity(240), maxAcc=1000)
 
         self.homing = HomingState.ONGOING
         self.publish(MOTOR_CHANGED)
@@ -758,13 +759,12 @@ class RotaryMotor(Motor):
             sw = self.node.pdo[STATUSWORD].raw  # This takes approx. 0.027 ms
             state = which_state(sw)
             if state is CiA402State.OPERATION_ENABLE:
-                # TODO: let the controller handle the direction ?
                 if self.direction > 0:
                     tarPos = self.targetPosition.value
                 else:
                     tarPos = self.length - self.targetPosition.value
 
-                self.logger.debug(f'next position {self.targetPosition.value}')
+                self.logger.debug(f'Next position: {self.targetPosition.value}')
                 self.node.set_target_position(tarPos)
 
         elif self.homing is HomingState.ONGOING:
