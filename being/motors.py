@@ -205,7 +205,6 @@ def proper_homing(
         # node.sdo[HOMING_OFFSET].raw = 0
         node.sdo[HOMING_METHOD].raw = homingMethod
         node.sdo[HOMING_SPEEDS][SPEED_FOR_SWITCH_SEARCH].raw = abs(maxSpeed * node.units.speed)
-        print("speed homing : ", abs(maxSpeed * node.units.speed))
         node.sdo[HOMING_SPEEDS][SPEED_FOR_ZERO_SEARCH].raw = abs(maxSpeed * node.units.speed)
         node.sdo[HOMING_ACCELERATION].raw = abs(maxAcc * node.units.kinematics)
 
@@ -567,7 +566,7 @@ class RotaryMotor(Motor):
                  direction: float = FORWARD,
                  homingDirection: Optional[float] = None,
                  maxSpeed: float = 942,  # [rad /s ] -> 9000 rpm
-                 maxAcc: float = 4294967295,  # TODO: how much? 
+                 maxAcc: float = 4294967295,
                  gearNumerator: int = 1,
                  gearDenumerator: int = 1,
                  encoderNumberOfPulses=1024,
@@ -639,7 +638,6 @@ class RotaryMotor(Motor):
 
     def configure_node(self,
                        maxGearInputSpeed: float = 8000,  # [rpm]
-                       maxAcc: float = 4294967295,
                        hasGear: bool = True,
                        isBrushed: bool = True):
         """Configure Maxon EPOS4 node (some settings via SDO)."""
@@ -702,11 +700,13 @@ class RotaryMotor(Motor):
 
         # Set position PID
         positionPID = self.node.sdo[EPOS4.POSITION_CONTROL_PARAMETER_SET]
-        positionPID[EPOS4.POSITION_CONTROLLER_P_GAIN].raw = 1008733
-        positionPID[EPOS4.POSITION_CONTROLLER_I_GAIN].raw = 1849714
-        positionPID[EPOS4.POSITION_CONTROLLER_D_GAIN].raw = 36191
+ 
+        # Adapt to application
+        positionPID[EPOS4.POSITION_CONTROLLER_P_GAIN].raw = 1500000
+        positionPID[EPOS4.POSITION_CONTROLLER_I_GAIN].raw = 780000
+        positionPID[EPOS4.POSITION_CONTROLLER_D_GAIN].raw = 16000
         positionPID[EPOS4.POSITION_CONTROLLER_FF_VELOCITY_GAIN].raw = 0
-        positionPID[EPOS4.POSITION_CONTROLLER_FF_ACCELERATION_GAIN].raw = 342
+        positionPID[EPOS4.POSITION_CONTROLLER_FF_ACCELERATION_GAIN].raw = 0
 
         # Set additional parameters
 
@@ -714,10 +714,10 @@ class RotaryMotor(Motor):
         interpolPer = self.node.sdo[EPOS4.INTERPOLATION_TIME_PERIOD]
         interpolPer[EPOS4.INTERPOLATION_TIME_PERIOD_VALUE].raw = INTERVAL * 1000  # [ms]
 
-        maxSystemSpeed = self.node.sdo[EPOS4.AXIS_CONFIGURATION][EPOS4.MAX_SYSTEM_SPEED].raw
-        self.node.sdo[MAX_PROFILE_VELOCITY].raw = maxSystemSpeed
-        self.node.sdo[PROFILE_ACCELERATION].raw = maxAcc
-        self.node.sdo[PROFILE_DECELERATION].raw = maxAcc
+        self.maxSystemSpeed = self.node.sdo[EPOS4.AXIS_CONFIGURATION][EPOS4.MAX_SYSTEM_SPEED].raw
+        self.node.sdo[MAX_PROFILE_VELOCITY].raw = self.maxSystemSpeed
+        self.node.sdo[PROFILE_ACCELERATION].raw = self.maxAcc
+        self.node.sdo[PROFILE_DECELERATION].raw = self.maxAcc
 
         self.node.sdo[EPOS4.FOLLOWING_ERROR_WINDOW].raw = 4294967295  # disabled
 
@@ -739,10 +739,10 @@ class RotaryMotor(Motor):
 
         if self.homingDirection > 0:
             self.homingJob = proper_homing(
-                self.node, homingMethod=-4, timeout=5, maxSpeed=rpm_to_angular_velocity(240), maxAcc=1000)
+                self.node, homingMethod=-4, timeout=5, maxSpeed=rpm_to_angular_velocity(60), maxAcc=100)
         else:
             self.homingJob = proper_homing(
-                self.node, homingMethod=-3, timeout=5, maxSpeed=rpm_to_angular_velocity(240), maxAcc=1000)
+                self.node, homingMethod=-3, timeout=5, maxSpeed=rpm_to_angular_velocity(60), maxAcc=100)
 
         self.homing = HomingState.ONGOING
         self.publish(MOTOR_CHANGED)

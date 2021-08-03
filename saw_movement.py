@@ -11,7 +11,7 @@ import logging
 
 # Params
 MOTOR_IDS = [1]
-FREQUENCY = 1.0
+FREQUENCY = 0.5
 
 setup_logging(level=logging.WARNING)
 
