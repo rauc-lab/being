@@ -715,7 +715,7 @@ class RotaryMotor(Motor):
         self.node.sdo[EPOS4.MOTOR_RATED_TORQUE].raw = 12228  # [μNm]
         interpolPer = self.node.sdo[EPOS4.INTERPOLATION_TIME_PERIOD]
 
-        # Will run smoother if set. 
+        # Will run smoother if set.
         # However, will throw an RPDO timeout error when reloading web page
         interpolPer[EPOS4.INTERPOLATION_TIME_PERIOD_VALUE].raw = 0 # INTERVAL * 1000  # [ms]
 
