@@ -133,6 +133,72 @@ class TestConfig(unittest.TestCase):
     #def test_json_does_not_support_comments(self):
     #    pass
 
+    def test_commenting_toml(self):
+        # First level key
+        toml = _TomlConfig()
+        name = 'singleKey'
+        toml.store(name, 'Hello')
+        toml.set_comment(name, 'This is a comment')
+
+        self.assertEqual(toml.dumps(), 'singleKey = "Hello" # This is a comment\n')
+
+        # Multi level key
+        toml = _TomlConfig()
+        name = 'This/is/it'
+        toml.store(name, 'Hello')
+        toml.set_comment(name,  'This is a comment')
+
+        self.assertEqual(toml.dumps(), '[This]\n[This.is]\nit = "Hello" # This is a comment\n')
+
+    def test_commenting_yaml(self):
+        # First level key
+        yaml = _YamlConfig()
+        name = 'singleKey'
+        yaml.store(name, 'Hello')
+        yaml.set_comment(name, 'This is a comment')
+
+        self.assertEqual(yaml.dumps(), 'singleKey: Hello  # This is a comment\n')
+
+        # Multi level key
+        yaml = _YamlConfig()
+        name = 'This/is/it'
+        yaml.store(name, 'Hello')
+        yaml.set_comment(name,  'This is a comment')
+
+        self.assertEqual(yaml.dumps(), 'This:\n  is:\n    it: Hello  # This is a comment\n')
+
+    def test_getting_comments_toml(self):
+        s = 'hallo = "world"  # And this is a comment'
+        toml = _TomlConfig()
+        toml.loads(s)
+
+        self.assertEqual(toml.get_comment('hallo'), 'And this is a comment')
+
+        s = """[Header]
+        [Header.Section]
+        name = "something"    # This is another comment"""
+        toml = _TomlConfig()
+        toml.loads(s)
+
+        self.assertEqual(toml.get_comment('Header/Section/name'), 'This is another comment')
+
+
+    def test_getting_comments_yaml(self):
+        s = 'hallo: world  # And this is a comment'
+        yaml = _YamlConfig()
+        yaml.loads(s)
+
+        self.assertEqual(yaml.get_comment('hallo'), 'And this is a comment')
+
+        s = """this:
+          is:
+            it: Hello, world!    # Unbelievable, yet another comment!
+        """
+        yaml = _YamlConfig()
+        yaml.loads(s)
+
+        self.assertEqual(yaml.get_comment('this/is/it'), 'Unbelievable, yet another comment!')
+
 
 if __name__ == '__main__':
     unittest.main()

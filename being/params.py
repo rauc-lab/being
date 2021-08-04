@@ -11,6 +11,16 @@ from being.utils import SingleInstanceCache, write_file, read_file, update_dict_
 SEP: str = '/'
 """Separator for name <-> key path conversion."""
 
+COMMENT_PREFIX: str = '#'
+"""Comment prefix character."""
+
+
+
+def strip_comment_prefix(comment: str) -> str:
+    """Strip away comment prefix from string."""
+    _, comment = comment.split(COMMENT_PREFIX, maxsplit=1)
+    return comment.strip()
+
 
 class _ConfigImpl(abc.ABC):
     def __init__(self):
@@ -75,7 +85,8 @@ class _TomlConfig(_ConfigImpl):
 
     def get_comment(self, name):
         entry = self.retrieve(name)
-        return entry.trivia.comment
+        comment = entry.trivia.comment
+        return strip_comment_prefix(comment)
 
     def set_comment(self, name, comment):
         entry = self.retrieve(name)
@@ -118,17 +129,30 @@ class _YamlConfig(_ConfigImpl):
 
         entry[key] = value
 
+    @staticmethod
+    def _fetch_comment(ele, key):
+        comment = ele.ca.items[key][2].value
+        return strip_comment_prefix(comment)
+
     def get_comment(self, name):
-        # TODO
-        pass
+        if SEP in name:
+            head, tail = name.rsplit('/', maxsplit=1)
+            commentee = self.retrieve(head)
+            return self._fetch_comment(commentee, key=tail)
+        else:
+            return self._fetch_comment(self.data, key=name)
 
     def set_comment(self, name, comment):
-        # TODO
-        pass
+        if SEP in name:
+            head, tail = name.rsplit('/', maxsplit=1)
+            commentee = self.retrieve(head)
+            commentee.yaml_add_eol_comment(comment, key=tail)
+        else:
+            self.data.yaml_add_eol_comment(comment, key=name)
 
 
-class _JsonConfig(_ConfigImpl):
-    pass
+#class _JsonConfig(_ConfigImpl):
+#    pass
 
 
 IMPLEMENTATIONS = {
