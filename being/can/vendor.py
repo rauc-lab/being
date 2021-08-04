@@ -184,14 +184,15 @@ class EPOS4:
 
     # Standardized but not available with Faulhaber
 
-    FOLLOWING_ERROR_WINDOW = 0x6065  # Not with FH
-    MOTOR_RATED_TORQUE = 0x6076  # Not with FH
-    MAX_MOTOR_SPEED = 0x6080  # Not with FH
+    ABORT_CONNECTION_OPTION_CODE = 0x6007
+    FOLLOWING_ERROR_WINDOW = 0x6065
+    MOTOR_RATED_TORQUE = 0x6076
+    MAX_MOTOR_SPEED = 0x6080
 
-    INTERPOLATION_TIME_PERIOD = 0x60C2   # Not with FH
+    INTERPOLATION_TIME_PERIOD = 0x60C2
     INTERPOLATION_TIME_PERIOD_VALUE = 1
 
-    MOTOR_TYPE = 0x6402   # Not with FH
+    MOTOR_TYPE = 0x6402
 
     class AxisPolarity(enum.IntEnum):
         """Axis polarity for DC motors"""

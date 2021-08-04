@@ -648,7 +648,7 @@ class RotaryMotor(Motor):
             # length here: convertion factor radians to increments
             length=self.gearRatio * self.encoderNumberOfPulses * 4 / TAU,
             current=1000,
-            kinematics= self.gearRatio * 60 / TAU,
+            kinematics=self.gearRatio * 60 / TAU,
             speed=self.gearRatio * 60 / TAU,
         )
         units = self.node.units
@@ -684,7 +684,13 @@ class RotaryMotor(Motor):
         axisConf[EPOS4.CONTROL_STRUCTURE].raw = 0x00010111 | (hasGear << 12)
 
         axisConf[EPOS4.COMMUTATION_SENSORS].raw = 0 if isBrushed else 0x31
-        axisConf[EPOS4.AXIS_CONFIGURATION_MISCELLANEOUS].raw = 0x0 | EPOS4.AxisPolarity.CCW  # positive value are CCW
+
+        if self.direction > 0:
+            polarity = EPOS4.AxisPolarity.CCW
+        else:
+            polarity = EPOS4.AxisPolarity.CW
+
+        axisConf[EPOS4.AXIS_CONFIGURATION_MISCELLANEOUS].raw = 0x0 | polarity
 
         digitalEncoder = self.node.sdo[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1]
         #  4 * (pulses / revolutions) = increments / revolutions
@@ -702,7 +708,7 @@ class RotaryMotor(Motor):
 
         # Set position PID
         positionPID = self.node.sdo[EPOS4.POSITION_CONTROL_PARAMETER_SET]
- 
+
         # Adapt to application
         positionPID[EPOS4.POSITION_CONTROLLER_P_GAIN].raw = 1500000
         positionPID[EPOS4.POSITION_CONTROLLER_I_GAIN].raw = 780000
@@ -715,9 +721,11 @@ class RotaryMotor(Motor):
         self.node.sdo[EPOS4.MOTOR_RATED_TORQUE].raw = 12228  # [μNm]
         interpolPer = self.node.sdo[EPOS4.INTERPOLATION_TIME_PERIOD]
 
-        # Will run smoother if set.
+        # Will run smoother if set (0 = disabled).
         # However, will throw an RPDO timeout error when reloading web page
-        interpolPer[EPOS4.INTERPOLATION_TIME_PERIOD_VALUE].raw = 0 # INTERVAL * 1000  # [ms]
+        # This error can't be disabled, only the reaction behavior can
+        # be changed (quickstop vs disable voltage)
+        interpolPer[EPOS4.INTERPOLATION_TIME_PERIOD_VALUE].raw = 0  #INTERVAL * 1000  # [ms]
 
         self.maxSystemSpeed = self.node.sdo[EPOS4.AXIS_CONFIGURATION][EPOS4.MAX_SYSTEM_SPEED].raw
         self.node.sdo[MAX_PROFILE_VELOCITY].raw = self.maxSystemSpeed
@@ -742,10 +750,11 @@ class RotaryMotor(Motor):
     def home(self, offset: int = 0):
         self.node.sdo[EPOS4.HOME_OFFSET_MOVE_DISTANCE].raw = offset
 
-        if self.homingDirection > 0:
-            homingMethod = -4
-        else:
+        # Axis polarirty also affects homing direction!
+        if (self.homingDirection * self.direction) > 0:
             homingMethod = -3
+        else:
+            homingMethod = -4
 
         self.homingJob = proper_homing(self.node,
                                        homingMethod=homingMethod,
@@ -767,13 +776,8 @@ class RotaryMotor(Motor):
             sw = self.node.pdo[STATUSWORD].raw  # This takes approx. 0.027 ms
             state = which_state(sw)
             if state is CiA402State.OPERATION_ENABLE:
-                if self.direction > 0:
-                    tarPos = self.targetPosition.value
-                else:
-                    tarPos = self.length - self.targetPosition.value
-
                 self.logger.debug(f'Next position: {self.targetPosition.value}')
-                self.node.set_target_position(tarPos)
+                self.node.set_target_position(self.targetPosition.value)
 
         elif self.homing is HomingState.ONGOING:
             self.homing = next(self.homingJob)
