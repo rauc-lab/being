@@ -117,16 +117,18 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(a.data, b.data)
 
     def test_toml_preserves_comments(self):
+        config = _TomlConfig()
+        config.loads(SOME_TOML)
+
+        self.assertEqual(config.dumps(), SOME_TOML)
+
+    def test_yaml_preserves_comments(self):
         config = _YamlConfig()
         config.loads(SOME_YAML.strip())
         dump = config.dumps()
 
         self.assertIn('# Doe is a dear funny deer', dump)
         self.assertIn('# xmas is not cancelled this year', dump)
-        #self.assertEqual(SOME_YAML.strip(), config.dumps().strip())
-
-    #def test_yaml_preserves_comments(self):
-    #    pass
 
     #def test_json_does_not_support_comments(self):
     #    pass
