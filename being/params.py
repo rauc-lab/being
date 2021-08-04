@@ -60,7 +60,7 @@ class _TomlConfig(_ConfigImpl):
         if overwrite:
             self.data = doc
         else:
-            update_dict_recursively(self.data, doc)
+            update_dict_recursively(self.data, doc, tomlkit.table)
 
     def dumps(self):
         return tomlkit.dumps(self.data)
@@ -103,7 +103,7 @@ class _YamlConfig(_ConfigImpl):
         if overwrite:
             self.data = dct
         else:
-            update_dict_recursively(self.data, dct)
+            update_dict_recursively(self.data, dct, default_factory=ruamel.yaml.comments.CommentedMap)
 
     def dumps(self):
         buf = io.StringIO()

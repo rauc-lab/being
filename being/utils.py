@@ -145,11 +145,12 @@ class IdAware:
         return self
 
 
-def update_dict_recursively(dct, other):
+def update_dict_recursively(dct, other, default_factory=dict):
     """Update a dictionary recursively (from another one)."""
     for key, value in other.items():
         if isinstance(value, collections.abc.Mapping):
-            dct[key] = update_dict_recursively(dct.get(key, {}), value)
+            # TODO!!!
+            dct[key] = update_dict_recursively(default_factory(), value)
         else:
             dct[key] = value
 
