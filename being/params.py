@@ -3,6 +3,8 @@ import collections.abc
 import io
 
 import ruamel.yaml
+from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap
 import tomlkit
 
 from being.utils import SingleInstanceCache, write_file, read_file, update_dict_recursively
@@ -30,6 +32,15 @@ def find_in_nested_dict(dct, *keys):
             data = data[key]
         else:
             return
+
+    return data
+
+
+def nested_setdefault(dct, *keys, default_factory=dict):
+    """setdefault for nested dicts."""
+    data = dct
+    for key in keys:
+        data = data.setdefault(key, default_factory())
 
     return data
 
@@ -72,7 +83,7 @@ class _TomlConfig(_ConfigImpl):
         if overwrite:
             self.data = doc
         else:
-            update_dict_recursively(self.data, doc, tomlkit.table)
+            update_dict_recursively(self.data, doc, default_factory=tomlkit.table)
 
     def dumps(self):
         return tomlkit.dumps(self.data)
@@ -82,10 +93,7 @@ class _TomlConfig(_ConfigImpl):
 
     def store(self, name, value):
         *path, key = name.split(SEP)
-        entry = self.data
-        for k in path:
-            entry = entry.setdefault(k, tomlkit.table())
-
+        entry = nested_setdefault(self.data, *path, default_factory=tomlkit.table)
         entry[key] = value
 
     def get_comment(self, name):
@@ -100,15 +108,15 @@ class _TomlConfig(_ConfigImpl):
 
 class _YamlConfig(_ConfigImpl):
     def __init__(self):
-        self.data = ruamel.yaml.comments.CommentedMap()
-        self.yaml = ruamel.yaml.YAML()
+        self.data = CommentedMap()
+        self.yaml = YAML()
 
     def loads(self, string, overwrite=True):
         dct = self.yaml.load(string)
         if overwrite:
             self.data = dct
         else:
-            update_dict_recursively(self.data, dct, default_factory=ruamel.yaml.comments.CommentedMap)
+            update_dict_recursively(self.data, dct, default_factory=CommentedMap)
 
     def dumps(self):
         buf = io.StringIO()
@@ -121,10 +129,7 @@ class _YamlConfig(_ConfigImpl):
 
     def store(self, name, value):
         *path, key = name.split(SEP)
-        entry = self.data
-        for k in path:
-            entry = entry.setdefault(k, ruamel.yaml.comments.CommentedMap())
-
+        entry = nested_setdefault(self.data, *path, default_factory=CommentedMap)
         entry[key] = value
 
     @staticmethod
