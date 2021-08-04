@@ -143,3 +143,14 @@ class IdAware:
         self = object.__new__(cls)
         self.id = next(cls.ID_COUNTERS[cls])
         return self
+
+
+def update_dict_recursively(dct, other):
+    """Update a dictionary recursively (from another one)."""
+    for key, value in other.items():
+        if isinstance(value, collections.abc.Mapping):
+            dct[key] = update_dict_recursively(dct.get(key, {}), value)
+        else:
+            dct[key] = value
+
+    return dct
