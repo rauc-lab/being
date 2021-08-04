@@ -22,6 +22,18 @@ def strip_comment_prefix(comment: str) -> str:
     return comment.strip()
 
 
+def find_in_nested_dict(dct, *keys):
+    """Find value in nested dict. None if it does not exist."""
+    data = dct
+    for key in keys:
+        if key in data:
+            data = data[key]
+        else:
+            return
+
+    return data
+
+
 class _ConfigImpl(abc.ABC):
     def __init__(self):
         self.data = {}
@@ -66,14 +78,7 @@ class _TomlConfig(_ConfigImpl):
         return tomlkit.dumps(self.data)
 
     def retrieve(self, name):
-        entry = self.data
-        for key in name.split(SEP):
-            if key not in entry:
-                return None
-
-            entry = entry[key]
-
-        return entry
+        return find_in_nested_dict(self.data, *name.split(SEP))
 
     def store(self, name, value):
         *path, key = name.split(SEP)
@@ -112,14 +117,7 @@ class _YamlConfig(_ConfigImpl):
         return buf.read()
 
     def retrieve(self, name):
-        entry = self.data
-        for key in name.split(SEP):
-            if key not in entry:
-                return None
-
-            entry = entry[key]
-
-        return entry
+        return find_in_nested_dict(self.data, *name.split(SEP))
 
     def store(self, name, value):
         *path, key = name.split(SEP)
