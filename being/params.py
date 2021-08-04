@@ -1,6 +1,7 @@
 import abc
 import collections.abc
 import io
+import os
 
 import ruamel.yaml
 from ruamel.yaml import YAML
@@ -50,7 +51,7 @@ class _ConfigImpl(abc.ABC):
         self.data = {}
 
     @abc.abstractmethod
-    def loads(self, string, overwrite=True):
+    def loads(self, string):
         """Load from string..."""
 
     @abc.abstractmethod
@@ -78,12 +79,8 @@ class _TomlConfig(_ConfigImpl):
     def __init__(self):
         self.data = tomlkit.document()
 
-    def loads(self, string, overwrite=True):
-        doc = tomlkit.loads(string)
-        if overwrite:
-            self.data = doc
-        else:
-            update_dict_recursively(self.data, doc, default_factory=tomlkit.table)
+    def loads(self, string):
+        self.data = tomlkit.loads(string)
 
     def dumps(self):
         return tomlkit.dumps(self.data)
@@ -111,12 +108,8 @@ class _YamlConfig(_ConfigImpl):
         self.data = CommentedMap()
         self.yaml = YAML()
 
-    def loads(self, string, overwrite=True):
-        dct = self.yaml.load(string)
-        if overwrite:
-            self.data = dct
-        else:
-            update_dict_recursively(self.data, dct, default_factory=CommentedMap)
+    def loads(self, string):
+        self.data = self.yaml.load(string)
 
     def dumps(self):
         buf = io.StringIO()
@@ -173,8 +166,8 @@ class Config(_ConfigImpl):
         implType = IMPLEMENTATIONS[format]
         self.impl = implType()
 
-    def loads(self, string, overwrite=True):
-        self.impl.loads(string, overwrite)
+    def loads(self, string):
+        self.impl.loads(string)
 
     def dumps(self):
         return self.impl.dumps()
@@ -207,9 +200,12 @@ class ConfigFile(Config):
     def save(self):
         write_file(self.filepath, self.impl.dumps())
 
-    def load(self, overwrite=False):
+    def load(self):
         if not os.path.exists(self.filepath):
             return
 
         string = read_file(self.filepath)
-        self.impl.loads(string, overwrite)
+        self.impl.loads(string)
+
+    def __str__(self):
+        return f'{type(self).__name__}({self.filepath!r})'
