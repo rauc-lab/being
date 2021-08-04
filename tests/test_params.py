@@ -1,7 +1,7 @@
 import unittest
 import collections
 
-from being.params import IMPLEMENTATIONS, _TomlConfig
+from being.params import IMPLEMENTATIONS, _TomlConfig, _YamlConfig
 
 
 SOME_TOML = """
@@ -41,6 +41,30 @@ hosts = [
 """
 
 
+SOME_YAML = """
+---
+ # Doe is a dear funny deer
+ doe: "a deer, a female deer"
+ ray: "a drop of golden sun"
+ pi: 3.14159
+ xmas: true  # xmas is not cancelled this year
+ french-hens: 3
+ calling-birds:
+   - huey
+   - dewey
+   - louie
+   - fred
+ xmas-fifth-day:
+   calling-birds: four
+   french-hens: 3
+   golden-rings: 5
+   partridges:
+     count: 1
+     location: "a pear tree"
+   turtle-doves: two
+"""
+
+
 class TestConfig(unittest.TestCase):
     def test_initial_data_is_dict_like(self):
         for implType in IMPLEMENTATIONS.values():
@@ -73,10 +97,8 @@ class TestConfig(unittest.TestCase):
             self.assertIn('is', impl.data['This'])
             self.assertIn('it', impl.data['This']['is'])
 
-    #def test_json_does_not_support_comments(self):
-    #    pass
-
     def test_loading_and_dumping_leaves_data_untouched(self):
+        # TOML
         a = _TomlConfig()
         a.loads(SOME_TOML)
 
@@ -85,15 +107,29 @@ class TestConfig(unittest.TestCase):
 
         self.assertEqual(a.data, b.data)
 
+        # YAML
+        a = _YamlConfig()
+        a.loads(SOME_YAML)
+
+        b = _YamlConfig()
+        b.loads(a.dumps())
+
+        self.assertEqual(a.data, b.data)
+
+    def test_toml_preserves_comments(self):
+        config = _YamlConfig()
+        config.loads(SOME_YAML.strip())
+        dump = config.dumps()
+
+        self.assertIn('# Doe is a dear funny deer', dump)
+        self.assertIn('# xmas is not cancelled this year', dump)
+        #self.assertEqual(SOME_YAML.strip(), config.dumps().strip())
 
     #def test_yaml_preserves_comments(self):
     #    pass
 
-    def test_toml_preserves_comments(self):
-        config = _TomlConfig()
-        config.loads(SOME_TOML)
-
-        self.assertEqual(SOME_TOML, config.dumps())
+    #def test_json_does_not_support_comments(self):
+    #    pass
 
 
 if __name__ == '__main__':
