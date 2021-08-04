@@ -568,12 +568,10 @@ class RotaryMotor(Motor):
                  homingDirection: Optional[float] = None,
                  maxSpeed: float = 942,  # [rad /s ] -> 9000 rpm
                  maxAcc: float = 4294967295,
-                 gearNumerator: int = 1,
-                 gearDenumerator: int = 1,
-                 encoderNumberOfPulses=1024,
                  network: Optional[CanBackend] = None,
                  node: Optional[CiA402Node] = None,
                  objectDictionary=None,
+                 motor: Optional[dict] = {},
                  **kwargs,
                  ):
         """Args:
@@ -589,6 +587,7 @@ class RotaryMotor(Motor):
             objectDictionary: Object dictionary for CiA402Node. Will be tried
                 to be identified from known EDS files.
         """
+        print(motor)
         super().__init__(**kwargs)
         if homingDirection is None:
             homingDirection = direction
@@ -608,16 +607,14 @@ class RotaryMotor(Motor):
             if deviceName != "EPOS4":
                 raise DriveError("Attached motor controller (%s) is not an EPOS4!", deviceName)
 
+        self.motor = motor
         self.direction = sign(direction)
         self.homingDirection = sign(homingDirection)
         self.network = network
         self.arc = arc
         self.node = node
-        self.maxSpeed = maxSpeed
+        self.maxSpeed = self.motor.get('maxRatedSpeed', maxSpeed)
         self.maxAcc = maxAcc
-        self.gearNumerator = gearNumerator
-        self.gearDenumerator = gearDenumerator
-        self.encoderNumberOfPulses = encoderNumberOfPulses
 
         self.logger = get_logger(str(self))
 
@@ -633,70 +630,75 @@ class RotaryMotor(Motor):
         """CAN node id."""
         return self.node.id
 
-    @property
-    def gearRatio(self) -> float:
-        """Motor gear ratio."""
-        return self.gearNumerator / self.gearDenumerator
-
     def configure_node(self,
                        maxGearInputSpeed: float = 8000,  # [rpm]
-                       hasGear: bool = True,
-                       isBrushed: bool = True):
+                       hasGear: bool = False,
+                       gearNumerator: int = 1,
+                       gearDenumerator: int = 1,
+                       encoderNumberOfPulses=1024,
+                       ):
         """Configure Maxon EPOS4 node (some settings via SDO)."""
 
+        gearRatio = gearNumerator / gearDenumerator
         self.node.units = Units(
             # length here: convertion factor radians to increments
-            length=self.gearRatio * self.encoderNumberOfPulses * 4 / TAU,
+            length=gearRatio * encoderNumberOfPulses * 4 / TAU,
             current=1000,
-            kinematics=self.gearRatio * 60 / TAU,
-            speed=self.gearRatio * 60 / TAU,
+            kinematics=gearRatio * 60 / TAU,
+            speed=gearRatio * 60 / TAU,
+            thermal=10,
+            torque=1e6,
         )
         units = self.node.units
 
         # TODO: These parameters have to come from the outside. Question: How
         # can we identify the motor and choose sensible defaults?
 
-        # TODO: Load defaults from external (per motor) library or DCF file ?!
-
         # Set motor parameters
 
-        self.node.sdo[EPOS4.MOTOR_TYPE].raw = 1  # 1 = Brushed DC, 10 = BLDC sinus-commutated
+        isBrushed = self.motor.get('isBrushed', True)
+
+        self.node.sdo[EPOS4.MOTOR_TYPE].raw = 1 if isBrushed else 10  # 10 =BLDC sinus-commutated
         motorData = self.node.sdo[EPOS4.MOTOR_DATA_MAXON]
-        motorData[EPOS4.NOMINAL_CURRENT].raw = 0.397 * units.current  # [mA]
+
+        # Reducing the nominal current helps to make the motor quiter
+        nominalCurrent = self.motor.get('nominalCurrent', 0.3) * units.current  # [mA]
+        motorData[EPOS4.NOMINAL_CURRENT].raw = nominalCurrent
+
         # Recommended to set current limit to double of nominal current
-        motorData[EPOS4.OUTPUT_CURRENT_LIMIT].raw = 2 * 0.397 * units.current  # [mA]
-        motorData[EPOS4.NUMBER_OF_POLE_PAIRS].raw = 1  # only relevant for BLDC motors
-        motorData[EPOS4.THERMAL_TIME_CONSTANT_WINDING].raw = 143  # [0.1 s]
-        motorData[EPOS4.MOTOR_TORQUE_CONSTANT].raw = 1000 * 30.8  # [μNm/A]
+        motorData[EPOS4.OUTPUT_CURRENT_LIMIT].raw = 2 * nominalCurrent  # [mA]
+        motorData[EPOS4.NUMBER_OF_POLE_PAIRS].raw = self.motor.get('numberOfPolePairs', 1)  # only relevant for BLDC motors
+        motorData[EPOS4.THERMAL_TIME_CONSTANT_WINDING].raw = self.motor.get('thermalTimeConstant', 14.3) * units.thermal  # [0.1 s]
+        motorData[EPOS4.MOTOR_TORQUE_CONSTANT].raw = self.motor.get('motorTorqueConstant', 0.03) * units.torque  # [μNm/A]
         self.node.sdo[EPOS4.MAX_MOTOR_SPEED].raw = angular_velocity_to_rpm(self.maxSpeed)  # [rpm]
 
-        gearConf = self.node.sdo[EPOS4.GEAR_CONFIGURATION]
-        gearConf[EPOS4.GEAR_REDUCTION_NUMERATOR].raw = self.gearNumerator  # [rpm]
-        gearConf[EPOS4.GEAR_REDUCTION_DENOMINATOR].raw = self.gearDenumerator  # [rpm]
-        gearConf[EPOS4.MAX_GEAR_INPUT_SPEED].raw = maxGearInputSpeed  # [rpm]
+        if hasGear:
+            gearConf = self.node.sdo[EPOS4.GEAR_CONFIGURATION]
+            gearConf[EPOS4.GEAR_REDUCTION_NUMERATOR].raw = gearNumerator  # [rpm]
+            gearConf[EPOS4.GEAR_REDUCTION_DENOMINATOR].raw = gearDenumerator  # [rpm]
+            gearConf[EPOS4.MAX_GEAR_INPUT_SPEED].raw = maxGearInputSpeed  # [rpm]
 
         # Set position sensor parameters
 
         axisConf = self.node.sdo[EPOS4.AXIS_CONFIGURATION]
-        axisConf[EPOS4.SENSORS_CONFIGURATION].raw = 1  # Adjust for Hall sensors for BLDC
+        axisConf[EPOS4.SENSORS_CONFIGURATION].raw = 1  # TODO: Adjust for Hall sensors for BLDC
 
         # TODO: Break down more, see table page 141 in EPOS4-Firmware-Specification-En.pdf
-        axisConf[EPOS4.CONTROL_STRUCTURE].raw = 0x00010111 | (hasGear << 12)
 
+        axisConf[EPOS4.CONTROL_STRUCTURE].raw = 0x00010111 | (hasGear << 12)
         axisConf[EPOS4.COMMUTATION_SENSORS].raw = 0 if isBrushed else 0x31
 
         if self.direction > 0:
             polarity = EPOS4.AxisPolarity.CCW
         else:
             polarity = EPOS4.AxisPolarity.CW
-
         axisConf[EPOS4.AXIS_CONFIGURATION_MISCELLANEOUS].raw = 0x0 | polarity
 
         digitalEncoder = self.node.sdo[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1]
         #  4 * (pulses / revolutions) = increments / revolutions
         # eg 4 * 1024 = 4096 increments / rev.
-        digitalEncoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_NUMBER_OF_PULSES].raw = self.encoderNumberOfPulses
-        digitalEncoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_TYPE].raw = 1 # 1 = with index (3 channel)
+        digitalEncoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_NUMBER_OF_PULSES].raw = encoderNumberOfPulses
+        digitalEncoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_TYPE].raw = 1 # with index (3 channel)
 
         # TODO: add SSI configuration. Required for BLDC?
 
@@ -707,9 +709,8 @@ class RotaryMotor(Motor):
         currentCtrlParamSet[EPOS4.CURRENT_CONTROLLER_I_GAIN].raw = 133651205  # [uV / (A * ms)]
 
         # Set position PID
-        positionPID = self.node.sdo[EPOS4.POSITION_CONTROL_PARAMETER_SET]
-
         # Adapt to application
+        positionPID = self.node.sdo[EPOS4.POSITION_CONTROL_PARAMETER_SET]
         positionPID[EPOS4.POSITION_CONTROLLER_P_GAIN].raw = 1500000
         positionPID[EPOS4.POSITION_CONTROLLER_I_GAIN].raw = 780000
         positionPID[EPOS4.POSITION_CONTROLLER_D_GAIN].raw = 16000
@@ -718,9 +719,10 @@ class RotaryMotor(Motor):
 
         # Set additional parameters
 
-        self.node.sdo[EPOS4.MOTOR_RATED_TORQUE].raw = 12228  # [μNm]
-        interpolPer = self.node.sdo[EPOS4.INTERPOLATION_TIME_PERIOD]
+        torque = self.motor.get('ratedTorque', 0.01) * units.torque  # [μNm]
+        self.node.sdo[EPOS4.MOTOR_RATED_TORQUE].raw = torque
 
+        interpolPer = self.node.sdo[EPOS4.INTERPOLATION_TIME_PERIOD]
         # Will run smoother if set (0 = disabled).
         # However, will throw an RPDO timeout error when reloading web page
         # This error can't be disabled, only the reaction behavior can

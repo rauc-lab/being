@@ -17,6 +17,7 @@ class Units(NamedTuple):
     kinematics: float = 1.
     speed: float = 1.
     torque: float = 1.
+    thermal: float = 1.
 
 
 UNITS: Dict[bytes, Units] = {
