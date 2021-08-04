@@ -18,6 +18,7 @@ setup_logging(level=logging.WARNING)
 
 with manage_resources():
     saw = Sawtooth(FREQUENCY)
+
     for nodeId in MOTOR_IDS:
         mot = RotaryMotor(nodeId, gearNumerator=69, gearDenumerator=13, direction=FORWARD)
         saw | mot

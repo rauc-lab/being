@@ -563,7 +563,7 @@ class RotaryMotor(Motor):
 
     def __init__(self,
                  nodeId: int,
-                 length: float = TAU,
+                 arc: float = TAU,
                  direction: float = FORWARD,
                  homingDirection: Optional[float] = None,
                  maxSpeed: float = 942,  # [rad /s ] -> 9000 rpm
@@ -611,7 +611,7 @@ class RotaryMotor(Motor):
         self.direction = sign(direction)
         self.homingDirection = sign(homingDirection)
         self.network = network
-        self.length = length
+        self.arc = arc
         self.node = node
         self.maxSpeed = maxSpeed
         self.maxAcc = maxAcc
@@ -788,7 +788,7 @@ class RotaryMotor(Motor):
 
     def to_dict(self):
         dct = super().to_dict()
-        # dct['length'] = self.length
+        dct['length'] = self.arc
         return dct
 
     def __str__(self):
