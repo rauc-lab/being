@@ -3,6 +3,7 @@ import collections.abc
 import io
 import os
 import json
+from typing import Tuple
 
 import ruamel.yaml
 from ruamel.yaml import YAML
@@ -31,6 +32,31 @@ def strip_comment_prefix(comment: str) -> str:
     return comment.strip()
 
 
+def name_to_keys(name: str) -> tuple:
+    """Map name with separators to key path tuple."""
+    return tuple(name.split(SEP))
+
+
+def split_name(name: str) -> Tuple[str, str]:
+    """Split name into (head, tail) where tail is everything after the finals
+    separator.
+
+    Args:
+        name: Name to split.
+
+    Returns:
+        head and tail tuple
+
+    Usage:
+        >>> split_name('this/is/it')
+        ('this/is', 'it')
+    """
+    if SEP in name:
+        return name.rsplit('/', maxsplit=1)
+
+    return '', name
+
+
 class _ConfigImpl(abc.ABC):
 
     """Semi abstract base class for all configuration implementations.
@@ -43,17 +69,16 @@ class _ConfigImpl(abc.ABC):
     def __init__(self):
         self.nested = NestedDict()
 
-    def _name_to_keys(self, name: str) -> tuple:
-        """Map name with separators to key path tuple."""
-        return tuple(name.split(SEP))
+    def retrieve(self, name: str = '') -> object:
+        """Retrieve config entry for a given name. Root object by default."""
+        if name == '':
+            return self.nested.data
 
-    def retrieve(self, name: str) -> object:
-        """Retrieve config entry for a given name."""
-        return self.nested.get(self._name_to_keys(name))
+        return self.nested.get(name_to_keys(name))
 
     def store(self, name: str, value: object) -> object:
         """Store value in config under a given name."""
-        return self.nested.setdefault(self._name_to_keys(name), value)
+        return self.nested.setdefault(name_to_keys(name), value)
 
     @abc.abstractmethod
     def loads(self, string):
@@ -119,21 +144,14 @@ class _YamlConfig(_ConfigImpl):
         return strip_comment_prefix(comment)
 
     def get_comment(self, name):
-        if SEP in name:
-            head, tail = name.rsplit(SEP, maxsplit=1)
-            commentee = self.retrieve(head)
-            return self._fetch_comment(commentee, key=tail)
-        else:
-            return self._fetch_comment(self.nested.data, key=name)
+        head, tail = split_name(name)
+        e = self.retrieve(head)
+        return self._fetch_comment(e, key=tail)
 
     def set_comment(self, name, comment):
-        if SEP in name:
-            head, tail = name.rsplit(SEP, maxsplit=1)
-            commentee = self.retrieve(head)
-            commentee.yaml_add_eol_comment(comment, key=tail)
-        else:
-            self.nested.data.yaml_add_eol_comment(comment, key=name)
-
+        head, tail = split_name(name)
+        e = self.retrieve(head)
+        e.yaml_add_eol_comment(comment, key=tail)
 
 class _JsonConfig(_ConfigImpl):
 
@@ -175,23 +193,15 @@ class _IniConfig(_ConfigImpl):
         return buf.read().decode()
 
     def get_comment(self, name):
-        if SEP in name:
-            head, tail = name.rsplit(SEP, maxsplit=1)
-            e = self.retrieve(head)
-            return e.inline_comments[tail]
-        else:
-            e = self.nested.data
-            return e.inline_comments[name]
+        head, tail = split_name(name)
+        e = self.retrieve(head)
+        return e.inline_comments[tail]
 
     def set_comment(self, name, comment):
         # Note: Prepending comment can be done with the c.comments[key] = []
-        if SEP in name:
-            head, tail = name.rsplit(SEP, maxsplit=1)
-            e = self.retrieve(head)
-            e.inline_comments[tail] = comment
-        else:
-            e = self.nested.data
-            e.inline_comments[name] = comment
+        head, tail = split_name(name)
+        e = self.retrieve(head)
+        e.inline_comments[tail] = comment
 
 
 
