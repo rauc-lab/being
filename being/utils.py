@@ -145,13 +145,66 @@ class IdAware:
         return self
 
 
-def update_dict_recursively(dct, other, default_factory=dict):
-    """Update a dictionary recursively (from another one)."""
-    for key, value in other.items():
-        if isinstance(value, collections.abc.Mapping):
-            # TODO!!!
-            dct[key] = update_dict_recursively(default_factory(), value)
-        else:
-            dct[key] = value
+class NestedDict(collections.abc.MutableMapping):
 
-    return dct
+    """Nested dict which supports tuples as keys to access nested dicts within."""
+
+    def __init__(self, data=None, default_factory=dict):
+        """Kwargs:
+            iterable: Initial data.
+            default_factory: Default factory for intermediate dicts.
+        """
+        if data is None:
+            data = default_factory()
+
+        self.data = data
+        self.default_factory = default_factory
+
+    @staticmethod
+    def _as_keys(key) -> tuple:
+        """Assure tuple key path."""
+        if isinstance(key, tuple):
+            return key
+
+        return (key,)
+
+    def __setitem__(self, key, value):
+        d = self.data
+        *path, last = self._as_keys(key)
+        for k in path:
+            d = d[k]
+
+        d[last] = value
+
+    def __getitem__(self, key):
+        d = self.data
+        for k in self._as_keys(key):
+            d = d[k]
+
+        return d
+
+    def __delitem__(self, key):
+        d = self.data
+        *path, last = self._as_keys(key)
+        for k in path:
+            d = d.setdefault(k, self.default_factory())
+
+        del d[last]
+
+    def __iter__(self):
+        return iter(self.data)
+
+    def __len__(self):
+        return len(self.data)
+
+    def __repr__(self):
+        return f'{type(self).__name__}({self.data!r})'
+
+    def setdefault(self, key, default=None):
+        d = self.data
+        *path, last = self._as_keys(key)
+        for k in path:
+            d = d.setdefault(k, self.default_factory())
+
+        d[last] = default
+        return default

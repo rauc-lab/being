@@ -1,6 +1,6 @@
 import unittest
 
-from being.utils import SingleInstanceCache, IdAware
+from being.utils import SingleInstanceCache, IdAware, NestedDict
 
 
 class Foo(SingleInstanceCache):
@@ -46,6 +46,41 @@ class TestIdAware(unittest.TestCase):
         self.assertEqual(a.id, 0)
         self.assertEqual(b.id, 0)
         self.assertEqual(c.id, 1)
+
+
+class TestNestedDict(unittest.TestCase):
+    def test_setting_item_can_lead_to_keyerrors(self):
+        d = NestedDict()
+
+        with self.assertRaises(KeyError):
+            d['this', 'is', 'it'] = 'Hello, world!'
+
+        d['this'] = {}
+        d['this', 'is'] = {}
+        d['this', 'is', 'it'] = 'Hello, world!'
+
+        self.assertEqual(d, {'this': {'is': {'it': 'Hello, world!'}}})
+
+    def test_missing_item_results_in_keyerror(self):
+        d = NestedDict()
+
+        with self.assertRaises(KeyError):
+            d['this', 'is', 'it']
+
+    def test_get_works_as_expected(self):
+        d = NestedDict()
+        keys = ('this', 'is', 'it')
+
+        self.assertEqual(d.get(keys), None)
+
+    def test_setdefault_creates_intermediate_dicts(self):
+        d = NestedDict()
+        keys = ('this', 'is', 'it')
+
+        value = d.setdefault(keys, 42)
+
+        self.assertEqual(value, 42)
+        self.assertEqual(d, {'this': {'is': {'it': 42}}})
 
 
 if __name__ == '__main__':

@@ -69,12 +69,12 @@ class TestConfig(unittest.TestCase):
     def test_initial_data_is_dict_like(self):
         for implType in IMPLEMENTATIONS.values():
             impl = implType()
-            self.assertEqual(impl.data, {})
+            self.assertEqual(impl.nested, {})
 
     def test_new_config_is_empty(self):
         for implType in IMPLEMENTATIONS.values():
             impl = implType()
-            self.assertEqual(impl.data, {})
+            self.assertEqual(impl.nested, {})
 
     def test_stored_value_can_be_retrieved(self):
         name = 'This/is/it'
@@ -93,9 +93,9 @@ class TestConfig(unittest.TestCase):
             impl = implType()
             impl.store(name, value)
 
-            self.assertIn('This', impl.data)
-            self.assertIn('is', impl.data['This'])
-            self.assertIn('it', impl.data['This']['is'])
+            self.assertIn('This', impl.nested)
+            self.assertIn('is', impl.nested['This'])
+            self.assertIn('it', impl.nested['This']['is'])
 
     def test_loading_and_dumping_leaves_data_untouched(self):
         # TOML
@@ -105,7 +105,7 @@ class TestConfig(unittest.TestCase):
         b = _TomlConfig()
         b.loads(a.dumps())
 
-        self.assertEqual(a.data, b.data)
+        self.assertEqual(a.nested, b.nested)
 
         # YAML
         a = _YamlConfig()
@@ -114,7 +114,7 @@ class TestConfig(unittest.TestCase):
         b = _YamlConfig()
         b.loads(a.dumps())
 
-        self.assertEqual(a.data, b.data)
+        self.assertEqual(a.nested, b.nested)
 
     def test_toml_preserves_comments(self):
         config = _TomlConfig()

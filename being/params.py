@@ -2,13 +2,19 @@ import abc
 import collections.abc
 import io
 import os
+import json
 
 import ruamel.yaml
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 import tomlkit
 
-from being.utils import SingleInstanceCache, write_file, read_file, update_dict_recursively
+from being.utils import (
+    NestedDict,
+    SingleInstanceCache,
+    read_file,
+    write_file,
+)
 
 
 SEP: str = '/'
@@ -18,37 +24,35 @@ COMMENT_PREFIX: str = '#'
 """Comment prefix character."""
 
 
-
 def strip_comment_prefix(comment: str) -> str:
     """Strip away comment prefix from string."""
     _, comment = comment.split(COMMENT_PREFIX, maxsplit=1)
     return comment.strip()
 
 
-def find_in_nested_dict(dct, *keys):
-    """Find value in nested dict. None if it does not exist."""
-    data = dct
-    for key in keys:
-        if key in data:
-            data = data[key]
-        else:
-            return
-
-    return data
-
-
-def nested_setdefault(dct, *keys, default_factory=dict):
-    """setdefault for nested dicts."""
-    data = dct
-    for key in keys:
-        data = data.setdefault(key, default_factory())
-
-    return data
-
-
 class _ConfigImpl(abc.ABC):
+
+    """Semi abstract base class for all configuration implementations.
+
+    Attributes:
+        nested (NestedDict): Nested dict instance for storing the configuration
+            data.
+    """
+
     def __init__(self):
-        self.data = {}
+        self.nested = NestedDict()
+
+    def _name_to_keys(self, name: str) -> tuple:
+        """Map name with separators to key path tuple."""
+        return tuple(name.split(SEP))
+
+    def retrieve(self, name: str) -> object:
+        """Retrieve config entry for a given name."""
+        return self.nested.get(self._name_to_keys(name))
+
+    def store(self, name: str, value: object) -> object:
+        """Store value in config under a given name."""
+        return self.nested.setdefault(self._name_to_keys(name), value)
 
     @abc.abstractmethod
     def loads(self, string):
@@ -57,14 +61,6 @@ class _ConfigImpl(abc.ABC):
     @abc.abstractmethod
     def dumps(self) -> str:
         """Dumps config to string."""
-
-    @abc.abstractmethod
-    def retrieve(self, name) -> object:
-        """Retrieve config entry."""
-
-    @abc.abstractmethod
-    def store(self, name, value):
-        """Store value in config."""
 
     @abc.abstractmethod
     def get_comment(self, name):
@@ -76,22 +72,17 @@ class _ConfigImpl(abc.ABC):
 
 
 class _TomlConfig(_ConfigImpl):
+
+    """Config implementation for TOML format."""
+
     def __init__(self):
-        self.data = tomlkit.document()
+        self.nested = NestedDict(tomlkit.document(), default_factory=tomlkit.table)
 
     def loads(self, string):
-        self.data = tomlkit.loads(string)
+        self.nested = NestedDict(tomlkit.loads(string), default_factory=tomlkit.table)
 
     def dumps(self):
-        return tomlkit.dumps(self.data)
-
-    def retrieve(self, name):
-        return find_in_nested_dict(self.data, *name.split(SEP))
-
-    def store(self, name, value):
-        *path, key = name.split(SEP)
-        entry = nested_setdefault(self.data, *path, default_factory=tomlkit.table)
-        entry[key] = value
+        return tomlkit.dumps(self.nested.data)
 
     def get_comment(self, name):
         entry = self.retrieve(name)
@@ -104,26 +95,22 @@ class _TomlConfig(_ConfigImpl):
 
 
 class _YamlConfig(_ConfigImpl):
+
+    """Config implementation for YAML format."""
+
     def __init__(self):
-        self.data = CommentedMap()
         self.yaml = YAML()
+        self.nested = NestedDict(CommentedMap(), default_factory=CommentedMap)
 
     def loads(self, string):
-        self.data = self.yaml.load(string)
+        dct = self.yaml.load(string)
+        self.nested = NestedDict(dct, default_factory=CommentedMap)
 
     def dumps(self):
         buf = io.StringIO()
-        self.yaml.dump(self.data, buf)
+        self.yaml.dump(self.nested.data, buf)
         buf.seek(0)
         return buf.read()
-
-    def retrieve(self, name):
-        return find_in_nested_dict(self.data, *name.split(SEP))
-
-    def store(self, name, value):
-        *path, key = name.split(SEP)
-        entry = nested_setdefault(self.data, *path, default_factory=CommentedMap)
-        entry[key] = value
 
     @staticmethod
     def _fetch_comment(ele, key):
@@ -132,51 +119,67 @@ class _YamlConfig(_ConfigImpl):
 
     def get_comment(self, name):
         if SEP in name:
-            head, tail = name.rsplit('/', maxsplit=1)
+            head, tail = name.rsplit(SEP, maxsplit=1)
             commentee = self.retrieve(head)
             return self._fetch_comment(commentee, key=tail)
         else:
-            return self._fetch_comment(self.data, key=name)
+            return self._fetch_comment(self.nested.data, key=name)
 
     def set_comment(self, name, comment):
         if SEP in name:
-            head, tail = name.rsplit('/', maxsplit=1)
+            head, tail = name.rsplit(SEP, maxsplit=1)
             commentee = self.retrieve(head)
             commentee.yaml_add_eol_comment(comment, key=tail)
         else:
-            self.data.yaml_add_eol_comment(comment, key=name)
+            self.nested.data.yaml_add_eol_comment(comment, key=name)
 
 
-#class _JsonConfig(_ConfigImpl):
-#    pass
+class _JsonConfig(_ConfigImpl):
+
+    """Config implementation for JSON format. JSON does not support comments!
+    Getting or setting comments will result in RuntimeError errors.
+    """
+
+    def loads(self, string):
+        self.nested = NestedDict(json.loads(string))
+
+    def dumps(self):
+        return json.dumps(self.nested.data)
+
+    def get_comment(self, name):
+        raise RuntimeError('JSON does not support comments!')
+
+    def set_comment(self, name, comment):
+        raise RuntimeError('JSON does not support comments!')
 
 
 IMPLEMENTATIONS = {
     'TOML': _TomlConfig,
     'YAML': _YamlConfig,
-    #'JSON': _JsonConfig,
+    'JSON': _JsonConfig,
 }
 
 
 class Config(_ConfigImpl):
-    def __init__(self, format='TOML'):
-        if format not in IMPLEMENTATIONS:
-            raise ValueError(f'No config implementation for {format}!')
+    def __init__(self, configFormat):
+        configFormat = configFormat.upper()
+        if configFormat not in IMPLEMENTATIONS:
+            raise ValueError(f'No config implementation for {configFormat}!')
 
-        implType = IMPLEMENTATIONS[format]
-        self.impl = implType()
-
-    def loads(self, string):
-        self.impl.loads(string)
-
-    def dumps(self):
-        return self.impl.dumps()
+        implType = IMPLEMENTATIONS[configFormat]
+        self.impl: _ConfigImpl = implType()
 
     def retrieve(self, name) -> object:
         return self.impl.retrieve(name)
 
     def store(self, name, value):
         self.impl.store(name, value)
+
+    def loads(self, string):
+        self.impl.loads(string)
+
+    def dumps(self):
+        return self.impl.dumps()
 
     def get_comment(self, name):
         return self.impl.get_comment(name)
