@@ -249,7 +249,7 @@ def guess_format(filepath):
 
 class ConfigFile(Config):
     def __init__(self, filepath):
-        super().__init__(format=guess_format(filepath))
+        super().__init__(configFormat=guess_format(filepath))
         self.filepath = filepath
         self.load()
 

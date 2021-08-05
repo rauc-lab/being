@@ -1,7 +1,7 @@
 import unittest
 import collections
 
-from being.params import IMPLEMENTATIONS, _TomlConfig, _YamlConfig
+from being.configuration import IMPLEMENTATIONS, _TomlConfig, _YamlConfig
 
 
 SOME_TOML = """
