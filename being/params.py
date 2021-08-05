@@ -8,6 +8,7 @@ import ruamel.yaml
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 import tomlkit
+import configobj
 
 from being.utils import (
     NestedDict,
@@ -143,8 +144,8 @@ class _JsonConfig(_ConfigImpl):
     def loads(self, string):
         self.nested = NestedDict(json.loads(string))
 
-    def dumps(self):
-        return json.dumps(self.nested.data)
+    def dumps(self, indent=4):
+        return json.dumps(self.nested.data, indent=indent)
 
     def get_comment(self, name):
         raise RuntimeError('JSON does not support comments!')
@@ -153,10 +154,52 @@ class _JsonConfig(_ConfigImpl):
         raise RuntimeError('JSON does not support comments!')
 
 
+class _IniConfig(_ConfigImpl):
+
+    """Config implementation for INI format. Also supports roundtrip
+    preservation. Comments should be possible as well but not implemented right
+    now.
+    """
+
+    def __init__(self):
+        self.nested = NestedDict(configobj.ConfigObj())
+
+    def loads(self, string):
+        buf = io.StringIO(string)
+        self.nested = NestedDict(configobj.ConfigObj(buf))
+
+    def dumps(self):
+        buf = io.BytesIO()
+        self.nested.data.write(buf)
+        buf.seek(0)
+        return buf.read().decode()
+
+    def get_comment(self, name):
+        if SEP in name:
+            head, tail = name.rsplit(SEP, maxsplit=1)
+            e = self.retrieve(head)
+            return e.inline_comments[tail]
+        else:
+            e = self.nested.data
+            return e.inline_comments[name]
+
+    def set_comment(self, name, comment):
+        # Note: Prepending comment can be done with the c.comments[key] = []
+        if SEP in name:
+            head, tail = name.rsplit(SEP, maxsplit=1)
+            e = self.retrieve(head)
+            e.inline_comments[tail] = comment
+        else:
+            e = self.nested.data
+            e.inline_comments[name] = comment
+
+
+
 IMPLEMENTATIONS = {
     'TOML': _TomlConfig,
     'YAML': _YamlConfig,
     'JSON': _JsonConfig,
+    'INI': _IniConfig,
 }
 
 

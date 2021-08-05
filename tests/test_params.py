@@ -182,7 +182,6 @@ class TestConfig(unittest.TestCase):
 
         self.assertEqual(toml.get_comment('Header/Section/name'), 'This is another comment')
 
-
     def test_getting_comments_yaml(self):
         s = 'hallo: world  # And this is a comment'
         yaml = _YamlConfig()
@@ -198,6 +197,17 @@ class TestConfig(unittest.TestCase):
         yaml.loads(s)
 
         self.assertEqual(yaml.get_comment('this/is/it'), 'Unbelievable, yet another comment!')
+
+    def test_clearing_config_does_not_alter_underlying_data_type(self):
+        for implType in IMPLEMENTATIONS.values():
+            impl = implType()
+            typeAsItWas = type(impl.nested.data)
+            impl.nested.clear()
+
+            self.assertEqual(impl.nested, {})
+            self.assertIs(type(impl.nested.data), typeAsItWas)
+
+    # TODO: _IniConfig commenting test cases
 
 
 if __name__ == '__main__':
