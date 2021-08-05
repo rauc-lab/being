@@ -1,13 +1,10 @@
 import abc
-import collections.abc
 import io
 import os
 import json
 from typing import Tuple
 
 import ruamel.yaml
-from ruamel.yaml import YAML
-from ruamel.yaml.comments import CommentedMap
 import tomlkit
 import configobj
 
@@ -55,6 +52,12 @@ def split_name(name: str) -> Tuple[str, str]:
         return name.rsplit('/', maxsplit=1)
 
     return '', name
+
+
+def guess_format(filepath):
+    """Guess config format from file extension."""
+    _, ext = os.path.splitext(filepath)
+    return ext[1:].upper()
 
 
 class _ConfigImpl(abc.ABC):
@@ -125,8 +128,8 @@ class _YamlConfig(_ConfigImpl):
     """Config implementation for YAML format."""
 
     def __init__(self):
-        self.yaml = YAML()
-        self.nested = NestedDict(CommentedMap(), default_factory=CommentedMap)
+        self.yaml = ruamel.yaml.YAML()
+        self.nested = NestedDict(ruamel.yaml.CommentedMap(), default_factory=ruamel.yaml.CommentedMap)
 
     def loads(self, string):
         dct = self.yaml.load(string)
@@ -152,6 +155,7 @@ class _YamlConfig(_ConfigImpl):
         head, tail = split_name(name)
         e = self.retrieve(head)
         e.yaml_add_eol_comment(comment, key=tail)
+
 
 class _JsonConfig(_ConfigImpl):
 
@@ -239,12 +243,6 @@ class Config(_ConfigImpl):
 
     def set_comment(self, name, comment):
         self.impl.set_comment(name, comment)
-
-
-def guess_format(filepath):
-    """Guess config format from file extension."""
-    _, ext = os.path.splitext(filepath)
-    return ext[1:].upper()
 
 
 class ConfigFile(Config):
