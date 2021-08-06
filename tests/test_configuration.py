@@ -69,12 +69,12 @@ class TestConfig(unittest.TestCase):
     def test_initial_data_is_dict_like(self):
         for implType in IMPLEMENTATIONS.values():
             impl = implType()
-            self.assertEqual(impl.nested, {})
+            self.assertEqual(impl, {})
 
     def test_new_config_is_empty(self):
         for implType in IMPLEMENTATIONS.values():
             impl = implType()
-            self.assertEqual(impl.nested, {})
+            self.assertEqual(impl, {})
 
     def test_stored_value_can_be_retrieved(self):
         name = 'This/is/it'
@@ -93,9 +93,9 @@ class TestConfig(unittest.TestCase):
             impl = implType()
             impl.store(name, value)
 
-            self.assertIn('This', impl.nested)
-            self.assertIn('is', impl.nested['This'])
-            self.assertIn('it', impl.nested['This']['is'])
+            self.assertIn('This', impl)
+            self.assertIn('is', impl['This'])
+            self.assertIn('it', impl['This']['is'])
 
     def test_loading_and_dumping_leaves_data_untouched(self):
         # TOML
@@ -105,7 +105,7 @@ class TestConfig(unittest.TestCase):
         b = _TomlConfig()
         b.loads(a.dumps())
 
-        self.assertEqual(a.nested, b.nested)
+        self.assertEqual(a, b)
 
         # YAML
         a = _YamlConfig()
@@ -114,7 +114,7 @@ class TestConfig(unittest.TestCase):
         b = _YamlConfig()
         b.loads(a.dumps())
 
-        self.assertEqual(a.nested, b.nested)
+        self.assertEqual(a, b)
 
     def test_toml_preserves_comments(self):
         config = _TomlConfig()
@@ -201,11 +201,11 @@ class TestConfig(unittest.TestCase):
     def test_clearing_config_does_not_alter_underlying_data_type(self):
         for implType in IMPLEMENTATIONS.values():
             impl = implType()
-            typeAsItWas = type(impl.nested.data)
-            impl.nested.clear()
+            typeAsItWas = type(impl.data)
+            impl.clear()
 
-            self.assertEqual(impl.nested, {})
-            self.assertIs(type(impl.nested.data), typeAsItWas)
+            self.assertEqual(impl, {})
+            self.assertIs(type(impl.data), typeAsItWas)
 
     # TODO: _IniConfig commenting test cases
 

@@ -60,7 +60,7 @@ def guess_format(filepath):
     return ext[1:].upper()
 
 
-class _ConfigImpl(abc.ABC):
+class _ConfigImpl(NestedDict, abc.ABC):
 
     """Semi abstract base class for all configuration implementations.
 
@@ -68,20 +68,16 @@ class _ConfigImpl(abc.ABC):
         nested (NestedDict): Nested dict instance for storing the configuration
             data.
     """
-
-    def __init__(self):
-        self.nested = NestedDict()
-
     def retrieve(self, name: str = '') -> object:
         """Retrieve config entry for a given name. Root object by default."""
         if name == '':
-            return self.nested.data
+            return self.data
 
-        return self.nested.get(name_to_keys(name))
+        return self.get(name_to_keys(name))
 
     def store(self, name: str, value: object) -> object:
         """Store value in config under a given name."""
-        return self.nested.setdefault(name_to_keys(name), value)
+        return self.setdefault(name_to_keys(name), value)
 
     @abc.abstractmethod
     def loads(self, string):
@@ -105,13 +101,13 @@ class _TomlConfig(_ConfigImpl):
     """Config implementation for TOML format."""
 
     def __init__(self):
-        self.nested = NestedDict(tomlkit.document(), default_factory=tomlkit.table)
+        super().__init__(tomlkit.document(), default_factory=tomlkit.table)
 
     def loads(self, string):
-        self.nested = NestedDict(tomlkit.loads(string), default_factory=tomlkit.table)
+        self.data = tomlkit.loads(string)
 
     def dumps(self):
-        return tomlkit.dumps(self.nested.data)
+        return tomlkit.dumps(self.data)
 
     def get_comment(self, name):
         entry = self.retrieve(name)
@@ -128,16 +124,15 @@ class _YamlConfig(_ConfigImpl):
     """Config implementation for YAML format."""
 
     def __init__(self):
+        super().__init__(ruamel.yaml.CommentedMap(), default_factory=ruamel.yaml.CommentedMap)
         self.yaml = ruamel.yaml.YAML()
-        self.nested = NestedDict(ruamel.yaml.CommentedMap(), default_factory=ruamel.yaml.CommentedMap)
 
     def loads(self, string):
-        dct = self.yaml.load(string)
-        self.nested = NestedDict(dct, default_factory=CommentedMap)
+        self.data = self.yaml.load(string)
 
     def dumps(self):
         buf = io.StringIO()
-        self.yaml.dump(self.nested.data, buf)
+        self.yaml.dump(self.data, buf)
         buf.seek(0)
         return buf.read()
 
@@ -162,12 +157,11 @@ class _JsonConfig(_ConfigImpl):
     """Config implementation for JSON format. JSON does not support comments!
     Getting or setting comments will result in RuntimeError errors.
     """
-
     def loads(self, string):
-        self.nested = NestedDict(json.loads(string))
+        self.data = json.loads(string)
 
     def dumps(self, indent=4):
-        return json.dumps(self.nested.data, indent=indent)
+        return json.dumps(self.data, indent=indent)
 
     def get_comment(self, name):
         raise RuntimeError('JSON does not support comments!')
@@ -184,15 +178,15 @@ class _IniConfig(_ConfigImpl):
     """
 
     def __init__(self):
-        self.nested = NestedDict(configobj.ConfigObj())
+        super().__init__(configobj.ConfigObj())
 
     def loads(self, string):
         buf = io.StringIO(string)
-        self.nested = NestedDict(configobj.ConfigObj(buf))
+        self.data = configobj.ConfigObj(buf)
 
     def dumps(self):
         buf = io.BytesIO()
-        self.nested.data.write(buf)
+        self.data.write(buf)
         buf.seek(0)
         return buf.read().decode()
 
@@ -208,7 +202,6 @@ class _IniConfig(_ConfigImpl):
         e.inline_comments[tail] = comment
 
 
-
 IMPLEMENTATIONS = {
     'TOML': _TomlConfig,
     'YAML': _YamlConfig,
@@ -217,7 +210,7 @@ IMPLEMENTATIONS = {
 }
 
 
-class Config(_ConfigImpl):
+class Config():
     def __init__(self, configFormat):
         configFormat = configFormat.upper()
         if configFormat not in IMPLEMENTATIONS:

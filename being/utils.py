@@ -187,7 +187,7 @@ class NestedDict(collections.abc.MutableMapping):
         d = self.data
         *path, last = self._as_keys(key)
         for k in path:
-            d = d.setdefault(k, self.default_factory())
+            d = d[k]
 
         del d[last]
 
