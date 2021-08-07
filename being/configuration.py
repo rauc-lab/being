@@ -10,7 +10,6 @@ import configobj
 
 from being.utils import (
     NestedDict,
-    SingleInstanceCache,
     read_file,
     write_file,
 )
@@ -84,8 +83,16 @@ class _ConfigImpl(NestedDict, abc.ABC):
         """Load from string..."""
 
     @abc.abstractmethod
+    def load(self, stream):
+        """Load from stream..."""
+
+    @abc.abstractmethod
     def dumps(self) -> str:
         """Dumps config to string."""
+
+    @abc.abstractmethod
+    def dump(self, stream) -> str:
+        """Dumps to stream..."""
 
     @abc.abstractmethod
     def get_comment(self, name):
@@ -101,13 +108,19 @@ class _TomlConfig(_ConfigImpl):
     """Config implementation for TOML format."""
 
     def __init__(self):
-        super().__init__(tomlkit.document(), default_factory=tomlkit.table)
+        super().__init__(data=tomlkit.document(), default_factory=tomlkit.table)
 
     def loads(self, string):
         self.data = tomlkit.loads(string)
 
+    def load(self, stream):
+        self.data = tomlkit.loads(stream.read())
+
     def dumps(self):
         return tomlkit.dumps(self.data)
+
+    def dump(self, stream):
+        stream.write(tomlkit.dumps(self.data))
 
     def get_comment(self, name):
         entry = self.retrieve(name)
@@ -124,17 +137,23 @@ class _YamlConfig(_ConfigImpl):
     """Config implementation for YAML format."""
 
     def __init__(self):
-        super().__init__(ruamel.yaml.CommentedMap(), default_factory=ruamel.yaml.CommentedMap)
+        super().__init__(data=ruamel.yaml.CommentedMap(), default_factory=ruamel.yaml.CommentedMap)
         self.yaml = ruamel.yaml.YAML()
 
     def loads(self, string):
         self.data = self.yaml.load(string)
 
+    def load(self, stream):
+        self.data = self.yaml.load(stream)
+
     def dumps(self):
-        buf = io.StringIO()
-        self.yaml.dump(self.data, buf)
-        buf.seek(0)
-        return buf.read()
+        out = io.StringIO()
+        self.yaml.dump(self.data, stream=out)
+        out.seek(0)
+        return out.read()
+
+    def dump(self, stream):
+        self.yaml.dump(self.data, stream)
 
     @staticmethod
     def _fetch_comment(ele, key):
@@ -160,8 +179,14 @@ class _JsonConfig(_ConfigImpl):
     def loads(self, string):
         self.data = json.loads(string)
 
+    def load(self, stream):
+        self.data = json.load(stream)
+
     def dumps(self, indent=4):
         return json.dumps(self.data, indent=indent)
+
+    def dump(self, stream, indent=4):
+        return json.dump(self.data, stream, indent=indent)
 
     def get_comment(self, name):
         raise RuntimeError('JSON does not support comments!')
@@ -178,17 +203,23 @@ class _IniConfig(_ConfigImpl):
     """
 
     def __init__(self):
-        super().__init__(configobj.ConfigObj())
+        super().__init__(data=configobj.ConfigObj(), default_factory=configobj.ConfigObj)
 
     def loads(self, string):
         buf = io.StringIO(string)
         self.data = configobj.ConfigObj(buf)
+
+    def load(self, stream):
+        self.data = configobj.ConfigObj(stream)
 
     def dumps(self):
         buf = io.BytesIO()
         self.data.write(buf)
         buf.seek(0)
         return buf.read().decode()
+
+    def dump(self, stream):
+        return self.data.write(stream)
 
     def get_comment(self, name):
         head, tail = split_name(name)
@@ -203,16 +234,15 @@ class _IniConfig(_ConfigImpl):
 
 
 IMPLEMENTATIONS = {
-    'TOML': _TomlConfig,
-    'YAML': _YamlConfig,
-    'JSON': _JsonConfig,
-    'INI': _IniConfig,
+    'toml': _TomlConfig,
+    'yaml': _YamlConfig,
+    'json': _JsonConfig,
+    'ini': _IniConfig,
 }
 
 
 class Config():
     def __init__(self, configFormat):
-        configFormat = configFormat.upper()
         if configFormat not in IMPLEMENTATIONS:
             raise ValueError(f'No config implementation for {configFormat}!')
 

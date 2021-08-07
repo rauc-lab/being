@@ -1,7 +1,14 @@
-import unittest
 import collections
+import io
+import unittest
 
-from being.configuration import IMPLEMENTATIONS, _TomlConfig, _YamlConfig
+from being.configuration import (
+    IMPLEMENTATIONS,
+    _IniConfig,
+    _JsonConfig,
+    _TomlConfig,
+    _YamlConfig,
+)
 
 
 SOME_TOML = """
@@ -40,7 +47,6 @@ hosts = [
 ]
 """
 
-
 SOME_YAML = """
 ---
  # Doe is a dear funny deer
@@ -63,6 +69,59 @@ SOME_YAML = """
      location: "a pear tree"
    turtle-doves: two
 """
+
+INI_SAMPLE = """[General]
+INTERVAL = 0.01 # Single cycle interval duration
+[Behavior] # Behavior related configurations
+Attention Span = 1.234 # Minimum duration inside State II. In [sec]
+Motions for State I = Sleepy One, Sleepy Two # Motion repertoire for sleepy State I
+Motions for State II = Chilled, blue swirl # Motion repertoire for chilled State II
+Motions for State III = Excited v2, Fireworks # Motion repertoire for excited State III"""
+
+JSON_SAMPLE = """{
+    "General": {
+        "INTERVAL": 0.01
+    },
+    "Behavior": {
+        "Attention Span": 1.234,
+        "Motions for State I": [
+            "Sleepy One",
+            "Sleepy Two"
+        ],
+        "Motions for State II": [
+            "Chilled",
+            "blue swirl"
+        ],
+        "Motions for State III": [
+            "Excited v2",
+            "Fireworks"
+        ]
+    }
+}"""
+
+YAML_SAMPLE = """General:
+  INTERVAL: 0.01  # Single cycle interval duration
+Behavior:  # Behavior related configurations
+  Attention Span: 1.234  # Minimum duration inside State II. In [sec]
+  Motions for State I: # Motion repertoire for sleepy State I
+  - Sleepy One
+  - Sleepy Two
+  Motions for State II: # Motion repertoire for chilled State II
+  - Chilled
+  - blue swirl
+  Motions for State III: # Motion repertoire for excited State III
+  - Excited v2
+  - Fireworks
+"""
+
+TOML_SAMPLE = """[General]
+INTERVAL = 0.01 # Single cycle interval duration
+
+[Behavior] # Behavior related configurations
+"Attention Span" = 1.234 # Minimum duration inside State II. In [sec]
+"Motions for State I" = ["Sleepy One", "Sleepy Two"] # Motion repertoire for sleepy State I
+"Motions for State II" = ["Chilled", "blue swirl"] # Motion repertoire for chilled State II
+"Motions for State III" = ["Excited v2", "Fireworks"] # Motion repertoire for excited State III"""
 
 
 class TestConfig(unittest.TestCase):
@@ -96,6 +155,44 @@ class TestConfig(unittest.TestCase):
             self.assertIn('This', impl)
             self.assertIn('is', impl['This'])
             self.assertIn('it', impl['This']['is'])
+
+    def assert_round_trip_string(self, impl, string):
+        """Assert round trip preservation with string (loads() / dumps())."""
+        impl.loads(string)
+        self.assertEqual(impl.dumps(), string)
+
+    def assert_round_trip_stream(self, impl, string):
+        """Assert round trip preservation with stream (load() / dump())."""
+        in_ = io.StringIO(string)
+        impl.load(io.StringIO(string))
+
+        # Note: configobj.ConfigObj expects a byte stream for writing
+        if type(impl) is _IniConfig:
+            out = io.BytesIO()
+        else:
+            out = io.StringIO()
+
+        impl.dump(out)
+        out.seek(0)
+
+        self.assertEqual(out.read(), string)
+
+    def test_ini_preserves_round_trip(self):
+        #self.assert_round_trip_string(_IniConfig(), INI_SAMPLE)
+        #self.assert_round_trip_stream(_IniConfig(), INI_SAMPLE)
+        pass
+
+    def test_json_preserves_round_trip(self):
+        self.assert_round_trip_string(_JsonConfig(), JSON_SAMPLE)
+        self.assert_round_trip_stream(_JsonConfig(), JSON_SAMPLE)
+
+    def test_yaml_preserves_round_trip(self):
+        self.assert_round_trip_string(_YamlConfig(), YAML_SAMPLE)
+        self.assert_round_trip_stream(_YamlConfig(), YAML_SAMPLE)
+
+    def test_toml_preserves_round_trip(self):
+        self.assert_round_trip_string(_TomlConfig(), TOML_SAMPLE)
+        self.assert_round_trip_stream(_TomlConfig(), TOML_SAMPLE)
 
     def test_loading_and_dumping_leaves_data_untouched(self):
         # TOML
