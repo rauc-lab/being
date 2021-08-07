@@ -306,6 +306,15 @@ class TestConfig(unittest.TestCase):
 
     # TODO: _IniConfig commenting test cases
 
+    def test_storing_overwrites_values(self):
+        name = 'this/is/it'
+        for implType in IMPLEMENTATIONS.values():
+            impl = implType()
+            impl.store(name, 42)
+            impl.store(name, 43)
+
+            self.assertEqual(impl.retrieve(name), 43)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,7 +1,11 @@
+"""Config data / file access for ini, json, yaml and toml. Round trip
+preservation.
+"""
 import abc
+import collections
 import io
-import os
 import json
+import os
 from typing import Tuple
 
 import ruamel.yaml
@@ -9,7 +13,6 @@ import tomlkit
 import configobj
 
 from being.utils import (
-    NestedDict,
     read_file,
     write_file,
 )
@@ -26,11 +29,6 @@ def strip_comment_prefix(comment: str) -> str:
     """Strip away comment prefix from string."""
     _, comment = comment.split(COMMENT_PREFIX, maxsplit=1)
     return comment.strip()
-
-
-def name_to_keys(name: str) -> tuple:
-    """Map name with separators to key path tuple."""
-    return tuple(name.split(SEP))
 
 
 def split_name(name: str) -> Tuple[str, str]:
@@ -59,24 +57,59 @@ def guess_format(filepath):
     return ext[1:].upper()
 
 
-class _ConfigImpl(NestedDict, abc.ABC):
+class _ConfigImpl(collections.abc.MutableMapping, abc.ABC):
 
-    """Semi abstract base class for all configuration implementations.
+    """Semi abstract base class for all configuration implementations. Holds the
+    dict-like data object from the various third-party libraries. Contains the
+    default_factory() for intermediate levels.
 
     Attributes:
-        nested (NestedDict): Nested dict instance for storing the configuration
-            data.
+        data: Original dict-like config data object.
+        default_factory: Associated default_factory for creating intermediate
+            elements
     """
+    def __init__(self, data, default_factory=dict):
+        self.data = data
+        self.default_factory = default_factory
+
+    def __setitem__(self, key, value):
+        return self.data.__setitem__(key, value)
+
+    def __getitem__(self, key):
+        return self.data.__getitem__(key)
+
+    def __delitem__(self, key):
+        return self.data.__delitem__(key)
+
+    def __iter__(self):
+        return iter(self.data)
+
+    def __len__(self):
+        return len(self.data)
+
     def retrieve(self, name: str = '') -> object:
         """Retrieve config entry for a given name. Root object by default."""
         if name == '':
             return self.data
 
-        return self.get(name_to_keys(name))
+        d = self.data
+        for k in name.split(SEP):
+            d = d[k]
+
+        return d
 
     def store(self, name: str, value: object) -> object:
         """Store value in config under a given name."""
-        return self.setdefault(name_to_keys(name), value)
+        if SEP not in name:
+            self.data[name] = value
+            return
+
+        d = self.data
+        *head, tail = name.split(SEP)
+        for k in head:
+            d = d.setdefault(k, self.default_factory())
+
+        d[tail] = value
 
     @abc.abstractmethod
     def loads(self, string):
@@ -176,6 +209,9 @@ class _JsonConfig(_ConfigImpl):
     """Config implementation for JSON format. JSON does not support comments!
     Getting or setting comments will result in RuntimeError errors.
     """
+    def __init__(self):
+        super().__init__(data=dict(), default_factory=dict)
+
     def loads(self, string):
         self.data = json.loads(string)
 
