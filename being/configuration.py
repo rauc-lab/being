@@ -62,10 +62,16 @@ SEP: str = '/'
 COMMENT_PREFIX: str = '#'
 """Comment prefix character."""
 
+ROOT_NAME: str = ''
+"""Empty string denoting the root config entry."""
+
 
 def strip_comment_prefix(comment: str) -> str:
     """Strip away comment prefix from string."""
-    _, comment = comment.split(COMMENT_PREFIX, maxsplit=1)
+    comment = comment.lstrip()
+    if COMMENT_PREFIX in comment:
+        _, comment = comment.split(COMMENT_PREFIX, maxsplit=1)
+
     return comment.strip()
 
 
@@ -92,7 +98,7 @@ def split_name(name: str) -> Tuple[str, str]:
 def guess_format(filepath):
     """Guess config format from file extension."""
     _, ext = os.path.splitext(filepath)
-    return ext[1:].upper()
+    return ext[1:].lower()
 
 
 class _ConfigImpl(collections.abc.MutableMapping, abc.ABC):
@@ -125,9 +131,9 @@ class _ConfigImpl(collections.abc.MutableMapping, abc.ABC):
     def __len__(self):
         return len(self.data)
 
-    def retrieve(self, name: str = '') -> Any:
+    def retrieve(self, name: str = ROOT_NAME) -> Any:
         """Retrieve config entry for a given name. Root object by default."""
-        if name == '':
+        if name == ROOT_NAME:
             return self.data
 
         d = self.data
@@ -291,17 +297,16 @@ class ConfigFile(Config):
     def __init__(self, filepath):
         super().__init__(configFormat=guess_format(filepath))
         self.filepath = filepath
-        self.load()
+        if os.path.exists(self.filepath):
+            self.reload()
 
     def save(self):
-        write_file(self.filepath, self.impl.dumps())
+        with open(self.filepath, 'w') as fp:
+            self.impl.dump(fp)
 
-    def load(self):
-        if not os.path.exists(self.filepath):
-            return
-
-        string = read_file(self.filepath)
-        self.impl.loads(string)
+    def reload(self):
+        with open(self.filepath) as fp:
+            self.impl.load(fp)
 
     def __str__(self):
         return f'{type(self).__name__}({self.filepath!r})'
