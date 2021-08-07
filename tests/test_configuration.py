@@ -71,12 +71,14 @@ SOME_YAML = """
 """
 
 INI_SAMPLE = """[General]
-INTERVAL = 0.01 # Single cycle interval duration
-[Behavior] # Behavior related configurations
-Attention Span = 1.234 # Minimum duration inside State II. In [sec]
-Motions for State I = Sleepy One, Sleepy Two # Motion repertoire for sleepy State I
-Motions for State II = Chilled, blue swirl # Motion repertoire for chilled State II
-Motions for State III = Excited v2, Fireworks # Motion repertoire for excited State III"""
+INTERVAL = 0.01# Single cycle interval duration
+[Behavior]# Behavior related configurations
+Attention Span = 1.234# Minimum duration inside State II. In [sec]
+Motions for State I = Sleepy One, Sleepy Two# Motion repertoire for sleepy State I
+Motions for State II = Chilled, blue swirl# Motion repertoire for chilled State II
+Motions for State III = Excited v2, Fireworks# Motion repertoire for excited State III
+"""
+
 
 JSON_SAMPLE = """{
     "General": {
@@ -175,12 +177,14 @@ class TestConfig(unittest.TestCase):
         impl.dump(out)
         out.seek(0)
 
-        self.assertEqual(out.read(), string)
+        if type(impl) is _IniConfig:
+            self.assertEqual(out.read(), string.encode())
+        else:
+            self.assertEqual(out.read(), string)
 
     def test_ini_preserves_round_trip(self):
-        #self.assert_round_trip_string(_IniConfig(), INI_SAMPLE)
-        #self.assert_round_trip_stream(_IniConfig(), INI_SAMPLE)
-        pass
+        self.assert_round_trip_string(_IniConfig(), INI_SAMPLE)
+        self.assert_round_trip_stream(_IniConfig(), INI_SAMPLE)
 
     def test_json_preserves_round_trip(self):
         self.assert_round_trip_string(_JsonConfig(), JSON_SAMPLE)
@@ -229,71 +233,6 @@ class TestConfig(unittest.TestCase):
 
     #def test_json_does_not_support_comments(self):
     #    pass
-
-    def test_commenting_toml(self):
-        # First level key
-        toml = _TomlConfig()
-        name = 'singleKey'
-        toml.store(name, 'Hello')
-        toml.set_comment(name, 'This is a comment')
-
-        self.assertEqual(toml.dumps(), 'singleKey = "Hello" # This is a comment\n')
-
-        # Multi level key
-        toml = _TomlConfig()
-        name = 'This/is/it'
-        toml.store(name, 'Hello')
-        toml.set_comment(name,  'This is a comment')
-
-        self.assertEqual(toml.dumps(), '[This]\n[This.is]\nit = "Hello" # This is a comment\n')
-
-    def test_commenting_yaml(self):
-        # First level key
-        yaml = _YamlConfig()
-        name = 'singleKey'
-        yaml.store(name, 'Hello')
-        yaml.set_comment(name, 'This is a comment')
-
-        self.assertEqual(yaml.dumps(), 'singleKey: Hello  # This is a comment\n')
-
-        # Multi level key
-        yaml = _YamlConfig()
-        name = 'This/is/it'
-        yaml.store(name, 'Hello')
-        yaml.set_comment(name,  'This is a comment')
-
-        self.assertEqual(yaml.dumps(), 'This:\n  is:\n    it: Hello  # This is a comment\n')
-
-    def test_getting_comments_toml(self):
-        s = 'hallo = "world"  # And this is a comment'
-        toml = _TomlConfig()
-        toml.loads(s)
-
-        self.assertEqual(toml.get_comment('hallo'), 'And this is a comment')
-
-        s = """[Header]
-        [Header.Section]
-        name = "something"    # This is another comment"""
-        toml = _TomlConfig()
-        toml.loads(s)
-
-        self.assertEqual(toml.get_comment('Header/Section/name'), 'This is another comment')
-
-    def test_getting_comments_yaml(self):
-        s = 'hallo: world  # And this is a comment'
-        yaml = _YamlConfig()
-        yaml.loads(s)
-
-        self.assertEqual(yaml.get_comment('hallo'), 'And this is a comment')
-
-        s = """this:
-          is:
-            it: Hello, world!    # Unbelievable, yet another comment!
-        """
-        yaml = _YamlConfig()
-        yaml.loads(s)
-
-        self.assertEqual(yaml.get_comment('this/is/it'), 'Unbelievable, yet another comment!')
 
     def test_clearing_config_does_not_alter_underlying_data_type(self):
         for implType in IMPLEMENTATIONS.values():

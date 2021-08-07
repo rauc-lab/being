@@ -6,7 +6,7 @@ import collections
 import io
 import json
 import os
-from typing import Tuple
+from typing import Tuple, Any, Optional
 
 import ruamel.yaml
 import tomlkit
@@ -16,6 +16,44 @@ from being.utils import (
     read_file,
     write_file,
 )
+
+
+"""
+Commenting stuff:
+- INI
+  - EOL
+      >>> head, tail = split_name(name)
+      ... parent = self.retrieve(head)
+      ... parent.inline_comments[tail] = eol
+  - Before
+      Same as EOL but with parent.comments[key] = []
+  - After
+      ?
+
+- JSON
+    Not supported
+
+- YAML
+  - EOL
+      >>> head, tail = split_name(name)
+      ... parent = self.retrieve(head)
+      ... parent.yaml_add_eol_comment(eol, key=tail)
+  - Before / After
+      >>> head, tail = split_name(name)
+config.data.yaml_set_comment_before_after_key
+      ... parent = self.retrieve(head)
+      ... parent.yaml_set_comment_before_after_key(tail, before=before, after=after, indent=?)
+
+- TOML
+  - EOL
+      >>> entry = self.retrieve(name)
+      ... entry.comment(eol)
+
+  - Before
+      ?
+  - After
+      ?
+"""
 
 
 SEP: str = '/'
@@ -87,7 +125,7 @@ class _ConfigImpl(collections.abc.MutableMapping, abc.ABC):
     def __len__(self):
         return len(self.data)
 
-    def retrieve(self, name: str = '') -> object:
+    def retrieve(self, name: str = '') -> Any:
         """Retrieve config entry for a given name. Root object by default."""
         if name == '':
             return self.data
@@ -98,7 +136,7 @@ class _ConfigImpl(collections.abc.MutableMapping, abc.ABC):
 
         return d
 
-    def store(self, name: str, value: object) -> object:
+    def store(self, name: str, value: Any):
         """Store value in config under a given name."""
         if SEP not in name:
             self.data[name] = value
@@ -127,14 +165,6 @@ class _ConfigImpl(collections.abc.MutableMapping, abc.ABC):
     def dump(self, stream) -> str:
         """Dumps to stream..."""
 
-    @abc.abstractmethod
-    def get_comment(self, name):
-        """Get comment for config entry."""
-
-    @abc.abstractmethod
-    def set_comment(self, name, comment):
-        """Set comment for config entry."""
-
 
 class _TomlConfig(_ConfigImpl):
 
@@ -154,15 +184,6 @@ class _TomlConfig(_ConfigImpl):
 
     def dump(self, stream):
         stream.write(tomlkit.dumps(self.data))
-
-    def get_comment(self, name):
-        entry = self.retrieve(name)
-        comment = entry.trivia.comment
-        return strip_comment_prefix(comment)
-
-    def set_comment(self, name, comment):
-        entry = self.retrieve(name)
-        entry.comment(comment)
 
 
 class _YamlConfig(_ConfigImpl):
@@ -188,21 +209,6 @@ class _YamlConfig(_ConfigImpl):
     def dump(self, stream):
         self.yaml.dump(self.data, stream)
 
-    @staticmethod
-    def _fetch_comment(ele, key):
-        comment = ele.ca.items[key][2].value
-        return strip_comment_prefix(comment)
-
-    def get_comment(self, name):
-        head, tail = split_name(name)
-        e = self.retrieve(head)
-        return self._fetch_comment(e, key=tail)
-
-    def set_comment(self, name, comment):
-        head, tail = split_name(name)
-        e = self.retrieve(head)
-        e.yaml_add_eol_comment(comment, key=tail)
-
 
 class _JsonConfig(_ConfigImpl):
 
@@ -224,16 +230,10 @@ class _JsonConfig(_ConfigImpl):
     def dump(self, stream, indent=4):
         return json.dump(self.data, stream, indent=indent)
 
-    def get_comment(self, name):
-        raise RuntimeError('JSON does not support comments!')
-
-    def set_comment(self, name, comment):
-        raise RuntimeError('JSON does not support comments!')
-
 
 class _IniConfig(_ConfigImpl):
 
-    """Config implementation for INI format. Also supports roundtrip
+    """Config implementation for INI format. Also supports round trip
     preservation. Comments should be possible as well but not implemented right
     now.
     """
@@ -256,17 +256,6 @@ class _IniConfig(_ConfigImpl):
 
     def dump(self, stream):
         return self.data.write(stream)
-
-    def get_comment(self, name):
-        head, tail = split_name(name)
-        e = self.retrieve(head)
-        return e.inline_comments[tail]
-
-    def set_comment(self, name, comment):
-        # Note: Prepending comment can be done with the c.comments[key] = []
-        head, tail = split_name(name)
-        e = self.retrieve(head)
-        e.inline_comments[tail] = comment
 
 
 IMPLEMENTATIONS = {
@@ -296,12 +285,6 @@ class Config():
 
     def dumps(self):
         return self.impl.dumps()
-
-    def get_comment(self, name):
-        return self.impl.get_comment(name)
-
-    def set_comment(self, name, comment):
-        self.impl.set_comment(name, comment)
 
 
 class ConfigFile(Config):
