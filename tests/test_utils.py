@@ -82,6 +82,12 @@ class TestNestedDict(unittest.TestCase):
         self.assertEqual(value, 42)
         self.assertEqual(d, {'this': {'is': {'it': 42}}})
 
+    def test_setdefault_does_not_overwrite(self):
+        d = NestedDict()
+        keys = ('this', 'is', 'it')
+
+        self.assertEqual(d.setdefault(keys, 42), 42)
+        self.assertEqual(d.setdefault(keys, 1234), 42)
 
 if __name__ == '__main__':
     unittest.main()

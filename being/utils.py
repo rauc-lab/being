@@ -202,9 +202,8 @@ class NestedDict(collections.abc.MutableMapping):
 
     def setdefault(self, key, default=None):
         d = self.data
-        *path, last = self._as_keys(key)
-        for k in path:
+        *head, tail = self._as_keys(key)
+        for k in head:
             d = d.setdefault(k, self.default_factory())
 
-        d[last] = default
-        return default
+        return d.setdefault(tail, default)
