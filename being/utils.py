@@ -147,7 +147,15 @@ class IdAware:
 
 class NestedDict(collections.abc.MutableMapping):
 
-    """Nested dict which supports tuples as keys to access nested dicts within."""
+    """Nested dict.
+    Tuples as key path for accessing nested dicts within.
+    Similar to defaultdict but NestedDict wraps an existing dict-like object
+    within.
+    """
+
+    # To key error, or not to key error, that is the question. Kind of pointless
+    # to have a NestedDict when setting a new nested value always leads to key
+    # errors? Also then setdefault works as expected.
 
     def __init__(self, data=None, default_factory=dict):
         """Kwargs:
@@ -172,14 +180,16 @@ class NestedDict(collections.abc.MutableMapping):
         d = self.data
         *path, last = self._as_keys(key)
         for k in path:
-            d = d[k]
+            #d = d[k]
+            d = d.setdefault(k, self.default_factory())
 
         d[last] = value
 
     def __getitem__(self, key):
         d = self.data
         for k in self._as_keys(key):
-            d = d[k]
+            #d = d[k]
+            d = d.setdefault(k, self.default_factory())
 
         return d
 
@@ -200,10 +210,20 @@ class NestedDict(collections.abc.MutableMapping):
     def __repr__(self):
         return f'{type(self).__name__}({self.data!r})'
 
+    def get(self, key, default=None):
+        d = self.data
+        for k in self._as_keys(key):
+            if k not in d:
+                return default
+
+            d = d[k]
+
+        return d
+
     def setdefault(self, key, default=None):
         d = self.data
-        *head, tail = self._as_keys(key)
-        for k in head:
+        *path, last = self._as_keys(key)
+        for k in path:
             d = d.setdefault(k, self.default_factory())
 
-        return d.setdefault(tail, default)
+        return d.setdefault(last, default)

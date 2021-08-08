@@ -2,20 +2,16 @@
 preservation.
 """
 import abc
-import collections
 import io
 import json
 import os
-from typing import Tuple, Any, Optional
+from typing import Tuple, Any
 
 import ruamel.yaml
 import tomlkit
 import configobj
 
-from being.utils import (
-    read_file,
-    write_file,
-)
+from being.utils import NestedDict
 
 
 """
@@ -101,7 +97,7 @@ def guess_format(filepath):
     return ext[1:].lower()
 
 
-class _ConfigImpl(collections.abc.MutableMapping, abc.ABC):
+class _ConfigImpl(NestedDict, abc.ABC):
 
     """Semi abstract base class for all configuration implementations. Holds the
     dict-like data object from the various third-party libraries. Contains the
@@ -112,48 +108,29 @@ class _ConfigImpl(collections.abc.MutableMapping, abc.ABC):
         default_factory: Associated default_factory for creating intermediate
             elements
     """
-    def __init__(self, data, default_factory=dict):
-        self.data = data
-        self.default_factory = default_factory
 
-    def __setitem__(self, key, value):
-        return self.data.__setitem__(key, value)
-
-    def __getitem__(self, key):
-        return self.data.__getitem__(key)
-
-    def __delitem__(self, key):
-        return self.data.__delitem__(key)
-
-    def __iter__(self):
-        return iter(self.data)
-
-    def __len__(self):
-        return len(self.data)
+    def store(self, name: str, value: Any):
+        """Store config entry under a given name."""
+        keys = tuple(name.split(SEP))
+        self[keys] = value
 
     def retrieve(self, name: str = ROOT_NAME) -> Any:
-        """Retrieve config entry for a given name. Root object by default."""
+        """Retrieve config entry of a given name. Root object by default."""
         if name == ROOT_NAME:
             return self.data
 
-        d = self.data
-        for k in name.split(SEP):
-            d = d[k]
+        keys = tuple(name.split(SEP))
+        return self[keys]
 
-        return d
+    def erase(self, name: str):
+        """Erase config entry."""
+        keys = tuple(name.split(SEP))
+        del self[keys]
 
-    def store(self, name: str, value: Any):
-        """Store value in config under a given name."""
-        if SEP not in name:
-            self.data[name] = value
-            return
-
-        d = self.data
-        *head, tail = name.split(SEP)
-        for k in head:
-            d = d.setdefault(k, self.default_factory())
-
-        d[tail] = value
+    def storedefault(self, name: str, default: Any = None):
+        """Store config entry under name if it does not exist."""
+        keys = tuple(name.split(SEP))
+        return self.setdefault(keys, default)
 
     @abc.abstractmethod
     def loads(self, string):
@@ -280,11 +257,17 @@ class Config():
         implType = IMPLEMENTATIONS[configFormat]
         self.impl: _ConfigImpl = implType()
 
-    def retrieve(self, name) -> object:
-        return self.impl.retrieve(name)
-
     def store(self, name, value):
         self.impl.store(name, value)
+
+    def storedefault(self, name, default):
+        self.impl.storedefault(name, default)
+
+    def retrieve(self, name):
+        return self.impl.retrieve(name)
+
+    def erase(self, name):
+        return self.impl.erase(name)
 
     def loads(self, string):
         self.impl.loads(string)

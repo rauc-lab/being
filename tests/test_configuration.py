@@ -4,6 +4,7 @@ import unittest
 
 from being.configuration import (
     IMPLEMENTATIONS,
+    _ConfigImpl,
     _IniConfig,
     _JsonConfig,
     _TomlConfig,
@@ -126,37 +127,65 @@ INTERVAL = 0.01 # Single cycle interval duration
 "Motions for State III" = ["Excited v2", "Fireworks"] # Motion repertoire for excited State III"""
 
 
+class ConfigImpl(_ConfigImpl):
+    def loads(self, string):
+        pass
+
+    def load(self, stream):
+        pass
+
+    def dumps(self):
+        pass
+
+    def dump(self, stream):
+        pass
+
+
 class TestConfig(unittest.TestCase):
-    def test_initial_data_is_dict_like(self):
+    def test_initial_data_is_dict_like_and_empty(self):
         for implType in IMPLEMENTATIONS.values():
             impl = implType()
             self.assertEqual(impl, {})
 
-    def test_new_config_is_empty(self):
-        for implType in IMPLEMENTATIONS.values():
-            impl = implType()
-            self.assertEqual(impl, {})
+    def test_config_impl_leaves_original_data_untouched(self):
+        data = {}
+        config = ConfigImpl(data)
 
-    def test_stored_value_can_be_retrieved(self):
-        name = 'This/is/it'
-        value = 'Hello, world!'
-        for implType in IMPLEMENTATIONS.values():
-            impl = implType()
-            impl.store(name, value)
-            ret = impl.retrieve(name)
-
-            self.assertEqual(ret, value)
+        self.assertIs(config.data, data)
 
     def test_storing_nested_value_results_in_intermediate_keys(self):
+        config = ConfigImpl()
         name = 'This/is/it'
         value = 'Hello, world!'
-        for implType in IMPLEMENTATIONS.values():
-            impl = implType()
-            impl.store(name, value)
+        config.store(name, value)
 
-            self.assertIn('This', impl)
-            self.assertIn('is', impl['This'])
-            self.assertIn('it', impl['This']['is'])
+        self.assertIn('This', config)
+        self.assertIn('is', config['This'])
+        self.assertIn('it', config['This']['is'])
+
+    def test_stored_value_can_be_retrieved(self):
+        config = ConfigImpl()
+        name = 'This/is/it'
+        value = 'Hello, world!'
+        config.store(name, value)
+
+        self.assertEqual(config.retrieve(name), value)
+
+    def test_storing_overwrites_values(self):
+        config = ConfigImpl()
+        name = 'this/is/it'
+        config.store(name, 42)
+        config.store(name, 43)
+
+        self.assertEqual(config.retrieve(name), 43)
+
+    def test_storedefault_does_not_overwrite_existing_values(self):
+        config = ConfigImpl()
+        name = 'this/is/it'
+        config.storedefault(name, 42)
+        config.storedefault(name, 43)
+
+        self.assertEqual(config.retrieve(name), 42)
 
     def assert_round_trip_string(self, impl, string):
         """Assert round trip preservation with string (loads() / dumps())."""
@@ -245,14 +274,6 @@ class TestConfig(unittest.TestCase):
 
     # TODO: _IniConfig commenting test cases
 
-    def test_storing_overwrites_values(self):
-        name = 'this/is/it'
-        for implType in IMPLEMENTATIONS.values():
-            impl = implType()
-            impl.store(name, 42)
-            impl.store(name, 43)
-
-            self.assertEqual(impl.retrieve(name), 43)
 
 
 if __name__ == '__main__':

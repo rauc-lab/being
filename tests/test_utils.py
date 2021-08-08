@@ -49,29 +49,22 @@ class TestIdAware(unittest.TestCase):
 
 
 class TestNestedDict(unittest.TestCase):
-    def test_setting_item_can_lead_to_keyerrors(self):
+    def test_new_nested_dict_is_empty(self):
         d = NestedDict()
 
-        with self.assertRaises(KeyError):
-            d['this', 'is', 'it'] = 'Hello, world!'
+        self.assertEqual(d, {})
 
-        d['this'] = {}
-        d['this', 'is'] = {}
+    def test_setting_item_creates_intermediate_dicts(self):
+        d = NestedDict()
         d['this', 'is', 'it'] = 'Hello, world!'
 
         self.assertEqual(d, {'this': {'is': {'it': 'Hello, world!'}}})
 
-    def test_missing_item_results_in_keyerror(self):
+    def test_getting_missing_item_creates_intermediate_dicts(self):
         d = NestedDict()
 
-        with self.assertRaises(KeyError):
-            d['this', 'is', 'it']
-
-    def test_get_works_as_expected(self):
-        d = NestedDict()
-        keys = ('this', 'is', 'it')
-
-        self.assertEqual(d.get(keys), None)
+        self.assertEqual(d['this', 'is', 'it'], {})
+        self.assertEqual(d.data, {'this': {'is': {'it': {}}}})
 
     def test_setdefault_creates_intermediate_dicts(self):
         d = NestedDict()
@@ -88,6 +81,51 @@ class TestNestedDict(unittest.TestCase):
 
         self.assertEqual(d.setdefault(keys, 42), 42)
         self.assertEqual(d.setdefault(keys, 1234), 42)
+
+    def test_get_works_as_expected(self):
+        d = NestedDict()
+        keys = ('this', 'is', 'it')
+
+        self.assertEqual(d.get(keys), None)
+
+
+    def test_get_value_returns_value(self):
+        nested = NestedDict({'this': 42})
+
+        self.assertEqual(nested.get('this'), 42)
+
+    def test_get_non_existing_value_returns_default_and_leaves_underlying_dict_untouched(self):
+        data = {'other': 42}
+        dataCopy = dict(data)
+        nested = NestedDict(data)
+        keys = ('this', 'is', 'it')
+        default = 'default'
+
+        self.assertEqual(nested.get(keys, default), default)
+        self.assertEqual(nested.data, dataCopy)
+
+    """
+    def test_setting_item_can_lead_to_keyerrors(self):
+        d = NestedDict()
+
+        with self.assertRaises(KeyError):
+            d['this', 'is', 'it'] = 'Hello, world!'
+
+        d['this'] = {}
+        d['this', 'is'] = {}
+        d['this', 'is', 'it'] = 'Hello, world!'
+
+        self.assertEqual(d, {'this': {'is': {'it': 'Hello, world!'}}})
+    """
+
+    """
+    def test_missing_item_results_in_keyerror(self):
+        d = NestedDict()
+
+        with self.assertRaises(KeyError):
+            d['this', 'is', 'it']
+    """
+
 
 if __name__ == '__main__':
     unittest.main()
