@@ -2,7 +2,7 @@ import collections
 import io
 import unittest
 
-from being.configuration import (
+from being.configs import (
     IMPLEMENTATIONS,
     _ConfigImpl,
     _IniConfig,

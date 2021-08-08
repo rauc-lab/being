@@ -14,7 +14,7 @@ from aiohttp.typedefs import MultiDictProxy
 
 from being.behavior import State as BehaviorState, Behavior
 from being.being import Being
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.connectables import ValueOutput, _ValueContainer
 from being.content import CONTENT_CHANGED, Content
 from being.logging import get_logger

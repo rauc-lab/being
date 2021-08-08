@@ -11,7 +11,7 @@ import jinja2
 
 from being import __version__ as BEING_VERSION_NUMBER
 from being.behavior import BEHAVIOR_CHANGED
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
 from being.logging import BEING_LOGGERS, get_logger

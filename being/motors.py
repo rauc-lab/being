@@ -36,7 +36,7 @@ from being.can.cia_402 import (
 from being.can.definitions import HOMING_OFFSET
 from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL
 from being.can.vendor import stringify_faulhaber_error
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.constants import INF, FORWARD
 from being.error import BeingError
 from being.kinematics import kinematic_filter, State as KinematicState

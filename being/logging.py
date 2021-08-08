@@ -3,7 +3,7 @@ import logging.handlers
 import os
 from typing import Optional
 
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.constants import MB
 
 BEING_LOGGERS = set()

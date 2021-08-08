@@ -3,7 +3,7 @@ import os
 import glob
 from typing import List, Generator
 
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.logging import get_logger
 from being.pubsub import PubSub
 from being.serialization import loads, dumps

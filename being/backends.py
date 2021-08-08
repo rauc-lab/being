@@ -8,7 +8,7 @@ import sys
 import warnings
 from typing import List, ForwardRef
 
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.rpi_gpio import GPIO
 
 try:
