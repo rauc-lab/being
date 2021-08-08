@@ -6,7 +6,7 @@ import collections
 import io
 import json
 import os
-from typing import Tuple, Any
+from typing import Tuple, Any, Optional
 
 import ruamel.yaml
 import tomlkit
@@ -257,11 +257,15 @@ IMPLEMENTATIONS = {
 }
 
 
-class Config(collections.abc.MutableMapping):
+class Config(_ConfigImpl, collections.abc.MutableMapping):
 
     """Configuration object. Proxy for _ConfigImpl (depending on config format)."""
 
-    def __init__(self, data=None, configFormat=None):
+    def __init__(self, data: dict = None, configFormat: Optional[str] = None):
+        """Kwargs:
+            data: Initial / internal data.
+            configFormat: Config format (if any).
+        """
         if configFormat not in IMPLEMENTATIONS:
             raise ValueError(f'No config implementation for {configFormat}!')
 
@@ -286,10 +290,10 @@ class Config(collections.abc.MutableMapping):
     def store(self, name, value):
         self.impl.store(name, value)
 
-    def storedefault(self, name, default):
+    def storedefault(self, name, default=None):
         self.impl.storedefault(name, default)
 
-    def retrieve(self, name):
+    def retrieve(self, name=ROOT_NAME) -> Any:
         return self.impl.retrieve(name)
 
     def erase(self, name):
