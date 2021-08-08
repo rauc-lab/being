@@ -1,4 +1,3 @@
-import collections
 import io
 import unittest
 
@@ -9,6 +8,7 @@ from being.configs import (
     _JsonConfig,
     _TomlConfig,
     _YamlConfig,
+    Config,
 )
 
 
@@ -127,21 +127,12 @@ INTERVAL = 0.01 # Single cycle interval duration
 "Motions for State III" = ["Excited v2", "Fireworks"] # Motion repertoire for excited State III"""
 
 
-class ConfigImpl(_ConfigImpl):
-    def loads(self, string):
-        pass
-
-    def load(self, stream):
-        pass
-
-    def dumps(self):
-        pass
-
-    def dump(self, stream):
-        pass
-
-
 class TestConfig(unittest.TestCase):
+    def test_none_config_format_is_ConfigImpl(self):
+        config = Config(configFormat=None)
+
+        self.assertIs(type(config.impl), _ConfigImpl)
+
     def test_initial_data_is_dict_like_and_empty(self):
         for implType in IMPLEMENTATIONS.values():
             impl = implType()
@@ -149,12 +140,12 @@ class TestConfig(unittest.TestCase):
 
     def test_config_impl_leaves_original_data_untouched(self):
         data = {}
-        config = ConfigImpl(data)
+        config = Config(data)
 
-        self.assertIs(config.data, data)
+        self.assertIs(config.impl.data, data)
 
     def test_storing_nested_value_results_in_intermediate_keys(self):
-        config = ConfigImpl()
+        config = Config()
         name = 'This/is/it'
         value = 'Hello, world!'
         config.store(name, value)
@@ -164,7 +155,7 @@ class TestConfig(unittest.TestCase):
         self.assertIn('it', config['This']['is'])
 
     def test_stored_value_can_be_retrieved(self):
-        config = ConfigImpl()
+        config = Config()
         name = 'This/is/it'
         value = 'Hello, world!'
         config.store(name, value)
@@ -172,7 +163,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config.retrieve(name), value)
 
     def test_storing_overwrites_values(self):
-        config = ConfigImpl()
+        config = Config()
         name = 'this/is/it'
         config.store(name, 42)
         config.store(name, 43)
@@ -180,7 +171,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config.retrieve(name), 43)
 
     def test_storedefault_does_not_overwrite_existing_values(self):
-        config = ConfigImpl()
+        config = Config()
         name = 'this/is/it'
         config.storedefault(name, 42)
         config.storedefault(name, 43)

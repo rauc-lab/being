@@ -2,6 +2,7 @@
 preservation.
 """
 import abc
+import collections
 import io
 import json
 import os
@@ -14,7 +15,14 @@ import configobj
 from being.utils import NestedDict
 
 
-"""
+'''
+def strip_comment_prefix(comment: str) -> str:
+    """Strip away comment prefix from string."""
+    comment = comment.lstrip()
+    if COMMENT_PREFIX in comment:
+        _, comment = comment.split(COMMENT_PREFIX, maxsplit=1)
+
+    return comment.strip()
 Commenting stuff:
 - INI
   - EOL
@@ -49,7 +57,7 @@ config.data.yaml_set_comment_before_after_key
       ?
   - After
       ?
-"""
+'''
 
 
 SEP: str = '/'
@@ -60,15 +68,6 @@ COMMENT_PREFIX: str = '#'
 
 ROOT_NAME: str = ''
 """Empty string denoting the root config entry."""
-
-
-def strip_comment_prefix(comment: str) -> str:
-    """Strip away comment prefix from string."""
-    comment = comment.lstrip()
-    if COMMENT_PREFIX in comment:
-        _, comment = comment.split(COMMENT_PREFIX, maxsplit=1)
-
-    return comment.strip()
 
 
 def split_name(name: str) -> Tuple[str, str]:
@@ -109,11 +108,6 @@ class _ConfigImpl(NestedDict, abc.ABC):
             elements
     """
 
-    def store(self, name: str, value: Any):
-        """Store config entry under a given name."""
-        keys = tuple(name.split(SEP))
-        self[keys] = value
-
     def retrieve(self, name: str = ROOT_NAME) -> Any:
         """Retrieve config entry of a given name. Root object by default."""
         if name == ROOT_NAME:
@@ -121,6 +115,11 @@ class _ConfigImpl(NestedDict, abc.ABC):
 
         keys = tuple(name.split(SEP))
         return self[keys]
+
+    def store(self, name: str, value: Any):
+        """Store config entry under a given name."""
+        keys = tuple(name.split(SEP))
+        self[keys] = value
 
     def erase(self, name: str):
         """Erase config entry."""
@@ -132,19 +131,15 @@ class _ConfigImpl(NestedDict, abc.ABC):
         keys = tuple(name.split(SEP))
         return self.setdefault(keys, default)
 
-    @abc.abstractmethod
     def loads(self, string):
         """Load from string..."""
 
-    @abc.abstractmethod
     def load(self, stream):
         """Load from stream..."""
 
-    @abc.abstractmethod
     def dumps(self) -> str:
         """Dumps config to string."""
 
-    @abc.abstractmethod
     def dump(self, stream) -> str:
         """Dumps to stream..."""
 
@@ -153,8 +148,11 @@ class _TomlConfig(_ConfigImpl):
 
     """Config implementation for TOML format."""
 
-    def __init__(self):
-        super().__init__(data=tomlkit.document(), default_factory=tomlkit.table)
+    def __init__(self, data=None):
+        if data is None:
+            data = tomlkit.document()
+
+        super().__init__(data, default_factory=tomlkit.table)
 
     def loads(self, string):
         self.data = tomlkit.loads(string)
@@ -173,8 +171,11 @@ class _YamlConfig(_ConfigImpl):
 
     """Config implementation for YAML format."""
 
-    def __init__(self):
-        super().__init__(data=ruamel.yaml.CommentedMap(), default_factory=ruamel.yaml.CommentedMap)
+    def __init__(self, data=None):
+        if data is None:
+            data = ruamel.yaml.CommentedMap()
+
+        super().__init__(data,  default_factory=ruamel.yaml.CommentedMap)
         self.yaml = ruamel.yaml.YAML()
 
     def loads(self, string):
@@ -198,8 +199,11 @@ class _JsonConfig(_ConfigImpl):
     """Config implementation for JSON format. JSON does not support comments!
     Getting or setting comments will result in RuntimeError errors.
     """
-    def __init__(self):
-        super().__init__(data=dict(), default_factory=dict)
+    def __init__(self, data=None):
+        if data is None:
+            data = dict()
+
+        super().__init__(data, default_factory=dict)
 
     def loads(self, string):
         self.data = json.loads(string)
@@ -221,8 +225,11 @@ class _IniConfig(_ConfigImpl):
     now.
     """
 
-    def __init__(self):
-        super().__init__(data=configobj.ConfigObj(), default_factory=configobj.ConfigObj)
+    def __init__(self, data=None):
+        if data is None:
+            data = configobj.ConfigObj()
+
+        super().__init__(data, default_factory=configobj.ConfigObj)
 
     def loads(self, string):
         buf = io.StringIO(string)
@@ -242,6 +249,7 @@ class _IniConfig(_ConfigImpl):
 
 
 IMPLEMENTATIONS = {
+    None: _ConfigImpl,
     'toml': _TomlConfig,
     'yaml': _YamlConfig,
     'json': _JsonConfig,
@@ -249,13 +257,31 @@ IMPLEMENTATIONS = {
 }
 
 
-class Config():
-    def __init__(self, configFormat):
+class Config(collections.abc.MutableMapping):
+
+    """Configuration object. Proxy for _ConfigImpl (depending on config format)."""
+
+    def __init__(self, data=None, configFormat=None):
         if configFormat not in IMPLEMENTATIONS:
             raise ValueError(f'No config implementation for {configFormat}!')
 
         implType = IMPLEMENTATIONS[configFormat]
-        self.impl: _ConfigImpl = implType()
+        self.impl: _ConfigImpl = implType(data)
+
+    def __getitem__(self, key):
+        return self.impl[key]
+
+    def __setitem__(self, key, value):
+        self.impl[key] = value
+
+    def __delitem__(self, key):
+        del self.impl[key]
+
+    def __iter__(self):
+        return iter(self.impl)
+
+    def __len__(self):
+        return len(self.impl)
 
     def store(self, name, value):
         self.impl.store(name, value)
@@ -272,8 +298,14 @@ class Config():
     def loads(self, string):
         self.impl.loads(string)
 
+    def load(self, stream):
+        self.impl.load(stream)
+
     def dumps(self):
         return self.impl.dumps()
+
+    def dump(self, stream):
+        return self.impl.dump(stream)
 
 
 class ConfigFile(Config):
