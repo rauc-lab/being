@@ -15,56 +15,8 @@ import configobj
 from being.utils import NestedDict
 
 
-'''
-def strip_comment_prefix(comment: str) -> str:
-    """Strip away comment prefix from string."""
-    comment = comment.lstrip()
-    if COMMENT_PREFIX in comment:
-        _, comment = comment.split(COMMENT_PREFIX, maxsplit=1)
-
-    return comment.strip()
-Commenting stuff:
-- INI
-  - EOL
-      >>> head, tail = split_name(name)
-      ... parent = self.retrieve(head)
-      ... parent.inline_comments[tail] = eol
-  - Before
-      Same as EOL but with parent.comments[key] = []
-  - After
-      ?
-
-- JSON
-    Not supported
-
-- YAML
-  - EOL
-      >>> head, tail = split_name(name)
-      ... parent = self.retrieve(head)
-      ... parent.yaml_add_eol_comment(eol, key=tail)
-  - Before / After
-      >>> head, tail = split_name(name)
-config.data.yaml_set_comment_before_after_key
-      ... parent = self.retrieve(head)
-      ... parent.yaml_set_comment_before_after_key(tail, before=before, after=after, indent=?)
-
-- TOML
-  - EOL
-      >>> entry = self.retrieve(name)
-      ... entry.comment(eol)
-
-  - Before
-      ?
-  - After
-      ?
-'''
-
-
 SEP: str = '/'
 """Separator for name <-> key path conversion."""
-
-COMMENT_PREFIX: str = '#'
-"""Comment prefix character."""
 
 ROOT_NAME: str = ''
 """Empty string denoting the root config entry."""
@@ -84,13 +36,13 @@ def split_name(name: str) -> Tuple[str, str]:
         >>> split_name('this/is/it')
         ('this/is', 'it')
     """
-    if SEP in name:
-        return name.rsplit('/', maxsplit=1)
+    if SEP not in name:
+        return '', name
 
-    return '', name
+    return name.rsplit('/', maxsplit=1)
 
 
-def guess_format(filepath):
+def guess_config_format(filepath: str) -> str:
     """Guess config format from file extension."""
     _, ext = os.path.splitext(filepath)
     return ext[1:].lower()
@@ -98,14 +50,22 @@ def guess_format(filepath):
 
 class _ConfigImpl(NestedDict, abc.ABC):
 
-    """Semi abstract base class for all configuration implementations. Holds the
-    dict-like data object from the various third-party libraries. Contains the
-    default_factory() for intermediate levels.
+    """Base class for private implementations of different config formats.
+
+    Holds the dict-like data object from the various third-party libraries.
+    Contains the default_factory() for intermediate levels. Allows for path like
+    `name` syntax to access nested dicts with string keys.
 
     Attributes:
         data: Original dict-like config data object.
         default_factory: Associated default_factory for creating intermediate
             elements
+
+    Usage:
+        >>> c = _ConfigImpl()
+        ... c.store('this/is/it', 'Hello, world!')
+        ... c.storedefault('this/is/it', 42)
+        'Hello, world!'
     """
 
     def retrieve(self, name: str = ROOT_NAME) -> Any:
@@ -126,7 +86,7 @@ class _ConfigImpl(NestedDict, abc.ABC):
         keys = tuple(name.split(SEP))
         del self[keys]
 
-    def storedefault(self, name: str, default: Any = None):
+    def storedefault(self, name: str, default: Any = None) -> Any:
         """Store config entry under name if it does not exist."""
         keys = tuple(name.split(SEP))
         return self.setdefault(keys, default)
@@ -199,6 +159,7 @@ class _JsonConfig(_ConfigImpl):
     """Config implementation for JSON format. JSON does not support comments!
     Getting or setting comments will result in RuntimeError errors.
     """
+
     def __init__(self, data=None):
         if data is None:
             data = dict()
@@ -211,11 +172,11 @@ class _JsonConfig(_ConfigImpl):
     def load(self, stream):
         self.data = json.load(stream)
 
-    def dumps(self, indent=4):
-        return json.dumps(self.data, indent=indent)
+    def dumps(self):
+        return json.dumps(self.data, indent=4)
 
-    def dump(self, stream, indent=4):
-        return json.dump(self.data, stream, indent=indent)
+    def dump(self, stream):
+        return json.dump(self.data, stream, indent=4)
 
 
 class _IniConfig(_ConfigImpl):
@@ -314,7 +275,7 @@ class Config(_ConfigImpl, collections.abc.MutableMapping):
 
 class ConfigFile(Config):
     def __init__(self, filepath):
-        super().__init__(configFormat=guess_format(filepath))
+        super().__init__(configFormat=guess_config_format(filepath))
         self.filepath = filepath
         if os.path.exists(self.filepath):
             self.reload()
