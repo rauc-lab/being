@@ -1,7 +1,6 @@
 """Config data / file access for ini, json, yaml and toml. Round trip
 preservation.
 """
-import abc
 import collections
 import io
 import json
@@ -48,7 +47,7 @@ def guess_config_format(filepath: str) -> str:
     return ext[1:].lower()
 
 
-class _ConfigImpl(NestedDict, abc.ABC):
+class _ConfigImpl(NestedDict):
 
     """Base class for private implementations of different config formats.
 
