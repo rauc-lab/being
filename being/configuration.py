@@ -1,13 +1,10 @@
 """Loading configurations and default configuration values."""
-import configparser
-import json
 import logging
 import os
-import collections
-from typing import Union
 
 from being.configs import ConfigFile
 from being.utils import _update_dict_recursively
+
 
 CONFIG: dict = {
     'General': {
