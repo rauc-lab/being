@@ -62,9 +62,23 @@ def write_file(filepath: str, data):
         file.write(data)
 
 
-def any_item(iterable):
-    """Pick first element of iterable."""
-    return next(iter(iterable))
+def _update_dict_recursively(dct: dict, other: dict) -> dict:
+    """Update dictionary recursively.
+
+    Args:
+        dct: Dictionary to update.
+
+    Kwargs:
+        key / values
+    """
+    T = type(dct)
+    for k, v in other.items():
+        if isinstance(v, collections.abc.Mapping):
+            dct[k] = _update_dict_recursively(dct.get(k, T()), v)
+        else:
+            dct[k] = v
+
+    return dct
 
 
 class SingleInstanceCache:

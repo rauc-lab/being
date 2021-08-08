@@ -3,10 +3,13 @@ import configparser
 import json
 import logging
 import os
+import collections
 from typing import Union
 
+from being.configs import ConfigFile
+from being.utils import _update_dict_recursively
 
-CONFIG = {
+CONFIG: dict = {
     'General': {
         'INTERVAL': .010,  # Main loop interval in seconds.
         'CONTENT_DIRECTORY': 'content',  # Default directory for motions / splines
@@ -27,71 +30,15 @@ CONFIG = {
         'FILENAME': 'being.log',
     }
 }
-"""Global configuration object."""
+"""Global being configuration.
 
-
-def parse_string(string: str) -> Union[str, object]:
-    """Try to parse some JSON data from string."""
-    for ctor in [int, float]:
-        try:
-            return ctor(string)
-        except ValueError:
-            pass
-
-    try:
-        return json.loads(string)
-    except json.JSONDecodeError:
-        pass
-
-    return string
-
-
-def parse_config(content: str) -> dict:
-    """Parse INI string to dictionary (recursive sub-dictionaries for sections).
-
-    Args:
-        string: String to parse.
-
-    Returns:
-        Parsed configuration dictionary.
-    """
-    config = {}
-    parser = configparser.ConfigParser(
-        inline_comment_prefixes=('#',),
-        default_section='DEFAULT',
-    )
-    parser.optionxform = str  # Case sensitive parsing
-    parser.read_string(content)
-    for key, s in parser['DEFAULT'].items():
-        config[key] = parse_string(s)
-
-    for section in parser.sections():
-        subconfig = config.setdefault(section, {})
-        for key, s in parser[section].items():
-            subconfig[key] = parse_string(s)
-
-    return config
-
-
-def _update_recursively(dct: dict, **kwargs):
-    """Update dictionary recursively.
-
-    Args:
-        dct: Dictionary to update.
-
-    Kwargs:
-        key / values
-    """
-    for key, value in kwargs.items():
-        if isinstance(dct.get(key), dict):
-            _update_recursively(dct[key], **value)
-        else:
-            dct[key] = value
-
+Note:
+- Not a being.configs.Config instance because read-only
+- Not a being.utils.NestedDict instance in order to catch KeyErrors pre-runtime.
+"""
 
 for fp in [
     os.path.join(os.getcwd(), 'being.ini'),
 ]:
     if os.path.exists(fp):
-        with open(fp) as f:
-            _update_recursively(CONFIG, **parse_config(f.read()))
+        _update_dict_recursively(CONFIG, ConfigFile(fp))
