@@ -1,5 +1,7 @@
 #!/usr/local/python3
 """Slow Sine movement on the motors."""
+import logging
+
 from being.awakening import awake
 from being.blocks import Sawtooth, Trafo
 from being.motors import RotaryMotor
@@ -8,7 +10,7 @@ from being.constants import TAU
 from being.logging import setup_logging
 from being.motion_player import MotionPlayer
 from being.constants import BACKWARD, FORWARD
-import logging
+from being.can.motor_paramters import EC45_469292_24V as EC45
 
 
 # Params
@@ -17,11 +19,12 @@ FREQUENCY = 0.5
 
 setup_logging(level=logging.WARNING)
 
+
 def look_for_motors():
     """Look which motors for NODE_IDS are available."""
     for nodeId in MOTOR_IDS:
         try:
-            yield RotaryMotor(nodeId, gearNumerator=69, gearDenumerator=13, direction=FORWARD)
+            yield RotaryMotor(nodeId,  direction=FORWARD, motor=EC45, maxSpeed=500)
         except RuntimeError:
             pass
 
@@ -35,6 +38,7 @@ with manage_resources():
         # saw | mot
 
     for output, motor in zip(mp.positionOutputs, motors):
+        motor.configure_node(encoderNumberOfPulses=2048, encoderHasIndex=False)
         output.connect(motor.input)
 
     awake(mp)

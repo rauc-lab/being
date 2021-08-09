@@ -14,4 +14,5 @@ EC45_469292_24V = {
     'motorTorqueConstant': 0.0369,
     'ratedTorque': 0.128,
     'maxRatedSpeed': 1047,
+    'numberOfPolePairs': 8,
 }

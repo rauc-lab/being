@@ -587,7 +587,6 @@ class RotaryMotor(Motor):
             objectDictionary: Object dictionary for CiA402Node. Will be tried
                 to be identified from known EDS files.
         """
-        print(motor)
         super().__init__(**kwargs)
         if homingDirection is None:
             homingDirection = direction
@@ -613,7 +612,12 @@ class RotaryMotor(Motor):
         self.network = network
         self.arc = arc
         self.node = node
-        self.maxSpeed = self.motor.get('maxRatedSpeed', maxSpeed)
+
+        if self.motor.get('maxRatedSpeed', 900) < maxSpeed:
+            self.maxSpeed = self.motor.get('maxRatedSpeed', maxSpeed)
+        else:
+            self.maxSpeed = maxSpeed
+
         self.maxAcc = maxAcc
 
         self.logger = get_logger(str(self))
@@ -636,6 +640,7 @@ class RotaryMotor(Motor):
                        gearNumerator: int = 1,
                        gearDenumerator: int = 1,
                        encoderNumberOfPulses=1024,
+                       encoderHasIndex=True,
                        ):
         """Configure Maxon EPOS4 node (some settings via SDO)."""
 
@@ -658,18 +663,25 @@ class RotaryMotor(Motor):
 
         isBrushed = self.motor.get('isBrushed', True)
 
-        self.node.sdo[EPOS4.MOTOR_TYPE].raw = 1 if isBrushed else 10  # 10 =BLDC sinus-commutated
+        self.node.sdo[EPOS4.MOTOR_TYPE].raw = 1 if isBrushed else 10
         motorData = self.node.sdo[EPOS4.MOTOR_DATA_MAXON]
 
         # Reducing the nominal current helps to make the motor quiter
-        nominalCurrent = self.motor.get('nominalCurrent', 0.3) * units.current  # [mA]
-        motorData[EPOS4.NOMINAL_CURRENT].raw = nominalCurrent
+        nominalCurrent = self.motor.get('nominalCurrent', 0.3) * units.current
+        motorData[EPOS4.NOMINAL_CURRENT].raw = nominalCurrent  # [mA]
 
         # Recommended to set current limit to double of nominal current
         motorData[EPOS4.OUTPUT_CURRENT_LIMIT].raw = 2 * nominalCurrent  # [mA]
-        motorData[EPOS4.NUMBER_OF_POLE_PAIRS].raw = self.motor.get('numberOfPolePairs', 1)  # only relevant for BLDC motors
-        motorData[EPOS4.THERMAL_TIME_CONSTANT_WINDING].raw = self.motor.get('thermalTimeConstant', 14.3) * units.thermal  # [0.1 s]
-        motorData[EPOS4.MOTOR_TORQUE_CONSTANT].raw = self.motor.get('motorTorqueConstant', 0.03) * units.torque  # [μNm/A]
+
+        # only relevant for BLDC motors
+        numberOfPolePairs = self.motor.get('numberOfPolePairs', 1)
+        motorData[EPOS4.NUMBER_OF_POLE_PAIRS].raw = numberOfPolePairs
+
+        thermalTimeConstant = self.motor.get('thermalTimeConstant', 14.3) * units.thermal
+        motorData[EPOS4.THERMAL_TIME_CONSTANT_WINDING].raw = thermalTimeConstant  # [0.1 s]
+
+        motorTorqueConstant = self.motor.get('motorTorqueConstant', 0.03) * units.torque
+        motorData[EPOS4.MOTOR_TORQUE_CONSTANT].raw = motorTorqueConstant  # [μNm/A]
         self.node.sdo[EPOS4.MAX_MOTOR_SPEED].raw = angular_velocity_to_rpm(self.maxSpeed)  # [rpm]
 
         if hasGear:
@@ -681,11 +693,16 @@ class RotaryMotor(Motor):
         # Set position sensor parameters
 
         axisConf = self.node.sdo[EPOS4.AXIS_CONFIGURATION]
-        axisConf[EPOS4.SENSORS_CONFIGURATION].raw = 1  # TODO: Adjust for Hall sensors for BLDC
+
+        if isBrushed:
+            # Digital incremental encoder 1
+            axisConf[EPOS4.SENSORS_CONFIGURATION].raw = 1
+        else:
+            # Digital Hall Sensor (EC motors only) & Digital Hall Sensor (EC motors only)
+            axisConf[EPOS4.SENSORS_CONFIGURATION].raw = 0x100001
 
         # TODO: Break down more, see table page 141 in EPOS4-Firmware-Specification-En.pdf
-
-        axisConf[EPOS4.CONTROL_STRUCTURE].raw = 0x00010111 | (hasGear << 12)
+        axisConf[EPOS4.CONTROL_STRUCTURE].raw = 0x00010121 | (hasGear << 12)
         axisConf[EPOS4.COMMUTATION_SENSORS].raw = 0 if isBrushed else 0x31
 
         if self.direction > 0:
@@ -694,11 +711,11 @@ class RotaryMotor(Motor):
             polarity = EPOS4.AxisPolarity.CW
         axisConf[EPOS4.AXIS_CONFIGURATION_MISCELLANEOUS].raw = 0x0 | polarity
 
-        digitalEncoder = self.node.sdo[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1]
+        encoder = self.node.sdo[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1]
         #  4 * (pulses / revolutions) = increments / revolutions
         # eg 4 * 1024 = 4096 increments / rev.
-        digitalEncoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_NUMBER_OF_PULSES].raw = encoderNumberOfPulses
-        digitalEncoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_TYPE].raw = 1 # with index (3 channel)
+        encoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_NUMBER_OF_PULSES].raw = encoderNumberOfPulses
+        encoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_TYPE].raw = 1 if encoderHasIndex else 0
 
         # TODO: add SSI configuration. Required for BLDC?
 

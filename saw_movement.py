@@ -9,7 +9,8 @@ from being.resources import manage_resources
 from being.constants import TAU
 from being.logging import setup_logging
 from being.constants import BACKWARD, FORWARD
-from being.can.motor_configs import DCmax22S_GB_KL_12V as DCmax22
+from being.can.motor_paramters import DCmax22S_GB_KL_12V as DCmax22
+from being.can.motor_paramters import EC45_469292_24V as EC45
 
 
 # Params
@@ -22,8 +23,8 @@ with manage_resources():
     saw = Sawtooth(FREQUENCY)
 
     for nodeId in MOTOR_IDS:
-        mot = RotaryMotor(nodeId,  direction=FORWARD, motor=DCmax22)
-        mot.configure_node(hasGear=True, gearNumerator=69, gearDenumerator=13)
+        mot = RotaryMotor(nodeId,  direction=FORWARD, motor=EC45, maxSpeed=500)
+        mot.configure_node(encoderNumberOfPulses=2048, encoderHasIndex=False)
         saw | mot
 
     awake(saw)
