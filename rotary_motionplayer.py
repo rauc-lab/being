@@ -24,7 +24,7 @@ def look_for_motors():
     """Look which motors for NODE_IDS are available."""
     for nodeId in MOTOR_IDS:
         try:
-            yield RotaryMotor(nodeId,  direction=FORWARD, motor=EC45, maxSpeed=500)
+            yield RotaryMotor(nodeId,  direction=FORWARD, motor=EC45, maxSpeed=50, maxAcc=10)
         except RuntimeError:
             pass
 

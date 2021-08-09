@@ -45,7 +45,9 @@ from being.can.vendor import (
     Units,
     stringify_error,
     MAXON_ERROR_REGISTER,
+    MAXON_ERROR_CODES,
     FAULHABER_ERROR_REGISTER,
+    FAULHABER_ERROR_CODES,
     MCLM3002,
     EPOS4,
 )
@@ -519,8 +521,9 @@ class LinearMotor(Motor):
             #raise DriveError(msg)
             for emcy in self.node.emcy.active:
                 msg = stringify_error(emcy.register, FAULHABER_ERROR_REGISTER)
-                # note: error codes are more specific than error register only
-                self.logger.error(f'DriveError: {msg} with Error code: {emcy.code}')
+                description = FAULHABER_ERROR_CODES[emcy.code]
+                self.logger.error(f'DriveError: {msg} with \
+                    Error code {emcy.code}: {description}')
 
         if self.homing is HomingState.HOMED:
             sw = self.node.pdo[STATUSWORD].raw  # This takes approx. 0.027 ms
@@ -581,7 +584,7 @@ class RotaryMotor(Motor):
             direction: Movement orientation.
             homingDirection: Initial homing direction. Default same as `direction`.
             maxSpeed: Maximum speed [rad / s].
-            maxAcc: Maximum acceleration.
+            maxAcc: Maximum acceleration. Not taken into account in CSP mode
             network: External network (dependency injection).
             node: Drive node (dependency injection).
             objectDictionary: Object dictionary for CiA402Node. Will be tried
@@ -788,8 +791,9 @@ class RotaryMotor(Motor):
             #raise DriveError(msg)
             for emcy in self.node.emcy.active:
                 msg = stringify_error(emcy.register, MAXON_ERROR_REGISTER)
-                # note: error codes are more specific than error register only
-                self.logger.error(f'DriveError: {msg} with Error code: {emcy.code}')
+                description = MAXON_ERROR_CODES[emcy.code]
+                self.logger.error(f'DriveError: {msg} with \
+                    Error code {emcy.code}: {description}')
 
         if self.homing is HomingState.HOMED:
             sw = self.node.pdo[STATUSWORD].raw  # This takes approx. 0.027 ms

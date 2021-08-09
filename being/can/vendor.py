@@ -35,6 +35,7 @@ UNITS: Dict[bytes, Units] = {
         speed=1000,  # [rad/s]
     ),
 }
+
 """Raw MANUFACTURER_DEVICE_NAME byte string -> Vendor units lookup."""
 
 # TODO: Generalize for other vendors!
@@ -64,7 +65,119 @@ MAXON_ERROR_REGISTER: Dict[int, str] = {
     1 << 6: 'Reserved (always 0)',
     1 << 7: 'Motion Error',
 }
-"""Error code -> Error message string lookup."""
+
+"""Faulhaber error code -> Error message string lookup."""
+FAULHABER_ERROR_CODES: Dict[int, str] = {
+    0x0000: 'No error',
+    0x1000: 'Generic error',
+    0x2000: 'Current',
+    0x2300: 'Current, device output side',
+    0x2310: 'Continuous over current 0x00',
+    0x3000: 'Voltage',
+    0x3200: 'Voltage inside the device',
+    0x3210: 'Overvoltage 0x00',
+    0x4000: 'Temperature',
+    0x4300: 'Drive temperature',
+    0x4310: 'Overtemperature 0x00',
+    0x5000: 'Device hardware',
+    0x5500: 'Data storage',
+    0x5530: 'Flash memory error 0x00',
+    0x6000: 'Device software',
+    0x6100: 'Internal software 0x10',
+    0x8000: 'Monitoring',
+    0x8100: 'Communication',
+    0x8110: 'CAN Overrun (objects lost) 0x00',
+    0x8120: 'CAN in error passive mode 0x00',
+    0x8130: 'Life guard or heartbeat error 0x01',
+    0x8140: 'Recovered from bus off 0x02',
+    0x8200: 'Protocol error',
+    0x8210: 'PDO not processed due to length error 0x40',
+    0x8220: 'PDO length exceeded 0x20',
+    0x8400: 'Velocity speed controller (deviation) 0x00',
+    0x8600: 'Positioning controller',
+    0x8611: 'Following error (deviation) 0x00',
+    0xFF00: 'Device specific',
+    0xFF01: 'Conversion overflow 0x08',
+}
+
+"""Maxon error code -> Error message string lookup."""
+MAXON_ERROR_CODES: Dict[int, str] = {
+    0x0000: 'No Error',
+    0x1000: 'Generic error',
+    0x1090: 'Firmware incompatibility error',
+    0x2310: 'Overcurrent error',
+    0x2320: 'Power stage protection error',
+    0x3210: 'Overvoltage error',
+    0x3220: 'Undervoltage error',
+    0x4210: 'Thermal overload error',
+    0x4380: 'Thermal motor overload error',
+    0x5113: 'Logic supply voltage too low error',
+    0x5280: 'Hardware defect error',
+    0x5281: 'Hardware incompatibility error',
+    0x6080: 'Sign of life error',
+    0x6081: 'Extension 1 watchdog error',
+    0x6320: 'Software parameter error',
+    0x6380: 'Persistent parameter corrupt error',
+    0x7320: 'Position sensor error',
+    0x7380: 'Position sensor breach error',
+    0x7381: 'Position sensor resolution error',
+    0x7382: 'Position sensor index error',
+    0x7388: 'Hall sensor error',
+    0x7389: 'Hall sensor not found error',
+    0x738A: 'Hall angle detection error',
+    0x738C: 'SSI sensor error',
+    0x738D: 'SSI sensor frame error',
+    0x7390: 'Missing main sensor error',
+    0x7391: 'Missing commutation sensor error',
+    0x7392: 'Main sensor direction error',
+    0x8110: 'CAN overrun error(object lost)',
+    0x8111: 'CAN overrun error',
+    0x8120: 'CAN passive mode error',
+    0x8130: 'CAN heartbeat error',
+    0x8150: 'CAN PDO COB-ID collision',
+    0x8180: 'EtherCAT communication error',
+    0x8181: 'EtherCAT initialization error',
+    0x8182: 'EtherCAT Rx queue overflow',
+    0x8183: 'EtherCAT communication error(internal)',
+    0x8184: 'EtherCAT communication cycle time error',
+    0x81FD: 'CAN bus turned off',
+    0x81FE: 'CAN Rx queue overflow',
+    0x81FF: 'CAN Tx queue overflow',
+    0x8210: 'CAN PDO length error',
+    0x8250: 'RPDO timeout',
+    0x8280: 'EtherCAT PDO communication error',
+    0x8281: 'EtherCAT SDO communication error',
+    0x8611: 'Following error',
+    0x8A80: 'Negative limit switch error',
+    0x8A81: 'Positive limit switch error',
+    0x8A82: 'Software position limit error',
+    0x8A88: 'STO error',
+    0xFF01: 'System overloaded error',
+    0xFF02: 'Watchdog error',
+    0xFF0B: 'System peak overloaded error',
+    0xFF10: 'Controller gain error',
+    0xFF11: 'Auto tuning identification error',
+    0xFF12: 'Auto tuning current limit error',
+    0xFF13: 'Auto tuning identification current error',
+    0xFF14: 'Auto tuning data sampling error',
+    0xFF15: 'Auto tuning sample mismatch error',
+    0xFF16: 'Auto tuning parameter error',
+    0xFF17: 'Auto tuning amplitude mismatch error',
+    0xFF19: 'Auto tuning timeout error',
+    0xFF20: 'Auto tuning standstill error',
+    0xFF21: 'Auto tuning torque invalid error',
+    0xFF22: 'Auto tuning max system speed error',
+    0xFF23: 'Auto tuning motor connection error',
+    0xFF24: 'Auto tuning sensor signal error',
+}
+
+"""Add value ranges to the dict"""
+for i in range(0x1080, 0x1088 + 1):
+    MAXON_ERROR_CODES[i] = 'Generic initialization error'
+for i in range(0x5480, 0x5483 + 1):
+    MAXON_ERROR_CODES[i] = 'Hardware error'
+for i in range(0x6180, 0x61F0 + 1):
+    MAXON_ERROR_CODES[i] = 'Internal software error'
 
 
 def stringify_error(value: int, errorDict: dict) -> str:
