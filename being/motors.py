@@ -569,6 +569,7 @@ class RotaryMotor(Motor):
                  arc: float = TAU,
                  direction: float = FORWARD,
                  homingDirection: Optional[float] = None,
+                 homingMethod: Optional[int] = None,
                  maxSpeed: float = 942,  # [rad /s ] -> 9000 rpm
                  maxAcc: float = 4294967295,
                  network: Optional[CanBackend] = None,
@@ -609,6 +610,15 @@ class RotaryMotor(Motor):
             if deviceName != "EPOS4":
                 raise DriveError("Attached motor controller (%s) is not an EPOS4!", deviceName)
 
+        if homingMethod is None:
+            # Axis polarirty also affects homing direction!
+            if (self.homingDirection * self.direction) > 0:
+                self.homingMethod = -3
+            else:
+                self.homingMethod = -4
+        else:
+            self.homingMethod = homingMethod
+                
         self.motor = motor
         self.direction = sign(direction)
         self.homingDirection = sign(homingDirection)
@@ -772,14 +782,8 @@ class RotaryMotor(Motor):
     def home(self, offset: int = 0):
         self.node.sdo[EPOS4.HOME_OFFSET_MOVE_DISTANCE].raw = offset
 
-        # Axis polarirty also affects homing direction!
-        if (self.homingDirection * self.direction) > 0:
-            homingMethod = -3
-        else:
-            homingMethod = -4
-
         self.homingJob = proper_homing(self.node,
-                                       homingMethod=homingMethod,
+                                       homingMethod=self.homingMethod,
                                        timeout=5,
                                        maxSpeed=rpm_to_angular_velocity(60),
                                        maxAcc=100)
