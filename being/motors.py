@@ -610,6 +610,10 @@ class RotaryMotor(Motor):
             if deviceName != "EPOS4":
                 raise DriveError("Attached motor controller (%s) is not an EPOS4!", deviceName)
 
+        self.motor = motor
+        self.direction = sign(direction)
+        self.homingDirection = sign(homingDirection)
+
         if homingMethod is None:
             # Axis polarirty also affects homing direction!
             if (self.homingDirection * self.direction) > 0:
@@ -618,10 +622,7 @@ class RotaryMotor(Motor):
                 self.homingMethod = -4
         else:
             self.homingMethod = homingMethod
-                
-        self.motor = motor
-        self.direction = sign(direction)
-        self.homingDirection = sign(homingDirection)
+
         self.network = network
         self.arc = arc
         self.node = node
