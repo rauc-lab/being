@@ -147,7 +147,7 @@ class Mclm3002(Controller):
         self.maxSpeed = maxSpeed
         self.maxAcc = maxAcc
 
-        self.units = Units(
+        self.deviceUnits = Units(
             length=1e6,
             current=1000,
             kinematics=1000,
@@ -185,13 +185,13 @@ class Mclm3002(Controller):
         #posController['Derivative Term PD'].raw = 14
 
         curController = self.node.sdo['Current Control Parameter Set']
-        curController['Continuous Current Limit'].raw = 0.550 * self.units.current  # [mA]
-        curController['Peak Current Limit'].raw = 1.640 * self.units.current  # [mA]
+        curController['Continuous Current Limit'].raw = 0.550 * self.deviceUnits.current  # [mA]
+        curController['Peak Current Limit'].raw = 1.640 * self.deviceUnits.current  # [mA]
         curController['Integral Term CI'].raw = 3
 
-        self.node.sdo['Max Profile Velocity'].raw = self.maxSpeed * self.units.kinematics  # [mm / s]
-        self.node.sdo['Profile Acceleration'].raw = self.maxAcc * self.units.kinematics  # [mm / s^2]
-        self.node.sdo['Profile Deceleration'].raw = self.maxAcc * self.units.kinematics  # [mm / s^2]
+        self.node.sdo['Max Profile Velocity'].raw = self.maxSpeed * self.deviceUnits.kinematics  # [mm / s]
+        self.node.sdo['Profile Acceleration'].raw = self.maxAcc * self.deviceUnits.kinematics  # [mm / s^2]
+        self.node.sdo['Profile Deceleration'].raw = self.maxAcc * self.deviceUnits.kinematics  # [mm / s^2]
 
     def home_forward(self, speed: int) -> HomingProgress:
         """Home in forward direction until upper limits is not increasing
@@ -237,7 +237,7 @@ class Mclm3002(Controller):
         """
         node = self.node
         forward = (self.homingDirection > 0)
-        speed = abs(maxSpeed * self.units.speed)
+        speed = abs(maxSpeed * self.deviceUnits.speed)
         relMargin = clip(relMargin, 0.00, 0.50)  # In [0%, 50%]!
 
         with node.restore_states_and_operation_mode():
@@ -262,7 +262,7 @@ class Mclm3002(Controller):
 
             node.change_state(CiA402State.READY_TO_SWITCH_ON)
 
-            homingWidth = (self.upper - self.lower) / self.units.length
+            homingWidth = (self.upper - self.lower) / self.deviceUnits.length
             if homingWidth < MINIMUM_HOMING_WIDTH:
                 raise HomingFailed(
                     f'Homing width to narrow. Homing range: {[self.lower, self.upper]}!'
@@ -273,7 +273,7 @@ class Mclm3002(Controller):
                 self.length = (1. - 2 * relMargin) * homingWidth
 
             # Center according to rod length
-            lengthDev = int(self.length * self.units.length)
+            lengthDev = int(self.length * self.deviceUnits.length)
             self.lower, self.upper = _align_in_the_middle(self.lower, self.upper, lengthDev)
 
             node.sdo[HOMING_OFFSET].raw = self.lower
@@ -292,11 +292,11 @@ class Mclm3002(Controller):
         else:
             tarPos = self.length - targetPosition
 
-        self.node.set_target_position(tarPos * self.units.length)
+        self.node.set_target_position(tarPos * self.deviceUnits.length)
 
     def get_actual_position(self) -> float:
         """Get actual position in SI units."""
-        return self.node.get_actual_position() / self.units.length
+        return self.node.get_actual_position() / self.deviceUnits.length
 
 
 # TODO(atheler): Make me.
