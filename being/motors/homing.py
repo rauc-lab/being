@@ -24,9 +24,11 @@ from being.can.cia_402 import (
     SW,
     SOFTWARE_POSITION_LIMIT,
     )
+from being.can.definitions import HOMING_OFFSET
 from being.can.nmt import OPERATIONAL
+from being.constants import INF
 from being.error import BeingError
-
+from being.math import clip
 
 HomingRange = Tuple[int, int]
 """Lower and upper homing range."""
@@ -187,3 +189,109 @@ def proper_homing(
         yield HomingState.HOMED
     else:
         yield HomingState.FAILED
+
+
+def crude_homing(
+        node,
+        homingDirection,
+        speed,
+        minWidth,
+        length=None,
+        relMargin=0.01,
+    ):
+    """Crude homing procedure. Move with PROFILED_VELOCITY operation mode in
+    both direction until reaching the limits (position not increasing or
+    decreasing anymore). Implemented as Generator so that we can home multiple
+    motors in parallel (quasi pseudo coroutine). time.sleep has to be handled by
+    the caller.
+
+    Args:
+        node: Connected CanOpen node.
+        homingDirection: Initial homing direction.
+        speed: Homing speed in device units.
+        minWidth: Minimum width for homing in device units.
+
+    Kwargs:
+        length: Known length of motor in device units.
+        relMargin: Relative margin if motor length is not known a priori.
+            Relative margin. 0.0 to 0.5 (0% to 50%).  Final length will be the
+            measured length from the two homing travels minus `relMargin`
+            percent on both sides.
+
+    Yields:
+        Homing state.
+    """
+
+    forward = (homingDirection > 0)
+    speed = abs(speed)
+    relMargin = clip(relMargin, 0.00, 0.50)  # In [0%, 50%]!
+
+    upper = -INF
+    lower = INF
+
+    def home_forward(speed: int) -> HomingProgress:
+        """Home in forward direction until upper limits is not increasing
+        anymore.
+        """
+        nonlocal upper
+        upper = -INF
+        yield from _move_node(node, velocity=speed)
+        while (pos := _fetch_position(node)) > upper:
+            upper = pos
+            yield HomingState.ONGOING
+
+        yield from _move_node(node, velocity=0.)
+
+    def home_backward(speed: int) -> HomingProgress:
+        """Home in backward direction until `lower` is not decreasing
+        anymore.
+        """
+        nonlocal lower
+        lower = INF
+        yield from _move_node(node, velocity=-speed)
+        while (pos := _fetch_position(node)) < lower:
+            lower = pos
+            yield HomingState.ONGOING
+
+        yield from _move_node(node, velocity=0.)
+
+    with node.restore_states_and_operation_mode():
+        node.change_state(CiA402State.READY_TO_SWITCH_ON)
+        node.set_operation_mode(OperationMode.PROFILED_VELOCITY)
+        node.change_state(CiA402State.OPERATION_ENABLE)
+        node.nmt.state = OPERATIONAL
+
+        node.sdo[HOMING_METHOD].raw = 35
+        node.sdo[HOMING_OFFSET].raw = 0
+
+        # Homing travel
+        # TODO: Should we skip 2nd homing travel if we know motor length a
+        # priori? Would need to also consider relMargin. Otherwise motor
+        # will touch one edge
+        if forward:
+            yield from home_forward(speed)
+            yield from home_backward(speed)
+        else:
+            yield from home_backward(speed)
+            yield from home_forward(speed)
+
+        node.change_state(CiA402State.READY_TO_SWITCH_ON)
+
+        homingWidth = (upper - lower)
+        if homingWidth < minWidth:
+            raise HomingFailed(
+                f'Homing width to narrow. Homing range: {[lower, upper]}!'
+            )
+
+        # Estimate motor length
+        if length is None:
+            length = (1. - 2 * relMargin) * homingWidth
+
+        # Center according to rod length
+        lower, upper = _align_in_the_middle(lower, upper, length)
+
+        node.sdo[HOMING_OFFSET].raw = lower
+        node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
+        node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = upper - lower
+
+    yield HomingState.HOMED

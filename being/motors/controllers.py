@@ -21,7 +21,7 @@ from being.motors.homing import (
     HomingFailed,
     _fetch_position,
     _move_node,
-    _align_in_the_middle,
+    _align_in_the_middle, crude_homing,
 )
 
 
@@ -193,97 +193,14 @@ class Mclm3002(Controller):
         self.node.sdo['Profile Acceleration'].raw = self.maxAcc * self.deviceUnits.kinematics  # [mm / s^2]
         self.node.sdo['Profile Deceleration'].raw = self.maxAcc * self.deviceUnits.kinematics  # [mm / s^2]
 
-    def home_forward(self, speed: int) -> HomingProgress:
-        """Home in forward direction until upper limits is not increasing
-        anymore.
-        """
-        self.upper = -INF
-        yield from _move_node(self.node, velocity=speed)
-        while (pos := _fetch_position(self.node)) > self.upper:
-            self.upper = pos
-            yield HomingState.ONGOING
-
-        yield from _move_node(self.node, velocity=0.)
-
-    def home_backward(self, speed: int) -> HomingProgress:
-        """Home in backward direction until `lower` is not decreasing
-        anymore.
-        """
-        self.lower = INF
-        yield from _move_node(self.node, velocity=-speed)
-        while (pos := _fetch_position(self.node)) < self.lower:
-            self.lower = pos
-            yield HomingState.ONGOING
-
-        yield from _move_node(self.node, velocity=0.)
-
-    def crude_homing(self, maxSpeed=0.100, relMargin: float = 0.01) -> HomingProgress:
-        """Crude homing procedure. Move with PROFILED_VELOCITY operation mode in
-        both direction until reaching the limits (position not increasing or
-        decreasing anymore). Implemented as Generator so that we can home multiple
-        motors in parallel (quasi pseudo coroutine). time.sleep has to be handled by
-        the caller.
-
-        Velocity direction controls initial homing direction.
-
-        Kwargs:
-            maxSpeed: Maximum speed of homing travel.
-            relMargin: Relative margin if motor length is not known a priori. Final
-                length will be the measured length from the two homing travels minus
-                `relMargin` percent on both sides.
-
-        Yields:
-            Homing state.
-        """
-        node = self.node
-        forward = (self.homingDirection > 0)
-        speed = abs(maxSpeed * self.deviceUnits.speed)
-        relMargin = clip(relMargin, 0.00, 0.50)  # In [0%, 50%]!
-
-        with node.restore_states_and_operation_mode():
-            node.change_state(CiA402State.READY_TO_SWITCH_ON)
-            node.set_operation_mode(OperationMode.PROFILED_VELOCITY)
-            node.change_state(CiA402State.OPERATION_ENABLE)
-            node.nmt.state = OPERATIONAL
-
-            node.sdo[HOMING_METHOD].raw = 35
-            node.sdo[HOMING_OFFSET].raw = 0
-
-            # Homing travel
-            # TODO: Should we skip 2nd homing travel if we know motor length a
-            # priori? Would need to also consider relMargin. Otherwise motor
-            # will touch one edge
-            if forward:
-                yield from self.home_forward(speed)
-                yield from self.home_backward(speed)
-            else:
-                yield from self.home_backward(speed)
-                yield from self.home_forward(speed)
-
-            node.change_state(CiA402State.READY_TO_SWITCH_ON)
-
-            homingWidth = (self.upper - self.lower) / self.deviceUnits.length
-            if homingWidth < MINIMUM_HOMING_WIDTH:
-                raise HomingFailed(
-                    f'Homing width to narrow. Homing range: {[self.lower, self.upper]}!'
-                )
-
-            # Estimate motor length
-            if self.length is None:
-                self.length = (1. - 2 * relMargin) * homingWidth
-
-            # Center according to rod length
-            lengthDev = int(self.length * self.deviceUnits.length)
-            self.lower, self.upper = _align_in_the_middle(self.lower, self.upper, lengthDev)
-
-            node.sdo[HOMING_OFFSET].raw = self.lower
-            node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
-            node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = self.upper - self.lower
-
-        yield HomingState.HOMED
-
     def home(self):
-        return self.crude_homing()
+        return crude_homing(
+            self.node,
+            self.homingDirection,
+            speed=0.100 * self.deviceUnits.speed,
+            minWidth=MINIMUM_HOMING_WIDTH * self.deviceUnits.length,
+            length=self.length * self.deviceUnits.length,
+        )
 
     def set_target_position(self, targetPosition):
         """Set target position in SI units."""
