@@ -7,65 +7,45 @@ We do not use asyncio because we want to keep the core async free for now.
 """
 import random
 import time
-from typing import Optional
+from typing import Optional, Dict
 
 from being.backends import CanBackend
 from being.block import Block
 from being.can import load_object_dictionary
 from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.cia_402 import (
-    CONTROLWORD,
     CW,
     CiA402Node,
-    Command,
-    HOMING_ACCELERATION,
-    HOMING_METHOD,
-    HOMING_SPEEDS,
     MAX_PROFILE_VELOCITY,
     OperationMode,
-    POSITION_ACTUAL_VALUE,
     PROFILE_ACCELERATION,
     PROFILE_DECELERATION,
-    SOFTWARE_POSITION_LIMIT,
-    SPEED_FOR_SWITCH_SEARCH,
-    SPEED_FOR_ZERO_SEARCH,
     STATUSWORD,
-    SW,
     State as CiA402State,
-    TARGET_VELOCITY,
-    VELOCITY_ACTUAL_VALUE,
     which_state,
 )
-from being.can.definitions import HOMING_OFFSET
-from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL
+from being.can.nmt import PRE_OPERATIONAL
 from being.can.vendor import (
     EPOS4,
-    FAULHABER_ERROR_CODES,
-    FAULHABER_ERROR_REGISTER,
     MAXON_ERROR_CODES,
     MAXON_ERROR_REGISTER,
     Units,
     stringify_error,
 )
 from being.config import CONFIG
-from being.constants import INF, FORWARD, TAU
+from being.constants import FORWARD, TAU
 from being.error import BeingError
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
+from being.motors.controllers import Controller, Mclm3002
 from being.motors.homing import (
-    HomingState,
     HomingProgress,
-    MINIMUM_HOMING_WIDTH,
-    HomingFailed,
-    _fetch_position,
-    _move_node,
-    _align_in_the_middle,
+    HomingState,
     proper_homing,
 )
 from being.pubsub import PubSub
 from being.math import (
     angular_velocity_to_rpm,
-    clip,
     rpm_to_angular_velocity,
     sign,
 )
@@ -85,6 +65,13 @@ INTERVAL = CONFIG['General']['INTERVAL']
 
 
 MOTOR_CHANGED = 'MOTOR_CHANGED'
+"""Motor changed event."""
+
+CONTROLLER_TYPES: Dict[str, Controller] = {
+    'MCLM3002P-CO': Mclm3002,
+    #'EPOS4': Epos4,  # TODO(atheler):
+}
+"""Device name -> Controller type lookup."""
 
 
 class DriveError(BeingError):
@@ -99,16 +86,11 @@ class Motor(Block, PubSub):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         PubSub.__init__(self, events=[MOTOR_CHANGED])
-        self.homing = HomingState.UNHOMED
-        self.homingJob = None
-        self._enabled = False
         self.add_value_input('targetPosition')
         self.add_value_output('actualPosition')
-
-    @property
-    def homed(self) -> bool:
-        """Is motor homed?"""
-        return self.homing is HomingState.HOMED
+        self._enabled = False
+        self.homing = HomingState.UNHOMED
+        self.homingJob = None
 
     def enabled(self) -> bool:
         """Is motor enabled?"""
@@ -150,16 +132,16 @@ class LinearMotor(Motor):
     """
 
     def __init__(self,
-             nodeId: int,
-             length: Optional[float] = None,
-             direction: float = FORWARD,
-             homingDirection: Optional[float] = None,
-             maxSpeed: float = 1.,
-             maxAcc: float = 1.,
-             network: Optional[CanBackend] = None,
-             node: Optional[CiA402Node] = None,
-             objectDictionary = None,
-             **kwargs,
+            nodeId: int,
+            length: Optional[float] = None,
+            direction: float = FORWARD,
+            homingDirection: Optional[float] = None,
+            maxSpeed: float = 1.,
+            maxAcc: float = 1.,
+            network: Optional[CanBackend] = None,
+            node: Optional[CiA402Node] = None,
+            objectDictionary = None,
+            **kwargs,
         ):
         """Args:
             nodeId: CANopen node id.
@@ -188,210 +170,48 @@ class LinearMotor(Motor):
                 objectDictionary = load_object_dictionary(network, nodeId)
 
             node = CiA402Node(nodeId, objectDictionary, network)
-            # EPOS4 has no PDO mapping for Error Regiser, thus re-register here
-            node.setup_txpdo(1, 'Statusword', 'Error Register')
 
-        self.length = length
-        self.direction = sign(direction)
-        self.homingDirection = sign(homingDirection)
-        self.network = network
-        self.node = node
-        self.maxSpeed = maxSpeed
-        self.maxAcc = maxAcc
-
-        self.lower = -INF
-        self.upper = INF
-        self.logger = get_logger(str(self))
-
-        self.configure_node()
-
-        self.node.nmt.state = PRE_OPERATIONAL
-        self.node.set_state(CiA402State.READY_TO_SWITCH_ON)
-        self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
-
-    @property
-    def nodeId(self) -> int:
-        """CAN node id."""
-        return self.node.id
-
-    def configure_node(self):
-        """Configure Faulhaber node (some settings via SDO)."""
-        units = self.node.units
-
-        # TODO: These parameters have to come from the outside. Question: How
-        # can we identify the motor and choose sensible defaults?
-
-        generalSettings = self.node.sdo['General Settings']
-        generalSettings['Pure Sinus Commutation'].raw = 1
-        #generalSettings['Activate Position Limits in Velocity Mode'].raw = 1
-        #generalSettings['Activate Position Limits in Position Mode'].raw = 1
-
-        filterSettings = self.node.sdo['Filter Settings']
-        filterSettings['Sampling Rate'].raw = 4
-        filterSettings['Gain Scheduling Velocity Controller'].raw = 1
-
-        velocityController = self.node.sdo['Velocity Control Parameter Set']
-        #velocityController['Proportional Term POR'].raw = 44
-        #velocityController['Integral Term I'].raw = 50
-
-        posController = self.node.sdo['Position Control Parameter Set']
-        posController['Proportional Term PP'].raw = 15
-        posController['Derivative Term PD'].raw = 10
-        # Some softer params from pygmies
-        #posController['Proportional Term PP'].raw = 8
-        #posController['Derivative Term PD'].raw = 14
-
-        curController = self.node.sdo['Current Control Parameter Set']
-        curController['Continuous Current Limit'].raw = 0.550 * units.current  # [mA]
-        curController['Peak Current Limit'].raw = 1.640 * units.current  # [mA]
-        curController['Integral Term CI'].raw = 3
-
-        self.node.sdo['Max Profile Velocity'].raw = self.maxSpeed * units.kinematics  # [mm / s]
-        self.node.sdo['Profile Acceleration'].raw = self.maxAcc * units.kinematics  # [mm / s^2]
-        self.node.sdo['Profile Deceleration'].raw = self.maxAcc * units.kinematics  # [mm / s^2]
-
-    def home_forward(self, speed: int) -> HomingProgress:
-        """Home in forward direction until upper limits is not increasing
-        anymore.
-        """
-        self.upper = -INF
-        yield from _move_node(self.node, velocity=speed)
-        while (pos := _fetch_position(self.node)) > self.upper:
-            self.upper = pos
-            yield HomingState.ONGOING
-
-        yield from _move_node(self.node, velocity=0.)
-
-    def home_backward(self, speed: int) -> HomingProgress:
-        """Home in backward direction until `lower` is not decreasing
-        anymore.
-        """
-        self.lower = INF
-        yield from _move_node(self.node, velocity=-speed)
-        while (pos := _fetch_position(self.node)) < self.lower:
-            self.lower = pos
-            yield HomingState.ONGOING
-
-        yield from _move_node(self.node, velocity=0.)
-
-    def crude_homing(self, maxSpeed=0.100, relMargin: float = 0.01) -> HomingProgress:
-        """Crude homing procedure. Move with PROFILED_VELOCITY operation mode in
-        both direction until reaching the limits (position not increasing or
-        decreasing anymore). Implemented as Generator so that we can home multiple
-        motors in parallel (quasi pseudo coroutine). time.sleep has to be handled by
-        the caller.
-
-        Velocity direction controls initial homing direction.
-
-        Kwargs:
-            maxSpeed: Maximum speed of homing travel.
-            relMargin: Relative margin if motor length is not known a priori. Final
-                length will be the measured length from the two homing travels minus
-                `relMargin` percent on both sides.
-
-        Yields:
-            Homing state.
-        """
-        node = self.node
-        forward = (self.homingDirection > 0)
-        speed = abs(maxSpeed * node.units.speed)
-        relMargin = clip(relMargin, 0.00, 0.50)  # In [0%, 50%]!
-
-        with node.restore_states_and_operation_mode():
-            node.change_state(CiA402State.READY_TO_SWITCH_ON)
-            node.set_operation_mode(OperationMode.PROFILED_VELOCITY)
-            node.change_state(CiA402State.OPERATION_ENABLE)
-            node.nmt.state = OPERATIONAL
-
-            node.sdo[HOMING_METHOD].raw = 35
-            node.sdo[HOMING_OFFSET].raw = 0
-
-            # Homing travel
-            # TODO: Should we skip 2nd homing travel if we know motor length a
-            # priori? Would need to also consider relMargin. Otherwise motor
-            # will touch one edge
-            if forward:
-                yield from self.home_forward(speed)
-                yield from self.home_backward(speed)
-            else:
-                yield from self.home_backward(speed)
-                yield from self.home_forward(speed)
-
-            node.change_state(CiA402State.READY_TO_SWITCH_ON)
-
-            homingWidth = (self.upper - self.lower) / node.units.length
-            if homingWidth < MINIMUM_HOMING_WIDTH:
-                raise HomingFailed(
-                    f'Homing width to narrow. Homing range: {[self.lower, self.upper]}!'
-                )
-
-            # Estimate motor length
-            if self.length is None:
-                self.length = (1. - 2 * relMargin) * homingWidth
-
-            # Center according to rod length
-            lengthDev = int(self.length * node.units.length)
-            self.lower, self.upper = _align_in_the_middle(self.lower, self.upper, lengthDev)
-
-            node.sdo[HOMING_OFFSET].raw = self.lower
-            node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
-            node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = self.upper - self.lower
-
-        yield HomingState.HOMED
+        deviceName = node.manufacturer_device_name()
+        controllerType = CONTROLLER_TYPES[deviceName]
+        self.controller = controllerType(node, length, direction, homingDirection, maxSpeed, maxAcc)
 
     def enabled(self):
-        sw = self.node.sdo[STATUSWORD].raw  # This takes approx. 2.713 ms
-        state = which_state(sw)
-        return state is CiA402State.OPERATION_ENABLE
+        return self.controller.enabled()
 
     def enable(self, publish=True):
-        self.node.enable()
+        self.controller.enable()
         super().enable(publish)
 
     def disable(self, publish=True):
-        self.node.disable()
+        self.controller.disable()
         super().disable(publish)
 
     def home(self):
-        self.homingJob = self.crude_homing()
-        #if self.homingDirection > 0:
-        #    self.homingJob = proper_homing(self.node, homingMethod=34)
-        #else:
-        #    self.homingJob = proper_homing(self.node, homingMethod=33)
-
+        self.homingJob = self.controller.home()
         self.homing = HomingState.ONGOING
         self.publish(MOTOR_CHANGED)
 
     def update(self):
-        if self.node.emcy.active:
-            #raise DriveError(msg)
-            for emcy in self.node.emcy.active:
-                msg = stringify_error(emcy.register, FAULHABER_ERROR_REGISTER)
-                description = FAULHABER_ERROR_CODES[emcy.code]
-                self.logger.error(f'DriveError: {msg} with \
-                    Error code {emcy.code}: {description}')
+        for emcyMsg in self.controller.iter_emergencies():
+            self.logger.error(emcyMsg)
 
         if self.homing is HomingState.HOMED:
-            sw = self.node.pdo[STATUSWORD].raw  # This takes approx. 0.027 ms
+            # PDO instead of SDO for speed
+            sw = self.controller.node.pdo[STATUSWORD].raw  # This takes approx. 0.027 ms
             state = which_state(sw)
             if state is CiA402State.OPERATION_ENABLE:
-                if self.direction > 0:
-                    tarPos = self.targetPosition.value
-                else:
-                    tarPos = self.length - self.targetPosition.value
-
-                self.node.set_target_position(tarPos)
+                self.controller.set_target_position(self.targetPosition.value)
 
         elif self.homing is HomingState.ONGOING:
             self.homing = next(self.homingJob)
             if self.homing is not HomingState.ONGOING:
                 self.publish(MOTOR_CHANGED)
 
-        self.output.value = self.node.get_actual_position()
+        self.output.value = self.controller.get_actual_position()
 
     def to_dict(self):
         dct = super().to_dict()
-        dct['length'] = self.length
+        dct['length'] = self.controller.length
         return dct
 
     def __str__(self):
@@ -629,11 +449,13 @@ class RotaryMotor(Motor):
     def home(self, offset: int = 0):
         self.node.sdo[EPOS4.HOME_OFFSET_MOVE_DISTANCE].raw = offset
 
-        self.homingJob = proper_homing(self.node,
-                                       homingMethod=self.homingMethod,
-                                       timeout=5,
-                                       maxSpeed=rpm_to_angular_velocity(60),
-                                       maxAcc=100)
+        self.homingJob = proper_homing(
+            self.node,
+            homingMethod=self.homingMethod,
+            timeout=5,
+            maxSpeed=rpm_to_angular_velocity(60),
+            maxAcc=100,
+        )
         self.homing = HomingState.ONGOING
         self.publish(MOTOR_CHANGED)
 

@@ -10,7 +10,7 @@ from being.constants import TAU
 from being.logging import setup_logging
 from being.motion_player import MotionPlayer
 from being.constants import BACKWARD, FORWARD
-from being.can.motor_paramters import EC45_469292_24V as EC45
+from being.motors.motor_paramters import EC45_469292_24V as EC45
 
 
 # Params

@@ -39,21 +39,7 @@ UNITS: Dict[bytes, Units] = {
 """Raw MANUFACTURER_DEVICE_NAME byte string -> Vendor units lookup."""
 
 # TODO: Generalize for other vendors!
-FAULHABER_ERROR_REGISTER: Dict[int, str] = {
-    0x0001: 'Continuous Over Current',
-    0x0002: 'Deviation',
-    0x0004: 'Over Voltage',
-    0x0008: 'Over Temperature',
-    0x0010: 'Flash Memory Error',
-    0x0040: 'CAN In Error Passive Mode',
-    0x0080: 'CAN Overrun (objects lost)',
-    0x0100: 'Life Guard Or Heart- beat Error',
-    0x0200: 'Recovered From Bus Off',
-    0x0800: 'Conversion Overflow',
-    0x1000: 'Internal Software',
-    0x2000: 'PDO Length Exceeded',
-    0x4000: 'PDO not processes due to length error',
-}
+
 
 MAXON_ERROR_REGISTER: Dict[int, str] = {
     1 << 0: 'Generic Error',
@@ -66,39 +52,7 @@ MAXON_ERROR_REGISTER: Dict[int, str] = {
     1 << 7: 'Motion Error',
 }
 
-"""Faulhaber error code -> Error message string lookup."""
-FAULHABER_ERROR_CODES: Dict[int, str] = {
-    0x0000: 'No error',
-    0x1000: 'Generic error',
-    0x2000: 'Current',
-    0x2300: 'Current, device output side',
-    0x2310: 'Continuous over current 0x00',
-    0x3000: 'Voltage',
-    0x3200: 'Voltage inside the device',
-    0x3210: 'Overvoltage 0x00',
-    0x4000: 'Temperature',
-    0x4300: 'Drive temperature',
-    0x4310: 'Overtemperature 0x00',
-    0x5000: 'Device hardware',
-    0x5500: 'Data storage',
-    0x5530: 'Flash memory error 0x00',
-    0x6000: 'Device software',
-    0x6100: 'Internal software 0x10',
-    0x8000: 'Monitoring',
-    0x8100: 'Communication',
-    0x8110: 'CAN Overrun (objects lost) 0x00',
-    0x8120: 'CAN in error passive mode 0x00',
-    0x8130: 'Life guard or heartbeat error 0x01',
-    0x8140: 'Recovered from bus off 0x02',
-    0x8200: 'Protocol error',
-    0x8210: 'PDO not processed due to length error 0x40',
-    0x8220: 'PDO length exceeded 0x20',
-    0x8400: 'Velocity speed controller (deviation) 0x00',
-    0x8600: 'Positioning controller',
-    0x8611: 'Following error (deviation) 0x00',
-    0xFF00: 'Device specific',
-    0xFF01: 'Conversion overflow 0x08',
-}
+
 
 """Maxon error code -> Error message string lookup."""
 MAXON_ERROR_CODES: Dict[int, str] = {

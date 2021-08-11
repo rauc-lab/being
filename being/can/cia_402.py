@@ -294,7 +294,6 @@ class CiA402Node(RemoteNode):
     def __init__(self, nodeId, objectDictionary, network):
         super().__init__(nodeId, objectDictionary, load_od=False)
         self.logger = get_logger(str(self))
-        self.units: Units = None
 
         network.add_node(self, objectDictionary)
 
@@ -313,7 +312,7 @@ class CiA402Node(RemoteNode):
         #
         # -> We clear all of them and have the Controlword only in the first RxPDO1.
 
-        # EPOS4 has no PDO mapping for Error Regiser,
+        # EPOS4 has no PDO mapping for Error Register,
         # thus re-register later txpdo1 if available
         self.setup_txpdo(1, STATUSWORD)
         self.setup_txpdo(2, POSITION_ACTUAL_VALUE)
@@ -324,10 +323,6 @@ class CiA402Node(RemoteNode):
         self.setup_rxpdo(2, TARGET_POSITION)
         self.setup_rxpdo(3, TARGET_VELOCITY)
         self.setup_rxpdo(4, enabled=False)
-
-        # Determine device units
-        manu = self.sdo[MANUFACTURER_DEVICE_NAME].raw
-        self.units = UNITS[manu]
 
     def setup_txpdo(self,
             nr: int,
@@ -491,8 +486,6 @@ class CiA402Node(RemoteNode):
         self.change_state(oldState)
         self.nmt.state = oldNmt
 
-    # TODO: Wording. Any English speakers in the house?
-
     def switch_off(self):
         """Switch off drive. Same state as on power-up."""
         self.nmt.state = PRE_OPERATIONAL
@@ -509,22 +502,22 @@ class CiA402Node(RemoteNode):
         self.change_state(State.OPERATION_ENABLE)
 
     def set_target_position(self, pos):
-        """Set target position in SI units"""
-        self.pdo[TARGET_POSITION].raw = pos * self.units.length
+        """Set target position in device units."""
+        self.pdo[TARGET_POSITION].raw = pos
         self.rpdo[2].transmit()
 
     def get_actual_position(self):
-        """Get actual position in SI units"""
-        return self.pdo[POSITION_ACTUAL_VALUE].raw / self.units.length
+        """Get actual position in device units."""
+        return self.pdo[POSITION_ACTUAL_VALUE].raw
 
     def set_target_velocity(self, vel):
-        """Set target velocity in SI units."""
-        self.pdo[TARGET_VELOCITY].raw = vel * self.units.speed
+        """Set target velocity in device units."""
+        self.pdo[TARGET_VELOCITY].raw = vel
         self.rpdo[3].transmit()
 
     def get_actual_velocity(self):
-        """Get actual velocity in SI units."""
-        return self.pdo[VELOCITY_ACTUAL_VALUE].raw / self.units.speed
+        """Get actual velocity in device units."""
+        return self.pdo[VELOCITY_ACTUAL_VALUE].raw
 
     def _get_info(self) -> dict:
         """Get the current states."""
@@ -533,6 +526,9 @@ class CiA402Node(RemoteNode):
             'state': self.get_state(),
             'op': self.get_operation_mode(),
         }
+
+    def manufacturer_device_name(self):
+        return self.sdo[MANUFACTURER_DEVICE_NAME].raw
 
     def __str__(self):
         return f'{type(self).__name__}(id={self.id})'

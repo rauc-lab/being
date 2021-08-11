@@ -9,8 +9,8 @@ from being.resources import manage_resources
 from being.constants import TAU
 from being.logging import setup_logging
 from being.constants import BACKWARD, FORWARD
-from being.can.motor_paramters import DCmax22S_GB_KL_12V as DCmax22
-from being.can.motor_paramters import EC45_469292_24V as EC45
+from being.motors.motor_paramters import DCmax22S_GB_KL_12V as DCmax22
+from being.motors.motor_paramters import EC45_469292_24V as EC45
 
 
 # Params
