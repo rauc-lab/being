@@ -1,6 +1,7 @@
 """Mathematical helper functions."""
 import math
 from typing import Tuple
+from being.constants import TAU
 
 import numpy as np
 
@@ -64,3 +65,29 @@ def linear_mapping(xRange, yRange):
         [xmin, 1.],
         [xmax, 1.],
     ], [ymin, ymax])
+
+
+def angular_velocity_to_rpm(angVel: float) -> float:
+    """Convert angular velocity to rotations per minute.
+
+    Args:
+        angVel: Angular velocity [rad / s]
+
+    Returns:
+        Velocity in [rpm]
+
+    """
+    return angVel * 60 / TAU
+
+
+def rpm_to_angular_velocity(rpm: float) -> float:
+    """Convert rotations per minute to angular velocity.
+
+    Args:
+        rpm: rotation per minute [rpm]
+
+    Returns:
+        Angular velocity [rad / s]
+
+    """
+    return TAU * rpm / 60

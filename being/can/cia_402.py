@@ -6,8 +6,9 @@ operation. Also added support for CYCLIC_SYNCHRONOUS_POSITION mode.
 """
 import contextlib
 from enum import auto, IntEnum, Enum
-from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union
+from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union, Optional
 from collections import deque, defaultdict
+import time
 
 from canopen import RemoteNode
 
@@ -20,29 +21,38 @@ from being.logging import get_logger
 
 
 # Mandatory (?) CiA 402 object dictionary entries
+# (SJA): CiA 402 is still a Draft Specification Proposal (DSP).
+
 CONTROLWORD = 0x6040
 STATUSWORD = 0x6041
 MODES_OF_OPERATION = 0x6060
 MODES_OF_OPERATION_DISPLAY = 0x6061
 POSITION_DEMAND_VALUE = 0x6062
 POSITION_ACTUAL_VALUE = 0x6064
-VELOCITY_DEMAND_VALUE = 0x606b
-VELOCITY_ACTUAL_VALUE = 0x606c
-TARGET_POSITION = 0x607a
-POSITION_RANGE_LIMIT = 0x607b
-SOFTWARE_POSITION_LIMIT = 0x607d
-MAX_PROFILE_VELOCITY = 0x607f
+POSITION_WINDOW = 0x6067
+POSITION_WINDOW_TIME = 0x6068
+VELOCITY_DEMAND_VALUE = 0x606B
+VELOCITY_ACTUAL_VALUE = 0x606C
+TARGET_POSITION = 0x607A
+POSITION_RANGE_LIMIT = 0x607B
+SOFTWARE_POSITION_LIMIT = 0x607D
+MIN_POSITION_LIMIT = 1
+MAX_POSITION_LIMIT = 2
+MAX_PROFILE_VELOCITY = 0x607F
 PROFILE_VELOCITY = 0x6081
 PROFILE_ACCELERATION = 0x6083
 PROFILE_DECELERATION = 0x6084
 QUICK_STOP_DECELERATION = 0x6085
 HOMING_METHOD = 0x6098
-HOMING_SPEED = 0x6099
-HOMING_ACCELERATION = 0x609a
-DIGITAL_INPUTS = 0x60fd
-TARGET_VELOCITY = 0x60ff
-SUPPORTED_DRIVE_MODES = 0x6502
 
+HOMING_SPEEDS = 0x6099
+SPEED_FOR_SWITCH_SEARCH = 1
+SPEED_FOR_ZERO_SEARCH = 2
+
+HOMING_ACCELERATION = 0x609A
+DIGITAL_INPUTS = 0x60FD
+TARGET_VELOCITY = 0x60FF
+SUPPORTED_DRIVE_MODES = 0x6502
 
 State = ForwardRef('State')
 Edge = Tuple[State, State]
@@ -210,13 +220,15 @@ def supported_operation_modes(supportedDriveModes: int) -> Generator[OperationMo
     Yields:
         Supported drive operation modes for the node.
     """
+    # Look-up is identical between Faulhaber / Maxon
+
     stuff = [
         (0, OperationMode.PROFILED_POSITION),
         (2, OperationMode.PROFILED_VELOCITY),
         (5, OperationMode.HOMING),
         (7, OperationMode.CYCLIC_SYNCHRONOUS_POSITION),
-        # TODO: From the Faulhaber manual. Add additional modes for different
-        # manufacturer. Which bits do they us?
+        (8, OperationMode.CYCLIC_SYNCHRONOUS_VELOCITY),
+        (9, OperationMode.CYCLIC_SYNCHRONOUS_TORQUE),
     ]
     for bit, op in stuff:
         if check_bit(supportedDriveModes, bit):
@@ -301,14 +313,16 @@ class CiA402Node(RemoteNode):
         #
         # -> We clear all of them and have the Controlword only in the first RxPDO1.
 
-        self.setup_txpdo(1, 'Statusword', 'Error Register')
-        self.setup_txpdo(2, 'Position Actual Value')
-        self.setup_txpdo(3, 'Velocity Actual Value')
+        # EPOS4 has no PDO mapping for Error Regiser,
+        # thus re-register later txpdo1 if available
+        self.setup_txpdo(1, STATUSWORD)
+        self.setup_txpdo(2, POSITION_ACTUAL_VALUE)
+        self.setup_txpdo(3, VELOCITY_ACTUAL_VALUE)
         self.setup_txpdo(4, enabled=False)
 
-        self.setup_rxpdo(1, 'Controlword')
-        self.setup_rxpdo(2, 'Target Position')
-        self.setup_rxpdo(3, 'Target Velocity')
+        self.setup_rxpdo(1, CONTROLWORD)
+        self.setup_rxpdo(2, TARGET_POSITION)
+        self.setup_rxpdo(3, TARGET_VELOCITY)
         self.setup_rxpdo(4, enabled=False)
 
         # Determine device units
@@ -321,11 +335,12 @@ class CiA402Node(RemoteNode):
             overwrite: bool = True,
             enabled: bool = True,
             trans_type: TransmissionType = TransmissionType.SYNCHRONOUS_CYCLIC,
-            event_timer: int = 0,
+            event_timer: Optional[int] = None,
         ):
         """Setup single transmission PDO of node (receiving PDO messages from
         remote node). Note: Sending / receiving direction always from the remote
-        nodes perspective.
+        nodes perspective. Setting `event_timer` to 0 can lead to KeyErrors on
+        some controllers.
 
         Args:
             nr: TxPDO number (1-4).
@@ -333,8 +348,8 @@ class CiA402Node(RemoteNode):
                 node via TxPDO.
 
         Kwargs:
-            enabled: Enable or disable RxPDO.
-            overwrite: Overwrite RxPDO.
+            enabled: Enable or disable TxPDO.
+            overwrite: Overwrite TxPDO.
             trans_type:
             event_timer:
         """
@@ -347,7 +362,9 @@ class CiA402Node(RemoteNode):
 
         tx.enabled = enabled
         tx.trans_type = trans_type
-        tx.event_timer = event_timer
+        if event_timer is not None:
+            tx.event_timer = event_timer
+
         tx.save()
 
     def setup_rxpdo(self,
@@ -398,7 +415,7 @@ class CiA402Node(RemoteNode):
         if target is current:
             return
 
-        if not target in POSSIBLE_TRANSITIONS[current]:
+        if target not in POSSIBLE_TRANSITIONS[current]:
             raise RuntimeError(f'Invalid state transition from {current!r} to {target!r}!')
 
         edge = (current, target)
@@ -419,6 +436,16 @@ class CiA402Node(RemoteNode):
         path = find_shortest_state_path(current, target)
         for state in path[1:]:
             self.set_state(state)
+
+            # TODO(atheler): Move this while true / sleep to controller level
+            # EPOS is too slow while state switching.
+            # set_state() will throw an exception otherwise
+            #startTime = time.perf_counter()
+            #endTime = startTime + 0.05
+            #while self.get_state() != state:
+            #    if time.perf_counter() > endTime:
+            #        raise RuntimeError(f'Timeout while trying to transition from state {current!r} to {target!r}!')
+            #    # time.sleep(0.002)  #sdo operation already takes ~2ms
 
     def get_operation_mode(self) -> OperationMode:
         """Get current operation mode."""
@@ -483,21 +510,21 @@ class CiA402Node(RemoteNode):
 
     def set_target_position(self, pos):
         """Set target position in SI units"""
-        self.pdo['Target Position'].raw = pos * self.units.length
+        self.pdo[TARGET_POSITION].raw = pos * self.units.length
         self.rpdo[2].transmit()
 
     def get_actual_position(self):
         """Get actual position in SI units"""
-        return self.pdo['Position Actual Value'].raw / self.units.length
+        return self.pdo[POSITION_ACTUAL_VALUE].raw / self.units.length
 
     def set_target_velocity(self, vel):
         """Set target velocity in SI units."""
-        self.pdo['Target Velocity'].raw = vel * self.units.speed
+        self.pdo[TARGET_VELOCITY].raw = vel * self.units.speed
         self.rpdo[3].transmit()
 
     def get_actual_velocity(self):
         """Get actual velocity in SI units."""
-        return self.pdo['Velocity Actual Value'].raw / self.units.speed
+        return self.pdo[VELOCITY_ACTUAL_VALUE].raw / self.units.speed
 
     def _get_info(self) -> dict:
         """Get the current states."""
