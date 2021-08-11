@@ -9,7 +9,7 @@ from being.connectables import ValueOutput, MessageOutput
 from being.execution import execute, block_network_graph
 from being.graph import topological_sort
 from being.motion_player import MotionPlayer
-from being.motors import Motor
+from being.motors.blocks import Motor
 from being.utils import filter_by_type
 
 

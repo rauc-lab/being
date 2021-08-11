@@ -18,7 +18,8 @@ from being.config import CONFIG
 from being.connectables import ValueOutput, _ValueContainer
 from being.content import CONTENT_CHANGED, Content
 from being.logging import get_logger
-from being.motors import Motor, HomingState
+from being.motors.blocks import Motor
+from being.motors.homing import HomingState
 from being.serialization import loads, spline_from_dict, register_enum
 from being.spline import fit_spline
 from being.typing import Spline

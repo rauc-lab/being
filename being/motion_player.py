@@ -15,7 +15,7 @@ from being.block import Block, output_neighbors
 from being.clock import Clock
 from being.content import Content
 from being.logging import get_logger
-from being.motors import Motor
+from being.motors.blocks import Motor
 from being.spline import Spline, sample_spline, spline_shape
 from being.utils import filter_by_type
 

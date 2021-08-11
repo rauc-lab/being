@@ -15,7 +15,7 @@ from being.config import CONFIG
 from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
 from being.logging import BEING_LOGGERS, get_logger
-from being.motors import MOTOR_CHANGED
+from being.motors.blocks import MOTOR_CHANGED
 from being.sensors import Sensor
 from being.utils import filter_by_type
 from being.web.api import (
