@@ -187,7 +187,6 @@ VALID_OP_MODE_CHANGE_STATES: Set[State] = {
     State.SWITCH_ON_DISABLED,
     State.READY_TO_SWITCH_ON,
     State.SWITCHED_ON,
-    State.OPERATION_ENABLE,  # (SJA): Should work no?!
 }
 """Not every state support switching of operation mode."""
 
@@ -336,12 +335,12 @@ class CiA402Node(RemoteNode):
             overwrite: bool = True,
             enabled: bool = True,
             trans_type: TransmissionType = TransmissionType.SYNCHRONOUS_CYCLIC,
-            # TODO: Is event_timer needed? Throws a KeyError if set to 0 with EPOS4
             event_timer: Optional[int] = None,
         ):
         """Setup single transmission PDO of node (receiving PDO messages from
         remote node). Note: Sending / receiving direction always from the remote
-        nodes perspective.
+        nodes perspective. Setting `event_timer` to 0 can lead to KeyErrors on
+        some controllers.
 
         Args:
             nr: TxPDO number (1-4).
@@ -363,7 +362,9 @@ class CiA402Node(RemoteNode):
 
         tx.enabled = enabled
         tx.trans_type = trans_type
-        tx.event_timer = event_timer
+        if event_timer is not None:
+            tx.event_timer = event_timer
+
         tx.save()
 
     def setup_rxpdo(self,
@@ -436,15 +437,15 @@ class CiA402Node(RemoteNode):
         for state in path[1:]:
             self.set_state(state)
 
+            # TODO(atheler): Move this while true / sleep to controller level
             # EPOS is too slow while state switching.
             # set_state() will throw an exception otherwise
-            startTime = time.perf_counter()
-            endTime = startTime + 0.05
-
-            while self.get_state() != state:
-                if time.perf_counter() > endTime:
-                    raise RuntimeError(f'Timeout while trying to transition from state {current!r} to {target!r}!')
-                # time.sleep(0.002)  #sdo operation already takes ~2ms
+            #startTime = time.perf_counter()
+            #endTime = startTime + 0.05
+            #while self.get_state() != state:
+            #    if time.perf_counter() > endTime:
+            #        raise RuntimeError(f'Timeout while trying to transition from state {current!r} to {target!r}!')
+            #    # time.sleep(0.002)  #sdo operation already takes ~2ms
 
     def get_operation_mode(self) -> OperationMode:
         """Get current operation mode."""

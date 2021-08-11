@@ -9,7 +9,7 @@ from being.resources import manage_resources
 from being.sensors import SensorGpio
 
 
-NODE_IDS = [1]
+NODE_IDS = [1, 2]
 """Motor ids to use."""
 
 
@@ -22,7 +22,7 @@ def look_for_motors():
             pass
 
 
-setup_logging()
+#setup_logging()
 
 
 with manage_resources():

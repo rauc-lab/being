@@ -14,7 +14,7 @@ from typing import Optional, Generator, Tuple
 from being.backends import CanBackend
 from being.block import Block
 from being.can import load_object_dictionary
-from being.can.cia_301 import MANUFACTURER_DEVICE_NAME, ERROR_REGISTER
+from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.cia_402 import (
     CONTROLWORD,
     CW,
@@ -23,11 +23,14 @@ from being.can.cia_402 import (
     HOMING_ACCELERATION,
     HOMING_METHOD,
     HOMING_SPEEDS,
-    SPEED_FOR_SWITCH_SEARCH,
-    SPEED_FOR_ZERO_SEARCH,
+    MAX_PROFILE_VELOCITY,
     OperationMode,
     POSITION_ACTUAL_VALUE,
+    PROFILE_ACCELERATION,
+    PROFILE_DECELERATION,
     SOFTWARE_POSITION_LIMIT,
+    SPEED_FOR_SWITCH_SEARCH,
+    SPEED_FOR_ZERO_SEARCH,
     STATUSWORD,
     SW,
     State as CiA402State,
@@ -35,21 +38,17 @@ from being.can.cia_402 import (
     VELOCITY_ACTUAL_VALUE,
     target_reached,
     which_state,
-    MAX_PROFILE_VELOCITY,
-    PROFILE_ACCELERATION,
-    PROFILE_DECELERATION,
 )
 from being.can.definitions import HOMING_OFFSET
 from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL
 from being.can.vendor import (
+    EPOS4,
+    FAULHABER_ERROR_CODES,
+    FAULHABER_ERROR_REGISTER,
+    MAXON_ERROR_CODES,
+    MAXON_ERROR_REGISTER,
     Units,
     stringify_error,
-    MAXON_ERROR_REGISTER,
-    MAXON_ERROR_CODES,
-    FAULHABER_ERROR_REGISTER,
-    FAULHABER_ERROR_CODES,
-    MCLM3002,
-    EPOS4,
 )
 from being.config import CONFIG
 from being.constants import INF, FORWARD, TAU
@@ -58,10 +57,10 @@ from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
 from being.pubsub import PubSub
 from being.math import (
-    sign,
+    angular_velocity_to_rpm,
     clip,
     rpm_to_angular_velocity,
-    angular_velocity_to_rpm,
+    sign,
 )
 from being.resources import register_resource
 
@@ -565,19 +564,19 @@ class RotaryMotor(Motor):
     """
 
     def __init__(self,
-                 nodeId: int,
-                 arc: float = TAU,
-                 direction: float = FORWARD,
-                 homingDirection: Optional[float] = None,
-                 homingMethod: Optional[int] = None,
-                 maxSpeed: float = 942,  # [rad /s ] -> 9000 rpm
-                 maxAcc: float = 4294967295,
-                 network: Optional[CanBackend] = None,
-                 node: Optional[CiA402Node] = None,
-                 objectDictionary=None,
-                 motor: Optional[dict] = {},
-                 **kwargs,
-                 ):
+            nodeId: int,
+            arc: float = TAU,
+            direction: float = FORWARD,
+            homingDirection: Optional[float] = None,
+            homingMethod: Optional[int] = None,
+            maxSpeed: float = 942,  # [rad /s ] -> 9000 rpm
+            maxAcc: float = 4294967295,
+            network: Optional[CanBackend] = None,
+            node: Optional[CiA402Node] = None,
+            objectDictionary=None,
+            motor: Optional[dict] = {},
+            **kwargs,
+        ):
         """Args:
             nodeId: CANOpen node id.
 
@@ -649,13 +648,13 @@ class RotaryMotor(Motor):
         return self.node.id
 
     def configure_node(self,
-                       maxGearInputSpeed: float = 8000,  # [rpm]
-                       hasGear: bool = False,
-                       gearNumerator: int = 1,
-                       gearDenumerator: int = 1,
-                       encoderNumberOfPulses=1024,
-                       encoderHasIndex=True,
-                       ):
+            maxGearInputSpeed: float = 8000,  # [rpm]
+            hasGear: bool = False,
+            gearNumerator: int = 1,
+            gearDenumerator: int = 1,
+            encoderNumberOfPulses=1024,
+            encoderHasIndex=True,
+        ):
         """Configure Maxon EPOS4 node (some settings via SDO)."""
 
         gearRatio = gearNumerator / gearDenumerator
