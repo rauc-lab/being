@@ -5,6 +5,7 @@ complicated but we do this so that we can move blocking aspects to the caller
 and home multiple motors / nodes in parallel. This results in quasi coroutines.
 We do not use asyncio because we want to keep the core async free for now.
 """
+import abc
 import random
 import time
 from typing import Optional, Dict
@@ -52,6 +53,7 @@ from being.resources import register_resource
 
 
 INTERVAL = CONFIG['General']['INTERVAL']
+"""General delta t interval."""
 
 MOTOR_CHANGED = 'MOTOR_CHANGED'
 """Motor changed event."""
@@ -63,42 +65,66 @@ CONTROLLER_TYPES: Dict[str, Controller] = {
 """Device name -> Controller type lookup."""
 
 
+def create_controller_for_node(node: CiA402Node, *args, **kwargs) -> Controller:
+    """Controller factory. Different controllers depending on device name. Wraps
+    CanOpen node.
+    """
+    deviceName = node.manufacturer_device_name()
+    if deviceName not in CONTROLLER_TYPES:
+        raise ValueError(f'No controller for device name {deviceName}!')
+        controllerType = CONTROLLER_TYPES[deviceName]
+
+    controllerType = CONTROLLER_TYPES[deviceName]
+    return controllerType(node, *args, **kwargs)
+
+
 class DriveError(BeingError):
 
     """Something went wrong on the drive."""
 
 
-class Motor(Block, PubSub):
-
-    """Motor base class."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class Motor(Block, PubSub, abc.ABC):
+    def __init__(self, name=None):
+        super().__init__(name=name)
         PubSub.__init__(self, events=[MOTOR_CHANGED])
         self.add_value_input('targetPosition')
         self.add_value_output('actualPosition')
-        self._enabled = False
         self.homing = HomingState.UNHOMED
         self.homingJob = None
 
+    #@abc.abstractmethod
+    #def switch_off(self, publish=True):
+    #    pass
+
+    @abc.abstractmethod
+    def enable(self, publish=True):
+        """Engage motor. This is switching motor on and engaging its drive.
+
+        Kwargs:
+            publish: If to publish motor changes.
+        """
+        if publish:
+            self.publish(MOTOR_CHANGED)
+
+    @abc.abstractmethod
+    def disable(self, publish=True):
+        """Switch motor on.
+
+        Kwargs:
+            publish: If to publish motor changes.
+        """
+        if publish:
+            self.publish(MOTOR_CHANGED)
+
+    @abc.abstractmethod
     def enabled(self) -> bool:
         """Is motor enabled?"""
-        return self._enabled
 
-    def enable(self, publish=True):
-        """Engage motor. This is switching motor on and engaging its drive."""
-        self._enabled = True
-        if publish:
-            self.publish(MOTOR_CHANGED)
-
-    def disable(self, publish=True):
-        """Switch motor on."""
-        self._enabled = False
-        if publish:
-            self.publish(MOTOR_CHANGED)
-
+    @abc.abstractmethod
     def home(self):
-        """Start homing routine for this motor. Has then to be driven via the update() method."""
+        """Start homing routine for this motor. Has then to be driven via the
+        update() method.
+        """
         self.publish(MOTOR_CHANGED)
 
     def to_dict(self):
@@ -108,7 +134,84 @@ class Motor(Block, PubSub):
         return dct
 
 
-class LinearMotor(Motor):
+class DummyMotor(Motor):
+
+    """Dummy motor for testing and standalone usage."""
+
+    def __init__(self, length=0.04):
+        super().__init__()
+        self.length = length
+        self.state = KinematicState()
+        self.dt = INTERVAL
+        self.homing = HomingState.HOMED
+        self._enabled = False
+
+    def enable(self, publish=True):
+        self._enabled = True
+        super().enable(publish)
+
+    def disable(self, publish=True):
+        self._enabled = False
+        super().disable(publish)
+
+    def enabled(self):
+        return self._enabled
+
+    def dummy_homing(self,
+            minDuration: float = 2.,
+            maxDuration: float = 5.,
+        ) -> HomingProgress:
+        """Dummy homing for testing.
+
+        Kwargs:
+            minDuration: Minimum homing duration.
+            maxDuration: Maximum homing duration.
+
+        Yields:
+            HomingState ONGOING until HOMED.
+        """
+        duration = random.uniform(minDuration, maxDuration)
+        endTime = time.perf_counter() + duration
+        while time.perf_counter() < endTime:
+            yield HomingState.ONGOING
+
+        yield HomingState.HOMED
+
+    def home(self):
+        self.homingJob = self.dummy_homing()
+        self.homing = HomingState.ONGOING
+        super().home()
+
+    def update(self):
+        # Kinematic filter input target position
+        if self.homing is HomingState.ONGOING:
+            self.homing = next(self.homingJob)
+            if self.homing is not HomingState.ONGOING:
+                self.publish(MOTOR_CHANGED)
+
+            target = 0.
+        else:
+            target = self.input.value
+
+        self.state = kinematic_filter(
+            target,
+            dt=self.dt,
+            initial=self.state,
+            maxSpeed=1.,
+            maxAcc=1.,
+            lower=0.,
+            upper=self.length,
+        )
+
+        self.output.value = self.state.position
+
+    def to_dict(self):
+        dct = super().to_dict()
+        dct['length'] = self.length
+        return dct
+
+
+class CanMotor(Motor):
 
     """Motor blocks which takes set-point values through its inputs and outputs
     the current actual position value through its output. The input position
@@ -121,15 +224,11 @@ class LinearMotor(Motor):
     """
 
     def __init__(self,
-            nodeId: int,
-            length: Optional[float] = None,
-            direction: float = FORWARD,
-            homingDirection: Optional[float] = None,
-            maxSpeed: float = 1.,
-            maxAcc: float = 1.,
-            network: Optional[CanBackend] = None,
+            nodeId,
             node: Optional[CiA402Node] = None,
-            objectDictionary = None,
+            objectDictionary=None,
+            network: Optional[CanBackend] = None,
+            name=None,
             **kwargs,
         ):
         """Args:
@@ -146,10 +245,7 @@ class LinearMotor(Motor):
             objectDictionary: Object dictionary for CiA402Node. If will be tried
                 to identified from known EDS files.
         """
-        super().__init__(**kwargs)
-        if homingDirection is None:
-            homingDirection = direction
-
+        super().__init__(name=name)
         if network is None:
             network = CanBackend.single_instance_setdefault()
             register_resource(network, duplicates=False)
@@ -160,9 +256,7 @@ class LinearMotor(Motor):
 
             node = CiA402Node(nodeId, objectDictionary, network)
 
-        deviceName = node.manufacturer_device_name()
-        controllerType = CONTROLLER_TYPES[deviceName]
-        self.controller = controllerType(node, length, direction, homingDirection, maxSpeed, maxAcc)
+        self.controller = create_controller_for_node(node, **kwargs)
 
     def enabled(self):
         return self.controller.enabled()
@@ -178,7 +272,7 @@ class LinearMotor(Motor):
     def home(self):
         self.homingJob = self.controller.home()
         self.homing = HomingState.ONGOING
-        self.publish(MOTOR_CHANGED)
+        super().home()
 
     def update(self):
         for emcyMsg in self.controller.iter_emergencies():
@@ -205,6 +299,10 @@ class LinearMotor(Motor):
 
     def __str__(self):
         return f'{type(self).__name__}(nodeId: {self.nodeId!r})'
+
+
+class LinearMotor(CanMotor):
+    pass
 
 
 class RotaryMotor(Motor):
@@ -485,55 +583,3 @@ class WindupMotor(Motor):
         raise NotImplementedError
         # TODO: Make me!
 
-
-class DummyMotor(Motor):
-
-    """Dummy motor for testing and standalone usage."""
-
-    def __init__(self, length=0.04):
-        super().__init__()
-        self.length = length
-        self.state = KinematicState()
-        self.dt = INTERVAL
-        self.homing = HomingState.HOMED
-
-    def dummy_homing(self, minDuration: float = 2., maxDuration: float = 5.) -> HomingProgress:
-        duration = random.uniform(minDuration, maxDuration)
-        endTime = time.perf_counter() + duration
-        while time.perf_counter() < endTime:
-            yield HomingState.ONGOING
-
-        yield HomingState.HOMED
-
-    def home(self):
-        self.homingJob = self.dummy_homing()
-        self.homing = HomingState.ONGOING
-        self.publish(MOTOR_CHANGED)
-
-    def update(self):
-        # Kinematic filter input target position
-        if self.homing is HomingState.ONGOING:
-            self.homing = next(self.homingJob)
-            if self.homing is not HomingState.ONGOING:
-                self.publish(MOTOR_CHANGED)
-
-            target = 0.
-        else:
-            target = self.input.value
-
-        self.state = kinematic_filter(
-            target,
-            dt=self.dt,
-            initial=self.state,
-            maxSpeed=1.,
-            maxAcc=1.,
-            lower=0.,
-            upper=self.length,
-        )
-
-        self.output.value = self.state.position
-
-    def to_dict(self):
-        dct = super().to_dict()
-        dct['length'] = self.length
-        return dct

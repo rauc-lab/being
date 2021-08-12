@@ -53,8 +53,6 @@ MINIMUM_HOMING_WIDTH = 0.010
 """Minimum width of homing range for a successful homing."""
 
 
-
-
 class HomingFailed(BeingError):
 
     """Something went wrong while homing."""
