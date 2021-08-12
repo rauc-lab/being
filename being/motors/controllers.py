@@ -12,7 +12,7 @@ from being.can.cia_402 import (
 )
 from being.can.nmt import PRE_OPERATIONAL
 from being.can.vendor import Units
-from being.constants import INF, FORWARD
+from being.constants import FORWARD
 from being.error import BeingError
 from being.motors.homing import (
     HomingProgress,
@@ -40,19 +40,29 @@ class Controller:
     SUPPORTED_HOMING_METHODS: Set[int] = {}
     """Supported homing methods."""
 
+    DEVICE_UNITS = Units()
+
     def __init__(self,
             node: CiA402Node,
-            homingDirection: int = FORWARD,
+            length = None,
+            direction: int = FORWARD,
+            homingDirection: Optional[int] = None,
             endSwitches: bool = False,
         ):
         """Args:
             node: Connected CanOpen node.
 
         Kwargs:
+            length: Length of position range.
             homingDirection: Homing direction.
             endSwitches: End switches present?
         """
+        if homingDirection is None:
+            homingDirection = direction
+
         self.node = node
+        self.length = length
+        self.direction = direction
         self.homingDirection = homingDirection
         self.endSwitches = endSwitches
 
@@ -106,13 +116,34 @@ class Controller:
 
         return HOMING_METHODS[param]
 
-    def home(self) -> HomingProgress:
-        """Create homing job routine for this controller."""
-        method = self.homing_method()
+    def validate_homing_method(self, method: int):
+        """Validate homing method for this controller. Raises a ControllerError
+        if homing method is not support.
+
+        Args:
+            method: Homing method to check.
+        """
         if method not in self.SUPPORTED_HOMING_METHODS:
             raise ControllerError(f'Homing method {method} not supported for controller {self}')
 
+    def home(self) -> HomingProgress:
+        """Create homing job routine for this controller."""
+        method = self.homing_method()
+        self.validate_homing_method(method)
         return proper_homing(self.node, method)
+
+    def set_target_position(self, targetPosition):
+        """Set target position in SI units."""
+        if self.direction > 0:
+            tarPos = targetPosition
+        else:
+            tarPos = self.length - targetPosition
+
+        self.node.set_target_position(tarPos * self.DEVICE_UNITS.length)
+
+    def get_actual_position(self) -> float:
+        """Get actual position in SI units."""
+        return self.node.get_actual_position() / self.DEVICE_UNITS.length
 
     def __str__(self):
         return f'{type(self).__name__}()'
@@ -176,10 +207,10 @@ class Mclm3002(Controller):
         17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
         33, 34,
         35,
-        }
+    }
 
     DEVICE_UNITS = Units(
-        length=1e6,
+        length=1e6,  # Lengths in µm
         current=1000,
         kinematics=1000,
         speed=1000,  # Speeds are in mm/s
@@ -187,24 +218,14 @@ class Mclm3002(Controller):
 
     def __init__(self,
             node: CiA402Node,
-            length: Optional[float] = None,
-            direction: float = FORWARD,
-            homingDirection: Optional[float] = None,
+            *args,
             maxSpeed: float = 1.,
             maxAcc: float = 1.,
-            endSwitches: bool = False,
+            **kwargs
         ):
-        if homingDirection is None:
-            homingDirection = direction
-
-        super().__init__(node, homingDirection, endSwitches)
-        self.length = length
-        self.direction = direction
+        super().__init__(node, *args, **kwargs)
         self.maxSpeed = maxSpeed
         self.maxAcc = maxAcc
-
-        self.lower = -INF
-        self.upper = INF
 
         self.configure_node()
 
@@ -213,6 +234,7 @@ class Mclm3002(Controller):
         self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
 
     def configure_node(self):
+        """Default configurations for Faulhaber controller / motor."""
         units = self.DEVICE_UNITS
 
         generalSettings = self.node.sdo['General Settings']
@@ -247,7 +269,8 @@ class Mclm3002(Controller):
     def home(self):
         method = self.homing_method()
 
-        # Faulhaber does not support homing methods -1 and -2
+        # Faulhaber does not support homing methods -1 and -2. Use crude_homing
+        # instead
         if method in {-1, -2}:
             units = self.DEVICE_UNITS
             return crude_homing(
@@ -258,23 +281,8 @@ class Mclm3002(Controller):
                 length=self.length * units.length,
             )
 
-        if method not in self.SUPPORTED_HOMING_METHODS:
-            raise ControllerError(f'Homing method {method} not supported for controller {self}')
-
+        self.validate_homing_method(method)
         return proper_homing(self.node, method)
-
-    def set_target_position(self, targetPosition):
-        """Set target position in SI units."""
-        if self.direction > 0:
-            tarPos = targetPosition
-        else:
-            tarPos = self.length - targetPosition
-
-        self.node.set_target_position(tarPos * self.DEVICE_UNITS.length)
-
-    def get_actual_position(self) -> float:
-        """Get actual position in SI units."""
-        return self.node.get_actual_position() / self.DEVICE_UNITS.length
 
 
 class Epos4(Controller):
@@ -295,7 +303,5 @@ class Epos4(Controller):
         if method == 35:
             method = 37
 
-        if method not in self.SUPPORTED_HOMING_METHODS:
-            raise ControllerError(f'Homing method {method} not supported for controller {self}')
-
+        self.validate_homing_method(method)
         return proper_homing(self.node, method)
