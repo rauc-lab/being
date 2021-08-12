@@ -14,7 +14,6 @@ from being.block import Block
 from being.can import load_object_dictionary
 from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.cia_402 import (
-    CW,
     CiA402Node,
     MAX_PROFILE_VELOCITY,
     OperationMode,
@@ -37,6 +36,11 @@ from being.constants import FORWARD, TAU
 from being.error import BeingError
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
+from being.math import (
+    angular_velocity_to_rpm,
+    rpm_to_angular_velocity,
+    sign,
+)
 from being.motors.controllers import Controller, Mclm3002
 from being.motors.homing import (
     HomingProgress,
@@ -44,25 +48,10 @@ from being.motors.homing import (
     proper_homing,
 )
 from being.pubsub import PubSub
-from being.math import (
-    angular_velocity_to_rpm,
-    rpm_to_angular_velocity,
-    sign,
-)
 from being.resources import register_resource
 
 
 INTERVAL = CONFIG['General']['INTERVAL']
-
-
-# TODO: Implement "non-crude" homings for the different controllers / end-switch
-# yes/no etc... Also need to think of a sensible lookup of homing methods. There
-# are some tricky differences like:
-#   - CanOpen register for end-switch on Faulhaber is not standard CiA402
-#   - Homing method 35 is deprecated since a new CiA 402 standard. Got replaced
-#     with 37. Maxon Epos 2 and Faulhaber still use 35, Maxon Epos 4 uses the
-#     new 37
-
 
 MOTOR_CHANGED = 'MOTOR_CHANGED'
 """Motor changed event."""

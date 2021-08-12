@@ -2,7 +2,7 @@
 import enum
 import time
 import warnings
-from typing import Generator, Tuple
+from typing import Generator, Tuple, Dict, NamedTuple
 
 from being.can.cia_402 import (
     CiA402Node,
@@ -29,12 +29,11 @@ from being.can.nmt import OPERATIONAL
 from being.constants import INF
 from being.error import BeingError
 from being.math import clip
+from being.constants import FORWARD, BACKWARD
+
 
 HomingRange = Tuple[int, int]
 """Lower and upper homing range."""
-
-MINIMUM_HOMING_WIDTH = 0.010
-"""Minimum width of homing range for a successful homing."""
 
 
 class HomingState(enum.Enum):
@@ -49,6 +48,11 @@ class HomingState(enum.Enum):
 
 HomingProgress = Generator[HomingState, None, None]
 """Yielding the current homing state."""
+
+MINIMUM_HOMING_WIDTH = 0.010
+"""Minimum width of homing range for a successful homing."""
+
+
 
 
 class HomingFailed(BeingError):
