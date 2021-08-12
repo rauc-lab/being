@@ -8,7 +8,7 @@ We do not use asyncio because we want to keep the core async free for now.
 import abc
 import random
 import time
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 
 from being.backends import CanBackend
 from being.block import Block
@@ -223,27 +223,32 @@ class CanMotor(Motor):
         node (CiA402Node): Drive node.
     """
 
+    DEFAULT_SETTINGS = {}
+    """Default settings for CanOpen node."""
+
     def __init__(self,
             nodeId,
             node: Optional[CiA402Node] = None,
             objectDictionary=None,
             network: Optional[CanBackend] = None,
+            settings: Optional[Dict[str, Any]] = None,
             name=None,
-            **kwargs,
+            **controllerKwargs,
+
         ):
         """Args:
             nodeId: CANopen node id.
 
         Kwargs:
-            length: Rod length if known.
-            direction: Movement orientation.
-            homingDirection: Initial homing direction. Default same as `direction`.
-            maxSpeed: Maximum speed.
-            maxAcc: Maximum acceleration.
-            network: External network (dependency injection).
             node: Drive node (dependency injection).
             objectDictionary: Object dictionary for CiA402Node. If will be tried
                 to identified from known EDS files.
+            network: External network (dependency injection).
+            settings: Motor settings. Dict of EDS variables -> Raw value to set.
+                EDS variable with path syntax (slash '/' separator) for nested
+                settings.
+            name: Block name
+            **controllerKwargs: Key word arguments for controller.
         """
         super().__init__(name=name)
         if network is None:
@@ -256,7 +261,20 @@ class CanMotor(Motor):
 
             node = CiA402Node(nodeId, objectDictionary, network)
 
-        self.controller = create_controller_for_node(node, **kwargs)
+        self.node = node
+        self.controller = create_controller_for_node(node, **controllerKwargs)
+        self.logger = get_logger(str(self))
+
+        dct = self.DEFAULT_SETTINGS.copy()
+        if settings is not None:
+            dct.update(**settings)
+
+        self.apply_settings(dct)
+
+    @property
+    def nodeId(self) -> int:
+        """Associsated CanOpen node id."""
+        return self.node.id
 
     def enabled(self):
         return self.controller.enabled()
@@ -274,9 +292,19 @@ class CanMotor(Motor):
         self.homing = HomingState.ONGOING
         super().home()
 
+    def apply_settings(self, settings: Dict[str, Any]):
+        """Apply settings to CanOpen node."""
+        for name, value in settings.items():
+            keys = name.split('/')
+            d = self.node.sdo
+            for k in keys[:-1]:
+                d = d[k]
+
+            d[keys[-1]].raw = value
+
     def update(self):
-        for emcyMsg in self.controller.iter_emergencies():
-            self.logger.error(emcyMsg)
+        for emcy in self.controller.iter_emergencies():
+            self.logger.error(emcy)
 
         if self.homing is HomingState.HOMED:
             # PDO instead of SDO for speed
@@ -302,7 +330,21 @@ class CanMotor(Motor):
 
 
 class LinearMotor(CanMotor):
-    pass
+    DEFAULT_SETTINGS = {
+        'General Settings/Pure Sinus Commutation': 1,
+        'Filter Settings/Sampling Rate': 4,
+        'Filter Settings/Gain Scheduling Velocity Controller': 1,
+        #'Velocity Control Parameter Set/Proportional Term POR': 44,
+        #'Velocity Control Parameter Set/Integral Term I': 50,
+        'Position Control Parameter Set/Proportional Term PP': 15,  # or 8 (softer)
+        'Position Control Parameter Set/Derivative Term PD': 10,  # or 14 (softer)
+        'Current Control Parameter Set/Continuous Current Limit': 0.500 * 1000,
+        'Current Control Parameter Set/Peak Current Limit': 1.640 * 1000,
+        'Current Control Parameter Set/Integral Term CI': 3,
+        'Max Profile Velocity': 1.000 * 1000,
+        'Profile Acceleration': 1.000 * 1000,
+        'Profile Deceleration': 1.000 * 1000,
+    }
 
 
 class RotaryMotor(Motor):
