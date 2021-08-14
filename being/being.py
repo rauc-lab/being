@@ -9,7 +9,7 @@ from being.connectables import ValueOutput, MessageOutput
 from being.execution import execute, block_network_graph
 from being.graph import topological_sort
 from being.motion_player import MotionPlayer
-from being.motors.blocks import Motor
+from being.motors.blocks import MotorBlock
 from being.utils import filter_by_type
 
 
@@ -50,7 +50,7 @@ class Being:
         self.messageOutputs = list(message_outputs(self.execOrder))
         self.behaviors = list(filter_by_type(self.execOrder, Behavior))
         self.motionPlayers = list(filter_by_type(self.execOrder, MotionPlayer))
-        self.motors = list(filter_by_type(self.execOrder, Motor))
+        self.motors = list(filter_by_type(self.execOrder, MotorBlock))
 
     def start_behaviors(self):
         """Start all behaviors."""

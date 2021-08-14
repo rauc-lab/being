@@ -143,3 +143,12 @@ class IdAware:
         self = object.__new__(cls)
         self.id = next(cls.ID_COUNTERS[cls])
         return self
+
+
+def merge_dicts(first: dict, *others) -> dict:
+    """Merge dict together. Pre Python 3.5 compatible."""
+    merged = first.copy()
+    for dct in others:
+        merged.update(dct)
+
+    return merged

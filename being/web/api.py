@@ -18,7 +18,7 @@ from being.config import CONFIG
 from being.connectables import ValueOutput, _ValueContainer
 from being.content import CONTENT_CHANGED, Content
 from being.logging import get_logger
-from being.motors.blocks import Motor
+from being.motors.blocks import MotorBlock
 from being.motors.homing import HomingState
 from being.serialization import loads, spline_from_dict, register_enum
 from being.spline import fit_spline
@@ -49,13 +49,13 @@ def messageify(obj) -> collections.OrderedDict:
             ('behavior', obj),
         ])
 
-    if isinstance(obj, Motor):
+    if isinstance(obj, MotorBlock):
         return collections.OrderedDict([
             ('type', 'motor-update'),
             ('motor', obj),
         ])
 
-    if isinstance(obj, list) and all(isinstance(o, Motor) for o in obj):
+    if isinstance(obj, list) and all(isinstance(o, MotorBlock) for o in obj):
         return collections.OrderedDict([
             ('type', 'motor-updates'),
             ('motors', obj),

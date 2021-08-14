@@ -1,3 +1,7 @@
+"""
+Note: To read:
+    https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
+"""
 import logging
 import logging.handlers
 import os

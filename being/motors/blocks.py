@@ -26,12 +26,7 @@ from being.can.cia_402 import (
 )
 from being.can.nmt import PRE_OPERATIONAL
 from being.can.vendor import (
-    EPOS4,
-    MAXON_ERROR_CODES,
-    MAXON_ERROR_REGISTER,
-    Units,
-    stringify_error,
-)
+    EPOS4, MAXON_ERROR_CODES, MAXON_ERROR_REGISTER, Units, stringify_error,)
 from being.config import CONFIG
 from being.constants import FORWARD, TAU
 from being.error import BeingError
@@ -48,6 +43,7 @@ from being.motors.homing import (
     HomingState,
     proper_homing,
 )
+from being.motors.motors import get_motor
 from being.pubsub import PubSub
 from being.resources import register_resource
 
@@ -72,7 +68,6 @@ def create_controller_for_node(node: CiA402Node, *args, **kwargs) -> Controller:
     deviceName = node.manufacturer_device_name()
     if deviceName not in CONTROLLER_TYPES:
         raise ValueError(f'No controller for device name {deviceName}!')
-        controllerType = CONTROLLER_TYPES[deviceName]
 
     controllerType = CONTROLLER_TYPES[deviceName]
     return controllerType(node, *args, **kwargs)
@@ -83,7 +78,7 @@ class DriveError(BeingError):
     """Something went wrong on the drive."""
 
 
-class Motor(Block, PubSub, abc.ABC):
+class MotorBlock(Block, PubSub, abc.ABC):
     def __init__(self, name=None):
         super().__init__(name=name)
         PubSub.__init__(self, events=[MOTOR_CHANGED])
@@ -134,7 +129,7 @@ class Motor(Block, PubSub, abc.ABC):
         return dct
 
 
-class DummyMotor(Motor):
+class DummyMotor(MotorBlock):
 
     """Dummy motor for testing and standalone usage."""
 
@@ -211,7 +206,7 @@ class DummyMotor(Motor):
         return dct
 
 
-class CanMotor(Motor):
+class CanMotor(MotorBlock):
 
     """Motor blocks which takes set-point values through its inputs and outputs
     the current actual position value through its output. The input position
@@ -219,31 +214,30 @@ class CanMotor(Motor):
     CiA402Node. Currently only tested with Faulhaber linear drive (0.04 m).
 
     Attributes:
-        network (CanBackend): Associsated network:
-        node (CiA402Node): Drive node.
+        controller (Controller): Motor controller.
+        logger (Logger): CanMotor logger.
     """
-
-    DEFAULT_SETTINGS = {}
-    """Default settings for CanOpen node."""
 
     def __init__(self,
             nodeId,
+            motorName,
             node: Optional[CiA402Node] = None,
             objectDictionary=None,
             network: Optional[CanBackend] = None,
             settings: Optional[Dict[str, Any]] = None,
-            name=None,
+            name: Optional[str] = None,
             **controllerKwargs,
-
         ):
         """Args:
             nodeId: CANopen node id.
+            motorName: Motor name / type of actual hardware motor.
 
         Kwargs:
-            node: Drive node (dependency injection).
+            node: CiA402Node driver node. If non given create new one
+                (dependency injection).
             objectDictionary: Object dictionary for CiA402Node. If will be tried
                 to identified from known EDS files.
-            network: External network (dependency injection).
+            network: External CAN network (dependency injection).
             settings: Motor settings. Dict of EDS variables -> Raw value to set.
                 EDS variable with path syntax (slash '/' separator) for nested
                 settings.
@@ -261,23 +255,17 @@ class CanMotor(Motor):
 
             node = CiA402Node(nodeId, objectDictionary, network)
 
-        self.node = node
-        self.controller = create_controller_for_node(node, **controllerKwargs)
+        if settings is None:
+            settings = {}
+
+        motor = get_motor(motorName)
+        self.controller: Controller = create_controller_for_node(
+            node,
+            motor,
+            settings=settings,
+            **controllerKwargs,
+        )
         self.logger = get_logger(str(self))
-
-        dct = self.DEFAULT_SETTINGS.copy()
-        if settings is not None:
-            dct.update(**settings)
-
-        self.apply_settings(dct)
-
-    @property
-    def nodeId(self) -> int:
-        """Associsated CanOpen node id."""
-        return self.node.id
-
-    def enabled(self):
-        return self.controller.enabled()
 
     def enable(self, publish=True):
         self.controller.enable()
@@ -287,20 +275,13 @@ class CanMotor(Motor):
         self.controller.disable()
         super().disable(publish)
 
+    def enabled(self):
+        return self.controller.enabled()
+
     def home(self):
         self.homingJob = self.controller.home()
         self.homing = HomingState.ONGOING
         super().home()
-
-    def apply_settings(self, settings: Dict[str, Any]):
-        """Apply settings to CanOpen node."""
-        for name, value in settings.items():
-            keys = name.split('/')
-            d = self.node.sdo
-            for k in keys[:-1]:
-                d = d[k]
-
-            d[keys[-1]].raw = value
 
     def update(self):
         for emcy in self.controller.iter_emergencies():
@@ -322,32 +303,32 @@ class CanMotor(Motor):
 
     def to_dict(self):
         dct = super().to_dict()
-        dct['length'] = self.controller.length
+        dct['length'] = self.controller.motor.length
         return dct
 
     def __str__(self):
-        return f'{type(self).__name__}(nodeId: {self.nodeId!r})'
+        controller = self.controller
+        node = self.controller.node
+        motor = self.controller.motor
+        return '%s(%s)' % (
+            type(self).__name__,
+            ', '.join([
+                'nodeId: %r' % (node.id),
+                'controller: %r' % type(controller).__name__,
+                'motor: %s %s' % (motor.manufacturer, motor.name),
+            ])
+        )
 
 
 class LinearMotor(CanMotor):
-    DEFAULT_SETTINGS = {
-        'General Settings/Pure Sinus Commutation': 1,
-        'Filter Settings/Sampling Rate': 4,
-        'Filter Settings/Gain Scheduling Velocity Controller': 1,
-        #'Velocity Control Parameter Set/Proportional Term POR': 44,
-        #'Velocity Control Parameter Set/Integral Term I': 50,
-        'Position Control Parameter Set/Proportional Term PP': 15,  # or 8 (softer)
-        'Position Control Parameter Set/Derivative Term PD': 10,  # or 14 (softer)
-        'Current Control Parameter Set/Continuous Current Limit': 0.500 * 1000,
-        'Current Control Parameter Set/Peak Current Limit': 1.640 * 1000,
-        'Current Control Parameter Set/Integral Term CI': 3,
-        'Max Profile Velocity': 1.000 * 1000,
-        'Profile Acceleration': 1.000 * 1000,
-        'Profile Deceleration': 1.000 * 1000,
-    }
+
+    """Default linear Faulhaber motor."""
+
+    def __init__(self, nodeId, motorName='LM 1247', **kwargs):
+        super().__init__(nodeId, motorName, **kwargs)
 
 
-class RotaryMotor(Motor):
+class RotaryMotor(MotorBlock):
 
     """Motor block which takes set-point values through its inputs and outputs
     the current actual position value through its output. The input position
@@ -620,8 +601,7 @@ class RotaryMotor(Motor):
         return f'{type(self).__name__}(nodeId: {self.nodeId!r})'
 
 
-class WindupMotor(Motor):
+class WindupMotor(MotorBlock):
     def __init__(self, nodeId, *args, **kwargs):
         raise NotImplementedError
         # TODO: Make me!
-

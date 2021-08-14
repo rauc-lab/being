@@ -15,7 +15,7 @@ from being.block import Block, output_neighbors
 from being.clock import Clock
 from being.content import Content
 from being.logging import get_logger
-from being.motors.blocks import Motor
+from being.motors.blocks import MotorBlock
 from being.spline import Spline, sample_spline, spline_shape
 from being.utils import filter_by_type
 
@@ -184,7 +184,7 @@ class MotionPlayer(Block):
         dct = super().to_dict()
         dct['ndim'] = self.ndim
         neighbors = output_neighbors(self)
-        dct['motors'] = list(filter_by_type(neighbors, Motor))
+        dct['motors'] = list(filter_by_type(neighbors, MotorBlock))
         return dct
 
     def __str__(self):
