@@ -152,10 +152,8 @@ class DummyMotor(MotorBlock):
     def enabled(self):
         return self._enabled
 
-    def dummy_homing(self,
-            minDuration: float = 2.,
-            maxDuration: float = 5.,
-        ) -> HomingProgress:
+    @staticmethod
+    def dummy_homing(minDuration: float = 2., maxDuration: float = 5.) -> HomingProgress:
         """Dummy homing for testing.
 
         Kwargs:

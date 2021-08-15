@@ -1,27 +1,25 @@
 """Motor controllers."""
 from typing import Optional, Dict, Generator, Set, Any
-from collections import defaultdict
 
-from being.can.cia_402 import ( CiA402Node, HOMING_METHODS, HomingParam, NEGATIVE, OperationMode, POSITIVE, State as CiA402State, )
-from being.can.vendor import Units
-from being.constants import FORWARD, ONE, MILLI, MICRO
+from being.can.cia_402 import (
+    CiA402Node,
+    HOMING_METHODS,
+    HomingParam,
+    NEGATIVE,
+    OperationMode,
+    POSITIVE,
+    State as CiA402State,
+)
+from being.constants import FORWARD, MILLI, MICRO, DECI
 from being.error import BeingError
-from being.motors.homing import ( HomingProgress, MINIMUM_HOMING_WIDTH, crude_homing, proper_homing, )
+from being.motors.homing import (
+    HomingProgress,
+    MINIMUM_HOMING_WIDTH,
+    crude_homing,
+    proper_homing,
+)
 from being.motors.motors import Motor, get_motor
 from being.utils import merge_dicts
-
-
-def unity() -> float:
-    """We are one."""
-    return ONE
-
-
-def device_units(units: Optional[dict] = None) -> defaultdict:
-    """Create defaultdict for device units -> SI conversion factors."""
-    if units is None:
-        units = {}
-
-    return defaultdict(unity, units)
 
 
 class ControllerError(BeingError):
@@ -46,7 +44,7 @@ class Controller:
 
     DEVICE_ERROR_CODES: Dict[int, str] = {}
     SUPPORTED_HOMING_METHODS: Set[int] = {}
-    DEVICE_UNITS = device_units()
+    DEVICE_UNITS = {}
 
     def __init__(self,
             node: CiA402Node,
@@ -109,7 +107,7 @@ class Controller:
         """Device error message from error code."""
         return self.DEVICE_ERROR_CODES.get(
             errorCode,
-            f'Unknown device error message for errorCode: {errorCode}',
+            f'Unknown device error message for error code: {errorCode}',
         )
 
     def iter_emergencies(self) -> Generator[object, None, None]:
@@ -155,14 +153,23 @@ class Controller:
         return self.node.get_actual_position() * self.DEVICE_UNITS['length']
 
     def apply_settings(self, settings: Dict[str, Any]):
-        """Apply settings to CANopen node. Convert physical SI values to device units."""
-        for name, physValue in settings.items():
-            *path, last = name.split('/')
-            d = self.node.sdo
-            for k in path:
-                d = d[k]
+        """Apply settings to CANopen node. Convert physical SI values to device
+        units (if present in DEVICE_UNITS dict).
 
-            d[last].raw = physValue / self.DEVICE_UNITS[name]
+        Args:
+            settings: Settings to apply. Addresses (path syntax) -> value
+                entries.
+        """
+        for name, value in settings.items():
+            *path, last = name.split('/')
+            sdo = self.node.sdo
+            for key in path:
+                sdo = sdo[key]
+
+            if name in self.DEVICE_UNITS:
+                sdo[last].raw = value / self.DEVICE_UNITS[name]
+            else:
+                sdo[last].raw = value
 
     def __str__(self):
         return f'{type(self).__name__}()'
@@ -195,7 +202,7 @@ class Mclm3002(Controller):
         35,
     }
 
-    DEVICE_UNITS = device_units({
+    DEVICE_UNITS = {
         'length': MICRO,
         'current': MILLI,
         'speed': MILLI,
@@ -204,7 +211,7 @@ class Mclm3002(Controller):
         'Max Profile Velocity': MILLI,
         'Profile Acceleration': MILLI,
         'Profile Deceleration': MILLI,
-    })
+    }
 
     def home(self):
         method = self.homing_method()
@@ -233,6 +240,15 @@ class Epos4(Controller):
 
     SUPPORTED_HOMING_METHODS = {
         -4, -3, -2, -1, 1, 2, 7, 11, 17, 18, 23, 27, 33, 34, 37,
+    }
+
+    DEVICE_UNITS = {
+        'current': MILLI,
+        'torque': MICRO,
+        'Motor data/Nominal current': MILLI,
+        'Motor data/Output current limit': MILLI,
+        'Motor data/Thermal time constant winding': DECI,
+        'Motor data/Torque constant': MICRO,
     }
 
     def home(self):

@@ -2,7 +2,7 @@
 import enum
 import time
 import warnings
-from typing import Generator, Tuple, Dict, NamedTuple
+from typing import Generator, Tuple
 
 from being.can.cia_402 import (
     CiA402Node,
