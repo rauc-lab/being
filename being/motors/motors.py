@@ -1,4 +1,6 @@
-"""Motor definitions for the actual hardware motor types."""
+"""Motor definitions for the actual hardware motor types. Different motor
+parameters / settings.
+"""
 from typing import NamedTuple
 
 
@@ -16,6 +18,36 @@ FAULHABER_DEFAULT_SETTINGS = {
     'Max Profile Velocity': 1.0,
     'Profile Acceleration': 1.0,
     'Profile Deceleration': 1.0,
+}
+MAXON_PHASE_MODULATED_DC_MOTOR = 1
+MAXON_SINUSOIDAL_PM_BL_MOTOR = 10
+MAXON_TRAPEZOIDAL_PM_BL_MOTOR = 11
+TODO = 0
+MAXON_DC_22_S_DEFAULT_SETTINGS = {
+    'Motor type': MAXON_PHASE_MODULATED_DC_MOTOR,
+    'Motor data/Nominal current': 0.379,  # [Ampere]
+    'Motor data/Output current limit': 2 * 0.379,  # [Ampere]
+    'Motor data/Number of pole pairs': 1,
+    'Motor data/Thermal time constant winding': 14.3,
+    'Motor data/Torque constant': 0.0308,
+    # TODO: Gear
+    'Axis configuration/Sensors configuration': 1,
+    'Axis configuration/Control structure': TODO,
+    'Axis configuration/Commutation sensors': 0,
+    'Axis configuration/Axis configuration miscellaneous': TODO,
+}
+MAXON_EC_45_DEFAULT_SETTINGS = {
+    'Motor type': MAXON_SINUSOIDAL_PM_BL_MOTOR,
+    'Motor data/Nominal current': 3.210,  # [Ampere]
+    'Motor data/Output current limit': 2 * 3.210,  # [Ampere]
+    'Motor data/Number of pole pairs': 8,
+    'Motor data/Thermal time constant winding': 29.6,
+    'Motor data/Torque constant': 0.0369,
+    # TODO: Gear
+    'Axis configuration/Sensors configuration': 0x100001,
+    'Axis configuration/Control structure': TODO,
+    'Axis configuration/Commutation sensors': 0x31,
+    'Axis configuration/Axis configuration miscellaneous': TODO,
 }
 
 
@@ -35,7 +67,7 @@ class Motor(NamedTuple):
     length: float = None
     """Linear motor Length."""
 
-    brushed: bool = False
+    brushed: bool = False  # To deprecate?
     """If is brushed motor."""
 
     defaultSettings: dict = {}
@@ -47,8 +79,8 @@ MOTORS = {
     'LM1247': Motor('Faulhaber', 'LM 1247', length=0.120, defaultSettings=FAULHABER_DEFAULT_SETTINGS),
     'LM1483': Motor('Faulhaber', 'LM 1483', length=0.080, defaultSettings=FAULHABER_DEFAULT_SETTINGS),
     'LM2070': Motor('Faulhaber', 'LM 2070', length=0.220, defaultSettings=FAULHABER_DEFAULT_SETTINGS),
-    'EC45': Motor('Maxon', 'EC 45'),
-    'DC22': Motor('Maxon', 'DC 22', brushed=True),
+    'DC22': Motor('Maxon', 'DC 22', brushed=True, defaultSettings=MAXON_DC_22_S_DEFAULT_SETTINGS),
+    'EC45': Motor('Maxon', 'EC 45', defaultSettings=MAXON_EC_45_DEFAULT_SETTINGS),
 }
 
 
