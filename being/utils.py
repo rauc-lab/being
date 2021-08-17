@@ -62,19 +62,22 @@ def write_file(filepath: str, data):
         file.write(data)
 
 
-def _update_dict_recursively(dct: dict, other: dict) -> dict:
+def update_dict_recursively(dct: dict, other: dict, default_factory: type = None) -> dict:
     """Update dictionary recursively.
 
     Args:
         dct: Dictionary to update.
+        other: Other dict to go through.
 
     Kwargs:
-        key / values
+        default_factory: Default factory for intermediate dicts.
     """
-    T = type(dct)
+    if default_factory is None:
+        default_factory = type(dct)
+
     for k, v in other.items():
         if isinstance(v, collections.abc.Mapping):
-            dct[k] = _update_dict_recursively(dct.get(k, T()), v)
+            dct[k] = update_dict_recursively(dct.get(k, default_factory()), v)
         else:
             dct[k] = v
 

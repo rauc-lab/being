@@ -3,7 +3,7 @@ import logging
 import os
 
 from being.configs import ConfigFile
-from being.utils import _update_dict_recursively
+from being.utils import update_dict_recursively
 
 
 CONFIG: dict = {
@@ -38,4 +38,4 @@ for fp in [
     os.path.join(os.getcwd(), 'being.ini'),
 ]:
     if os.path.exists(fp):
-        _update_dict_recursively(CONFIG, ConfigFile(fp))
+        update_dict_recursively(CONFIG, ConfigFile(fp))
