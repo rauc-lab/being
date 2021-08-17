@@ -8,7 +8,6 @@ import contextlib
 from enum import auto, IntEnum, Enum
 from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union, Optional, NamedTuple
 from collections import deque, defaultdict
-# import time
 
 from canopen import RemoteNode
 
@@ -16,7 +15,6 @@ from being.bitmagic import check_bit
 from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.definitions import TransmissionType
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
-# from being.can.vendor import UNITS, Units
 from being.constants import FORWARD, BACKWARD
 from being.logging import get_logger
 

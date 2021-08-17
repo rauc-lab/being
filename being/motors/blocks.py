@@ -13,20 +13,12 @@ from typing import Optional, Dict, Any
 from being.backends import CanBackend
 from being.block import Block
 from being.can import load_object_dictionary
-from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.cia_402 import (
     CiA402Node,
-    MAX_PROFILE_VELOCITY,
-    OperationMode,
-    PROFILE_ACCELERATION,
-    PROFILE_DECELERATION,
     STATUSWORD,
     State as CiA402State,
     which_state,
 )
-from being.can.nmt import PRE_OPERATIONAL
-from being.can.vendor import (
-    EPOS4, MAXON_ERROR_CODES, MAXON_ERROR_REGISTER, Units, stringify_error,)
 from being.config import CONFIG
 from being.constants import FORWARD, TAU
 from being.error import BeingError
