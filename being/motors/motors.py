@@ -40,7 +40,7 @@ MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
     'Motor data/Torque constant': 0.0308,
     'Motor rated torque': 0.012228,
     'Gear configuration/Gear reduction numerator': 69,
-    'Gear configuration/Gear reduction denumerator': 13,
+    'Gear configuration/Gear reduction denominator': 13,
     'Gear configuration/Max gear input speed': 837.75,
     'Max motor speed': 942,
     'Axis configuration/Sensors configuration': 1,
@@ -54,15 +54,15 @@ MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
     'Position control parameter set/Position controller I gain': TODO,
     'Position control parameter set/Position controller D gain': TODO,
     'Position control parameter set/Position controller FF velocity gain': 0,
-    'Position control parametuer set/Position controller FF acceleration gain': 0,
+    'Position control parameter set/Position controller FF acceleration gain': 0,
     'Current control parameter set/Current controller P gain': TODO,
     'Current control parameter set/Current controller I gain': TODO,
     # Will run smoother if set (0 = disabled).
     # However, will throw an RPDO timeout error when reloading web page
     #INTERVAL * 1000  # [ms]
-    'Interpolation time period value': MAXON_INTERPOLATION_DISABLED,
-    'Digital input configuration/DgIn1': MAXON_NEGATIVE_LIMIT_SWITCH,
-    'Digital input configuration/DgIn2': MAXON_POSITIVE_LIMIT_SWITCH,
+    'Interpolation time period/Interpolation time period value': MAXON_INTERPOLATION_DISABLED,
+    'Configuration of digital inputs/Digital input 1 configuration': MAXON_NEGATIVE_LIMIT_SWITCH,
+    'Configuration of digital inputs/Digital input 2 configuration': MAXON_POSITIVE_LIMIT_SWITCH,
     'Max profile velocity': 158,
     'Profile acceleration': 1047,
     'Profile deceleration': 1047,
@@ -100,9 +100,9 @@ MAXON_EC_45_DEFAULT_SETTINGS = {
     'Position control parameter set/Position controller FF acceleration gain': 0,
     'Current control parameter set/Current controller P gain': TODO,
     'Current control parameter set/Current controller I gain': TODO,
-    'Interpolation time period value': MAXON_INTERPOLATION_DISABLED,  #INTERVAL * 1000  # [ms]
-    'Digital input configuration/DgIn1': MAXON_NEGATIVE_LIMIT_SWITCH,
-    'Digital input configuration/DgIn2': MAXON_POSITIVE_LIMIT_SWITCH,
+    'Interpolation time period/Interpolation time period value': MAXON_INTERPOLATION_DISABLED,  #INTERVAL * 1000  # [ms]
+    'Configuration of digital inputs/Digital input 1 configuration': MAXON_NEGATIVE_LIMIT_SWITCH,
+    'Configuration of digital inputs/Digital input 2 configuration': MAXON_POSITIVE_LIMIT_SWITCH,
     'Max profile velocity': 158,
     'Profile acceleration': 1047,
     'Profile deceleration': 1047,

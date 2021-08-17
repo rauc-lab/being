@@ -256,6 +256,7 @@ class Epos4(Controller):
         length: Optional[float] = None,
         ):
 
+        print("here")
         super().__init__(node,
                 motor,
                 settings,
@@ -265,11 +266,15 @@ class Epos4(Controller):
 
         # TODO: Hold these values on controller level? In case one overwrites the 
         # default settings, the configuration held on motor level is not correct
+        print("we")
         gearConfig = node.sdo['Gear configuration']
         numerator = gearConfig['Gear reduction numerator'].raw
+
         denumerator = gearConfig['Gear reduction denominator'].raw
         encoder = node.sdo['Digital incremental encoder 1']
         encoderNumberOfPulses = encoder['Digital incremental encoder 1 number of pulses'].raw
+
+        print("go")
         # Hacky implementation. Since we want to keep symmetry between both controller classes,
         # we overwrite the gearRatio with the final conversion factor
         gear = numerator / denumerator
