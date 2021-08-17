@@ -10,6 +10,7 @@ from being.execution import execute, block_network_graph
 from being.graph import topological_sort
 from being.motion_player import MotionPlayer
 from being.motors import Motor
+from being.params import Parameter
 from being.utils import filter_by_type
 
 
@@ -51,6 +52,7 @@ class Being:
         self.behaviors = list(filter_by_type(self.execOrder, Behavior))
         self.motionPlayers = list(filter_by_type(self.execOrder, MotionPlayer))
         self.motors = list(filter_by_type(self.execOrder, Motor))
+        self.params = list(filter_by_type(self.execOrder, Parameter))
 
     def start_behaviors(self):
         """Start all behaviors."""

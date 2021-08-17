@@ -221,7 +221,7 @@ class Config(_ConfigImpl, collections.abc.MutableMapping):
 
     """Configuration object. Proxy for _ConfigImpl (depending on config format)."""
 
-    def __init__(self, data: dict = None, configFormat: Optional[str] = None):
+    def __init__(self, data: Optional[dict] = None, configFormat: Optional[str] = None):
         """Kwargs:
             data: Initial / internal data.
             configFormat: Config format (if any).
@@ -250,14 +250,14 @@ class Config(_ConfigImpl, collections.abc.MutableMapping):
     def store(self, name, value):
         self.impl.store(name, value)
 
-    def storedefault(self, name, default=None):
-        self.impl.storedefault(name, default)
-
     def retrieve(self, name=ROOT_NAME) -> Any:
         return self.impl.retrieve(name)
 
     def erase(self, name):
         return self.impl.erase(name)
+
+    def storedefault(self, name, default=None):
+        return self.impl.storedefault(name, default)
 
     def loads(self, string):
         self.impl.loads(string)
