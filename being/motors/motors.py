@@ -2,6 +2,7 @@
 parameters / settings.
 """
 from typing import NamedTuple
+from utils import merge_dicts
 
 
 FAULHABER_DEFAULT_SETTINGS = {
@@ -22,20 +23,50 @@ FAULHABER_DEFAULT_SETTINGS = {
 MAXON_PHASE_MODULATED_DC_MOTOR = 1
 MAXON_SINUSOIDAL_PM_BL_MOTOR = 10
 MAXON_TRAPEZOIDAL_PM_BL_MOTOR = 11
+MAXON_FOLLOWING_ERROR_WINDOW_DISABLED = 4294967295
+MAXON_INTERPOLATION_DISABLED = 0
+MAXON_NEGATIVE_LIMIT_SWITCH = 0
+MAXON_POSITIVE_LIMIT_SWITCH = 1
 TODO = 0
-MAXON_DC_22_S_DEFAULT_SETTINGS = {
+MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
     'Motor type': MAXON_PHASE_MODULATED_DC_MOTOR,
     'Motor data/Nominal current': 0.379,  # [Ampere]
     'Motor data/Output current limit': 2 * 0.379,  # [Ampere]
     'Motor data/Number of pole pairs': 1,
     'Motor data/Thermal time constant winding': 14.3,
     'Motor data/Torque constant': 0.0308,
+    'Motor rated torque': 0.012228,
     # TODO: Gear
     'Axis configuration/Sensors configuration': 1,
-    'Axis configuration/Control structure': TODO,
+    'Axis configuration/Control structure': 0x11121,
     'Axis configuration/Commutation sensors': 0,
     'Axis configuration/Axis configuration miscellaneous': TODO,
+    'Digital incremental encoder 1/Digital incremental encoder 1 number of pulses': 1024,
+    'Digital incremental encoder 1/Digital incremental encoder 1 type': 1,
+    'Following error window': MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,
+    'Position control parameter set/Position controller P gain': TODO,
+    'Position control parameter set/Position controller I gain': TODO,
+    'Position control parameter set/Position controller D gain': TODO,
+    'Position control parameter set/Position controller FF velocity gain': 0,
+    'Position control parameter set/Position controller FF acceleration gain': 0,
+    'Current control parameter set/Current controller P gain': TODO,
+    'Current control parameter set/Current controller I gain': TODO,
+    # Will run smoother if set (0 = disabled).
+    # However, will throw an RPDO timeout error when reloading web page
+    #INTERVAL * 1000  # [ms]
+    'Interpolation time period value': MAXON_INTERPOLATION_DISABLED,
+    'Digital input configuration/DgIn1': MAXON_NEGATIVE_LIMIT_SWITCH,
+    'Digital input configuration/DgIn2': MAXON_POSITIVE_LIMIT_SWITCH,
 }
+
+MAXON_DC_22_S_24V_DEFAULT_SETTINGS = merge_dicts(MAXON_DC_22_S_12V_DEFAULT_SETTINGS, {
+    'Motor rated torque': 0.0118,
+    'Position control parameter set/Position controller P gain': 1.5,
+    'Position control parameter set/Position controller I gain': 0.78,
+    'Position control parameter set/Position controller D gain': 0.016,
+    'Current control parameter set/Current controller P gain': 19,
+    'Current control parameter set/Current controller I gain': 152,
+})
 MAXON_EC_45_DEFAULT_SETTINGS = {
     'Motor type': MAXON_SINUSOIDAL_PM_BL_MOTOR,
     'Motor data/Nominal current': 3.210,  # [Ampere]
@@ -43,11 +74,25 @@ MAXON_EC_45_DEFAULT_SETTINGS = {
     'Motor data/Number of pole pairs': 8,
     'Motor data/Thermal time constant winding': 29.6,
     'Motor data/Torque constant': 0.0369,
+    'Motor rated torque': 0.128,
     # TODO: Gear
     'Axis configuration/Sensors configuration': 0x100001,
-    'Axis configuration/Control structure': TODO,
+    'Axis configuration/Control structure': 0x00010121,
     'Axis configuration/Commutation sensors': 0x31,
     'Axis configuration/Axis configuration miscellaneous': TODO,
+    'Digital incremental encoder 1/Digital incremental encoder 1 number of pulses': 2048,
+    'Digital incremental encoder 1/Digital incremental encoder 1 type': 0,
+    'Following error window': MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,
+    'Position control parameter set/Position controller P gain': TODO,
+    'Position control parameter set/Position controller I gain': TODO,
+    'Position control parameter set/Position controller D gain': TODO,
+    'Position control parameter set/Position controller FF velocity gain': 0,
+    'Position control parameter set/Position controller FF acceleration gain': 0,
+    'Current control parameter set/Current controller P gain': TODO,
+    'Current control parameter set/Current controller I gain': TODO,
+    'Interpolation time period value': MAXON_INTERPOLATION_DISABLED,  #INTERVAL * 1000  # [ms]
+    'Digital input configuration/DgIn1': MAXON_NEGATIVE_LIMIT_SWITCH,
+    'Digital input configuration/DgIn2': MAXON_POSITIVE_LIMIT_SWITCH,
 }
 
 
@@ -67,9 +112,6 @@ class Motor(NamedTuple):
     length: float = None
     """Linear motor Length."""
 
-    brushed: bool = False  # To deprecate?
-    """If is brushed motor."""
-
     defaultSettings: dict = {}
     """Default settings for this motor."""
 
@@ -79,7 +121,7 @@ MOTORS = {
     'LM1247': Motor('Faulhaber', 'LM 1247', length=0.120, defaultSettings=FAULHABER_DEFAULT_SETTINGS),
     'LM1483': Motor('Faulhaber', 'LM 1483', length=0.080, defaultSettings=FAULHABER_DEFAULT_SETTINGS),
     'LM2070': Motor('Faulhaber', 'LM 2070', length=0.220, defaultSettings=FAULHABER_DEFAULT_SETTINGS),
-    'DC22': Motor('Maxon', 'DC 22', brushed=True, defaultSettings=MAXON_DC_22_S_DEFAULT_SETTINGS),
+    'DC22': Motor('Maxon', 'DC 22', defaultSettings=MAXON_DC_22_S_24V_DEFAULT_SETTINGS),
     'EC45': Motor('Maxon', 'EC 45', defaultSettings=MAXON_EC_45_DEFAULT_SETTINGS),
 }
 

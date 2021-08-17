@@ -37,7 +37,7 @@ from being.math import (
     rpm_to_angular_velocity,
     sign,
 )
-from being.motors.controllers import Controller, Mclm3002
+from being.motors.controllers import Controller, Mclm3002, Epos4
 from being.motors.homing import (
     HomingProgress,
     HomingState,
@@ -56,7 +56,7 @@ MOTOR_CHANGED = 'MOTOR_CHANGED'
 
 CONTROLLER_TYPES: Dict[str, Controller] = {
     'MCLM3002P-CO': Mclm3002,
-    #'EPOS4': Epos4,  # TODO(atheler):
+    'EPOS4': Epos4,
 }
 """Device name -> Controller type lookup."""
 
@@ -326,7 +326,14 @@ class LinearMotor(CanMotor):
         super().__init__(nodeId, motorName, **kwargs)
 
 
-class RotaryMotor(MotorBlock):
+class RotaryMotor(CanMotor):
+
+    """Default rotary Maxon motor."""
+    def __init__(self, nodeId, motorName='DC22', **kwargs):
+        super().__init__(nodeId, motorName, **kwargs)
+
+
+class RotaryMotorDeprecated(MotorBlock):
 
     """Motor block which takes set-point values through its inputs and outputs
     the current actual position value through its output. The input position
@@ -442,34 +449,7 @@ class RotaryMotor(MotorBlock):
             thermal=10,
             torque=1e6,
         )
-        units = self.node.units
 
-        # TODO: These parameters have to come from the outside. Question: How
-        # can we identify the motor and choose sensible defaults?
-
-        # Set motor parameters
-
-        isBrushed = self.motor.get('isBrushed', True)
-
-        self.node.sdo[EPOS4.MOTOR_TYPE].raw = 1 if isBrushed else 10
-        motorData = self.node.sdo[EPOS4.MOTOR_DATA_MAXON]
-
-        # Reducing the nominal current helps to make the motor quiter
-        nominalCurrent = self.motor.get('nominalCurrent', 0.3) * units.current
-        motorData[EPOS4.NOMINAL_CURRENT].raw = nominalCurrent  # [mA]
-
-        # Recommended to set current limit to double of nominal current
-        motorData[EPOS4.OUTPUT_CURRENT_LIMIT].raw = 2 * nominalCurrent  # [mA]
-
-        # only relevant for BLDC motors
-        numberOfPolePairs = self.motor.get('numberOfPolePairs', 1)
-        motorData[EPOS4.NUMBER_OF_POLE_PAIRS].raw = numberOfPolePairs
-
-        thermalTimeConstant = self.motor.get('thermalTimeConstant', 14.3) * units.thermal
-        motorData[EPOS4.THERMAL_TIME_CONSTANT_WINDING].raw = thermalTimeConstant  # [0.1 s]
-
-        motorTorqueConstant = self.motor.get('motorTorqueConstant', 0.03) * units.torque
-        motorData[EPOS4.MOTOR_TORQUE_CONSTANT].raw = motorTorqueConstant  # [μNm/A]
         self.node.sdo[EPOS4.MAX_MOTOR_SPEED].raw = angular_velocity_to_rpm(self.maxSpeed)  # [rpm]
 
         if hasGear:
@@ -482,64 +462,16 @@ class RotaryMotor(MotorBlock):
 
         axisConf = self.node.sdo[EPOS4.AXIS_CONFIGURATION]
 
-        if isBrushed:
-            # Digital incremental encoder 1
-            axisConf[EPOS4.SENSORS_CONFIGURATION].raw = 1
-        else:
-            # Digital Hall Sensor (EC motors only) & Digital Hall Sensor (EC motors only)
-            axisConf[EPOS4.SENSORS_CONFIGURATION].raw = 0x100001
-
-        # TODO: Break down more, see table page 141 in EPOS4-Firmware-Specification-En.pdf
-        axisConf[EPOS4.CONTROL_STRUCTURE].raw = 0x00010121 | (hasGear << 12)
-        axisConf[EPOS4.COMMUTATION_SENSORS].raw = 0 if isBrushed else 0x31
-
         if self.direction > 0:
             polarity = EPOS4.AxisPolarity.CCW
         else:
             polarity = EPOS4.AxisPolarity.CW
         axisConf[EPOS4.AXIS_CONFIGURATION_MISCELLANEOUS].raw = 0x0 | polarity
 
-        encoder = self.node.sdo[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1]
-        #  4 * (pulses / revolutions) = increments / revolutions
-        # eg 4 * 1024 = 4096 increments / rev.
-        encoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_NUMBER_OF_PULSES].raw = encoderNumberOfPulses
-        encoder[EPOS4.DIGITAL_INCREMENTAL_ENCODER_1_TYPE].raw = 1 if encoderHasIndex else 0
-
-        # TODO: add SSI configuration. Required for BLDC?
-
-        # Set current control gains
-
-        currentCtrlParamSet = self.node.sdo[EPOS4.CURRENT_CONTROL_PARAMETER_SET]
-        currentCtrlParamSet[EPOS4.CURRENT_CONTROLLER_P_GAIN].raw = 9138837  # [uV / A]
-        currentCtrlParamSet[EPOS4.CURRENT_CONTROLLER_I_GAIN].raw = 133651205  # [uV / (A * ms)]
-
-        # Set position PID
-        # Adapt to application
-        positionPID = self.node.sdo[EPOS4.POSITION_CONTROL_PARAMETER_SET]
-        positionPID[EPOS4.POSITION_CONTROLLER_P_GAIN].raw = 1500000
-        positionPID[EPOS4.POSITION_CONTROLLER_I_GAIN].raw = 780000
-        positionPID[EPOS4.POSITION_CONTROLLER_D_GAIN].raw = 16000
-        positionPID[EPOS4.POSITION_CONTROLLER_FF_VELOCITY_GAIN].raw = 0
-        positionPID[EPOS4.POSITION_CONTROLLER_FF_ACCELERATION_GAIN].raw = 0
-
-        # Set additional parameters
-
-        torque = self.motor.get('ratedTorque', 0.01) * units.torque  # [μNm]
-        self.node.sdo[EPOS4.MOTOR_RATED_TORQUE].raw = torque
-
-        interpolPer = self.node.sdo[EPOS4.INTERPOLATION_TIME_PERIOD]
-        # Will run smoother if set (0 = disabled).
-        # However, will throw an RPDO timeout error when reloading web page
-        # This error can't be disabled, only the reaction behavior can
-        # be changed (quickstop vs disable voltage)
-        interpolPer[EPOS4.INTERPOLATION_TIME_PERIOD_VALUE].raw = 0  #INTERVAL * 1000  # [ms]
-
         self.maxSystemSpeed = self.node.sdo[EPOS4.AXIS_CONFIGURATION][EPOS4.MAX_SYSTEM_SPEED].raw
         self.node.sdo[MAX_PROFILE_VELOCITY].raw = self.maxSystemSpeed
         self.node.sdo[PROFILE_ACCELERATION].raw = self.maxAcc
         self.node.sdo[PROFILE_DECELERATION].raw = self.maxAcc
-
-        self.node.sdo[EPOS4.FOLLOWING_ERROR_WINDOW].raw = 4294967295  # disabled
 
     def enabled(self):
         sw = self.node.sdo[STATUSWORD].raw  # This takes approx. 2.713 ms
