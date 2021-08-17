@@ -28,7 +28,9 @@ MAXON_FOLLOWING_ERROR_WINDOW_DISABLED = 4294967295
 MAXON_INTERPOLATION_DISABLED = 0
 MAXON_NEGATIVE_LIMIT_SWITCH = 0
 MAXON_POSITIVE_LIMIT_SWITCH = 1
+MAXON_POLARITY_CCW = 0
 TODO = 0
+
 MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
     'Motor type': MAXON_PHASE_MODULATED_DC_MOTOR,
     'Motor data/Nominal current': 0.379,  # [Ampere]
@@ -43,7 +45,7 @@ MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
     'Axis configuration/Sensors configuration': 1,
     'Axis configuration/Control structure': 0x11121,
     'Axis configuration/Commutation sensors': 0,
-    'Axis configuration/Axis configuration miscellaneous': TODO,
+    'Axis configuration/Axis configuration miscellaneous': 0x0 | MAXON_POLARITY_CCW,
     'Digital incremental encoder 1/Digital incremental encoder 1 number of pulses': 1024,
     'Digital incremental encoder 1/Digital incremental encoder 1 type': 1,
     'Following error window': MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,
@@ -81,7 +83,7 @@ MAXON_EC_45_DEFAULT_SETTINGS = {
     'Axis configuration/Sensors configuration': 0x100001,
     'Axis configuration/Control structure': 0x00010121,
     'Axis configuration/Commutation sensors': 0x31,
-    'Axis configuration/Axis configuration miscellaneous': TODO,
+    'Axis configuration/Axis configuration miscellaneous': 0x0 | MAXON_POLARITY_CCW,
     'Digital incremental encoder 1/Digital incremental encoder 1 number of pulses': 2048,
     'Digital incremental encoder 1/Digital incremental encoder 1 type': 0,
     'Following error window': MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,

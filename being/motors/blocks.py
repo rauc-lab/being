@@ -452,12 +452,6 @@ class RotaryMotorDeprecated(MotorBlock):
 
         self.node.sdo[EPOS4.MAX_MOTOR_SPEED].raw = angular_velocity_to_rpm(self.maxSpeed)  # [rpm]
 
-        if hasGear:
-            gearConf = self.node.sdo[EPOS4.GEAR_CONFIGURATION]
-            gearConf[EPOS4.GEAR_REDUCTION_NUMERATOR].raw = gearNumerator  # [rpm]
-            gearConf[EPOS4.GEAR_REDUCTION_DENOMINATOR].raw = gearDenumerator  # [rpm]
-            gearConf[EPOS4.MAX_GEAR_INPUT_SPEED].raw = maxGearInputSpeed  # [rpm]
-
         # Set position sensor parameters
 
         axisConf = self.node.sdo[EPOS4.AXIS_CONFIGURATION]
