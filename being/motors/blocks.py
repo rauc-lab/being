@@ -450,18 +450,6 @@ class RotaryMotorDeprecated(MotorBlock):
             torque=1e6,
         )
 
-        self.node.sdo[EPOS4.MAX_MOTOR_SPEED].raw = angular_velocity_to_rpm(self.maxSpeed)  # [rpm]
-
-        # Set position sensor parameters
-
-        axisConf = self.node.sdo[EPOS4.AXIS_CONFIGURATION]
-
-        if self.direction > 0:
-            polarity = EPOS4.AxisPolarity.CCW
-        else:
-            polarity = EPOS4.AxisPolarity.CW
-        axisConf[EPOS4.AXIS_CONFIGURATION_MISCELLANEOUS].raw = 0x0 | polarity
-
         self.maxSystemSpeed = self.node.sdo[EPOS4.AXIS_CONFIGURATION][EPOS4.MAX_SYSTEM_SPEED].raw
         self.node.sdo[MAX_PROFILE_VELOCITY].raw = self.maxSystemSpeed
         self.node.sdo[PROFILE_ACCELERATION].raw = self.maxAcc
