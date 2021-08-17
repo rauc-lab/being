@@ -3,6 +3,7 @@ parameters / settings.
 """
 from typing import NamedTuple
 from utils import merge_dicts
+from fractions import Fraction
 
 
 FAULHABER_DEFAULT_SETTINGS = {
@@ -114,6 +115,9 @@ class Motor(NamedTuple):
 
     defaultSettings: dict = {}
     """Default settings for this motor."""
+
+    gear: Fraction = Fraction(1, 1)
+    """Gear fraction"""
 
 
 MOTORS = {
