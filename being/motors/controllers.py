@@ -20,8 +20,11 @@ from being.motors.homing import (
     crude_homing,
     proper_homing,
 )
-from being.motors.motors import Motor, get_motor
+from being.motors.motors import Motor
 from being.utils import merge_dicts
+from being.math import (
+    rpm_to_angular_velocity,
+)
 
 
 class ControllerError(BeingError):
@@ -49,12 +52,12 @@ class Controller:
     DEVICE_UNITS = {}
 
     def __init__(self,
-            node: CiA402Node,
-            motor: Motor,
-            settings: Optional[dict] = None,
-            direction: int = FORWARD,
-            homingDirection: Optional[int] = None,
-            endSwitches: bool = False,
+        node: CiA402Node,
+        motor: Motor,
+        settings: Optional[dict] = None,
+        direction: int = FORWARD,
+        homingDirection: Optional[int] = None,
+        endSwitches: bool = False,
         ):
         """Args:
             node: Connected CanOpen node.
@@ -77,6 +80,7 @@ class Controller:
         self.direction: float = direction
         self.homingDirection: float = homingDirection
         self.endSwitches: bool = endSwitches
+        self.gearRatio = motor.gearRatio
 
         self.switch_off()
         self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
@@ -124,7 +128,8 @@ class Controller:
             method: Homing method to check.
         """
         if method not in self.SUPPORTED_HOMING_METHODS:
-            raise ControllerError(f'Homing method {method} not supported for controller {self}')
+            raise ControllerError(
+                f'Homing method {method} not supported for controller {self}')
 
     def homing_method(self) -> int:
         """Homing method for this controller."""
@@ -148,11 +153,14 @@ class Controller:
         else:
             tarPos = self.motor.length - targetPosition
 
+        tarPos = tarPos * float(self.gearRatio)
+
         self.node.set_target_position(tarPos / self.DEVICE_UNITS['length'])
 
     def get_actual_position(self) -> float:
         """Get actual position in SI units."""
-        return self.node.get_actual_position() * self.DEVICE_UNITS['length']
+        actualPosition = self.node.get_actual_position()
+        return actualPosition * self.DEVICE_UNITS['length'] / self.gearRatio
 
     def apply_settings(self, settings: Dict[str, Any]):
         """Apply settings to CANopen node. Convert physical SI values to device
@@ -237,6 +245,38 @@ class Mclm3002(Controller):
 class Epos4(Controller):
 
     """Maxon EPOS4 controller."""
+
+    def __init__(self,
+        node: CiA402Node,
+        motor: Motor,
+        settings: Optional[dict] = None,
+        direction: int = FORWARD,
+        homingDirection: Optional[int] = None,
+        endSwitches: bool = False,
+        length: Optional[float] = None,
+        ):
+
+        super().__init__(node,
+                motor,
+                settings,
+                direction,
+                homingDirection,
+                endSwitches)
+
+        # TODO: Hold these values on controller level? In case one overwrites the 
+        # default settings, the configuration held on motor level is not correct
+        gearConfig = node.sdo['Gear configuration']
+        numerator = gearConfig['Gear reduction numerator'].raw
+        denumerator = gearConfig['Gear reduction denumerator'].raw
+        encoder = node.sdo['Digital incremental encoder 1']
+        encoderNumberOfPulses = encoder['Digital incremental encoder 1 number of pulses'].raw
+        # Hacky implementation. Since we want to keep symmetry between both controller classes,
+        # we overwrite the gearRatio with the final conversion factor
+        gear = numerator / denumerator
+        self.gearRatio = gear * encoderNumberOfPulses * 4 / TAU
+
+        if length:
+            self.DEVICE_UNITS['length'] = length
 
     DEVICE_ERROR_REGISTER: Dict[int, str] = {
         1 << 0: 'Generic Error',
@@ -332,6 +372,9 @@ class Epos4(Controller):
     }
 
     DEVICE_UNITS = {
+        'length': 1 / TAU,
+        'speed': TAU / 60,
+        'kinematics': TAU / 60,
         'current': MILLI,
         'torque': MICRO,
         'Motor data/Nominal current': MILLI,
@@ -362,5 +405,8 @@ class Epos4(Controller):
         if method == 35:
             method = 37
 
+        units = self.DEVICE_UNITS
         self.validate_homing_method(method)
-        return proper_homing(self.node, method)
+        maxSpeed = rpm_to_angular_velocity(60) / units.speed
+        maxAcc = 100 / units.kinematics
+        return proper_homing(self.node, method, maxSpeed, maxAcc)

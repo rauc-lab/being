@@ -66,6 +66,7 @@ MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
     'Max profile velocity': 158,
     'Profile acceleration': 1047,
     'Profile deceleration': 1047,
+    'Home offset move distance': 0,
 }
 
 MAXON_DC_22_S_24V_DEFAULT_SETTINGS = merge_dicts(MAXON_DC_22_S_12V_DEFAULT_SETTINGS, {
@@ -105,6 +106,7 @@ MAXON_EC_45_DEFAULT_SETTINGS = {
     'Max profile velocity': 158,
     'Profile acceleration': 1047,
     'Profile deceleration': 1047,
+    'Home offset move distance': 0,
 }
 
 
@@ -127,7 +129,7 @@ class Motor(NamedTuple):
     defaultSettings: dict = {}
     """Default settings for this motor."""
 
-    gear: Fraction = Fraction(1, 1)
+    gearRatio: Fraction = Fraction(1, 1)
     """Gear fraction"""
 
 

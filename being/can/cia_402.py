@@ -594,4 +594,3 @@ class CiA402Node(RemoteNode):
 
     def __str__(self):
         return f'{type(self).__name__}(id={self.id})'
-

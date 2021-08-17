@@ -154,9 +154,9 @@ def proper_homing(
         # TODO: Manufacture dependent, done before calling method
         # node.sdo[HOMING_OFFSET].raw = 0
         node.sdo[HOMING_METHOD].raw = homingMethod
-        node.sdo[HOMING_SPEEDS][SPEED_FOR_SWITCH_SEARCH].raw = abs(maxSpeed * node.units.speed)
-        node.sdo[HOMING_SPEEDS][SPEED_FOR_ZERO_SEARCH].raw = abs(maxSpeed * node.units.speed)
-        node.sdo[HOMING_ACCELERATION].raw = abs(maxAcc * node.units.kinematics)
+        node.sdo[HOMING_SPEEDS][SPEED_FOR_SWITCH_SEARCH].raw = abs(maxSpeed)
+        node.sdo[HOMING_SPEEDS][SPEED_FOR_ZERO_SEARCH].raw = abs(maxSpeed)
+        node.sdo[HOMING_ACCELERATION].raw = abs(maxAcc)
 
         # Start homing
         node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
@@ -180,14 +180,9 @@ def proper_homing(
         # node.sdo[CONTROLWORD].raw = 0  # Abort homing
 
     if homed:
-        # lower = node.sdo[SOFTWARE_POSITION_LIMIT][1].raw
-        #node.sdo[HOMING_OFFSET].raw = lower
-        node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0  # 0 == disabled
-        node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = 0  # 0 == disabled
-        #print(self, 'HOMING_OFFSET:', node.sdo[HOMING_OFFSET].raw)
-        #print('SOFTWARE_POSITION_LIMIT:', node.sdo[SOFTWARE_POSITION_LIMIT][1].raw)
-        #print('SOFTWARE_POSITION_LIMIT:', node.sdo[SOFTWARE_POSITION_LIMIT][2].raw)
-        # node.sdo[HOMING_OFFSET].raw = 0
+        DISABLED = 0
+        node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = DISABLED
+        node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = DISABLED
         yield HomingState.HOMED
     else:
         yield HomingState.FAILED
@@ -264,7 +259,7 @@ def crude_homing(
         node.nmt.state = OPERATIONAL
 
         node.sdo[HOMING_METHOD].raw = 35
-        node.sdo[HOMING_OFFSET].raw = 0
+        # node.sdo[HOMING_OFFSET].raw = 0
 
         # Homing travel
         # TODO: Should we skip 2nd homing travel if we know motor length a
@@ -292,7 +287,7 @@ def crude_homing(
         # Center according to rod length
         lower, upper = _align_in_the_middle(lower, upper, length)
 
-        node.sdo[HOMING_OFFSET].raw = lower
+        # node.sdo[HOMING_OFFSET].raw = lower
         node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
         node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = upper - lower
 

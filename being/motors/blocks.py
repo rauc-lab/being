@@ -43,7 +43,7 @@ from being.motors.homing import (
     HomingState,
     proper_homing,
 )
-from being.motors.motors import get_motor
+from being.motors.motors import get_motor, Motor
 from being.pubsub import PubSub
 from being.resources import register_resource
 
@@ -87,8 +87,8 @@ class MotorBlock(Block, PubSub, abc.ABC):
         self.homing = HomingState.UNHOMED
         self.homingJob = None
 
-    #@abc.abstractmethod
-    #def switch_off(self, publish=True):
+    # @abc.abstractmethod
+    # def switch_off(self, publish=True):
     #    pass
 
     @abc.abstractmethod
@@ -217,15 +217,16 @@ class CanMotor(MotorBlock):
     """
 
     def __init__(self,
-            nodeId,
-            motorName,
-            node: Optional[CiA402Node] = None,
-            objectDictionary=None,
-            network: Optional[CanBackend] = None,
-            settings: Optional[Dict[str, Any]] = None,
-            name: Optional[str] = None,
-            **controllerKwargs,
-        ):
+                 nodeId,
+                 motorName: Optional[str] = None,
+                 motor: Optional[Motor] = None,
+                 node: Optional[CiA402Node] = None,
+                 objectDictionary=None,
+                 network: Optional[CanBackend] = None,
+                 settings: Optional[Dict[str, Any]] = None,
+                 name: Optional[str] = None,
+                 **controllerKwargs,
+                 ):
         """Args:
             nodeId: CANopen node id.
             motorName: Motor name / type of actual hardware motor.
@@ -256,7 +257,12 @@ class CanMotor(MotorBlock):
         if settings is None:
             settings = {}
 
-        motor = get_motor(motorName)
+        if motor is None:
+            if motorName is None:
+                raise BeingError("No motor object or motor name provided.")
+            else:
+                motor = get_motor(motorName)
+
         self.controller: Controller = create_controller_for_node(
             node,
             motor,
@@ -287,7 +293,8 @@ class CanMotor(MotorBlock):
 
         if self.homing is HomingState.HOMED:
             # PDO instead of SDO for speed
-            sw = self.controller.node.pdo[STATUSWORD].raw  # This takes approx. 0.027 ms
+            # This takes approx. 0.027 ms
+            sw = self.controller.node.pdo[STATUSWORD].raw
             state = which_state(sw)
             if state is CiA402State.OPERATION_ENABLE:
                 self.controller.set_target_position(self.targetPosition.value)
@@ -329,157 +336,10 @@ class LinearMotor(CanMotor):
 class RotaryMotor(CanMotor):
 
     """Default rotary Maxon motor."""
+
     def __init__(self, nodeId, motorName='DC22', **kwargs):
+        # TODO : Check Firmware version
         super().__init__(nodeId, motorName, **kwargs)
-
-
-class RotaryMotorDeprecated(MotorBlock):
-
-    """Motor block which takes set-point values through its inputs and outputs
-    the current actual position value through its output. The input position
-    values are filtered with a kinematic filter. Encapsulates a and setups a
-    CiA402Node. Currently only tested with Maxon EPOS4 controller.
-
-    Attributes:
-        network (CanBackend): Associsated network:
-        node (CiA402Node): Drive node.
-    """
-
-    def __init__(self,
-            nodeId: int,
-            arc: float = TAU,
-            direction: float = FORWARD,
-            homingDirection: Optional[float] = None,
-            homingMethod: Optional[int] = None,
-            maxSpeed: float = 942,  # [rad /s ] -> 9000 rpm
-            maxAcc: float = 4294967295,
-            network: Optional[CanBackend] = None,
-            node: Optional[CiA402Node] = None,
-            objectDictionary=None,
-            motor: Optional[dict] = {},
-            **kwargs,
-        ):
-        """Args:
-            nodeId: CANOpen node id.
-
-        Kwargs:
-            direction: Movement orientation.
-            homingDirection: Initial homing direction. Default same as `direction`.
-            maxSpeed: Maximum speed [rad / s].
-            maxAcc: Maximum acceleration. Not taken into account in CSP mode
-            network: External network (dependency injection).
-            node: Drive node (dependency injection).
-            objectDictionary: Object dictionary for CiA402Node. Will be tried
-                to be identified from known EDS files.
-        """
-        super().__init__(**kwargs)
-        if homingDirection is None:
-            homingDirection = direction
-
-        if network is None:
-            network = CanBackend.single_instance_setdefault()
-            register_resource(network, duplicates=False)
-
-        if node is None:
-            if objectDictionary is None:
-                objectDictionary = load_object_dictionary(network, nodeId)
-
-            node = CiA402Node(nodeId, objectDictionary, network)
-
-            deviceName = node.sdo[MANUFACTURER_DEVICE_NAME].raw
-            # TODO: Support other controllers
-            if deviceName != "EPOS4":
-                raise DriveError("Attached motor controller (%s) is not an EPOS4!", deviceName)
-
-        self.motor = motor
-        self.direction = sign(direction)
-        self.homingDirection = sign(homingDirection)
-
-        if homingMethod is None:
-            # Axis polarirty also affects homing direction!
-            if (self.homingDirection * self.direction) > 0:
-                self.homingMethod = -3
-            else:
-                self.homingMethod = -4
-        else:
-            self.homingMethod = homingMethod
-
-        self.network = network
-        self.arc = arc
-        self.node = node
-
-        if self.motor.get('maxRatedSpeed', 900) < maxSpeed:
-            self.maxSpeed = self.motor.get('maxRatedSpeed', maxSpeed)
-        else:
-            self.maxSpeed = maxSpeed
-
-        self.maxAcc = maxAcc
-
-        self.logger = get_logger(str(self))
-
-        self.node.nmt.state = PRE_OPERATIONAL
-        self.node.set_state(CiA402State.READY_TO_SWITCH_ON)
-
-        self.configure_node()  # Some registers dont' have write access when in OPERATION_ENABLE mode!
-
-        self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
-
-    def configure_node(self,
-        ):
-        """Configure Maxon EPOS4 node (some settings via SDO)."""
-
-        gearRatio = gearNumerator / gearDenumerator
-        self.node.units = Units(
-            # length here: convertion factor radians to increments
-            length=gearRatio * encoderNumberOfPulses * 4 / TAU,
-            current=1000,
-            kinematics=gearRatio * 60 / TAU,
-            speed=gearRatio * 60 / TAU,
-            thermal=10,
-            torque=1e6,
-        )
-
-
-    def home(self, offset: int = 0):
-        self.node.sdo[EPOS4.HOME_OFFSET_MOVE_DISTANCE].raw = offset
-
-        self.homingJob = proper_homing(
-            self.node,
-            homingMethod=self.homingMethod,
-            timeout=5,
-            maxSpeed=rpm_to_angular_velocity(60),
-            maxAcc=100,
-        )
-        self.homing = HomingState.ONGOING
-        self.publish(MOTOR_CHANGED)
-
-    def update(self):
-        if self.node.emcy.active:
-            #raise DriveError(msg)
-            for emcy in self.node.emcy.active:
-                msg = stringify_error(emcy.register, MAXON_ERROR_REGISTER)
-                description = MAXON_ERROR_CODES[emcy.code]
-                self.logger.error(f'DriveError: {msg} with \
-                    Error code {emcy.code}: {description}')
-
-        if self.homing is HomingState.HOMED:
-            sw = self.node.pdo[STATUSWORD].raw  # This takes approx. 0.027 ms
-            state = which_state(sw)
-            if state is CiA402State.OPERATION_ENABLE:
-                self.logger.debug(f'Next position: {self.targetPosition.value}')
-                self.node.set_target_position(self.targetPosition.value)
-
-        elif self.homing is HomingState.ONGOING:
-            self.homing = next(self.homingJob)
-            if self.homing is not HomingState.ONGOING:
-                self.publish(MOTOR_CHANGED)
-
-        self.output.value = self.node.get_actual_position()
-
-    def to_dict(self):
-        dct = super().to_dict()
-        dct['length'] = self.arc
-        return dct
 
 
 class WindupMotor(MotorBlock):
