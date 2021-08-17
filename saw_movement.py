@@ -23,7 +23,11 @@ with manage_resources():
     saw = Sawtooth(FREQUENCY)
 
     for nodeId in MOTOR_IDS:
-        mot = RotaryMotor(nodeId,  direction=FORWARD, motor=EC45, maxSpeed=500)
+        mot = RotaryMotor(nodeId=2,
+                          direction=BACKWARD,
+                          settings={'Home offset move distance': 0},
+                          motorName='DC22',
+                          )
         mot.configure_node(encoderNumberOfPulses=2048, encoderHasIndex=False)
         saw | mot
 

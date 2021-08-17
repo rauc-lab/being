@@ -396,6 +396,7 @@ class Epos4(Controller):
         'Max profile velocity': TAU / 60,
         'Max acceleration': TAU / 60,
         'Max deceleration': TAU / 60,
+        'Current threshold for homing mode': MILLI,
 
     }
 

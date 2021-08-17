@@ -68,6 +68,7 @@ MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
     'Profile acceleration': 1047,
     'Profile deceleration': 1047,
     'Home offset move distance': 0,
+    'Current threshold for homing mode': 0.3,
 }
 
 MAXON_DC_22_S_24V_DEFAULT_SETTINGS = merge_dicts(MAXON_DC_22_S_12V_DEFAULT_SETTINGS, {
@@ -109,6 +110,7 @@ MAXON_EC_45_DEFAULT_SETTINGS = {
     'Profile acceleration': 1047,
     'Profile deceleration': 1047,
     'Home offset move distance': 0,
+    'Current threshold for homing mode': 0.3,
 }
 
 
