@@ -174,11 +174,17 @@ def proper_homing(
         while not homed and (time.perf_counter() < endTime):
             yield HomingState.ONGOING
             sw = node.sdo[STATUSWORD].raw
-            homed = (sw & SW.TARGET_REACHED) and (sw & SW.HOMING_ATTAINED)
+            # See Table 3-33 in EPOS Firmware spec
+            # TODO: check for Faulhaber
+            homed = (not (sw & SW.HOMING_ERROR)) and (sw & SW.HOMING_ATTAINED)
 
-        node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION  # Abort homing
+        # Required to change state here,
+        # otherwise contextmanager can't switch operation mode later (would be OPERATIONAL)
+        node.change_state(CiA402State.READY_TO_SWITCH_ON)
+        # node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION  # Abort homing
         # node.sdo[CONTROLWORD].raw = 0  # Abort homing
 
+    print(f'homed: {homed}')
     if homed:
         DISABLED = 0
         node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = DISABLED

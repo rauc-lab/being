@@ -123,6 +123,7 @@ class SW(IntEnum):
     INTERNAL_LIMIT_ACTIVE = (1 << 11)
     ACKNOWLEDGE = (1 << 12)
     HOMING_ATTAINED = ACKNOWLEDGE  # Alias
+    HOMING_ERROR = (1 << 13 )
     DEVIATION_ERROR = (1 << 13)
     #NOT_IN_USE_0 = (1 << 14)
     #NOT_IN_USE_1 = 15
