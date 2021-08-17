@@ -267,7 +267,7 @@ class Epos4(Controller):
         # default settings, the configuration held on motor level is not correct
         gearConfig = node.sdo['Gear configuration']
         numerator = gearConfig['Gear reduction numerator'].raw
-        denumerator = gearConfig['Gear reduction denumerator'].raw
+        denumerator = gearConfig['Gear reduction denominator'].raw
         encoder = node.sdo['Digital incremental encoder 1']
         encoderNumberOfPulses = encoder['Digital incremental encoder 1 number of pulses'].raw
         # Hacky implementation. Since we want to keep symmetry between both controller classes,
