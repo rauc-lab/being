@@ -20,20 +20,13 @@ from being.can.cia_402 import (
     which_state,
 )
 from being.config import CONFIG
-from being.constants import FORWARD, TAU
 from being.error import BeingError
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
-from being.math import (
-    angular_velocity_to_rpm,
-    rpm_to_angular_velocity,
-    sign,
-)
 from being.motors.controllers import Controller, Mclm3002, Epos4
 from being.motors.homing import (
     HomingProgress,
     HomingState,
-    proper_homing,
 )
 from being.motors.motors import get_motor, Motor
 from being.pubsub import PubSub

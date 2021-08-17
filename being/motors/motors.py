@@ -2,9 +2,9 @@
 parameters / settings.
 """
 from typing import NamedTuple
-from utils import merge_dicts
 from fractions import Fraction
 
+from being.utils import merge_dicts
 
 FAULHABER_DEFAULT_SETTINGS = {
     'General Settings/Pure Sinus Commutation': 1,
