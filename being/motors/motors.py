@@ -63,6 +63,9 @@ MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
     'Interpolation time period value': MAXON_INTERPOLATION_DISABLED,
     'Digital input configuration/DgIn1': MAXON_NEGATIVE_LIMIT_SWITCH,
     'Digital input configuration/DgIn2': MAXON_POSITIVE_LIMIT_SWITCH,
+    'Max profile velocity': 158,
+    'Profile acceleration': 1047,
+    'Profile deceleration': 1047,
 }
 
 MAXON_DC_22_S_24V_DEFAULT_SETTINGS = merge_dicts(MAXON_DC_22_S_12V_DEFAULT_SETTINGS, {
@@ -99,6 +102,9 @@ MAXON_EC_45_DEFAULT_SETTINGS = {
     'Interpolation time period value': MAXON_INTERPOLATION_DISABLED,  #INTERVAL * 1000  # [ms]
     'Digital input configuration/DgIn1': MAXON_NEGATIVE_LIMIT_SWITCH,
     'Digital input configuration/DgIn2': MAXON_POSITIVE_LIMIT_SWITCH,
+    'Max profile velocity': 158,
+    'Profile acceleration': 1047,
+    'Profile deceleration': 1047,
 }
 
 

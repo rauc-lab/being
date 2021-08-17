@@ -348,6 +348,9 @@ class Epos4(Controller):
         'Current control parameter set/Current controller I gain': MICRO,
         'Gear configuration/Max gear input speed': TAU / 60,
         'Max motor speed': TAU / 60,
+        'Max profile velocity': TAU / 60,
+        'Max acceleration': TAU / 60,
+        'Max deceleration': TAU / 60,
 
     }
 

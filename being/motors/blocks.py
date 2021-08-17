@@ -424,18 +424,7 @@ class RotaryMotorDeprecated(MotorBlock):
 
         self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
 
-    @property
-    def nodeId(self) -> int:
-        """CAN node id."""
-        return self.node.id
-
     def configure_node(self,
-            maxGearInputSpeed: float = 8000,  # [rpm]
-            hasGear: bool = False,
-            gearNumerator: int = 1,
-            gearDenumerator: int = 1,
-            encoderNumberOfPulses=1024,
-            encoderHasIndex=True,
         ):
         """Configure Maxon EPOS4 node (some settings via SDO)."""
 
@@ -450,23 +439,6 @@ class RotaryMotorDeprecated(MotorBlock):
             torque=1e6,
         )
 
-        self.maxSystemSpeed = self.node.sdo[EPOS4.AXIS_CONFIGURATION][EPOS4.MAX_SYSTEM_SPEED].raw
-        self.node.sdo[MAX_PROFILE_VELOCITY].raw = self.maxSystemSpeed
-        self.node.sdo[PROFILE_ACCELERATION].raw = self.maxAcc
-        self.node.sdo[PROFILE_DECELERATION].raw = self.maxAcc
-
-    def enabled(self):
-        sw = self.node.sdo[STATUSWORD].raw  # This takes approx. 2.713 ms
-        state = which_state(sw)
-        return state is CiA402State.OPERATION_ENABLE
-
-    def enable(self, publish=True):
-        self.node.enable()
-        super().enable(publish)
-
-    def disable(self, publish=True):
-        self.node.disable()
-        super().disable(publish)
 
     def home(self, offset: int = 0):
         self.node.sdo[EPOS4.HOME_OFFSET_MOVE_DISTANCE].raw = offset
@@ -508,9 +480,6 @@ class RotaryMotorDeprecated(MotorBlock):
         dct = super().to_dict()
         dct['length'] = self.arc
         return dct
-
-    def __str__(self):
-        return f'{type(self).__name__}(nodeId: {self.nodeId!r})'
 
 
 class WindupMotor(MotorBlock):
