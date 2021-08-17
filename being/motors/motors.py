@@ -61,8 +61,9 @@ MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
     # However, will throw an RPDO timeout error when reloading web page
     #INTERVAL * 1000  # [ms]
     'Interpolation time period/Interpolation time period value': MAXON_INTERPOLATION_DISABLED,
-    'Configuration of digital inputs/Digital input 1 configuration': MAXON_NEGATIVE_LIMIT_SWITCH,
-    'Configuration of digital inputs/Digital input 2 configuration': MAXON_POSITIVE_LIMIT_SWITCH,
+    # TODO: check why parameter exeeds value range ?!
+    # 'Configuration of digital inputs/Digital input 1 configuration': MAXON_NEGATIVE_LIMIT_SWITCH,
+    # 'Configuration of digital inputs/Digital input 2 configuration': MAXON_POSITIVE_LIMIT_SWITCH,
     'Max profile velocity': 158,
     'Profile acceleration': 1047,
     'Profile deceleration': 1047,
@@ -101,8 +102,9 @@ MAXON_EC_45_DEFAULT_SETTINGS = {
     'Current control parameter set/Current controller P gain': TODO,
     'Current control parameter set/Current controller I gain': TODO,
     'Interpolation time period/Interpolation time period value': MAXON_INTERPOLATION_DISABLED,  #INTERVAL * 1000  # [ms]
-    'Configuration of digital inputs/Digital input 1 configuration': MAXON_NEGATIVE_LIMIT_SWITCH,
-    'Configuration of digital inputs/Digital input 2 configuration': MAXON_POSITIVE_LIMIT_SWITCH,
+    # TODO: check why parameter exeeds value range ?!
+    # 'Configuration of digital inputs/Digital input 1 configuration': MAXON_NEGATIVE_LIMIT_SWITCH,
+    # 'Configuration of digital inputs/Digital input 2 configuration': MAXON_POSITIVE_LIMIT_SWITCH,
     'Max profile velocity': 158,
     'Profile acceleration': 1047,
     'Profile deceleration': 1047,

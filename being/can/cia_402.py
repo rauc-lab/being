@@ -4,6 +4,7 @@ CiA402Node is a trimmed down version of canopen.BaseNode402. We favor SDO
 communication during setup but synchronous acyclic PDO communication during
 operation. Also added support for CYCLIC_SYNCHRONOUS_POSITION mode.
 """
+import time
 import contextlib
 from enum import auto, IntEnum, Enum
 from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union, Optional, NamedTuple
@@ -492,15 +493,17 @@ class CiA402Node(RemoteNode):
         for state in path[1:]:
             self.set_state(state)
 
+            # TODO(sja): How to do?
             # TODO(atheler): Move this while true / sleep to controller level
             # EPOS is too slow while state switching.
             # set_state() will throw an exception otherwise
-            #startTime = time.perf_counter()
-            #endTime = startTime + 0.05
-            #while self.get_state() != state:
-            #    if time.perf_counter() > endTime:
-            #        raise RuntimeError(f'Timeout while trying to transition from state {current!r} to {target!r}!')
-            #    # time.sleep(0.002)  #sdo operation already takes ~2ms
+            startTime = time.perf_counter()
+            endTime = startTime + 0.05
+            while self.get_state() != state:
+                if time.perf_counter() > endTime:
+                   raise RuntimeError(
+                       f'Timeout while trying to transition from state {current!r} to {target!r}!')
+                time.sleep(0.002)  #sdo operation already takes ~2ms
 
     def get_operation_mode(self) -> OperationMode:
         """Get current operation mode."""
