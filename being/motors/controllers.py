@@ -1,6 +1,8 @@
 """Motor controllers."""
 from typing import Optional, Dict, Generator, Set, Any
 
+from being.constants import TAU
+
 from being.can.cia_402 import (
     CiA402Node,
     HOMING_METHODS,
@@ -344,6 +346,8 @@ class Epos4(Controller):
         'Position control parameter set/Position controller FF acceleration gain': MICRO,
         'Current control parameter set/Current controller P gain': MICRO,
         'Current control parameter set/Current controller I gain': MICRO,
+        'Gear configuration/Max gear input speed': 60 / TAU,
+
     }
 
     def home(self):

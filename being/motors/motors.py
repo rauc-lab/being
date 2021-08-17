@@ -37,7 +37,9 @@ MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
     'Motor data/Thermal time constant winding': 14.3,
     'Motor data/Torque constant': 0.0308,
     'Motor rated torque': 0.012228,
-    # TODO: Gear
+    'Gear configuration/Gear reduction numerator': 69,
+    'Gear configuration/Gear reduction denumerator': 13,
+    'Gear configuration/Max gear input speed': 837.75,
     'Axis configuration/Sensors configuration': 1,
     'Axis configuration/Control structure': 0x11121,
     'Axis configuration/Commutation sensors': 0,
@@ -49,7 +51,7 @@ MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
     'Position control parameter set/Position controller I gain': TODO,
     'Position control parameter set/Position controller D gain': TODO,
     'Position control parameter set/Position controller FF velocity gain': 0,
-    'Position control parameter set/Position controller FF acceleration gain': 0,
+    'Position control parametuer set/Position controller FF acceleration gain': 0,
     'Current control parameter set/Current controller P gain': TODO,
     'Current control parameter set/Current controller I gain': TODO,
     # Will run smoother if set (0 = disabled).
@@ -76,7 +78,6 @@ MAXON_EC_45_DEFAULT_SETTINGS = {
     'Motor data/Thermal time constant winding': 29.6,
     'Motor data/Torque constant': 0.0369,
     'Motor rated torque': 0.128,
-    # TODO: Gear
     'Axis configuration/Sensors configuration': 0x100001,
     'Axis configuration/Control structure': 0x00010121,
     'Axis configuration/Commutation sensors': 0x31,
