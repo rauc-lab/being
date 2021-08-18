@@ -271,8 +271,8 @@ class CanMotor(MotorBlock):
         super().home()
 
     def update(self):
-        for emcy in self.controller.iter_emergencies():
-            self.logger.error(emcy)
+        for emcyMsg in self.controller.iter_emergencies():
+            self.logger.error(emcyMsg)
 
         if self.homing is HomingState.HOMED:
             # PDO instead of SDO for speed
