@@ -5,6 +5,7 @@ from typing import NamedTuple
 from fractions import Fraction
 
 from being.utils import merge_dicts
+from being.constants import TAU
 
 FAULHABER_DEFAULT_SETTINGS = {
     'General Settings/Pure Sinus Commutation': 1,
@@ -29,6 +30,7 @@ MAXON_INTERPOLATION_DISABLED = 0
 MAXON_NEGATIVE_LIMIT_SWITCH = 0
 MAXON_POSITIVE_LIMIT_SWITCH = 1
 MAXON_POLARITY_CCW = 0
+MAXON_INPUT_LOW_ACTIVE = 3 # TODO:Is this correct?
 TODO = 0
 
 MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
@@ -64,6 +66,7 @@ MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
     # TODO: check why parameter exeeds value range ?!
     # 'Configuration of digital inputs/Digital input 1 configuration': MAXON_NEGATIVE_LIMIT_SWITCH,
     # 'Configuration of digital inputs/Digital input 2 configuration': MAXON_POSITIVE_LIMIT_SWITCH,
+    'Digital input properties/Digital inputs polarity': MAXON_INPUT_LOW_ACTIVE,
     'Max profile velocity': 158,
     'Profile acceleration': 1047,
     'Profile deceleration': 1047,
@@ -95,17 +98,18 @@ MAXON_EC_45_DEFAULT_SETTINGS = {
     'Digital incremental encoder 1/Digital incremental encoder 1 number of pulses': 2048,
     'Digital incremental encoder 1/Digital incremental encoder 1 type': 0,
     'Following error window': MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,
-    'Position control parameter set/Position controller P gain': TODO,
-    'Position control parameter set/Position controller I gain': TODO,
-    'Position control parameter set/Position controller D gain': TODO,
+    #'Position control parameter set/Position controller P gain': TODO,
+    #'Position control parameter set/Position controller I gain': TODO,
+    #'Position control parameter set/Position controller D gain': TODO,
     'Position control parameter set/Position controller FF velocity gain': 0,
     'Position control parameter set/Position controller FF acceleration gain': 0,
-    'Current control parameter set/Current controller P gain': TODO,
-    'Current control parameter set/Current controller I gain': TODO,
+    #'Current control parameter set/Current controller P gain': TODO,
+    #'Current control parameter set/Current controller I gain': TODO,
     'Interpolation time period/Interpolation time period value': MAXON_INTERPOLATION_DISABLED,  #INTERVAL * 1000  # [ms]
     # TODO: check why parameter exeeds value range ?!
     # 'Configuration of digital inputs/Digital input 1 configuration': MAXON_NEGATIVE_LIMIT_SWITCH,
     # 'Configuration of digital inputs/Digital input 2 configuration': MAXON_POSITIVE_LIMIT_SWITCH,
+    'Digital input properties/Digital inputs polarity': MAXON_INPUT_LOW_ACTIVE,
     'Max profile velocity': 158,
     'Profile acceleration': 1047,
     'Profile deceleration': 1047,
@@ -142,8 +146,8 @@ MOTORS = {
     'LM1247': Motor('Faulhaber', 'LM 1247', length=0.120, defaultSettings=FAULHABER_DEFAULT_SETTINGS),
     'LM1483': Motor('Faulhaber', 'LM 1483', length=0.080, defaultSettings=FAULHABER_DEFAULT_SETTINGS),
     'LM2070': Motor('Faulhaber', 'LM 2070', length=0.220, defaultSettings=FAULHABER_DEFAULT_SETTINGS),
-    'DC22': Motor('Maxon', 'DC 22', defaultSettings=MAXON_DC_22_S_24V_DEFAULT_SETTINGS),
-    'EC45': Motor('Maxon', 'EC 45', defaultSettings=MAXON_EC_45_DEFAULT_SETTINGS),
+    'DC22': Motor('Maxon', 'DC 22', length=TAU, defaultSettings=MAXON_DC_22_S_24V_DEFAULT_SETTINGS),
+    'EC45': Motor('Maxon', 'EC 45', length=TAU, defaultSettings=MAXON_EC_45_DEFAULT_SETTINGS),
 }
 
 

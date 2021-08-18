@@ -1,5 +1,5 @@
 """Motor controllers."""
-from typing import Optional, Dict, Generator, Set, Any
+from typing import Optional, Dict, Generator, Set, Any, Union
 
 from being.constants import TAU
 
@@ -80,11 +80,12 @@ class Controller:
         self.direction: float = direction
         self.homingDirection: float = homingDirection
         self.endSwitches: bool = endSwitches
-        self.gearRatio = motor.gearRatio
+        self.gearRatio = self.motor.gearRatio
 
         self.switch_off()
         self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
-        merged = merge_dicts(motor.defaultSettings, settings)
+        merged = merge_dicts(self.motor.defaultSettings, settings)
+
         self.apply_settings(merged)
 
     def switch_off(self):

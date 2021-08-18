@@ -184,7 +184,6 @@ def proper_homing(
         # node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION  # Abort homing
         # node.sdo[CONTROLWORD].raw = 0  # Abort homing
 
-    print(f'homed: {homed}')
     if homed:
         DISABLED = 0
         node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = DISABLED

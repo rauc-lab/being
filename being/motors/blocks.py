@@ -203,8 +203,7 @@ class CanMotor(MotorBlock):
 
     def __init__(self,
                  nodeId,
-                 motorName: Optional[str] = None,
-                 motor: Optional[Motor] = None,
+                 motor: Optional[Union[str, Motor]] = None,
                  node: Optional[CiA402Node] = None,
                  objectDictionary=None,
                  network: Optional[CanBackend] = None,
@@ -243,10 +242,9 @@ class CanMotor(MotorBlock):
             settings = {}
 
         if motor is None:
-            if motorName is None:
-                raise BeingError("No motor object or motor name provided.")
-            else:
-                motor = get_motor(motorName)
+            raise BeingError("No motor object or motor name provided.")
+        elif isinstance(motor, str):
+            motor = get_motor(motor)
 
         self.controller: Controller = create_controller_for_node(
             node,
