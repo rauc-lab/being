@@ -1,6 +1,7 @@
 """Miscellaneous blocks."""
 # TODO: Renaming this module? Almost name conflict with block.py?
 import math
+import sys
 
 from being.backends import AudioBackend
 from being.block import Block
@@ -105,13 +106,18 @@ class Printer(Block):
 
     """Print input values to stdout."""
 
-    def __init__(self, prefix='', **kwargs):
+    def __init__(self, prefix='', carriageReturn=True, **kwargs):
         """Kwargs:
             prefix: Prefix string to prepend.
         """
         super().__init__(**kwargs)
         self.prefix = prefix
+        self.carriageReturn = carriageReturn
         self.add_value_input()
 
     def update(self):
-        print(self.prefix, self.input.value)
+        if self.carriageReturn:
+            print('\r\033c', self.prefix, self.input.value, end='')
+            sys.stdout.flush()
+        else:
+            print(self.prefix, self.input.value)
