@@ -4,8 +4,8 @@ CiA402Node is a trimmed down version of canopen.BaseNode402. We favor SDO
 communication during setup but synchronous acyclic PDO communication during
 operation. Also added support for CYCLIC_SYNCHRONOUS_POSITION mode.
 """
-import time
 import contextlib
+import time
 from enum import auto, IntEnum, Enum
 from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union, Optional, NamedTuple
 from collections import deque, defaultdict
@@ -123,10 +123,10 @@ class SW(IntEnum):
     INTERNAL_LIMIT_ACTIVE = (1 << 11)
     ACKNOWLEDGE = (1 << 12)
     HOMING_ATTAINED = ACKNOWLEDGE  # Alias
-    HOMING_ERROR = (1 << 13 )
-    DEVIATION_ERROR = (1 << 13)
+    HOMING_ERROR = (1 << 13)
+    DEVIATION_ERROR = HOMING_ERROR  # Alias
     #NOT_IN_USE_0 = (1 << 14)
-    #NOT_IN_USE_1 = 15
+    #NOT_IN_USE_1 = (1 << 15)
 
 
 class OperationMode(IntEnum):
@@ -459,13 +459,16 @@ class CiA402Node(RemoteNode):
         #sw = self.pdo['Statusword'].raw  # This takes approx. 0.027 ms
         return which_state(sw)
 
-    def set_state(self, target: State):
+    def set_state(self, target: State, timeout: float = 0.100):
         """Set node state. This method only works for possible transitions from
         current state (single step). For arbitrary transitions use
         CiA402Node.change_state.
 
         Args:
             target: New target state.
+
+        Kwargs:
+            timeout: Timeout for
         """
         self.logger.info('Switching to state %r', target)
         current = self.get_state()
@@ -479,6 +482,18 @@ class CiA402Node(RemoteNode):
         cw = TRANSITIONS[edge]
         self.sdo[CONTROLWORD].raw = cw
 
+        # Some controllers are to slow to switch
+        # TODO: Is there any other way?
+        endTime = time.perf_counter() + timeout
+        sleepTime = min(0.5 * timeout, 0.010)
+        while time.perf_counter() < endTime:
+            if self.get_state() is target:
+                break
+
+            time.sleep(sleepTime)
+        else:  # If no break
+            raise RuntimeError(f'Could not transition from {current!r} to {target!r}. Timeout expired!')
+
     def change_state(self, target: State):
         """Change to a specific state. Will traverse all necessary states in
         between to get there.
@@ -490,21 +505,9 @@ class CiA402Node(RemoteNode):
         if target is current:
             return
 
-        path = find_shortest_state_path(current, target)
-        for state in path[1:]:
+        _, *path = find_shortest_state_path(current, target)
+        for state in path:
             self.set_state(state)
-
-            # TODO(sja): How to do?
-            # TODO(atheler): Move this while true / sleep to controller level
-            # EPOS is too slow while state switching.
-            # set_state() will throw an exception otherwise
-            startTime = time.perf_counter()
-            endTime = startTime + 0.05
-            while self.get_state() != state:
-                if time.perf_counter() > endTime:
-                   raise RuntimeError(
-                       f'Timeout while trying to transition from state {current!r} to {target!r}!')
-                time.sleep(0.002)  #sdo operation already takes ~2ms
 
     def get_operation_mode(self) -> OperationMode:
         """Get current operation mode."""
