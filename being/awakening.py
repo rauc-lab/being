@@ -45,11 +45,15 @@ def _run_being_standalone(being):
 async def _run_being_async(being):
     """Run being inside async loop."""
     time_func = asyncio.get_running_loop().time
+    cycle = int(time_func() / INTERVAL)
     while True:
         now = time_func()
+        then = cycle * INTERVAL
+        if then > now:
+            await asyncio.sleep(then - now)
+
         being.single_cycle()
-        then = time_func()
-        await asyncio.sleep(max(0, INTERVAL - (then - now)))
+        cycle += 1
 
 
 async def _send_being_state_to_front_end(being: Being, ws: WebSocket):
