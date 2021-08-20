@@ -24,7 +24,7 @@ WEB_INTERVAL = CONFIG['Web']['INTERVAL']
 LOGGER = get_logger(__name__)
 
 
-def _signal_handler(signum=None, frame=None):
+def _exit_signal_handler(signum=None, frame=None):
     """Signal handler for exit program."""
     #pylint: disable=unused-argument
     sys.exit(0)
@@ -33,7 +33,7 @@ def _signal_handler(signum=None, frame=None):
 def _run_being_standalone(being):
     """Run being standalone without web server / front-end."""
     if os.name == 'posix':
-        signal.signal(signal.SIGTERM, _signal_handler)
+        signal.signal(signal.SIGTERM, _exit_signal_handler)
 
     cycle = int(time.perf_counter() / INTERVAL)
     while True:
@@ -75,7 +75,6 @@ async def _send_being_state_to_front_end(being: Being, ws: WebSocket):
         out.connect(dummy)
         dummies.append(dummy)
 
-
     while True:
         await ws.send_json({
             'type': 'being-state',
@@ -97,7 +96,7 @@ async def _run_being_with_web_server(being):
     """
     if os.name == 'posix':
         loop = asyncio.get_running_loop()
-        loop.add_signal_handler(signal.SIGTERM, _signal_handler)
+        loop.add_signal_handler(signal.SIGTERM, _exit_signal_handler)
 
     ws = WebSocket()
     app = init_web_server(being, ws)
