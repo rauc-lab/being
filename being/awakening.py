@@ -35,11 +35,15 @@ def _run_being_standalone(being):
     if os.name == 'posix':
         signal.signal(signal.SIGTERM, _signal_handler)
 
+    cycle = int(time.perf_counter() / INTERVAL)
     while True:
         now = time.perf_counter()
+        then = cycle * INTERVAL
+        if then > now:
+            time.sleep(then - now)
+
         being.single_cycle()
-        then = time.perf_counter()
-        time.sleep(max(0, INTERVAL - (then - now)))
+        cycle += 1
 
 
 async def _run_being_async(being):
