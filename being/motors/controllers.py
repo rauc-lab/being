@@ -1,19 +1,18 @@
 """Motor controllers."""
 from typing import Optional, Dict, Generator, Set, Any, Union
 
-from being.constants import TAU
-
 from being.can.cia_402 import (
     CiA402Node,
-    HOMING_METHODS,
-    HomingParam,
-    NEGATIVE,
+    HOMING_METHOD,
     OperationMode,
-    POSITIVE,
     State as CiA402State,
+    default_homing_method,
 )
 from being.constants import FORWARD, MILLI, MICRO, DECI
+from being.constants import TAU
 from being.error import BeingError
+from being.logging import get_logger
+from being.math import rpm_to_angular_velocity
 from being.motors.homing import (
     HomingProgress,
     MINIMUM_HOMING_WIDTH,
@@ -21,15 +20,55 @@ from being.motors.homing import (
     proper_homing,
 )
 from being.motors.motors import Motor
-from being.utils import merge_dicts
-from being.math import (
-    rpm_to_angular_velocity,
+from being.motors.vendor import (
+    FAULHABER_DEVICE_ERROR_CODES,
+    FAULHABER_DEVICE_UNITS,
+    FAULHABER_EMERGENCY_ERROR_CODES,
+    FAULHABER_SUPPORTED_HOMING_METHODS,
+    MAXON_DEVICE_ERROR_CODES,
+    MAXON_DEVICE_ERROR_REGISTER,
+    MAXON_EMERGENCY_ERROR_CODES,
+    MAXON_SUPPORTED_HOMING_METHODS,
 )
+from being.utils import merge_dicts
+
+
+def nested_get(dct, keys):
+    """Nested dict access."""
+    for k in keys:
+        dct = dct[k]
+
+    return dct
+
+
+def inspect(node, name):
+    """Inspect node setting / parameter by name."""
+    e = nested_get(node.sdo, name.split('/'))
+    print(name, e.raw)
+
+
+def inspect_many(node, names):
+    """Inspect many node settings / parameters by name."""
+    for name in names:
+        inspect(node, name)
 
 
 class ControllerError(BeingError):
 
     """General Being controller errors."""
+
+
+class OnlyOnce:
+
+    """Say it only once."""
+
+    def __init__(self):
+        self.before = set()
+
+    def __call__(self, iterable):
+        current = set(iterable)
+        yield from current - self.before
+        self.before = current
 
 
 class Controller:
@@ -50,16 +89,17 @@ class Controller:
     DEVICE_ERROR_CODES: Dict[int, str] = {}
     EMERGENCY_ERROR_CODES: Dict[int, str] = {}
     SUPPORTED_HOMING_METHODS: Set[int] = {}
-    DEVICE_UNITS = {}
-
+    DEVICE_UNITS: Dict[str, float] = {}
 
     def __init__(self,
-        node: CiA402Node,
-        motor: Motor,
-        settings: Optional[dict] = None,
-        direction: int = FORWARD,
-        homingDirection: Optional[int] = None,
-        endSwitches: bool = False,
+            node: CiA402Node,
+            motor: Motor,
+            settings: Optional[dict] = None,
+            direction: int = FORWARD,
+            homingMethod: Optional[int] = None,
+            homingDirection: Optional[int] = None,
+            endSwitches: bool = False,
+            multiplier: float = 1.0,
         ):
         """Args:
             node: Connected CanOpen node.
@@ -70,6 +110,9 @@ class Controller:
             direction: Movement direction.
             homingDirection: Homing direction.
             endSwitches: End switches present? Yes or no.
+            multiplier: Additional Multiplier factor for SI position ->
+                multiplier -> gear -> motor.position_si_2_device. For windup
+                module / spindle drive.
         """
         if homingDirection is None:
             homingDirection = direction
@@ -77,18 +120,26 @@ class Controller:
         if settings is None:
             settings = {}
 
+        if homingMethod is None:
+            homingMethod = default_homing_method(homingDirection, endSwitches)
+
         self.node: CiA402Node = node
         self.motor: Motor = motor
         self.direction: float = direction
         self.homingDirection: float = homingDirection
-        self.endSwitches: bool = endSwitches
-        self.gearRatio = self.motor.gearRatio
+        self.homingMethod: int = homingMethod
+        self.logger = get_logger(str(self))
 
+        for errMsg in self.error_history_messages():
+            self.logger.error(errMsg)
+
+        self.only_new_ones = OnlyOnce()
+        self.position_si_2_device = float(multiplier * motor.gear * motor.position_si_2_device)
+        self.logger.debug('position_si_2_device: %f', self.position_si_2_device)
+        merged = merge_dicts(self.motor.defaultSettings, settings)
+        self.apply_settings(merged)
         self.switch_off()
         self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
-        merged = merge_dicts(self.motor.defaultSettings, settings)
-
-        self.apply_settings(merged)
 
     def switch_off(self):
         """Switch off drive. Same state as on power-up."""
@@ -108,9 +159,15 @@ class Controller:
 
     def home(self) -> HomingProgress:
         """Create homing job routine for this controller."""
-        method = self.homing_method()
-        self.validate_homing_method(method)
-        return proper_homing(self.node, method)
+        self.validate_homing_method(self.homingMethod)
+        # Configure the homing registers
+        # - Modes of operation (object 0x6060) set to Homing mode (6)
+        self.node.sdo[HOMING_METHOD].raw = self.homingMethod
+        # Assign the desired values to the following objects:
+        # - Homing limit switch (object 0x2310)  Homing Method (object 0x6098)
+        # - Homing speed (object 0x6099)
+        # - Homing Acceleration (object 0x609A)
+        return proper_homing(self.node)
 
     def device_error_message(self, errorCode: int) -> str:
         """Device error message from error code."""
@@ -119,10 +176,21 @@ class Controller:
             f'Unknown device error message for error code: {errorCode}',
         )
 
-    def iter_emergencies(self) -> Generator[object, None, None]:
-        """Iterate over emergency error messages (if any)."""
-        for emcy in self.node.emcy.active:
-            yield self.EMERGENCY_ERROR_CODES.get(emcy.code, f'Unknown error code {emcy.code}')
+    def new_emergency_messages(self) -> Generator[str, None, None]:
+        """Iterate over all new emergency error messages (if any)."""
+        for emcy in self.only_new_ones(self.node.emcy.active):
+            yield self.EMERGENCY_ERROR_CODES.get(
+                emcy.code,
+                f'Unknown error code {emcy.code}',
+            )
+
+    def error_history_messages(self):
+        """Iterate over current error messages in error history register."""
+        errorHistory = self.node.sdo[0x1003]
+        numErrors = errorHistory[0].raw
+        for nr in range(numErrors):
+            errCode = errorHistory[nr + 1].raw
+            yield self.device_error_message(errCode)
 
     def validate_homing_method(self, method: int):
         """Validate homing method for this controller. Raises a ControllerError
@@ -132,23 +200,7 @@ class Controller:
             method: Homing method to check.
         """
         if method not in self.SUPPORTED_HOMING_METHODS:
-            raise ControllerError(
-                f'Homing method {method} not supported for controller {self}')
-
-    def homing_method(self) -> int:
-        """Homing method for this controller."""
-        if self.endSwitches:
-            if self.homingDirection >= 0:
-                param = HomingParam(endSwitch=POSITIVE)
-            else:
-                param = HomingParam(endSwitch=NEGATIVE)
-        else:
-            if self.homingDirection >= 0:
-                param = HomingParam(direction=POSITIVE, hardStop=True)
-            else:
-                param = HomingParam(direction=NEGATIVE, hardStop=True)
-
-        return HOMING_METHODS[param]
+            raise ControllerError(f'Homing method {method} not supported for controller {self}')
 
     def set_target_position(self, targetPosition):
         """Set target position in SI units."""
@@ -157,14 +209,15 @@ class Controller:
         else:
             tarPos = self.motor.length - targetPosition
 
-        tarPos = tarPos * float(self.gearRatio)
-
-        self.node.set_target_position(tarPos / self.DEVICE_UNITS['length'])
+        self.node.set_target_position(tarPos * self.position_si_2_device)
 
     def get_actual_position(self) -> float:
         """Get actual position in SI units."""
-        actualPosition = self.node.get_actual_position()
-        return actualPosition * self.DEVICE_UNITS['length'] / self.gearRatio
+        return self.node.get_actual_position() / self.position_si_2_device
+
+    def convert_si_to_device_units(self, value: float, name: str) -> float:
+        """Convert SI value to device units."""
+        return value / self.DEVICE_UNITS[name]
 
     def apply_settings(self, settings: Dict[str, Any]):
         """Apply settings to CANopen node. Convert physical SI values to device
@@ -181,7 +234,7 @@ class Controller:
                 sdo = sdo[key]
 
             if name in self.DEVICE_UNITS:
-                sdo[last].raw = value / self.DEVICE_UNITS[name]
+                sdo[last].raw = self.convert_si_to_device_units(value, name)
             else:
                 sdo[last].raw = value
 
@@ -193,86 +246,22 @@ class Mclm3002(Controller):
 
     """Faulhaber MCLM 3002 controller."""
 
-    DEVICE_ERROR_CODES: {
-        0x0001: 'Continuous Over Current',
-        0x0002: 'Deviation',
-        0x0004: 'Over Voltage',
-        0x0008: 'Over Temperature',
-        0x0010: 'Flash Memory Error',
-        0x0040: 'CAN In Error Passive Mode',
-        0x0080: 'CAN Overrun (objects lost)',
-        0x0100: 'Life Guard Or Heart- beat Error',
-        0x0200: 'Recovered From Bus Off',
-        0x0800: 'Conversion Overflow',
-        0x1000: 'Internal Software',
-        0x2000: 'PDO Length Exceeded',
-        0x4000: 'PDO not processes due to length error',
-    }
 
-    EMERGENCY_ERROR_CODES: Dict[int, str] = {
-        0x0000: 'No error',
-        0x1000: 'Generic error',
-        0x2000: 'Current',
-        0x2300: 'Current, device output side',
-        0x2310: 'Continuous over current 0x00',
-        0x3000: 'Voltage',
-        0x3200: 'Voltage inside the device',
-        0x3210: 'Overvoltage 0x00',
-        0x4000: 'Temperature',
-        0x4300: 'Drive temperature',
-        0x4310: 'Overtemperature 0x00',
-        0x5000: 'Device hardware',
-        0x5500: 'Data storage',
-        0x5530: 'Flash memory error 0x00',
-        0x6000: 'Device software',
-        0x6100: 'Internal software 0x10',
-        0x8000: 'Monitoring',
-        0x8100: 'Communication',
-        0x8110: 'CAN Overrun (objects lost) 0x00',
-        0x8120: 'CAN in error passive mode 0x00',
-        0x8130: 'Life guard or heartbeat error 0x01',
-        0x8140: 'Recovered from bus off 0x02',
-        0x8200: 'Protocol error',
-        0x8210: 'PDO not processed due to length error 0x40',
-        0x8220: 'PDO length exceeded 0x20',
-        0x8400: 'Velocity speed controller (deviation) 0x00',
-        0x8600: 'Positioning controller',
-        0x8611: 'Following error (deviation) 0x00',
-        0xFF00: 'Device specific',
-        0xFF01: 'Conversion overflow 0x08',
-    }
-
-    SUPPORTED_HOMING_METHODS = {
-        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
-        33, 34,
-        35,
-    }
-
-    DEVICE_UNITS = {
-        'length': MICRO,
-        'current': MILLI,
-        'speed': MILLI,
-        'Current Control Parameter Set/Continuous Current Limit': MILLI,
-        'Current Control Parameter Set/Peak Current Limit': MILLI,
-        'Max Profile Velocity': MILLI,
-        'Profile Acceleration': MILLI,
-        'Profile Deceleration': MILLI,
-    }
+    DEVICE_ERROR_CODES: FAULHABER_DEVICE_ERROR_CODES
+    EMERGENCY_ERROR_CODES: FAULHABER_EMERGENCY_ERROR_CODES
+    SUPPORTED_HOMING_METHODS: FAULHABER_SUPPORTED_HOMING_METHODS
+    DEVICE_UNITS: FAULHABER_DEVICE_UNITS
 
     def home(self):
-        method = self.homing_method()
-
         # Faulhaber does not support homing methods -1 and -2. Use crude_homing
         # instead
-        if method in {-1, -2}:
-            units = self.DEVICE_UNITS
+        if self.homingMethod in {-1, -2}:
             return crude_homing(
                 self.node,
                 self.homingDirection,
-                speed=0.100 / units['speed'],
-                minWidth=MINIMUM_HOMING_WIDTH / units['length'],
-                length=self.motor.length / units['length'],
+                speed=self.convert_si_to_device_units(0.100, 'speed'),
+                minWidth=self.convert_si_to_device_units(MINIMUM_HOMING_WIDTH, 'length'),
+                length=self.convert_si_to_device_units(self.motor.length, 'length'),
             )
 
         self.validate_homing_method(method)
@@ -283,240 +272,21 @@ class Epos4(Controller):
 
     """Maxon EPOS4 controller."""
 
-    def __init__(self,
-        node: CiA402Node,
-        motor: Motor,
-        settings: Optional[dict] = None,
-        direction: int = FORWARD,
-        homingDirection: Optional[int] = None,
-        endSwitches: bool = False,
-        length: Optional[float] = None,
-        ):
+    DEVICE_ERROR_REGISTER = MAXON_DEVICE_ERROR_REGISTER
+    DEVICE_ERROR_CODES = MAXON_DEVICE_ERROR_CODES
+    EMERGENCY_ERROR_CODES = MAXON_EMERGENCY_ERROR_CODES
+    SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
+    DEVICE_UNITS = {}  # TODO
 
-        super().__init__(node,
-                motor,
-                settings,
-                direction,
-                homingDirection,
-                endSwitches)
-
-        # TODO: Hold these values on controller level? In case one overwrites the 
-        # default settings, the configuration held on motor level is not correct
-        gearConfig = node.sdo['Gear configuration']
-        numerator = gearConfig['Gear reduction numerator'].raw
-
-        denumerator = gearConfig['Gear reduction denominator'].raw
-        encoder = node.sdo['Digital incremental encoder 1']
-        encoderNumberOfPulses = encoder['Digital incremental encoder 1 number of pulses'].raw
-
-        # Hacky implementation. Since we want to keep symmetry between both controller classes,
-        # we overwrite the gearRatio with the final conversion factor
-        gear = numerator / denumerator
-        self.gearRatio = gear * encoderNumberOfPulses * 4 / TAU
-
-        if length:
-            self.DEVICE_UNITS['length'] = length
-
-    DEVICE_ERROR_REGISTER: Dict[int, str] = {
-        1 << 0: 'Generic Error',
-        1 << 1: 'Current Error',
-        1 << 2: 'Voltage Error',
-        1 << 3: 'Temperature Error',
-        1 << 4: 'Communication Error',
-        1 << 5: 'Device profile-specific',
-        1 << 6: 'Reserved (always 0)',
-        1 << 7: 'Motion Error',
-    }
-
-    DEVICE_ERROR_CODES: Dict[int, str] = {
-        0x0000: 'No Error',
-        0x1000: 'Generic error',
-        0x1090: 'Firmware incompatibility error',
-        0x2310: 'Overcurrent error',
-        0x2320: 'Power stage protection error',
-        0x3210: 'Overvoltage error',
-        0x3220: 'Undervoltage error',
-        0x4210: 'Thermal overload error',
-        0x4380: 'Thermal motor overload error',
-        0x5113: 'Logic supply voltage too low error',
-        0x5280: 'Hardware defect error',
-        0x5281: 'Hardware incompatibility error',
-        0x6080: 'Sign of life error',
-        0x6081: 'Extension 1 watchdog error',
-        0x6320: 'Software parameter error',
-        0x6380: 'Persistent parameter corrupt error',
-        0x7320: 'Position sensor error',
-        0x7380: 'Position sensor breach error',
-        0x7381: 'Position sensor resolution error',
-        0x7382: 'Position sensor index error',
-        0x7388: 'Hall sensor error',
-        0x7389: 'Hall sensor not found error',
-        0x738A: 'Hall angle detection error',
-        0x738C: 'SSI sensor error',
-        0x738D: 'SSI sensor frame error',
-        0x7390: 'Missing main sensor error',
-        0x7391: 'Missing commutation sensor error',
-        0x7392: 'Main sensor direction error',
-        0x8110: 'CAN overrun error(object lost)',
-        0x8111: 'CAN overrun error',
-        0x8120: 'CAN passive mode error',
-        0x8130: 'CAN heartbeat error',
-        0x8150: 'CAN PDO COB-ID collision',
-        0x8180: 'EtherCAT communication error',
-        0x8181: 'EtherCAT initialization error',
-        0x8182: 'EtherCAT Rx queue overflow',
-        0x8183: 'EtherCAT communication error(internal)',
-        0x8184: 'EtherCAT communication cycle time error',
-        0x81FD: 'CAN bus turned off',
-        0x81FE: 'CAN Rx queue overflow',
-        0x81FF: 'CAN Tx queue overflow',
-        0x8210: 'CAN PDO length error',
-        0x8250: 'RPDO timeout',
-        0x8280: 'EtherCAT PDO communication error',
-        0x8281: 'EtherCAT SDO communication error',
-        0x8611: 'Following error',
-        0x8A80: 'Negative limit switch error',
-        0x8A81: 'Positive limit switch error',
-        0x8A82: 'Software position limit error',
-        0x8A88: 'STO error',
-        0xFF01: 'System overloaded error',
-        0xFF02: 'Watchdog error',
-        0xFF0B: 'System peak overloaded error',
-        0xFF10: 'Controller gain error',
-        0xFF11: 'Auto tuning identification error',
-        0xFF12: 'Auto tuning current limit error',
-        0xFF13: 'Auto tuning identification current error',
-        0xFF14: 'Auto tuning data sampling error',
-        0xFF15: 'Auto tuning sample mismatch error',
-        0xFF16: 'Auto tuning parameter error',
-        0xFF17: 'Auto tuning amplitude mismatch error',
-        0xFF19: 'Auto tuning timeout error',
-        0xFF20: 'Auto tuning standstill error',
-        0xFF21: 'Auto tuning torque invalid error',
-        0xFF22: 'Auto tuning max system speed error',
-        0xFF23: 'Auto tuning motor connection error',
-        0xFF24: 'Auto tuning sensor signal error',
-    }
-
-    """Add value ranges to the dict"""
-    for i in range(0x1080, 0x1088 + 1):
-        DEVICE_ERROR_CODES[i] = 'Generic initialization error'
-    for i in range(0x5480, 0x5483 + 1):
-        DEVICE_ERROR_CODES[i] = 'Hardware error'
-    for i in range(0x6180, 0x61F0 + 1):
-        DEVICE_ERROR_CODES[i] = 'Internal software error'
-
-    EMERGENCY_ERROR_CODES: Dict[int, str] = {
-        0x0000: 'No Error',
-        0x1000: 'Generic error',
-        0x1090: 'Firmware incompatibility error',
-        0x2310: 'Overcurrent error',
-        0x2320: 'Power stage protection error',
-        0x3210: 'Overvoltage error',
-        0x3220: 'Undervoltage error',
-        0x4210: 'Thermal overload error',
-        0x4380: 'Thermal motor overload error',
-        0x5113: 'Logic supply voltage too low error',
-        0x5280: 'Hardware defect error',
-        0x5281: 'Hardware incompatibility error',
-        0x6080: 'Sign of life error',
-        0x6081: 'Extension 1 watchdog error',
-        0x6320: 'Software parameter error',
-        0x6380: 'Persistent parameter corrupt error',
-        0x7320: 'Position sensor error',
-        0x7380: 'Position sensor breach error',
-        0x7381: 'Position sensor resolution error',
-        0x7382: 'Position sensor index error',
-        0x7388: 'Hall sensor error',
-        0x7389: 'Hall sensor not found error',
-        0x738A: 'Hall angle detection error',
-        0x738C: 'SSI sensor error',
-        0x738D: 'SSI sensor frame error',
-        0x7390: 'Missing main sensor error',
-        0x7391: 'Missing commutation sensor error',
-        0x7392: 'Main sensor direction error',
-        0x8110: 'CAN overrun error(object lost)',
-        0x8111: 'CAN overrun error',
-        0x8120: 'CAN passive mode error',
-        0x8130: 'CAN heartbeat error',
-        0x8150: 'CAN PDO COB-ID collision',
-        0x8180: 'EtherCAT communication error',
-        0x8181: 'EtherCAT initialization error',
-        0x8182: 'EtherCAT Rx queue overflow',
-        0x8183: 'EtherCAT communication error(internal)',
-        0x8184: 'EtherCAT communication cycle time error',
-        0x81FD: 'CAN bus turned off',
-        0x81FE: 'CAN Rx queue overflow',
-        0x81FF: 'CAN Tx queue overflow',
-        0x8210: 'CAN PDO length error',
-        0x8250: 'RPDO timeout',
-        0x8280: 'EtherCAT PDO communication error',
-        0x8281: 'EtherCAT SDO communication error',
-        0x8611: 'Following error',
-        0x8A80: 'Negative limit switch error',
-        0x8A81: 'Positive limit switch error',
-        0x8A82: 'Software position limit error',
-        0x8A88: 'STO error',
-        0xFF01: 'System overloaded error',
-        0xFF02: 'Watchdog error',
-        0xFF0B: 'System peak overloaded error',
-        0xFF10: 'Controller gain error',
-        0xFF11: 'Auto tuning identification error',
-        0xFF12: 'Auto tuning current limit error',
-        0xFF13: 'Auto tuning identification current error',
-        0xFF14: 'Auto tuning data sampling error',
-        0xFF15: 'Auto tuning sample mismatch error',
-        0xFF16: 'Auto tuning parameter error',
-        0xFF17: 'Auto tuning amplitude mismatch error',
-        0xFF19: 'Auto tuning timeout error',
-        0xFF20: 'Auto tuning standstill error',
-        0xFF21: 'Auto tuning torque invalid error',
-        0xFF22: 'Auto tuning max system speed error',
-        0xFF23: 'Auto tuning motor connection error',
-        0xFF24: 'Auto tuning sensor signal error',
-    }
-
-    SUPPORTED_HOMING_METHODS = {
-        -4, -3, -2, -1, 1, 2, 7, 11, 17, 18, 23, 27, 33, 34, 37,
-    }
-
-    DEVICE_UNITS = {
-        'length': 1 / TAU,
-        'speed': TAU / 60,
-        'kinematics': TAU / 60,
-        'current': MILLI,
-        'torque': MICRO,
-        'Motor data/Nominal current': MILLI,
-        'Motor data/Output current limit': MILLI,
-        'Motor data/Thermal time constant winding': DECI,
-        'Motor data/Torque constant': MICRO,
-        'Motor rated torque': MICRO,
-        'Position control parameter set/Position controller P gain': MICRO,
-        'Position control parameter set/Position controller I gain': MICRO,
-        'Position control parameter set/Position controller D gain': MICRO,
-        'Position control parameter set/Position controller FF velocity gain': MICRO,
-        'Position control parameter set/Position controller FF acceleration gain': MICRO,
-        'Current control parameter set/Current controller P gain': MICRO,
-        'Current control parameter set/Current controller I gain': MICRO,
-        'Gear configuration/Max gear input speed': TAU / 60,
-        'Max motor speed': TAU / 60,
-        'Max profile velocity': TAU / 60,
-        'Max acceleration': TAU / 60,
-        'Max deceleration': TAU / 60,
-        'Current threshold for homing mode': MILLI,
-
-    }
+    def __init__(self, *args, homingMethod=37, **kwargs):
+        super().__init__(*args, homingMethod=homingMethod, **kwargs)
+        # TODO : Check EPOS4 firmware version
 
     def home(self):
-        method = self.homing_method()
+        if self.homingMethod == 35:
+            homingMethod = 37
+        else:
+            homingMethod = self.homingMethod
 
-        # Homing method 35 deprecated since new CiA 402 standard. Got replaced
-        # with 37. Maxon EPOS4 uses the newer definition
-        if method == 35:
-            method = 37
-
-        units = self.DEVICE_UNITS
-        self.validate_homing_method(method)
-        maxSpeed = rpm_to_angular_velocity(60) / units["speed"]
-        maxAcc = 100 / units["kinematics"]
-        return proper_homing(self.node, method, maxSpeed, maxAcc)
+        self.node.sdo[HOMING_METHOD].raw = homingMethod
+        return proper_homing(self.node)

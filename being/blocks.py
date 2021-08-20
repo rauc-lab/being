@@ -78,8 +78,6 @@ class Trafo(Block):
 
     @classmethod
     def from_ranges(cls, inRange=(0., 1.), outRange=(0., 1.)):
-        # TODO: Make me! Calculate scale, offset from (xMin, xMax) and (yMin,
-        # yMax).
         scale, offset = linear_mapping(inRange, outRange)
         return cls(scale, offset)
 
@@ -106,7 +104,7 @@ class Printer(Block):
 
     """Print input values to stdout."""
 
-    def __init__(self, prefix='', carriageReturn=True, **kwargs):
+    def __init__(self, prefix: str = '', carriageReturn: bool = False, **kwargs):
         """Kwargs:
             prefix: Prefix string to prepend.
         """

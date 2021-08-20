@@ -1,35 +1,39 @@
 """Homing procedures and definitions."""
 import enum
 import time
-import warnings
+import logging
 from typing import Generator, Tuple
 
+from being.bitmagic import check_bit_mask
 from being.can.cia_402 import (
-    CiA402Node,
-    POSITION_ACTUAL_VALUE,
-    VELOCITY_ACTUAL_VALUE,
-    TARGET_VELOCITY,
     CONTROLWORD,
-    Command,
     CW,
-    STATUSWORD,
-    target_reached,
-    State as CiA402State,
-    OperationMode,
+    CiA402Node,
+    Command,
+    HOMING_ACCELERATION,
     HOMING_METHOD,
     HOMING_SPEEDS,
+    OperationMode,
+    POSITION_ACTUAL_VALUE,
+    SOFTWARE_POSITION_LIMIT,
     SPEED_FOR_SWITCH_SEARCH,
     SPEED_FOR_ZERO_SEARCH,
-    HOMING_ACCELERATION,
+    STATUSWORD,
     SW,
-    SOFTWARE_POSITION_LIMIT,
-    )
+    State as CiA402State,
+    TARGET_VELOCITY,
+    VELOCITY_ACTUAL_VALUE,
+    target_reached,
+)
+from being.can.cia_402 import which_state
 from being.can.definitions import HOMING_OFFSET
 from being.can.nmt import OPERATIONAL
-from being.constants import INF
+from being.constants import FORWARD, BACKWARD, INF
 from being.error import BeingError
 from being.math import clip
-from being.constants import FORWARD, BACKWARD
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 HomingRange = Tuple[int, int]
@@ -128,69 +132,80 @@ def _align_in_the_middle(lower: int, upper: int, length: int) -> HomingRange:
     return lower + margin, upper - margin
 
 
-def proper_homing(
-        node: CiA402Node,
-        homingMethod: int,
-        maxSpeed: float = 0.100,
-        maxAcc: float = 1.,
-        timeout: float = 5.,
-        #lowerLimit: int = 0,
-        #upperLimit: int = 0,
-    ) -> HomingProgress:
+# TODO(atheler): Move CiA 402 homing functions -> CiA402Node as methods
+
+
+def start_homing(node):
+    """Start homing procedure for node."""
+    print('start_homing()')
+    # Controlword bit 4 has to go from 0 -> 1
+    node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
+    node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
+
+
+def stop_homing(node):
+    """Stop homing procedure for node."""
+    print('stop_homing()')
+    # Controlword bit has to go from 1 -> 0
+    node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
+    node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
+
+
+def homing_started(node) -> bool:
+    """Check if homing procedure has started."""
+    sw = node.sdo[STATUSWORD].raw
+    started = not check_bit_mask(sw, SW.HOMING_ATTAINED) and not check_bit_mask(sw, SW.TARGET_REACHED)
+    #print('homing_started()', started)
+    return started
+
+
+def homing_ended(node) -> bool:
+    """Check if homing procedure has ended."""
+    sw = node.sdo[STATUSWORD].raw
+    ended = check_bit_mask(sw, SW.HOMING_ATTAINED) and check_bit_mask(sw, SW.TARGET_REACHED)
+    #print('homing_ended()', ended)
+    return ended
+
+
+def homing_reference_run(node: CiA402Node) -> HomingProgress:
+    """Travel down homing road."""
+    while not homing_started(node):
+        yield HomingState.ONGOING
+
+    while not homing_ended(node):
+        yield HomingState.ONGOING
+
+
+def proper_homing(node: CiA402Node, timeout: float = 5.0) -> HomingProgress:
     """Proper CiA 402 homing."""
-    homed = False
-
-    warnings.warn('Proper homing is untested by now. Use at your own risk!')
-
     with node.restore_states_and_operation_mode():
         node.change_state(CiA402State.READY_TO_SWITCH_ON)
         node.set_operation_mode(OperationMode.HOMING)
         node.nmt.state = OPERATIONAL
-        # node.change_state(CiA402State.SWITCHED_ON)
         node.change_state(CiA402State.OPERATION_ENABLE)
 
-        # TODO: Set Homing Switch(Objekt 0x2310). Manufacture dependent
-        # node.sdo['Homing Switch'] = ???
-        # TODO: Manufacture dependent, done before calling method
-        # node.sdo[HOMING_OFFSET].raw = 0
-        node.sdo[HOMING_METHOD].raw = homingMethod
-        node.sdo[HOMING_SPEEDS][SPEED_FOR_SWITCH_SEARCH].raw = abs(maxSpeed)
-        node.sdo[HOMING_SPEEDS][SPEED_FOR_ZERO_SEARCH].raw = abs(maxSpeed)
-        node.sdo[HOMING_ACCELERATION].raw = abs(maxAcc)
-
-        # Start homing
-        node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
         startTime = time.perf_counter()
         endTime = startTime + timeout
 
-        # Check if homing started (statusword bit 10 and 12 zero)
-        homingStarted = False
-        while not homingStarted and (time.perf_counter() < endTime):
-            yield HomingState.ONGOING
-            sw = node.sdo[STATUSWORD].raw
-            homingStarted = (not (sw & SW.TARGET_REACHED) and not (sw & SW.HOMING_ATTAINED))
+        def timeout_expired():
+            expired = time.perf_counter() > endTime
+            return expired
 
-        # Check if homed (statusword bit 10 and 12 one)
-        while not homed and (time.perf_counter() < endTime):
-            yield HomingState.ONGOING
-            sw = node.sdo[STATUSWORD].raw
-            # See Table 3-33 in EPOS Firmware spec
-            # TODO: check for Faulhaber
-            homed = (not (sw & SW.HOMING_ERROR)) and (sw & SW.HOMING_ATTAINED)
+        start_homing(node)
 
-        # Required to change state here,
-        # otherwise contextmanager can't switch operation mode later (would be OPERATIONAL)
+        for state in homing_reference_run(node):
+            if timeout_expired():
+                LOGGER.error('Homing for %s: Timeout expired!', node)
+                state = HomingState.FAILED
+                break
+        else:  # If no break
+            state = HomingState.HOMED
+
+        stop_homing(node)
+
         node.change_state(CiA402State.READY_TO_SWITCH_ON)
-        # node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION  # Abort homing
-        # node.sdo[CONTROLWORD].raw = 0  # Abort homing
 
-    if homed:
-        DISABLED = 0
-        node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = DISABLED
-        node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = DISABLED
-        yield HomingState.HOMED
-    else:
-        yield HomingState.FAILED
+    yield state
 
 
 def crude_homing(
@@ -292,8 +307,12 @@ def crude_homing(
         # Center according to rod length
         lower, upper = _align_in_the_middle(lower, upper, length)
 
-        # node.sdo[HOMING_OFFSET].raw = lower
+        node.sdo[HOMING_OFFSET].raw = lower
         node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
         node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = upper - lower
+
+        print('HOMING_OFFSET:', node.sdo[HOMING_OFFSET].raw )
+        print('SOFTWARE_POSITION_LIMIT:', node.sdo[SOFTWARE_POSITION_LIMIT][1].raw )
+        print('SOFTWARE_POSITION_LIMIT:', node.sdo[SOFTWARE_POSITION_LIMIT][2].raw )
 
     yield HomingState.HOMED

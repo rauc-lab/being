@@ -5,7 +5,48 @@ from typing import NamedTuple
 from fractions import Fraction
 
 from being.utils import merge_dicts
-from being.constants import TAU
+from being.constants import TAU, MICRO, MILLI, NANO
+from being.config import CONFIG
+from being.motors.vendor import (
+    MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,
+    MAXON_INPUT_LOW_ACTIVE,
+    MAXON_INTERPOLATION_DISABLED,
+    MAXON_POLARITY_CCW,
+    MaxonControlStructure,
+    MaxonMotorType,
+    MaxonSensorsConfiguration,
+)
+
+
+INTERVAL = CONFIG['General']['INTERVAL']
+TODO = 0
+
+
+class Motor(NamedTuple):
+
+    """Hardware motor.
+
+    Definitions, settings for different hardware motors.
+    """
+
+    manufacturer: str
+    """Manufacturer name."""
+
+    name: str
+    """Motor name."""
+
+    length: float = None
+    """Linear motor Length."""
+
+    defaultSettings: dict = {}
+    """Default settings for this motor."""
+
+    gear: Fraction = Fraction(1, 1)
+    """Gear ratio."""
+
+    position_si_2_device: float = 1.0
+    """Conversion factor for position SI -> device units."""
+
 
 FAULHABER_DEFAULT_SETTINGS = {
     'General Settings/Pure Sinus Commutation': 1,
@@ -22,19 +63,11 @@ FAULHABER_DEFAULT_SETTINGS = {
     'Profile Acceleration': 1.0,
     'Profile Deceleration': 1.0,
 }
-MAXON_PHASE_MODULATED_DC_MOTOR = 1
-MAXON_SINUSOIDAL_PM_BL_MOTOR = 10
-MAXON_TRAPEZOIDAL_PM_BL_MOTOR = 11
-MAXON_FOLLOWING_ERROR_WINDOW_DISABLED = 4294967295
-MAXON_INTERPOLATION_DISABLED = 0
-MAXON_NEGATIVE_LIMIT_SWITCH = 0
-MAXON_POSITIVE_LIMIT_SWITCH = 1
-MAXON_POLARITY_CCW = 0
-MAXON_INPUT_LOW_ACTIVE = 3 # TODO:Is this correct?
-TODO = 0
+
 
 MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
-    'Motor type': MAXON_PHASE_MODULATED_DC_MOTOR,
+    'Store parameters': 0,
+    'Motor type': MaxonMotorType.PHASE_MODULATED_DC_MOTOR,
     'Motor data/Nominal current': 0.379,  # [Ampere]
     'Motor data/Output current limit': 2 * 0.379,  # [Ampere]
     'Motor data/Number of pole pairs': 1,
@@ -74,6 +107,7 @@ MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
     'Current threshold for homing mode': 0.3,
 }
 
+
 MAXON_DC_22_S_24V_DEFAULT_SETTINGS = merge_dicts(MAXON_DC_22_S_12V_DEFAULT_SETTINGS, {
     'Motor rated torque': 0.0118,
     'Position control parameter set/Position controller P gain': 1.5,
@@ -82,72 +116,61 @@ MAXON_DC_22_S_24V_DEFAULT_SETTINGS = merge_dicts(MAXON_DC_22_S_12V_DEFAULT_SETTI
     'Current control parameter set/Current controller P gain': 19,
     'Current control parameter set/Current controller I gain': 152,
 })
+
+
+
 MAXON_EC_45_DEFAULT_SETTINGS = {
-    'Motor type': MAXON_SINUSOIDAL_PM_BL_MOTOR,
-    'Motor data/Nominal current': 3.210,  # [Ampere]
-    'Motor data/Output current limit': 2 * 3.210,  # [Ampere]
+    'Store parameters': 0,
+    'Motor type': MaxonMotorType.SINUSOIDAL_PM_BL_MOTOR,
     'Motor data/Number of pole pairs': 8,
-    'Motor data/Thermal time constant winding': 29.6,
-    'Motor data/Torque constant': 0.0369,
-    'Motor rated torque': 0.128,
-    'Max motor speed': 1047,
-    'Axis configuration/Sensors configuration': 0x100001,
-    'Axis configuration/Control structure': 0x00010121,
-    'Axis configuration/Commutation sensors': 0x31,
-    'Axis configuration/Axis configuration miscellaneous': 0x0 | MAXON_POLARITY_CCW,
     'Digital incremental encoder 1/Digital incremental encoder 1 number of pulses': 2048,
     'Digital incremental encoder 1/Digital incremental encoder 1 type': 0,
-    'Following error window': MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,
-    #'Position control parameter set/Position controller P gain': TODO,
-    #'Position control parameter set/Position controller I gain': TODO,
-    #'Position control parameter set/Position controller D gain': TODO,
-    'Position control parameter set/Position controller FF velocity gain': 0,
-    'Position control parameter set/Position controller FF acceleration gain': 0,
-    #'Current control parameter set/Current controller P gain': TODO,
-    #'Current control parameter set/Current controller I gain': TODO,
-    'Interpolation time period/Interpolation time period value': MAXON_INTERPOLATION_DISABLED,  #INTERVAL * 1000  # [ms]
-    # TODO: check why parameter exeeds value range ?!
-    # 'Configuration of digital inputs/Digital input 1 configuration': MAXON_NEGATIVE_LIMIT_SWITCH,
-    # 'Configuration of digital inputs/Digital input 2 configuration': MAXON_POSITIVE_LIMIT_SWITCH,
+    'Interpolation time period/Interpolation time period value': INTERVAL / MILLI,
     'Digital input properties/Digital inputs polarity': MAXON_INPUT_LOW_ACTIVE,
-    'Max profile velocity': 158,
-    'Profile acceleration': 1047,
-    'Profile deceleration': 1047,
-    'Home offset move distance': 0,
-    'Current threshold for homing mode': 0.3,
 }
 
 
-class Motor(NamedTuple):
+MAXON_DC_22_DEFAULT_SETTINGS = {
+    'Store parameters': 0,
+    'Motor type': MaxonMotorType.PHASE_MODULATED_DC_MOTOR,
+    'Axis configuration/Sensors configuration': MaxonSensorsConfiguration(sensorType3=0, sensorType2=0, sensorType1=1).to_int(),
+    'Axis configuration/Control structure': MaxonControlStructure(gear=1).to_int(),
+    'Axis configuration/Commutation sensors': 0,
+    'Axis configuration/Axis configuration miscellaneous': 0x0 | MAXON_POLARITY_CCW,
+    'Digital incremental encoder 1/Digital incremental encoder 1 number of pulses': 1024,
+    'Digital incremental encoder 1/Digital incremental encoder 1 type': 1,
+    'Interpolation time period/Interpolation time period value': INTERVAL / MILLI,
+    #'Interpolation time period/Interpolation time index': -3,
+    #'Following error window': MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,
+    #'Following error window': 0,
+    'Digital input properties/Digital inputs polarity': MAXON_INPUT_LOW_ACTIVE,
 
-    """Hardware motor.
+    #'Gear configuration/Gear reduction numerator': 69,
+    #'Gear configuration/Gear reduction denominator': 13,
+    'Gear configuration/Gear reduction numerator': 1,
+    'Gear configuration/Gear reduction denominator': 1,
 
-    Definitions, settings for different hardware motors.
-    """
+    #'Profile acceleration': 1,  # Default 10000
+    #'Profile deceleration': 1,  # Default 10000
+    #'Quick stop deceleration': 2,  # Default 10000
+    #'Max motor speed': 50,  # Default 50000
+    #'Gear configuration/Max gear input speed': 100   , # Default 100000
 
-    manufacturer: str
-    """Manufacturer name."""
-
-    name: str
-    """Motor name."""
-
-    length: float = None
-    """Linear motor Length."""
-
-    defaultSettings: dict = {}
-    """Default settings for this motor."""
-
-    gearRatio: Fraction = Fraction(1, 1)
-    """Gear fraction"""
+    'Position control parameter set/Position controller P gain': 1.5 / MICRO,
+    'Position control parameter set/Position controller I gain': 0.78 / MICRO,
+    'Position control parameter set/Position controller D gain': .1*0.016 / MICRO,
+    'Current control parameter set/Current controller P gain': 19 / MICRO,
+    'Current control parameter set/Current controller I gain': 152 / MICRO,
+}
 
 
 MOTORS = {
-    'LM0830': Motor('Faulhaber', 'LM 0830', length=0.040, defaultSettings=FAULHABER_DEFAULT_SETTINGS),
-    'LM1247': Motor('Faulhaber', 'LM 1247', length=0.120, defaultSettings=FAULHABER_DEFAULT_SETTINGS),
-    'LM1483': Motor('Faulhaber', 'LM 1483', length=0.080, defaultSettings=FAULHABER_DEFAULT_SETTINGS),
-    'LM2070': Motor('Faulhaber', 'LM 2070', length=0.220, defaultSettings=FAULHABER_DEFAULT_SETTINGS),
-    'DC22': Motor('Maxon', 'DC 22', length=TAU, defaultSettings=MAXON_DC_22_S_24V_DEFAULT_SETTINGS),
-    'EC45': Motor('Maxon', 'EC 45', length=TAU, defaultSettings=MAXON_EC_45_DEFAULT_SETTINGS),
+    'LM1247': Motor('Faulhaber', 'LM 1247', length=0.120, defaultSettings=FAULHABER_DEFAULT_SETTINGS, position_si_2_device=1 / MICRO),
+    'LM0830': Motor('Faulhaber', 'LM 0830', length=0.040, defaultSettings=FAULHABER_DEFAULT_SETTINGS, position_si_2_device=1 / MICRO),
+    'LM1483': Motor('Faulhaber', 'LM 1483', length=0.080, defaultSettings=FAULHABER_DEFAULT_SETTINGS, position_si_2_device=1 / MICRO),
+    'LM2070': Motor('Faulhaber', 'LM 2070', length=0.220, defaultSettings=FAULHABER_DEFAULT_SETTINGS, position_si_2_device=1 / MICRO),
+    'EC45': Motor('Maxon', 'EC 45', length=TAU, defaultSettings=MAXON_EC_45_DEFAULT_SETTINGS, position_si_2_device=4 * 2048 / TAU),
+    'DC22': Motor('Maxon', 'DC 22', length=TAU, defaultSettings=MAXON_DC_22_DEFAULT_SETTINGS, position_si_2_device=4 * 1024 / TAU, gear=Fraction(69, 13)),
 }
 
 

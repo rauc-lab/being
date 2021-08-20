@@ -339,6 +339,36 @@ HOMING_METHODS: Dict[HomingParam, int] = {
 assert len(HOMING_METHODS) == 35, 'Something went wrong with HOMING_METHODS keys! Not enough homing methods anymore.'
 
 
+def determine_homing_method(*args, **kwargs) -> int:
+    """Determine homing method."""
+    param = HomingParam(*args, **kwargs)
+    return HOMING_METHODS[param]
+
+
+def default_homing_method(homingDirection: int, endSwitches: bool = False) -> int:
+    """Default non 35/37 homing methods.
+
+    Args:
+        homingDirection: In which direction to start homing.
+
+    Kwargs:
+        endSwitches: End switches present.
+
+    Returns:
+        Homing method number.
+    """
+    if endSwitches:
+        if homingDirection > 0:
+            return determine_homing_method(endSwitches=POSITIVE)
+        else:
+            return determine_homing_method(endSwitches=NEGATIVE)
+    else:
+        if homingDirection > 0:
+            return determine_homing_method(direction=POSITIVE, hardStop=True)
+        else:
+            return determine_homing_method(direction=NEGATIVE, hardStop=True)
+
+
 class CiA402Node(RemoteNode):
 
     """Alternative / simplified implementation of canopen.BaseNode402.

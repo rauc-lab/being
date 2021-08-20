@@ -8,7 +8,7 @@ We do not use asyncio because we want to keep the core async free for now.
 import abc
 import random
 import time
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
 
 from being.backends import CanBackend
 from being.block import Block
@@ -64,7 +64,10 @@ class DriveError(BeingError):
 
 
 class MotorBlock(Block, PubSub, abc.ABC):
-    def __init__(self, name=None):
+    def __init__(self, name: Optional[str] = None):
+        """Kwargs:
+            name: Block name.
+        """
         super().__init__(name=name)
         PubSub.__init__(self, events=[MOTOR_CHANGED])
         self.add_value_input('targetPosition')
@@ -77,7 +80,7 @@ class MotorBlock(Block, PubSub, abc.ABC):
     #    pass
 
     @abc.abstractmethod
-    def enable(self, publish=True):
+    def enable(self, publish: bool = True):
         """Engage motor. This is switching motor on and engaging its drive.
 
         Kwargs:
@@ -87,7 +90,7 @@ class MotorBlock(Block, PubSub, abc.ABC):
             self.publish(MOTOR_CHANGED)
 
     @abc.abstractmethod
-    def disable(self, publish=True):
+    def disable(self, publish: bool = True):
         """Switch motor on.
 
         Kwargs:
@@ -118,7 +121,7 @@ class DummyMotor(MotorBlock):
 
     """Dummy motor for testing and standalone usage."""
 
-    def __init__(self, length=0.04):
+    def __init__(self, length: float = 0.040):
         super().__init__()
         self.length = length
         self.state = KinematicState()
@@ -202,15 +205,15 @@ class CanMotor(MotorBlock):
     """
 
     def __init__(self,
-                 nodeId,
-                 motor: Optional[Union[str, Motor]] = None,
-                 node: Optional[CiA402Node] = None,
-                 objectDictionary=None,
-                 network: Optional[CanBackend] = None,
-                 settings: Optional[Dict[str, Any]] = None,
-                 name: Optional[str] = None,
-                 **controllerKwargs,
-                 ):
+             nodeId,
+             motor: Union[str, Motor],
+             node: Optional[CiA402Node] = None,
+             objectDictionary=None,
+             network: Optional[CanBackend] = None,
+             settings: Optional[Dict[str, Any]] = None,
+             name: Optional[str] = None,
+             **controllerKwargs,
+         ):
         """Args:
             nodeId: CANopen node id.
             motorName: Motor name / type of actual hardware motor.
@@ -241,9 +244,7 @@ class CanMotor(MotorBlock):
         if settings is None:
             settings = {}
 
-        if motor is None:
-            raise BeingError("No motor object or motor name provided.")
-        elif isinstance(motor, str):
+        if isinstance(motor, str):
             motor = get_motor(motor)
 
         self.controller: Controller = create_controller_for_node(
@@ -271,13 +272,11 @@ class CanMotor(MotorBlock):
         super().home()
 
     def update(self):
-        for emcyMsg in self.controller.iter_emergencies():
+        for emcyMsg in self.controller.new_emergency_messages():
             self.logger.error(emcyMsg)
 
         if self.homing is HomingState.HOMED:
-            # PDO instead of SDO for speed
-            # This takes approx. 0.027 ms
-            sw = self.controller.node.pdo[STATUSWORD].raw
+            sw = self.controller.node.pdo[STATUSWORD].raw  # PDO instead of SDO for speed. This takes approx. 0.027 ms
             state = which_state(sw)
             if state is CiA402State.OPERATION_ENABLE:
                 self.controller.set_target_position(self.targetPosition.value)
@@ -312,17 +311,16 @@ class LinearMotor(CanMotor):
 
     """Default linear Faulhaber motor."""
 
-    def __init__(self, nodeId, motorName='LM 1247', **kwargs):
-        super().__init__(nodeId, motorName, **kwargs)
+    def __init__(self, nodeId, motor='LM 1247', **kwargs):
+        super().__init__(nodeId, motor, **kwargs)
 
 
 class RotaryMotor(CanMotor):
 
     """Default rotary Maxon motor."""
 
-    def __init__(self, nodeId, motorName='DC22', **kwargs):
-        # TODO : Check Firmware version
-        super().__init__(nodeId, motorName, **kwargs)
+    def __init__(self, nodeId, motor='DC 22', **kwargs):
+        super().__init__(nodeId, motor, **kwargs)
 
 
 class WindupMotor(MotorBlock):
