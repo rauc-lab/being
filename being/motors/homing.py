@@ -16,8 +16,6 @@ from being.can.cia_402 import (
     OperationMode,
     POSITION_ACTUAL_VALUE,
     SOFTWARE_POSITION_LIMIT,
-    SPEED_FOR_SWITCH_SEARCH,
-    SPEED_FOR_ZERO_SEARCH,
     STATUSWORD,
     SW,
     State as CiA402State,
@@ -25,10 +23,9 @@ from being.can.cia_402 import (
     VELOCITY_ACTUAL_VALUE,
     target_reached,
 )
-from being.can.cia_402 import which_state
 from being.can.definitions import HOMING_OFFSET
 from being.can.nmt import OPERATIONAL
-from being.constants import FORWARD, BACKWARD, INF
+from being.constants import INF
 from being.error import BeingError
 from being.math import clip
 

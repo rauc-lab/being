@@ -6,21 +6,24 @@ from being.can.cia_402 import (
     HOMING_METHOD,
     OperationMode,
     SOFTWARE_POSITION_LIMIT,
-    State as CiA402State, determine_homing_method, POSITIVE, NEGATIVE,
+    State as CiA402State,
+    determine_homing_method,
+    POSITIVE, NEGATIVE,
 )
-from being.constants import FORWARD, MILLI, MICRO, DECI
+from being.config import CONFIG
+from being.constants import FORWARD, MILLI, MICRO, DECI, TAU
 from being.constants import TAU
 from being.error import BeingError
+from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
-from being.math import rpm_to_angular_velocity
 from being.motors.homing import (
     HomingProgress,
     MINIMUM_HOMING_WIDTH,
     crude_homing,
     proper_homing,
 )
-from being.motors.motors import Motor
 from being.motors.homing import HomingState
+from being.motors.motors import Motor
 from being.motors.vendor import (
     FAULHABER_DEVICE_ERROR_CODES,
     FAULHABER_DEVICE_UNITS,
@@ -33,6 +36,9 @@ from being.motors.vendor import (
     MAXON_SUPPORTED_HOMING_METHODS,
 )
 from being.utils import merge_dicts
+
+
+INTERVAL = CONFIG['General']['INTERVAL']
 
 
 def nested_get(dct, keys):
@@ -323,6 +329,20 @@ class Epos4(Controller):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # TODO : Check EPOS4 firmware version
+        self.state = KinematicState()
+
+    def set_target_position(self, targetPosition, maxSpeed=2 * TAU, maxAcc=2 * TAU):
+        self.state = kinematic_filter(
+            targetPosition,
+            dt=INTERVAL,
+            initial=self.state,
+            maxSpeed=maxSpeed,
+            maxAcc=maxAcc,
+            #lower=0.,
+            #upper=self.length,
+        )
+        tarPos = self.state.position * self.position_si_2_device
+        self.node.set_target_position(tarPos)
 
     def home(self):
         if self.homingMethod == 35:
