@@ -132,40 +132,36 @@ MAXON_EC_45_DEFAULT_SETTINGS = {
 
 MAXON_DC_22_DEFAULT_SETTINGS = {
     'Store parameters': 0,
-    'Motor type': MaxonMotorType.PHASE_MODULATED_DC_MOTOR,
-    'Axis configuration/Sensors configuration': MaxonSensorsConfiguration(sensorType3=0, sensorType2=0, sensorType1=1).to_int(),
-    'Axis configuration/Control structure': MaxonControlStructure(gear=1).to_int(),
+
+    'Axis configuration/Axis configuration miscellaneous': 0,
     'Axis configuration/Commutation sensors': 0,
-    'Axis configuration/Axis configuration miscellaneous': 0x0 | MAXON_POLARITY_CCW,
+    'Axis configuration/Control structure': MaxonControlStructure(gear=1).to_int(),
+    'Axis configuration/Sensors configuration': MaxonSensorsConfiguration(sensorType3=0, sensorType2=0, sensorType1=1).to_int(),
+    'Current control parameter set/Current controller I gain': 152 / MICRO,
+    'Current control parameter set/Current controller P gain': 19 / MICRO,
     'Digital incremental encoder 1/Digital incremental encoder 1 number of pulses': 1024,
     'Digital incremental encoder 1/Digital incremental encoder 1 type': 1,
-    'Interpolation time period/Interpolation time period value': INTERVAL / MILLI,
-    #'Interpolation time period/Interpolation time index': -3,
-    #'Following error window': MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,
-    #'Following error window': 0,
     'Digital input properties/Digital inputs polarity': MAXON_INPUT_LOW_ACTIVE,
-
-    #'Gear configuration/Gear reduction numerator': 69,
-    #'Gear configuration/Gear reduction denominator': 13,
-    'Gear configuration/Gear reduction numerator': 1,
-    'Gear configuration/Gear reduction denominator': 1,
-
-    #'Profile acceleration': 1,  # Default 10000
-    #'Profile deceleration': 1,  # Default 10000
-    #'Quick stop deceleration': 2,  # Default 10000
-    #'Max motor speed': 50,  # Default 50000
-    #'Gear configuration/Max gear input speed': 100   , # Default 100000
-
-    'Position control parameter set/Position controller P gain': 1.5 / MICRO,
+    'Following error window': MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,
+    'Gear configuration/Gear reduction denominator': 13,
+    'Gear configuration/Gear reduction numerator': 69,
+    'Gear configuration/Max gear input speed': 8000,  # RPM
+    'Interpolation time period/Interpolation time period value': INTERVAL / MILLI,
+    'Max motor speed': 9000,  # RPM
+    'Motor data/Nominal current': 0.379,  # Ampere
+    'Motor data/Output current limit': 2 * 0.379,  # Ampere
+    'Motor data/Thermal time constant winding': 14.3,  # Decimal something
+    'Motor data/Torque constant': 0.0308,
+    'Motor rated torque': 0.012228,
+    'Motor type': MaxonMotorType.PHASE_MODULATED_DC_MOTOR,
+    'Position control parameter set/Position controller D gain': .1 * 0.016 / MICRO,  # Against drilling sound
     'Position control parameter set/Position controller I gain': 0.78 / MICRO,
-    'Position control parameter set/Position controller D gain': .1*0.016 / MICRO,
-    'Current control parameter set/Current controller P gain': 19 / MICRO,
-    'Current control parameter set/Current controller I gain': 152 / MICRO,
+    'Position control parameter set/Position controller P gain': 1.5 / MICRO,
 }
 
 
 MOTORS = {
-    'LM1247': Motor('Faulhaber', 'LM 1247', length=0.120, defaultSettings=FAULHABER_DEFAULT_SETTINGS, position_si_2_device=1 / MICRO),
+    'LM1247': Motor('Faulhaber', 'LM 1247', length=0.105, defaultSettings=FAULHABER_DEFAULT_SETTINGS, position_si_2_device=1 / MICRO),
     'LM0830': Motor('Faulhaber', 'LM 0830', length=0.040, defaultSettings=FAULHABER_DEFAULT_SETTINGS, position_si_2_device=1 / MICRO),
     'LM1483': Motor('Faulhaber', 'LM 1483', length=0.080, defaultSettings=FAULHABER_DEFAULT_SETTINGS, position_si_2_device=1 / MICRO),
     'LM2070': Motor('Faulhaber', 'LM 2070', length=0.220, defaultSettings=FAULHABER_DEFAULT_SETTINGS, position_si_2_device=1 / MICRO),

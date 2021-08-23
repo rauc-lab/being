@@ -257,38 +257,36 @@ MAXON_SUPPORTED_HOMING_METHODS: Set[int] = {
     -4, -3, -2, -1, 1, 2, 7, 11, 17, 18, 23, 27, 33, 34, 37,
 }
 MAXON_DEVICE_UNITS: Dict[str, float] = {
-    'length': 1 / TAU,
-    'speed': TAU / 60,
-    'kinematics': TAU / 60,
-    'current': MILLI,
-    'torque': MICRO,
     'Motor data/Nominal current': MILLI,
     'Motor data/Output current limit': MILLI,
     'Motor data/Thermal time constant winding': DECI,
+    'Current threshold for homing mode': MILLI,
     'Motor data/Torque constant': MICRO,
     'Motor rated torque': MICRO,
-    'Position control parameter set/Position controller P gain': MICRO,
-    'Position control parameter set/Position controller I gain': MICRO,
-    'Position control parameter set/Position controller D gain': MICRO,
-    'Position control parameter set/Position controller FF velocity gain': MICRO,
-    'Position control parameter set/Position controller FF acceleration gain': MICRO,
-    'Current control parameter set/Current controller P gain': MICRO,
-    'Current control parameter set/Current controller I gain': MICRO,
-    'Gear configuration/Max gear input speed': TAU / 60,
-    'Max motor speed': TAU / 60,
-    'Max profile velocity': TAU / 60,
-    'Max acceleration': TAU / 60,
-    'Max deceleration': TAU / 60,
-    'Current threshold for homing mode': MILLI,
+    # 'length': 1 / TAU,
+    # 'speed': TAU / 60,
+    # 'kinematics': TAU / 60,
+    # 'current': MILLI,
+    # 'torque': MICRO,
+    # 'Position control parameter set/Position controller P gain': MICRO,
+    # 'Position control parameter set/Position controller I gain': MICRO,
+    # 'Position control parameter set/Position controller D gain': MICRO,
+    # 'Position control parameter set/Position controller FF velocity gain': MICRO,
+    # 'Position control parameter set/Position controller FF acceleration gain': MICRO,
+    # 'Current control parameter set/Current controller P gain': MICRO,
+    # 'Current control parameter set/Current controller I gain': MICRO,
+    # 'Gear configuration/Max gear input speed': TAU / 60,
+    # 'Max motor speed': TAU / 60,
+    # 'Max profile velocity': TAU / 60,
+    # 'Max acceleration': TAU / 60,
+    # 'Max deceleration': TAU / 60,
 }
-
-
 MAXON_FOLLOWING_ERROR_WINDOW_DISABLED = 4294967295  # (1 << 32) - 1
 MAXON_INTERPOLATION_DISABLED = 0
 MAXON_NEGATIVE_LIMIT_SWITCH = 0
 MAXON_POSITIVE_LIMIT_SWITCH = 1
 MAXON_POLARITY_CCW = 0
-MAXON_INPUT_LOW_ACTIVE = 3 # TODO:Is this correct?
+MAXON_INPUT_LOW_ACTIVE = 3 # TODO: Is this correct?
 
 
 class MaxonMotorType(enum.IntEnum):
@@ -301,10 +299,14 @@ class MaxonMotorType(enum.IntEnum):
 
 
 class MaxonSensorsConfiguration(NamedTuple):
-    sensorType3: int = 0x10  # 0x00: None, 0x10: Digital Hall Sensor (EC motors only),
-    sensorType2: int = 0x00  # 0x00: None, 0x01: Digital incremental encoder 2, 0x02: Analog incremental encoder, 0x03: SSI absolute encoder
-    sensorType1: int = 0x01  # 0x00: None, 0x01: Digital incremental encoder 1
-
+    sensorType3: int = 0x10  # 0x00: None
+                             # 0x10: Digital Hall Sensor (EC motors only)
+    sensorType2: int = 0x00  # 0x00: None
+                             # 0x01: Digital incremental encoder 2
+                             # 0x02: Analog incremental encoder
+                             # 0x03: SSI absolute encoder
+    sensorType1: int = 0x01  # 0x00: None
+                             # 0x01: Digital incremental encoder 1
     _field_bits = [
         #(31, 24),  # Reserved
         (23, 16),

@@ -297,10 +297,10 @@ class HomingParam(NamedTuple):
 
 
 HOMING_METHODS: Dict[HomingParam, int] = {
-    HomingParam(direction=NEGATIVE, hardStop=True, ): -1,
-    HomingParam(direction=POSITIVE, hardStop=True, ): -2,
-    HomingParam(indexPulse=True, direction=NEGATIVE, hardStop=True, ): -3,
-    HomingParam(indexPulse=True, direction=POSITIVE, hardStop=True, ): -4,
+    HomingParam(indexPulse=True, direction=POSITIVE, hardStop=True, ): -1,
+    HomingParam(indexPulse=True, direction=NEGATIVE, hardStop=True, ): -2,
+    HomingParam(direction=POSITIVE, hardStop=True, ): -3,
+    HomingParam(direction=NEGATIVE, hardStop=True, ): -4,
     HomingParam(indexPulse=True, endSwitch=NEGATIVE, ): 1,
     HomingParam(indexPulse=True, endSwitch=POSITIVE, ): 2,
     HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=FALLING, ): 3,
@@ -339,34 +339,21 @@ HOMING_METHODS: Dict[HomingParam, int] = {
 assert len(HOMING_METHODS) == 35, 'Something went wrong with HOMING_METHODS keys! Not enough homing methods anymore.'
 
 
-def determine_homing_method(*args, **kwargs) -> int:
+def determine_homing_method(
+        endSwitch: int = UNAVAILABLE,
+        homeSwitch: int = UNAVAILABLE,
+        homeSwitchEdge: int = UNDEFINED,
+        indexPulse: bool = False,
+        direction: int = UNDEFINED,
+        hardStop: bool = False,
+    ) -> int:
     """Determine homing method."""
-    param = HomingParam(*args, **kwargs)
+    param = HomingParam(endSwitch, homeSwitch, homeSwitchEdge, indexPulse, direction, hardStop)
     return HOMING_METHODS[param]
 
 
-def default_homing_method(homingDirection: int, endSwitches: bool = False) -> int:
-    """Default non 35/37 homing methods.
-
-    Args:
-        homingDirection: In which direction to start homing.
-
-    Kwargs:
-        endSwitches: End switches present.
-
-    Returns:
-        Homing method number.
-    """
-    if endSwitches:
-        if homingDirection > 0:
-            return determine_homing_method(endSwitches=POSITIVE)
-        else:
-            return determine_homing_method(endSwitches=NEGATIVE)
-    else:
-        if homingDirection > 0:
-            return determine_homing_method(direction=POSITIVE, hardStop=True)
-        else:
-            return determine_homing_method(direction=NEGATIVE, hardStop=True)
+assert determine_homing_method(hardStop=True, direction=FORWARD) == -3
+assert determine_homing_method(hardStop=True, direction=BACKWARD) == -4
 
 
 class CiA402Node(RemoteNode):

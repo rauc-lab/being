@@ -5,8 +5,8 @@ from being.can.cia_402 import (
     CiA402Node,
     HOMING_METHOD,
     OperationMode,
-    State as CiA402State,
-    default_homing_method,
+    SOFTWARE_POSITION_LIMIT,
+    State as CiA402State, determine_homing_method, POSITIVE, NEGATIVE,
 )
 from being.constants import FORWARD, MILLI, MICRO, DECI
 from being.constants import TAU
@@ -20,6 +20,7 @@ from being.motors.homing import (
     proper_homing,
 )
 from being.motors.motors import Motor
+from being.motors.homing import HomingState
 from being.motors.vendor import (
     FAULHABER_DEVICE_ERROR_CODES,
     FAULHABER_DEVICE_UNITS,
@@ -27,6 +28,7 @@ from being.motors.vendor import (
     FAULHABER_SUPPORTED_HOMING_METHODS,
     MAXON_DEVICE_ERROR_CODES,
     MAXON_DEVICE_ERROR_REGISTER,
+    MAXON_DEVICE_UNITS,
     MAXON_EMERGENCY_ERROR_CODES,
     MAXON_SUPPORTED_HOMING_METHODS,
 )
@@ -51,6 +53,30 @@ def inspect_many(node, names):
     """Inspect many node settings / parameters by name."""
     for name in names:
         inspect(node, name)
+
+
+def default_homing_method(homingDirection: int, endSwitches: bool = False, indexPulse: bool = False) -> int:
+    """Default non 35/37 homing methods.
+
+    Args:
+        homingDirection: In which direction to start homing.
+
+    Kwargs:
+        endSwitches: End switches present.
+
+    Returns:
+        Homing method number.
+    """
+    if endSwitches:
+        if homingDirection > 0:
+            return determine_homing_method(endSwitch=POSITIVE, indexPulse=indexPulse)
+        else:
+            return determine_homing_method(endSwitch=NEGATIVE, indexPulse=indexPulse)
+    else:
+        if homingDirection > 0:
+            return determine_homing_method(direction=POSITIVE, hardStop=True, indexPulse=indexPulse)
+        else:
+            return determine_homing_method(direction=NEGATIVE, hardStop=True, indexPulse=indexPulse)
 
 
 class ControllerError(BeingError):
@@ -99,6 +125,7 @@ class Controller:
             homingMethod: Optional[int] = None,
             homingDirection: Optional[int] = None,
             endSwitches: bool = False,
+            indexPulse: bool = False,
             multiplier: float = 1.0,
         ):
         """Args:
@@ -121,7 +148,7 @@ class Controller:
             settings = {}
 
         if homingMethod is None:
-            homingMethod = default_homing_method(homingDirection, endSwitches)
+            homingMethod = default_homing_method(homingDirection, endSwitches, indexPulse)
 
         self.node: CiA402Node = node
         self.motor: Motor = motor
@@ -130,9 +157,12 @@ class Controller:
         self.homingMethod: int = homingMethod
         self.logger = get_logger(str(self))
 
+        self.logger.debug('homingMethod: %d', self.homingMethod)
+
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 
+        self.length = self.motor.length
         self.only_new_ones = OnlyOnce()
         self.position_si_2_device = float(multiplier * motor.gear * motor.position_si_2_device)
         self.logger.debug('position_si_2_device: %f', self.position_si_2_device)
@@ -219,6 +249,9 @@ class Controller:
         """Convert SI value to device units."""
         return value / self.DEVICE_UNITS[name]
 
+    def convert_device_units_to_si(self, value: float, name: str) -> float:
+        return value * self.DEVICE_UNITS[name]
+
     def apply_settings(self, settings: Dict[str, Any]):
         """Apply settings to CANopen node. Convert physical SI values to device
         units (if present in DEVICE_UNITS dict).
@@ -246,7 +279,6 @@ class Mclm3002(Controller):
 
     """Faulhaber MCLM 3002 controller."""
 
-
     DEVICE_ERROR_CODES = FAULHABER_DEVICE_ERROR_CODES
     EMERGENCY_ERROR_CODES = FAULHABER_EMERGENCY_ERROR_CODES
     SUPPORTED_HOMING_METHODS = FAULHABER_SUPPORTED_HOMING_METHODS
@@ -256,30 +288,40 @@ class Mclm3002(Controller):
         # Faulhaber does not support homing methods -1 and -2. Use crude_homing
         # instead
         if self.homingMethod in {-1, -2}:
-            return crude_homing(
+            speed = self.convert_si_to_device_units(0.100, 'speed')
+            minLength = .5 * self.convert_si_to_device_units(self.motor.length, 'length')
+            homingJob = crude_homing(
                 self.node,
                 self.homingDirection,
-                speed=self.convert_si_to_device_units(0.100, 'speed'),
-                minWidth=self.convert_si_to_device_units(MINIMUM_HOMING_WIDTH, 'length'),
-                length=self.convert_si_to_device_units(self.motor.length, 'length'),
+                speed=speed,
+                minLength=minLength,
             )
 
-        self.validate_homing_method(method)
-        return proper_homing(self.node, method)
+            def hack_wrapper():
+                for state in homingJob:
+                    if state is HomingState.HOMED:
+                        lengthDev = self.node.sdo[SOFTWARE_POSITION_LIMIT][2].raw
+                        self.length = self.convert_device_units_to_si(lengthDev, 'length')
+
+                    yield state
+
+            return hack_wrapper()
+
+        return super().home()
 
 
 class Epos4(Controller):
 
     """Maxon EPOS4 controller."""
 
-    DEVICE_ERROR_REGISTER = MAXON_DEVICE_ERROR_REGISTER
     DEVICE_ERROR_CODES = MAXON_DEVICE_ERROR_CODES
+    DEVICE_ERROR_REGISTER = MAXON_DEVICE_ERROR_REGISTER
     EMERGENCY_ERROR_CODES = MAXON_EMERGENCY_ERROR_CODES
     SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
-    DEVICE_UNITS = {}  # TODO
+    DEVICE_UNITS = MAXON_DEVICE_UNITS
 
-    def __init__(self, *args, homingMethod=37, **kwargs):
-        super().__init__(*args, homingMethod=homingMethod, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         # TODO : Check EPOS4 firmware version
 
     def home(self):

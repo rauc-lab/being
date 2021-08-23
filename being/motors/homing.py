@@ -126,6 +126,7 @@ def _align_in_the_middle(lower: int, upper: int, length: int) -> HomingRange:
     """
     width = upper - lower
     if width <= length:
+        print('Not enough space to align')
         return lower, upper
 
     margin = (width - length) // 2
@@ -137,7 +138,7 @@ def _align_in_the_middle(lower: int, upper: int, length: int) -> HomingRange:
 
 def start_homing(node):
     """Start homing procedure for node."""
-    print('start_homing()')
+    LOGGER.info('start_homing()')
     # Controlword bit 4 has to go from 0 -> 1
     node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
     node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
@@ -145,7 +146,7 @@ def start_homing(node):
 
 def stop_homing(node):
     """Stop homing procedure for node."""
-    print('stop_homing()')
+    LOGGER.info('stop_homing()')
     # Controlword bit has to go from 1 -> 0
     node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
     node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
@@ -176,7 +177,7 @@ def homing_reference_run(node: CiA402Node) -> HomingProgress:
         yield HomingState.ONGOING
 
 
-def proper_homing(node: CiA402Node, timeout: float = 5.0) -> HomingProgress:
+def proper_homing(node: CiA402Node, timeout: float = 10.0) -> HomingProgress:
     """Proper CiA 402 homing."""
     with node.restore_states_and_operation_mode():
         node.change_state(CiA402State.READY_TO_SWITCH_ON)
@@ -198,6 +199,8 @@ def proper_homing(node: CiA402Node, timeout: float = 5.0) -> HomingProgress:
                 LOGGER.error('Homing for %s: Timeout expired!', node)
                 state = HomingState.FAILED
                 break
+
+            yield state
         else:  # If no break
             state = HomingState.HOMED
 
@@ -212,9 +215,8 @@ def crude_homing(
         node,
         homingDirection,
         speed,
-        minWidth,
-        length=None,
-        relMargin=0.01,
+        minLength,
+        relMargin=0.010,
     ):
     """Crude homing procedure. Move with PROFILED_VELOCITY operation mode in
     both direction until reaching the limits (position not increasing or
@@ -226,7 +228,7 @@ def crude_homing(
         node: Connected CanOpen node.
         homingDirection: Initial homing direction.
         speed: Homing speed in device units.
-        minWidth: Minimum width for homing in device units.
+        minLength: Minimum width for homing in device units.
 
     Kwargs:
         length: Known length of motor in device units.
@@ -278,8 +280,7 @@ def crude_homing(
         node.change_state(CiA402State.OPERATION_ENABLE)
         node.nmt.state = OPERATIONAL
 
-        node.sdo[HOMING_METHOD].raw = 35
-        # node.sdo[HOMING_OFFSET].raw = 0
+        node.sdo[HOMING_OFFSET].raw = 0
 
         # Homing travel
         # TODO: Should we skip 2nd homing travel if we know motor length a
@@ -295,24 +296,14 @@ def crude_homing(
         node.change_state(CiA402State.READY_TO_SWITCH_ON)
 
         homingWidth = (upper - lower)
-        if homingWidth < minWidth:
-            raise HomingFailed(
-                f'Homing width to narrow. Homing range: {[lower, upper]}!'
-            )
+        if homingWidth < minLength:
+            raise HomingFailed(f'Homing width to narrow. Homing range: {[lower, upper]}!')
 
-        # Estimate motor length
-        if length is None:
-            length = (1. - 2 * relMargin) * homingWidth
-
-        # Center according to rod length
-        lower, upper = _align_in_the_middle(lower, upper, length)
+        lower += relMargin * homingWidth
+        upper -= relMargin * homingWidth
 
         node.sdo[HOMING_OFFSET].raw = lower
         node.sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
         node.sdo[SOFTWARE_POSITION_LIMIT][2].raw = upper - lower
-
-        print('HOMING_OFFSET:', node.sdo[HOMING_OFFSET].raw )
-        print('SOFTWARE_POSITION_LIMIT:', node.sdo[SOFTWARE_POSITION_LIMIT][1].raw )
-        print('SOFTWARE_POSITION_LIMIT:', node.sdo[SOFTWARE_POSITION_LIMIT][2].raw )
 
     yield HomingState.HOMED
