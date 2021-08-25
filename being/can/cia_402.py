@@ -424,7 +424,7 @@ class CiA402Node(RemoteNode):
         Kwargs:
             enabled: Enable or disable TxPDO.
             overwrite: Overwrite TxPDO.
-            trans_type:
+            trans_type: Event based or synchronized transmission
             event_timer:
         """
         tx = self.tpdo[nr]
@@ -446,6 +446,7 @@ class CiA402Node(RemoteNode):
             *variables: CanOpenRegister,
             overwrite: bool = True,
             enabled: bool = True,
+            trans_type: TransmissionType = TransmissionType.SYNCHRONOUS_CYCLIC,
         ):
         """Setup single receiving PDO of node (sending PDO messages to remote
         node). Note: Sending / receiving direction always from the remote nodes
@@ -459,6 +460,7 @@ class CiA402Node(RemoteNode):
         Kwargs:
             enabled: Enable or disable RxPDO.
             overwrite: Overwrite RxPDO.
+            trans_type: Event based or synchronized transmission
         """
         rx = self.rpdo[nr]
         if overwrite:
@@ -468,6 +470,7 @@ class CiA402Node(RemoteNode):
             rx.add_variable(var)
 
         rx.enabled = enabled
+        rx.trans_type = trans_type
         rx.save()
 
     def get_state(self) -> State:
