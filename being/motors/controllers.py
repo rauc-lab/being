@@ -326,9 +326,15 @@ class Epos4(Controller):
     SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
     DEVICE_UNITS = MAXON_DEVICE_UNITS
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # TODO : Check EPOS4 firmware version
+    def __init__(self, node, *args, **kwargs):
+        fw_version = node.sdo['Identity object']['Revision number'].raw
+        LOW_WORD = 16
+        fw_version = fw_version >> LOW_WORD
+        if fw_version < 0x170:
+            raise ControllerError(f"Node {node.id} firmware version {hex(fw_version)} < 0x170h. Update required!")
+
+        super().__init__(node, *args, **kwargs)
+        self.logger.debug(f"Node {node.id} firmware version {hex(fw_version)}")
         self.state = KinematicState()
 
     def enable(self):

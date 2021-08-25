@@ -216,7 +216,7 @@ class CanMotor(MotorBlock):
          ):
         """Args:
             nodeId: CANopen node id.
-            motorName: Motor name / type of actual hardware motor.
+            motor: Motor object or motor name [str]
 
         Kwargs:
             node: CiA402Node driver node. If non given create new one

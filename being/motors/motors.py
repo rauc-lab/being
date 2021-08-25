@@ -65,57 +65,57 @@ FAULHABER_DEFAULT_SETTINGS = {
 }
 
 
-MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
-    'Store parameters': 0,
-    'Motor type': MaxonMotorType.PHASE_MODULATED_DC_MOTOR,
-    'Motor data/Nominal current': 0.379,  # [Ampere]
-    'Motor data/Output current limit': 2 * 0.379,  # [Ampere]
-    'Motor data/Number of pole pairs': 1,
-    'Motor data/Thermal time constant winding': 14.3,
-    'Motor data/Torque constant': 0.0308,
-    'Motor rated torque': 0.012228,
-    'Gear configuration/Gear reduction numerator': 69,
-    'Gear configuration/Gear reduction denominator': 13,
-    'Gear configuration/Max gear input speed': 837.75,
-    'Max motor speed': 942,
-    'Axis configuration/Sensors configuration': 1,
-    'Axis configuration/Control structure': 0x11121,
-    'Axis configuration/Commutation sensors': 0,
-    'Axis configuration/Axis configuration miscellaneous': 0x0 | MAXON_POLARITY_CCW,
-    'Digital incremental encoder 1/Digital incremental encoder 1 number of pulses': 1024,
-    'Digital incremental encoder 1/Digital incremental encoder 1 type': 1,
-    'Following error window': MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,
-    'Position control parameter set/Position controller P gain': TODO,
-    'Position control parameter set/Position controller I gain': TODO,
-    'Position control parameter set/Position controller D gain': TODO,
-    'Position control parameter set/Position controller FF velocity gain': 0,
-    'Position control parameter set/Position controller FF acceleration gain': 0,
-    'Current control parameter set/Current controller P gain': TODO,
-    'Current control parameter set/Current controller I gain': TODO,
-    # Will run smoother if set (0 = disabled).
-    # However, will throw an RPDO timeout error when reloading web page
-    #INTERVAL * 1000  # [ms]
-    'Interpolation time period/Interpolation time period value': MAXON_INTERPOLATION_DISABLED,
-    # TODO: check why parameter exeeds value range ?!
-    # 'Configuration of digital inputs/Digital input 1 configuration': MAXON_NEGATIVE_LIMIT_SWITCH,
-    # 'Configuration of digital inputs/Digital input 2 configuration': MAXON_POSITIVE_LIMIT_SWITCH,
-    'Digital input properties/Digital inputs polarity': MAXON_INPUT_LOW_ACTIVE,
-    'Max profile velocity': 158,
-    'Profile acceleration': 1047,
-    'Profile deceleration': 1047,
-    'Home offset move distance': 0,
-    'Current threshold for homing mode': 0.3,
-}
+# MAXON_DC_22_S_12V_DEFAULT_SETTINGS = {
+#     'Store parameters': 0,
+#     'Motor type': MaxonMotorType.PHASE_MODULATED_DC_MOTOR,
+#     'Motor data/Nominal current': 0.379,  # [Ampere]
+#     'Motor data/Output current limit': 2 * 0.379,  # [Ampere]
+#     'Motor data/Number of pole pairs': 1,
+#     'Motor data/Thermal time constant winding': 14.3,
+#     'Motor data/Torque constant': 0.0308,
+#     'Motor rated torque': 0.012228,
+#     'Gear configuration/Gear reduction numerator': 69,
+#     'Gear configuration/Gear reduction denominator': 13,
+#     'Gear configuration/Max gear input speed': 837.75,
+#     'Max motor speed': 942,
+#     'Axis configuration/Sensors configuration': 1,
+#     'Axis configuration/Control structure': 0x11121,
+#     'Axis configuration/Commutation sensors': 0,
+#     'Axis configuration/Axis configuration miscellaneous': 0x0 | MAXON_POLARITY_CCW,
+#     'Digital incremental encoder 1/Digital incremental encoder 1 number of pulses': 1024,
+#     'Digital incremental encoder 1/Digital incremental encoder 1 type': 1,
+#     'Following error window': MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,
+#     'Position control parameter set/Position controller P gain': TODO,
+#     'Position control parameter set/Position controller I gain': TODO,
+#     'Position control parameter set/Position controller D gain': TODO,
+#     'Position control parameter set/Position controller FF velocity gain': 0,
+#     'Position control parameter set/Position controller FF acceleration gain': 0,
+#     'Current control parameter set/Current controller P gain': TODO,
+#     'Current control parameter set/Current controller I gain': TODO,
+#     # Will run smoother if set (0 = disabled).
+#     # However, will throw an RPDO timeout error when reloading web page
+#     #INTERVAL * 1000  # [ms]
+#     'Interpolation time period/Interpolation time period value': MAXON_INTERPOLATION_DISABLED,
+#     # TODO: check why parameter exeeds value range ?!
+#     # 'Configuration of digital inputs/Digital input 1 configuration': MAXON_NEGATIVE_LIMIT_SWITCH,
+#     # 'Configuration of digital inputs/Digital input 2 configuration': MAXON_POSITIVE_LIMIT_SWITCH,
+#     'Digital input properties/Digital inputs polarity': MAXON_INPUT_LOW_ACTIVE,
+#     'Max profile velocity': 158,
+#     'Profile acceleration': 1047,
+#     'Profile deceleration': 1047,
+#     'Home offset move distance': 0,
+#     'Current threshold for homing mode': 0.3,
+# }
 
 
-MAXON_DC_22_S_24V_DEFAULT_SETTINGS = merge_dicts(MAXON_DC_22_S_12V_DEFAULT_SETTINGS, {
-    'Motor rated torque': 0.0118,
-    'Position control parameter set/Position controller P gain': 1.5,
-    'Position control parameter set/Position controller I gain': 0.78,
-    'Position control parameter set/Position controller D gain': 0.016,
-    'Current control parameter set/Current controller P gain': 19,
-    'Current control parameter set/Current controller I gain': 152,
-})
+# MAXON_DC_22_S_24V_DEFAULT_SETTINGS = merge_dicts(MAXON_DC_22_S_12V_DEFAULT_SETTINGS, {
+#     'Motor rated torque': 0.0118,
+#     'Position control parameter set/Position controller P gain': 1.5,
+#     'Position control parameter set/Position controller I gain': 0.78,
+#     'Position control parameter set/Position controller D gain': 0.016,
+#     'Current control parameter set/Current controller P gain': 19,
+#     'Current control parameter set/Current controller I gain': 152,
+# })
 
 
 
