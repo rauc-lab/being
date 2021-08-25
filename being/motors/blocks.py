@@ -121,8 +121,8 @@ class DummyMotor(MotorBlock):
 
     """Dummy motor for testing and standalone usage."""
 
-    def __init__(self, length: float = 0.040):
-        super().__init__()
+    def __init__(self, length: float = 0.040, name=None):
+        super().__init__(name=name)
         self.length = length
         self.state = KinematicState()
         self.dt = INTERVAL
