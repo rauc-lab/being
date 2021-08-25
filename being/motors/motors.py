@@ -138,6 +138,7 @@ MAXON_DC_22_DEFAULT_SETTINGS = {
     'Axis configuration/Sensors configuration': MaxonSensorsConfiguration(sensorType3=0, sensorType2=0, sensorType1=1).to_int(),
     'Current control parameter set/Current controller I gain': 152 / MICRO,
     'Current control parameter set/Current controller P gain': 19 / MICRO,
+    'Disable operation option code': 0,  # Otherwise we loose to much time when disabling drive (timeout)
     'Digital incremental encoder 1/Digital incremental encoder 1 number of pulses': 1024,
     'Digital incremental encoder 1/Digital incremental encoder 1 type': 1,
     'Digital input properties/Digital inputs polarity': MAXON_INPUT_LOW_ACTIVE,

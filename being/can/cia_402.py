@@ -580,12 +580,10 @@ class CiA402Node(RemoteNode):
 
     def disable(self):
         """Disable drive (no power)."""
-        self.nmt.state = OPERATIONAL
         self.change_state(State.SWITCHED_ON)
 
     def enable(self):
         """Enable drive."""
-        self.nmt.state = OPERATIONAL
         self.change_state(State.OPERATION_ENABLE)
 
     def set_target_position(self, pos):

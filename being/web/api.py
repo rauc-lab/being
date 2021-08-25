@@ -453,13 +453,12 @@ def motion_player_controllers(motionPlayers, behaviors) -> web.RouteTableDef:
     return routes
 
 
-def motor_controllers(motors, behaviors, motionPlayers)  -> web.RouteTableDef:
+def motor_controllers(being)  -> web.RouteTableDef:
     """API routes for motors. Also needs to know about behaviors. To pause them
     on some actions.
 
     Args:
-        motionPlayers: All motion players.
-        behaviors: All behaviors.
+        being: Main being application instance.
 
     Returns:
         Routes table for API app.
@@ -468,37 +467,35 @@ def motor_controllers(motors, behaviors, motionPlayers)  -> web.RouteTableDef:
     routes = web.RouteTableDef()
 
     def pause_others():
-        for behavior in behaviors:
+        for behavior in being.behaviors:
             behavior.pause()
 
-        for mp in motionPlayers:
+        for mp in being.motionPlayers:
             mp.stop()
 
     @routes.get('/motors')
     async def get_motors(request):
-        return json_response(motors)
+        return json_response(being.motors)
 
     @routes.put('/motors/disable')
     async def disable_motors(request):
         pause_others()
-        for motor in motors:
-            motor.disable(publish=False)
-
-        return json_response(motors)
+        try:
+            being.disable_motors()
+        finally:  # Independent of state transition timeouts
+            return json_response(being.motors)
 
     @routes.put('/motors/enable')
     async def enable_motors(request):
-        for motor in motors:
-            motor.enable(publish=False)
-
-        return json_response(motors)
+        try:
+            being.enable_motors()
+        finally:  # Independent of state transition timeouts
+            return json_response(being.motors)
 
     @routes.put('/motors/home')
     async def home_motors(request):
         pause_others()
-        for motor in motors:
-            motor.home()
-
+        being.home_motors()
         return respond_ok()
 
     return routes

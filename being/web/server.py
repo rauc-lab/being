@@ -144,7 +144,7 @@ def init_api(being, ws: WebSocket) -> web.Application:
     api.add_routes(motion_player_controllers(being.motionPlayers, being.behaviors))
 
     # Motors
-    api.add_routes(motor_controllers(being.motors, being.behaviors, being.motionPlayers))
+    api.add_routes(motor_controllers(being))
     for motor in being.motors:
         motor.subscribe(MOTOR_CHANGED, ws_emit(motor))
 
