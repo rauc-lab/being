@@ -331,6 +331,10 @@ class Epos4(Controller):
         # TODO : Check EPOS4 firmware version
         self.state = KinematicState()
 
+    def enable(self):
+        self._update_kinematic_state()
+        return super().enable()
+
     def set_target_position(self, targetPosition, maxSpeed=2 * TAU, maxAcc=2 * TAU):
         self.state = kinematic_filter(
             targetPosition,
@@ -338,11 +342,18 @@ class Epos4(Controller):
             initial=self.state,
             maxSpeed=maxSpeed,
             maxAcc=maxAcc,
-            #lower=0.,
-            #upper=self.length,
+            #lower=0.,  # TODO
+            #upper=self.length,  # TODO
         )
         tarPos = self.state.position * self.position_si_2_device
+        #actPos = self.node.get_actual_position()
+        #err = (tarPos - actPos)
+        #print('err:', err)
         self.node.set_target_position(tarPos)
+
+    def _update_kinematic_state(self):
+        actPos = self.get_actual_position()
+        self.state = self.state._replace(position=actPos)
 
     def home(self):
         if self.homingMethod == 35:
@@ -351,4 +362,13 @@ class Epos4(Controller):
             homingMethod = self.homingMethod
 
         self.node.sdo[HOMING_METHOD].raw = homingMethod
-        return proper_homing(self.node)
+        homingJob = proper_homing(self.node)
+
+        def hack_wrapper():
+            for state in homingJob:
+                if state is HomingState.HOMED:
+                    self._update_kinematic_state()
+
+                yield state
+
+        return hack_wrapper()

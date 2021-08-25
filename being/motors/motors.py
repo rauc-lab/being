@@ -132,7 +132,6 @@ MAXON_EC_45_DEFAULT_SETTINGS = {
 
 MAXON_DC_22_DEFAULT_SETTINGS = {
     'Store parameters': 0,
-
     'Axis configuration/Axis configuration miscellaneous': 0,
     'Axis configuration/Commutation sensors': 0,
     'Axis configuration/Control structure': MaxonControlStructure(gear=1).to_int(),
