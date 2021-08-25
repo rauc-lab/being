@@ -522,8 +522,11 @@ class CiA402Node(RemoteNode):
         if target is current:
             return
 
-        _, *path = find_shortest_state_path(current, target)
-        for state in path:
+        path = find_shortest_state_path(current, target)
+        if len(path) == 0:
+            self.logger.error('Found no path from %s to %s', current, target)
+
+        for state in path[1:]:
             self.set_state(state)
 
     def get_operation_mode(self) -> OperationMode:
