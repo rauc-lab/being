@@ -1,5 +1,6 @@
 """Motor controllers."""
-from typing import Optional, Dict, Generator, Set, Any, Union
+import math
+from typing import Optional, Dict, Generator, Set, Any
 
 from being.can.cia_402 import (
     CiA402Node,
@@ -11,14 +12,12 @@ from being.can.cia_402 import (
     POSITIVE, NEGATIVE,
 )
 from being.config import CONFIG
-from being.constants import FORWARD, MILLI, MICRO, DECI, TAU
-from being.constants import TAU
+from being.constants import FORWARD
 from being.error import BeingError
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
 from being.motors.homing import (
     HomingProgress,
-    MINIMUM_HOMING_WIDTH,
     crude_homing,
     proper_homing,
 )
@@ -327,39 +326,24 @@ class Epos4(Controller):
     DEVICE_UNITS = MAXON_DEVICE_UNITS
 
     def __init__(self, node, *args, **kwargs):
+        """
         fw_version = node.sdo['Identity object']['Revision number'].raw
         LOW_WORD = 16
         fw_version = fw_version >> LOW_WORD
         if fw_version < 0x170:
             raise ControllerError(f"Node {node.id} firmware version {hex(fw_version)} < 0x170h. Update required!")
-
-        super().__init__(node, *args, **kwargs)
         self.logger.debug(f"Node {node.id} firmware version {hex(fw_version)}")
+        """
+        super().__init__(node, *args, **kwargs)
         self.state = KinematicState()
 
-    def enable(self):
-        self._update_kinematic_state()
-        return super().enable()
+    def set_target_position(self, targetPosition):
+        tarPos = targetPosition * self.position_si_2_device
+        if math.isnan(targetPosition):
+            self.looger.error('is nan')
+            tarPos = 0.0
 
-    def set_target_position(self, targetPosition, maxSpeed=2 * TAU, maxAcc=2 * TAU):
-        self.state = kinematic_filter(
-            targetPosition,
-            dt=INTERVAL,
-            initial=self.state,
-            maxSpeed=maxSpeed,
-            maxAcc=maxAcc,
-            #lower=0.,  # TODO
-            #upper=self.length,  # TODO
-        )
-        tarPos = self.state.position * self.position_si_2_device
-        #actPos = self.node.get_actual_position()
-        #err = (tarPos - actPos)
-        #print('err:', err)
         self.node.set_target_position(tarPos)
-
-    def _update_kinematic_state(self):
-        actPos = self.get_actual_position()
-        self.state = self.state._replace(position=actPos)
 
     def home(self):
         if self.homingMethod == 35:
@@ -368,13 +352,4 @@ class Epos4(Controller):
             homingMethod = self.homingMethod
 
         self.node.sdo[HOMING_METHOD].raw = homingMethod
-        homingJob = proper_homing(self.node)
-
-        def hack_wrapper():
-            for state in homingJob:
-                if state is HomingState.HOMED:
-                    self._update_kinematic_state()
-
-                yield state
-
-        return hack_wrapper()
+        return proper_homing(self.node)
