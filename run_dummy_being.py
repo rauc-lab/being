@@ -31,11 +31,13 @@ class DummySensor(Sensor):
 
 
 with manage_resources():
-    sensor = DummySensor()
-    behavior = Behavior.from_config('behavior.json')
-    sensor | behavior
-    mp = MotionPlayer(ndim=2)
-    behavior.associate(mp)
-    mp.outputs[0] | DummyMotor()
-    mp.outputs[1] | DummyMotor()
-    awake(behavior)
+    #sensor = DummySensor()
+    #behavior = Behavior.from_config('behavior.json')
+    #sensor | behavior
+
+    head = MotionPlayer(ndim=1, name='Head')
+    head.positionOutputs[0].connect(DummyMotor(name='Head Motor').input)
+    arm = MotionPlayer(ndim=2, name='Arm')
+    arm.positionOutputs[0].connect(DummyMotor(name='Elbow').input)
+    arm.positionOutputs[1].connect(DummyMotor(name='Wrist').input)
+    awake(head, arm)
