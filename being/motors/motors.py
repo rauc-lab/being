@@ -76,7 +76,6 @@ MAXON_EC_45_DEFAULT_SETTINGS = {
 
 
 MAXON_DC_22_DEFAULT_SETTINGS = {
-    'Axis configuration/Axis configuration miscellaneous': 0,
     'Axis configuration/Commutation sensors': 0,
     'Axis configuration/Control structure': MaxonControlStructure(gear=1).to_int(),
     'Axis configuration/Sensors configuration': MaxonSensorsConfiguration(sensorType3=0, sensorType2=0, sensorType1=1).to_int(),

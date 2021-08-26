@@ -20,8 +20,7 @@ from being.can.cia_402 import (
 from being.can.definitions import HOMING_OFFSET
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.config import CONFIG
-from being.constants import FORWARD
-from being.constants import INF
+from being.constants import FORWARD, INF, MICRO
 from being.error import BeingError
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
@@ -165,6 +164,8 @@ class Controller:
         self.homingMethod: int = homingMethod
         self.logger = get_logger(str(self))
 
+        print('direction:', direction)
+        self.apply_motor_direction(direction)
         self.logger.debug('homingMethod: %d', self.homingMethod)
 
         for errMsg in self.error_history_messages():
@@ -178,6 +179,10 @@ class Controller:
         self.apply_settings(merged)
         self.switch_off()
         self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
+
+    def apply_motor_direction(self, direction: float):
+        """Configure direction or orientation of controller / motor."""
+        raise NotImplementedError
 
     def switch_off(self):
         """Switch off drive. Same state as on power-up."""
@@ -242,12 +247,13 @@ class Controller:
 
     def set_target_position(self, targetPosition):
         """Set target position in SI units."""
-        if self.direction > 0:
-            tarPos = targetPosition
-        else:
-            tarPos = self.motor.length - targetPosition
-
-        self.node.set_target_position(tarPos * self.position_si_2_device)
+        #if self.direction > 0:
+        #    tarPos = targetPosition
+        #else:
+        #    tarPos = self.motor.length - targetPosition
+        tarPos = targetPosition * self.position_si_2_device
+        #print(self, 'tarPos:', int(tarPos))
+        self.node.set_target_position(tarPos)
 
     def get_actual_position(self) -> float:
         """Get actual position in SI units."""
@@ -281,8 +287,29 @@ class Mclm3002(Controller):
     EMERGENCY_ERROR_CODES = FAULHABER_EMERGENCY_ERROR_CODES
     SUPPORTED_HOMING_METHODS = FAULHABER_SUPPORTED_HOMING_METHODS
 
-    def hard_stop_homing(self, homingSpeed=100, relMargin=0.010):
-        """Crude hard stop homing for Faulhaber linear motors."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.limit = 0.
+
+    def apply_motor_direction(self, direction: float):
+        if direction >= 0:
+            polarity = positivePolarity = 0
+        else:
+            polarity = negativePolarity = (1 << 6) | (1 << 7)  # Position and velocity
+
+        self.node.sdo['Polarity'].raw = polarity
+
+    def set_target_position(self, targetPosition: float):
+        tarPos = clip(targetPosition, 0., self.limit) * self.position_si_2_device
+        self.node.set_target_position(tarPos)
+
+    def hard_stop_homing(self, homingSpeed: int = 100, relMargin: float = 0.050):
+        """Crude hard stop homing for Faulhaber linear motors.
+
+        Kwargs:
+            homingSpeed: Speed for homing in device units.
+            relMargin: Relative margin on both sides.
+        """
         relMargin = clip(relMargin, 0.00, 0.50)  # In [0%, 50%]!
         homingSpeed = abs(homingSpeed)
 
@@ -339,14 +366,11 @@ class Mclm3002(Controller):
 
             halt()
 
-            homingWidth = upper - lower
-            lower += relMargin * homingWidth
-            upper -= relMargin * homingWidth
-
+            width = upper - lower
+            lower += relMargin * width
+            upper -= relMargin * width
             sdo[HOMING_OFFSET].raw = lower
-            sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
-            sdo[SOFTWARE_POSITION_LIMIT][2].raw = upper - lower
-
+            self.limit = (upper - lower) * MICRO
             node.nmt.state = PRE_OPERATIONAL
             node.change_state(CiA402State.READY_TO_SWITCH_ON)
 
@@ -369,17 +393,30 @@ class Epos4(Controller):
     EMERGENCY_ERROR_CODES = MAXON_EMERGENCY_ERROR_CODES
     SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
 
+    """
     def __init__(self, node, *args, **kwargs):
-        """
         fw_version = node.sdo['Identity object']['Revision number'].raw
         LOW_WORD = 16
         fw_version = fw_version >> LOW_WORD
         if fw_version < 0x170:
             raise ControllerError(f"Node {node.id} firmware version {hex(fw_version)} < 0x170h. Update required!")
         self.logger.debug(f"Node {node.id} firmware version {hex(fw_version)}")
-        """
         super().__init__(node, *args, **kwargs)
         self.state = KinematicState()
+    """
+
+    def apply_motor_direction(self, direction: float):
+        print('apply_motor_direction(), direction:', direction)
+        if direction >= 0:
+            polarity = counterclockwise = 0
+        else:
+            polarity = clockwise = 1
+
+        print('polarity:', polarity)
+        var = self.node.sdo['Axis configuration']['Axis configuration miscellaneous']
+        print('misc before:', var.raw)
+        var.raw = var.raw | polarity
+        print('misc after:', var.raw)
 
     def set_target_position(self, targetPosition):
         tarPos = targetPosition * self.position_si_2_device
@@ -387,6 +424,7 @@ class Epos4(Controller):
             self.logger.error('is nan')
             tarPos = 0.0
 
+        # TODO: Clipping
         self.node.set_target_position(tarPos)
 
     def home(self):
