@@ -9,10 +9,11 @@ from being.can.cia_402 import (
     SOFTWARE_POSITION_LIMIT,
     State as CiA402State,
     determine_homing_method,
-    POSITIVE, NEGATIVE,
+    POSITIVE,
+    NEGATIVE,
 )
 from being.config import CONFIG
-from being.constants import FORWARD
+from being.constants import FORWARD, MILLI, MICRO
 from being.error import BeingError
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
@@ -25,16 +26,15 @@ from being.motors.homing import HomingState
 from being.motors.motors import Motor
 from being.motors.vendor import (
     FAULHABER_DEVICE_ERROR_CODES,
-    FAULHABER_DEVICE_UNITS,
     FAULHABER_EMERGENCY_ERROR_CODES,
     FAULHABER_SUPPORTED_HOMING_METHODS,
     MAXON_DEVICE_ERROR_CODES,
     MAXON_DEVICE_ERROR_REGISTER,
-    MAXON_DEVICE_UNITS,
     MAXON_EMERGENCY_ERROR_CODES,
     MAXON_SUPPORTED_HOMING_METHODS,
 )
 from being.utils import merge_dicts
+
 
 
 INTERVAL = CONFIG['General']['INTERVAL']
@@ -120,7 +120,6 @@ class Controller:
     DEVICE_ERROR_CODES: Dict[int, str] = {}
     EMERGENCY_ERROR_CODES: Dict[int, str] = {}
     SUPPORTED_HOMING_METHODS: Set[int] = {}
-    DEVICE_UNITS: Dict[str, float] = {}
 
     def __init__(self,
             node: CiA402Node,
@@ -250,13 +249,6 @@ class Controller:
         """Get actual position in SI units."""
         return self.node.get_actual_position() / self.position_si_2_device
 
-    def convert_si_to_device_units(self, value: float, name: str) -> float:
-        """Convert SI value to device units."""
-        return value / self.DEVICE_UNITS[name]
-
-    def convert_device_units_to_si(self, value: float, name: str) -> float:
-        return value * self.DEVICE_UNITS[name]
-
     def apply_settings(self, settings: Dict[str, Any]):
         """Apply settings to CANopen node. Convert physical SI values to device
         units (if present in DEVICE_UNITS dict).
@@ -271,13 +263,12 @@ class Controller:
             for key in path:
                 sdo = sdo[key]
 
-            if name in self.DEVICE_UNITS:
-                sdo[last].raw = self.convert_si_to_device_units(value, name)
-            else:
-                sdo[last].raw = value
+            sdo[last].raw = value
 
     def __str__(self):
         return f'{type(self).__name__}()'
+
+
 
 
 class Mclm3002(Controller):
@@ -287,14 +278,13 @@ class Mclm3002(Controller):
     DEVICE_ERROR_CODES = FAULHABER_DEVICE_ERROR_CODES
     EMERGENCY_ERROR_CODES = FAULHABER_EMERGENCY_ERROR_CODES
     SUPPORTED_HOMING_METHODS = FAULHABER_SUPPORTED_HOMING_METHODS
-    DEVICE_UNITS = FAULHABER_DEVICE_UNITS
 
     def home(self):
         # Faulhaber does not support homing methods -1 and -2. Use crude_homing
         # instead
         if self.homingMethod in {-1, -2}:
-            speed = self.convert_si_to_device_units(0.100, 'speed')
-            minLength = .5 * self.convert_si_to_device_units(self.motor.length, 'length')
+            speed = 0.100 / MICRO
+            minLength = .5 * self.motor.length / MILLI
             homingJob = crude_homing(
                 self.node,
                 self.homingDirection,
@@ -306,7 +296,7 @@ class Mclm3002(Controller):
                 for state in homingJob:
                     if state is HomingState.HOMED:
                         lengthDev = self.node.sdo[SOFTWARE_POSITION_LIMIT][2].raw
-                        self.length = self.convert_device_units_to_si(lengthDev, 'length')
+                        self.length= lengthDev * MILLI
 
                     yield state
 
@@ -323,7 +313,6 @@ class Epos4(Controller):
     DEVICE_ERROR_REGISTER = MAXON_DEVICE_ERROR_REGISTER
     EMERGENCY_ERROR_CODES = MAXON_EMERGENCY_ERROR_CODES
     SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
-    DEVICE_UNITS = MAXON_DEVICE_UNITS
 
     def __init__(self, node, *args, **kwargs):
         """
@@ -340,7 +329,7 @@ class Epos4(Controller):
     def set_target_position(self, targetPosition):
         tarPos = targetPosition * self.position_si_2_device
         if math.isnan(targetPosition):
-            self.looger.error('is nan')
+            self.logger.error('is nan')
             tarPos = 0.0
 
         self.node.set_target_position(tarPos)

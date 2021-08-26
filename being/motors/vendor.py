@@ -81,16 +81,6 @@ FAULHABER_SUPPORTED_HOMING_METHODS: Set[int] = {
     33, 34,
     35,
 }
-FAULHABER_DEVICE_UNITS: Dict[str, float] = {
-    'length': MICRO,
-    'current': MILLI,
-    'speed': MILLI,
-    'Current Control Parameter Set/Continuous Current Limit': MILLI,
-    'Current Control Parameter Set/Peak Current Limit': MILLI,
-    'Max Profile Velocity': MILLI,
-    'Profile Acceleration': MILLI,
-    'Profile Deceleration': MILLI,
-}
 
 
 # Maxon world
@@ -256,31 +246,7 @@ for i in range(0x6180, 0x61F0 + 1):
 MAXON_SUPPORTED_HOMING_METHODS: Set[int] = {
     -4, -3, -2, -1, 1, 2, 7, 11, 17, 18, 23, 27, 33, 34, 37,
 }
-MAXON_DEVICE_UNITS: Dict[str, float] = {
-    'Motor data/Nominal current': MILLI,
-    'Motor data/Output current limit': MILLI,
-    'Motor data/Thermal time constant winding': DECI,
-    'Current threshold for homing mode': MILLI,
-    'Motor data/Torque constant': MICRO,
-    'Motor rated torque': MICRO,
-    # 'length': 1 / TAU,
-    # 'speed': TAU / 60,
-    # 'kinematics': TAU / 60,
-    # 'current': MILLI,
-    # 'torque': MICRO,
-    # 'Position control parameter set/Position controller P gain': MICRO,
-    # 'Position control parameter set/Position controller I gain': MICRO,
-    # 'Position control parameter set/Position controller D gain': MICRO,
-    # 'Position control parameter set/Position controller FF velocity gain': MICRO,
-    # 'Position control parameter set/Position controller FF acceleration gain': MICRO,
-    # 'Current control parameter set/Current controller P gain': MICRO,
-    # 'Current control parameter set/Current controller I gain': MICRO,
-    # 'Gear configuration/Max gear input speed': TAU / 60,
-    # 'Max motor speed': TAU / 60,
-    # 'Max profile velocity': TAU / 60,
-    # 'Max acceleration': TAU / 60,
-    # 'Max deceleration': TAU / 60,
-}
+
 MAXON_FOLLOWING_ERROR_WINDOW_DISABLED = 4294967295  # (1 << 32) - 1
 MAXON_INTERPOLATION_DISABLED = 0
 MAXON_NEGATIVE_LIMIT_SWITCH = 0
