@@ -56,10 +56,12 @@ class Being:
         self.motors = list(filter_by_type(self.execOrder, MotorBlock))
 
     def _enable_pdo_communication(self):
-        self.network.nmt.state = OPERATIONAL
+        if self.network:
+            self.network.nmt.state = OPERATIONAL
 
     def _disable_pdo_communication(self):
-        self.network.nmt.state = PRE_OPERATIONAL
+        if self.network:
+            self.network.nmt.state = PRE_OPERATIONAL
 
     def enable_motors(self):
         """Enable all motors and set global NMT to OPERATIONAL."""
@@ -92,7 +94,7 @@ class Being:
                (NMT OPERATIONAL).
         """
         if all(mot.homing is HomingState.HOMED for mot in self.motors):
-            self.network.nmt.state = OPERATIONAL
+            self._enable_pdo_communication()
 
     def start_behaviors(self):
         """Start all behaviors."""
@@ -106,8 +108,9 @@ class Being:
 
     def single_cycle(self):
         """Execute single cycle of block networks."""
-        execute(self.execOrder)
         if self.network:
             self.network.send_sync()
+
+        execute(self.execOrder)
 
         self.clock.step()
