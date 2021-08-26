@@ -9,7 +9,7 @@ from being.config import CONFIG
 from being.constants import TAU
 from being.math import linear_mapping
 from being.resources import register_resource
-
+from being.sensors import Sensor
 
 INTERVAL = CONFIG['General']['INTERVAL']
 
@@ -119,3 +119,19 @@ class Printer(Block):
             sys.stdout.flush()
         else:
             print(self.prefix, self.input.value)
+
+
+class DummySensor(Sensor):
+    def __init__(self, interval=5.0):
+        super().__init__()
+        self.add_message_output()
+        self.interval = interval
+        self.nextUpd = -1
+
+    def update(self):
+        now = time.perf_counter()
+        if now < self.nextUpd:
+            return
+
+        self.nextUpd = now + self.interval
+        self.output.send('But hey')
