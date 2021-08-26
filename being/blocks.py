@@ -2,6 +2,7 @@
 # TODO: Renaming this module? Almost name conflict with block.py?
 import math
 import sys
+import time
 
 from being.backends import AudioBackend
 from being.block import Block
@@ -10,6 +11,7 @@ from being.constants import TAU
 from being.math import linear_mapping
 from being.resources import register_resource
 from being.sensors import Sensor
+
 
 INTERVAL = CONFIG['General']['INTERVAL']
 

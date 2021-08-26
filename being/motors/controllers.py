@@ -3,23 +3,31 @@ import math
 from typing import Optional, Dict, Generator, Set, Any
 
 from being.can.cia_402 import (
+    CONTROLWORD,
+    CW,
     CiA402Node,
+    Command,
     HOMING_METHOD,
+    NEGATIVE,
     OperationMode,
+    POSITION_ACTUAL_VALUE,
+    POSITIVE,
     SOFTWARE_POSITION_LIMIT,
     State as CiA402State,
+    TARGET_VELOCITY,
     determine_homing_method,
-    POSITIVE,
-    NEGATIVE,
 )
+from being.can.definitions import HOMING_OFFSET
+from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.config import CONFIG
-from being.constants import FORWARD, MILLI, MICRO
+from being.constants import FORWARD
+from being.constants import INF
 from being.error import BeingError
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
+from being.math import clip
 from being.motors.homing import (
     HomingProgress,
-    crude_homing,
     proper_homing,
 )
 from being.motors.homing import HomingState
@@ -34,10 +42,6 @@ from being.motors.vendor import (
     MAXON_SUPPORTED_HOMING_METHODS,
 )
 from being.utils import merge_dicts
-
-
-
-INTERVAL = CONFIG['General']['INTERVAL']
 
 
 def nested_get(dct, keys):
@@ -269,8 +273,6 @@ class Controller:
         return f'{type(self).__name__}()'
 
 
-
-
 class Mclm3002(Controller):
 
     """Faulhaber MCLM 3002 controller."""
@@ -279,28 +281,81 @@ class Mclm3002(Controller):
     EMERGENCY_ERROR_CODES = FAULHABER_EMERGENCY_ERROR_CODES
     SUPPORTED_HOMING_METHODS = FAULHABER_SUPPORTED_HOMING_METHODS
 
+    def hard_stop_homing(self, homingSpeed=100, relMargin=0.010):
+        """Crude hard stop homing for Faulhaber linear motors."""
+        relMargin = clip(relMargin, 0.00, 0.50)  # In [0%, 50%]!
+        homingSpeed = abs(homingSpeed)
+
+        lower = INF
+        upper = -INF
+
+        def expand(pos):
+            """Expand homing range."""
+            nonlocal lower, upper
+            lower = min(lower, pos)
+            upper = max(upper, pos)
+
+        node = self.node
+        sdo = self.node.sdo
+
+        def halt():
+            """Stop drive."""
+            sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.HALT
+
+        def move(velocity: int):
+            """Move motor with constant velocity."""
+            sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
+            sdo[TARGET_VELOCITY].raw = velocity
+            sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
+
+        limit = sdo['Current Control Parameter Set']['Continuous Current Limit'].raw
+
+        def on_the_wall() -> bool:
+            """Check if motor is on the wall."""
+            current = sdo['Current Actual Value'].raw
+            return current > limit  # TODO: Add percentage threshold?
+
+        with node.restore_states_and_operation_mode():
+            node.change_state(CiA402State.READY_TO_SWITCH_ON)
+            node.set_operation_mode(OperationMode.PROFILED_VELOCITY)
+            node.nmt.state = OPERATIONAL
+            node.sdo[HOMING_OFFSET].raw = 0
+
+            if self.homingDirection > 0:
+                speeds = [homingSpeed, -homingSpeed]
+            else:
+                speeds = [-homingSpeed, homingSpeed]
+
+            for speed in speeds:
+                halt()
+                move(speed)
+                while not on_the_wall():
+                    pos = sdo[POSITION_ACTUAL_VALUE].raw
+                    expand(pos)
+                    yield HomingState.ONGOING
+
+                # Turn off voltage to disable current current
+                node.change_state(CiA402State.READY_TO_SWITCH_ON)
+
+            halt()
+
+            homingWidth = upper - lower
+            lower += relMargin * homingWidth
+            upper -= relMargin * homingWidth
+
+            sdo[HOMING_OFFSET].raw = lower
+            sdo[SOFTWARE_POSITION_LIMIT][1].raw = 0
+            sdo[SOFTWARE_POSITION_LIMIT][2].raw = upper - lower
+
+            node.nmt.state = PRE_OPERATIONAL
+            node.change_state(CiA402State.READY_TO_SWITCH_ON)
+
+        yield HomingState.HOMED
+
     def home(self):
-        # Faulhaber does not support homing methods -1 and -2. Use crude_homing
-        # instead
-        if self.homingMethod in {-1, -2}:
-            speed = 0.100 / MICRO
-            minLength = .5 * self.motor.length / MILLI
-            homingJob = crude_homing(
-                self.node,
-                self.homingDirection,
-                speed=speed,
-                minLength=minLength,
-            )
-
-            def hack_wrapper():
-                for state in homingJob:
-                    if state is HomingState.HOMED:
-                        lengthDev = self.node.sdo[SOFTWARE_POSITION_LIMIT][2].raw
-                        self.length= lengthDev * MILLI
-
-                    yield state
-
-            return hack_wrapper()
+        # Faulhaber does not support hard stop homing methods
+        if self.homingMethod in {-1, -2, -3, -4}:
+            return self.hard_stop_homing()
 
         return super().home()
 
