@@ -1,4 +1,5 @@
 """Motor controllers."""
+import sys
 from typing import Optional, Dict, Generator, Set, Any
 
 from canopen.emcy import EmcyError
@@ -31,11 +32,11 @@ from being.motors.homing import HomingState
 from being.motors.motors import Motor
 from being.motors.vendor import (
     FAULHABER_DEVICE_ERROR_CODES,
-    FAULHABER_EMERGENCY_ERROR_CODES,
+    FAULHABER_EMERGENCY_DESCRIPTIONS,
     FAULHABER_SUPPORTED_HOMING_METHODS,
     MAXON_DEVICE_ERROR_CODES,
     MAXON_DEVICE_ERROR_REGISTER,
-    MAXON_EMERGENCY_ERROR_CODES,
+    MAXON_EMERGENCY_DESCRIPTIONS,
     MAXON_SUPPORTED_HOMING_METHODS,
 )
 from being.utils import merge_dicts
@@ -89,6 +90,27 @@ def default_homing_method(
             return determine_homing_method(direction=NEGATIVE, hardStop=True, indexPulse=indexPulse)
 
 
+def get_description(errorCode: int, descriptions: list) -> str:
+    """Emergency error code -> description.
+
+    Args:
+        errorCode: Error code to check.
+        descriptions: Description table with (code, mask, description) entries.
+
+    Returns:
+        Text error description.
+    """
+    description = ''
+    for code, mask, desc in descriptions:
+        if errorCode & mask == code:
+            description = desc
+
+    if description == '':
+        return f'Unknown emergency error for code {errorCode:#04x}'
+
+    return description
+
+
 class ControllerError(BeingError):
 
     """General Being controller errors."""
@@ -127,7 +149,7 @@ class Controller:
     """
 
     DEVICE_ERROR_CODES: Dict[int, str] = {}
-    EMERGENCY_ERROR_CODES: Dict[int, str] = {}
+    EMERGENCY_DESCRIPTIONS: list = []
     SUPPORTED_HOMING_METHODS: Set[int] = {}
 
     def __init__(self,
@@ -228,11 +250,11 @@ class Controller:
         # - Homing Acceleration (object 0x609A)
         return proper_homing(self.node)
 
-    def device_error_message(self, errorCode: int) -> str:
+    def device_error_message(self, code: int) -> str:
         """Device error message from error code."""
         return self.DEVICE_ERROR_CODES.get(
-            errorCode,
-            f'Unknown device error message for error code: {errorCode}',
+            code,
+            f'Unknown device error message for error code: {code}',
         )
 
     def new_emcy(self) -> Generator[EmcyError, None, None]:
@@ -244,8 +266,10 @@ class Controller:
         errorHistory = self.node.sdo[0x1003]
         numErrors = errorHistory[0].raw
         for nr in range(numErrors):
-            errCode = errorHistory[nr + 1].raw
-            yield self.device_error_message(errCode)
+            number = errorHistory[nr + 1].raw
+            raw = number.to_bytes(4, sys.byteorder)
+            code = int.from_bytes(raw[:2], 'little')
+            yield get_description(code, self.EMERGENCY_DESCRIPTIONS)
 
     def validate_homing_method(self, method: int):
         """Validate homing method for this controller. Raises a ControllerError
@@ -291,7 +315,7 @@ class Mclm3002(Controller):
     """Faulhaber MCLM 3002 controller."""
 
     DEVICE_ERROR_CODES = FAULHABER_DEVICE_ERROR_CODES
-    EMERGENCY_ERROR_CODES = FAULHABER_EMERGENCY_ERROR_CODES
+    EMERGENCY_DESCRIPTIONS = FAULHABER_EMERGENCY_DESCRIPTIONS
     SUPPORTED_HOMING_METHODS = FAULHABER_SUPPORTED_HOMING_METHODS
 
     def apply_motor_direction(self, direction: float):
@@ -394,7 +418,7 @@ class Epos4(Controller):
 
     DEVICE_ERROR_CODES = MAXON_DEVICE_ERROR_CODES
     DEVICE_ERROR_REGISTER = MAXON_DEVICE_ERROR_REGISTER
-    EMERGENCY_ERROR_CODES = MAXON_EMERGENCY_ERROR_CODES
+    EMERGENCY_DESCRIPTIONS = MAXON_EMERGENCY_DESCRIPTIONS
     SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
 
     """
