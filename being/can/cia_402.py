@@ -619,4 +619,4 @@ class CiA402Node(RemoteNode):
         return self.sdo[MANUFACTURER_DEVICE_NAME].raw
 
     def __str__(self):
-        return f'{type(self).__name__}(id={self.id})'
+        return f'{type(self).__name__}(id: {self.id})'

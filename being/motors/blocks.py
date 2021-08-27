@@ -272,7 +272,7 @@ class CanMotor(MotorBlock):
         super().home()
 
     def update(self):
-        for emcyMsg in self.controller.new_emergency_messages():
+        for emcyMsg in self.controller.new_emcy():
             self.logger.error(emcyMsg)
 
         if self.homing is HomingState.HOMED:
@@ -296,15 +296,7 @@ class CanMotor(MotorBlock):
     def __str__(self):
         controller = self.controller
         node = self.controller.node
-        motor = self.controller.motor
-        return '%s(%s)' % (
-            type(self).__name__,
-            ', '.join([
-                'nodeId: %r' % (node.id),
-                'controller: %r' % type(controller).__name__,
-                'motor: %s %s' % (motor.manufacturer, motor.name),
-            ])
-        )
+        return f'{type(self).__name__}({controller})'
 
 
 class LinearMotor(CanMotor):

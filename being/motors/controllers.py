@@ -1,6 +1,8 @@
 """Motor controllers."""
 from typing import Optional, Dict, Generator, Set, Any
 
+from canopen.emcy import EmcyError
+
 from being.bitmagic import clear_bit, set_bit
 from being.can.cia_402 import (
     CONTROLWORD,
@@ -233,13 +235,9 @@ class Controller:
             f'Unknown device error message for error code: {errorCode}',
         )
 
-    def new_emergency_messages(self) -> Generator[str, None, None]:
-        """Iterate over all new emergency error messages (if any)."""
-        for emcy in self.only_new_ones(self.node.emcy.active):
-            yield self.EMERGENCY_ERROR_CODES.get(
-                emcy.code,
-                f'Unknown error code {emcy.code}',
-            )
+    def new_emcy(self) -> Generator[EmcyError, None, None]:
+        """Iterate over all new emergency error message frames (if any)."""
+        yield from self.only_new_ones(self.node.emcy.active)
 
     def error_history_messages(self):
         """Iterate over current error messages in error history register."""
@@ -285,7 +283,7 @@ class Controller:
             sdo[last].raw = value
 
     def __str__(self):
-        return f'{type(self).__name__}()'
+        return f'{type(self).__name__}({self.node}, {self.motor})'
 
 
 class Mclm3002(Controller):

@@ -45,6 +45,9 @@ class Motor(NamedTuple):
     gear: Fraction = Fraction(1, 1)
     """Gear ratio."""
 
+    def __str__(self):
+        return f'{self.manufacturer} {self.name}'
+
 
 FAULHABER_DEFAULT_SETTINGS = {
     'General Settings/Pure Sinus Commutation': 1,
