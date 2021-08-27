@@ -13,6 +13,7 @@ from being.clock import Clock
 from being.configuration import CONFIG
 from being.connectables import MessageInput
 from being.logging import get_logger
+from being.motors.blocks import MOTOR_CHANGED
 from being.web.server import init_web_server, run_web_server
 from being.web.web_socket import WebSocket
 
@@ -24,7 +25,7 @@ WEB_INTERVAL = CONFIG['Web']['INTERVAL']
 LOGGER = get_logger(__name__)
 
 
-def _signal_handler(signum=None, frame=None):
+def _exit_signal_handler(signum=None, frame=None):
     """Signal handler for exit program."""
     #pylint: disable=unused-argument
     sys.exit(0)
@@ -33,23 +34,31 @@ def _signal_handler(signum=None, frame=None):
 def _run_being_standalone(being):
     """Run being standalone without web server / front-end."""
     if os.name == 'posix':
-        signal.signal(signal.SIGTERM, _signal_handler)
+        signal.signal(signal.SIGTERM, _exit_signal_handler)
 
+    cycle = int(time.perf_counter() / INTERVAL)
     while True:
         now = time.perf_counter()
+        then = cycle * INTERVAL
+        if then > now:
+            time.sleep(then - now)
+
         being.single_cycle()
-        then = time.perf_counter()
-        time.sleep(max(0, INTERVAL - (then - now)))
+        cycle += 1
 
 
 async def _run_being_async(being):
     """Run being inside async loop."""
     time_func = asyncio.get_running_loop().time
+    cycle = int(time_func() / INTERVAL)
     while True:
         now = time_func()
+        then = cycle * INTERVAL
+        if then > now:
+            await asyncio.sleep(then - now)
+
         being.single_cycle()
-        then = time_func()
-        await asyncio.sleep(max(0, INTERVAL - (then - now)))
+        cycle += 1
 
 
 async def _send_being_state_to_front_end(being: Being, ws: WebSocket):
@@ -66,7 +75,6 @@ async def _send_being_state_to_front_end(being: Being, ws: WebSocket):
         dummy = MessageInput(owner=None)
         out.connect(dummy)
         dummies.append(dummy)
-
 
     while True:
         await ws.send_json({
@@ -89,7 +97,7 @@ async def _run_being_with_web_server(being):
     """
     if os.name == 'posix':
         loop = asyncio.get_running_loop()
-        loop.add_signal_handler(signal.SIGTERM, _signal_handler)
+        loop.add_signal_handler(signal.SIGTERM, _exit_signal_handler)
 
     ws = WebSocket()
     app = init_web_server(being, ws)
@@ -124,10 +132,11 @@ def awake(
         network = CanBackend.single_instance_get()
 
     being = Being(blocks, clock, network)
-
     for motor in being.motors:
-        motor.home()
-        motor.enable()
+        motor.subscribe(MOTOR_CHANGED, being.motor_changed)
+
+    being.enable_motors()
+    being.home_motors()
 
     try:
         if web:

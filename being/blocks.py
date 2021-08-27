@@ -1,6 +1,8 @@
 """Miscellaneous blocks."""
 # TODO: Renaming this module? Almost name conflict with block.py?
 import math
+import sys
+import time
 
 from being.backends import AudioBackend
 from being.block import Block
@@ -8,6 +10,7 @@ from being.configuration import CONFIG
 from being.constants import TAU
 from being.math import linear_mapping
 from being.resources import register_resource
+from being.sensors import Sensor
 
 
 INTERVAL = CONFIG['General']['INTERVAL']
@@ -37,6 +40,29 @@ class Sine(Block):
         return '%s()' % type(self).__name__
 
 
+class Sawtooth(Block):
+
+    """Sawtooth generator. Outputs [0, TAU] for a given frequency."""
+
+    def __init__(self, frequency=1., interval=INTERVAL, **kwargs):
+        super().__init__(**kwargs)
+        self.add_value_input('frequency')
+        self.add_value_output()
+
+        self.frequency.value = frequency
+        self.interval = interval
+
+        self.phase = 0.
+
+    def update(self):
+        self.output.value = self.phase
+        self.phase += self.interval * TAU * self.frequency.value
+        # self.phase %= TAU
+
+    def __str__(self):
+        return '%s()' % type(self).__name__
+
+
 class Trafo(Block):
 
     """Transforms input signal (by some fixed scale and offset)."""
@@ -54,8 +80,6 @@ class Trafo(Block):
 
     @classmethod
     def from_ranges(cls, inRange=(0., 1.), outRange=(0., 1.)):
-        # TODO: Make me! Calculate scale, offset from (xMin, xMax) and (yMin,
-        # yMax).
         scale, offset = linear_mapping(inRange, outRange)
         return cls(scale, offset)
 
@@ -82,13 +106,34 @@ class Printer(Block):
 
     """Print input values to stdout."""
 
-    def __init__(self, prefix='', **kwargs):
+    def __init__(self, prefix: str = '', carriageReturn: bool = False, **kwargs):
         """Kwargs:
             prefix: Prefix string to prepend.
         """
         super().__init__(**kwargs)
         self.prefix = prefix
+        self.carriageReturn = carriageReturn
         self.add_value_input()
 
     def update(self):
-        print(self.prefix, self.input.value)
+        if self.carriageReturn:
+            print('\r\033c', self.prefix, self.input.value, end='')
+            sys.stdout.flush()
+        else:
+            print(self.prefix, self.input.value)
+
+
+class DummySensor(Sensor):
+    def __init__(self, interval=5.0):
+        super().__init__()
+        self.add_message_output()
+        self.interval = interval
+        self.nextUpd = -1
+
+    def update(self):
+        now = time.perf_counter()
+        if now < self.nextUpd:
+            return
+
+        self.nextUpd = now + self.interval
+        self.output.send('But hey')

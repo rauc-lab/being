@@ -84,6 +84,15 @@ def update_dict_recursively(dct: dict, other: dict, default_factory: type = None
     return dct
 
 
+def merge_dicts(first: dict, *others) -> dict:
+    """Merge dict together. Pre Python 3.5 compatible."""
+    merged = first.copy()
+    for dct in others:
+        merged.update(dct)
+
+    return merged
+
+
 class SingleInstanceCache:
 
     """Aka. almost a Singleton but not quite.

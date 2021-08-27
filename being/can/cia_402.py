@@ -5,8 +5,9 @@ communication during setup but synchronous acyclic PDO communication during
 operation. Also added support for CYCLIC_SYNCHRONOUS_POSITION mode.
 """
 import contextlib
+import time
 from enum import auto, IntEnum, Enum
-from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union
+from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union, Optional, NamedTuple
 from collections import deque, defaultdict
 
 from canopen import RemoteNode
@@ -15,34 +16,43 @@ from being.bitmagic import check_bit
 from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.definitions import TransmissionType
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
-from being.can.vendor import UNITS, Units
+from being.constants import FORWARD, BACKWARD
 from being.logging import get_logger
 
 
 # Mandatory (?) CiA 402 object dictionary entries
+# (SJA): CiA 402 is still a Draft Specification Proposal (DSP).
+
 CONTROLWORD = 0x6040
 STATUSWORD = 0x6041
 MODES_OF_OPERATION = 0x6060
 MODES_OF_OPERATION_DISPLAY = 0x6061
 POSITION_DEMAND_VALUE = 0x6062
 POSITION_ACTUAL_VALUE = 0x6064
-VELOCITY_DEMAND_VALUE = 0x606b
-VELOCITY_ACTUAL_VALUE = 0x606c
-TARGET_POSITION = 0x607a
-POSITION_RANGE_LIMIT = 0x607b
-SOFTWARE_POSITION_LIMIT = 0x607d
-MAX_PROFILE_VELOCITY = 0x607f
+POSITION_WINDOW = 0x6067
+POSITION_WINDOW_TIME = 0x6068
+VELOCITY_DEMAND_VALUE = 0x606B
+VELOCITY_ACTUAL_VALUE = 0x606C
+TARGET_POSITION = 0x607A
+POSITION_RANGE_LIMIT = 0x607B
+SOFTWARE_POSITION_LIMIT = 0x607D
+MIN_POSITION_LIMIT = 1
+MAX_POSITION_LIMIT = 2
+MAX_PROFILE_VELOCITY = 0x607F
 PROFILE_VELOCITY = 0x6081
 PROFILE_ACCELERATION = 0x6083
 PROFILE_DECELERATION = 0x6084
 QUICK_STOP_DECELERATION = 0x6085
 HOMING_METHOD = 0x6098
-HOMING_SPEED = 0x6099
-HOMING_ACCELERATION = 0x609a
-DIGITAL_INPUTS = 0x60fd
-TARGET_VELOCITY = 0x60ff
-SUPPORTED_DRIVE_MODES = 0x6502
 
+HOMING_SPEEDS = 0x6099
+SPEED_FOR_SWITCH_SEARCH = 1
+SPEED_FOR_ZERO_SEARCH = 2
+
+HOMING_ACCELERATION = 0x609A
+DIGITAL_INPUTS = 0x60FD
+TARGET_VELOCITY = 0x60FF
+SUPPORTED_DRIVE_MODES = 0x6502
 
 State = ForwardRef('State')
 Edge = Tuple[State, State]
@@ -113,9 +123,10 @@ class SW(IntEnum):
     INTERNAL_LIMIT_ACTIVE = (1 << 11)
     ACKNOWLEDGE = (1 << 12)
     HOMING_ATTAINED = ACKNOWLEDGE  # Alias
-    DEVIATION_ERROR = (1 << 13)
+    HOMING_ERROR = (1 << 13)
+    DEVIATION_ERROR = HOMING_ERROR  # Alias
     #NOT_IN_USE_0 = (1 << 14)
-    #NOT_IN_USE_1 = 15
+    #NOT_IN_USE_1 = (1 << 15)
 
 
 class OperationMode(IntEnum):
@@ -210,13 +221,15 @@ def supported_operation_modes(supportedDriveModes: int) -> Generator[OperationMo
     Yields:
         Supported drive operation modes for the node.
     """
+    # Look-up is identical between Faulhaber / Maxon
+
     stuff = [
         (0, OperationMode.PROFILED_POSITION),
         (2, OperationMode.PROFILED_VELOCITY),
         (5, OperationMode.HOMING),
         (7, OperationMode.CYCLIC_SYNCHRONOUS_POSITION),
-        # TODO: From the Faulhaber manual. Add additional modes for different
-        # manufacturer. Which bits do they us?
+        (8, OperationMode.CYCLIC_SYNCHRONOUS_VELOCITY),
+        (9, OperationMode.CYCLIC_SYNCHRONOUS_TORQUE),
     ]
     for bit, op in stuff:
         if check_bit(supportedDriveModes, bit):
@@ -265,6 +278,84 @@ def target_reached(statusword: int) -> bool:
     return bool(statusword & SW.TARGET_REACHED)
 
 
+POSITIVE = RISING = FORWARD
+NEGATIVE = FALLING = BACKWARD
+UNAVAILABLE = UNDEFINED = 0.0
+
+
+class HomingParam(NamedTuple):
+
+    """Homing parameters to describe different CiA402 homing methods."""
+
+    endSwitch: int = UNAVAILABLE
+    homeSwitch: int = UNAVAILABLE
+    homeSwitchEdge: int = UNDEFINED
+    indexPulse: bool = False
+
+    direction: int = UNDEFINED
+    hardStop: bool = False
+
+
+HOMING_METHODS: Dict[HomingParam, int] = {
+    HomingParam(indexPulse=True, direction=POSITIVE, hardStop=True, ): -1,
+    HomingParam(indexPulse=True, direction=NEGATIVE, hardStop=True, ): -2,
+    HomingParam(direction=POSITIVE, hardStop=True, ): -3,
+    HomingParam(direction=NEGATIVE, hardStop=True, ): -4,
+    HomingParam(indexPulse=True, endSwitch=NEGATIVE, ): 1,
+    HomingParam(indexPulse=True, endSwitch=POSITIVE, ): 2,
+    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=FALLING, ): 3,
+    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=RISING, ): 4,
+    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, ): 5,
+    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=RISING, ): 6,
+    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, endSwitch=POSITIVE, ): 7,
+    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=RISING, endSwitch=POSITIVE, ): 8,
+    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=RISING, endSwitch=POSITIVE, ): 9,
+    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=FALLING, endSwitch=POSITIVE, ): 10,
+    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=FALLING, endSwitch=NEGATIVE, ): 11,
+    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=RISING, endSwitch=NEGATIVE, ): 12,
+    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=RISING, endSwitch=NEGATIVE, ): 13,
+    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, endSwitch=NEGATIVE, ): 14,
+    HomingParam(endSwitch=NEGATIVE, ): 17,
+    HomingParam(endSwitch=POSITIVE, ): 18,
+    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=FALLING, ): 19,
+    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=RISING, ): 20,
+    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, ): 21,
+    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=RISING, ): 22,
+    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, endSwitch=POSITIVE, ): 23,
+    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=RISING, endSwitch=POSITIVE, ): 24,
+    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=RISING, endSwitch=POSITIVE, ): 25,
+    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=FALLING, endSwitch=POSITIVE, ): 26,
+    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=FALLING, endSwitch=NEGATIVE, ): 27,
+    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=RISING, endSwitch=NEGATIVE, ): 28,
+    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=RISING, endSwitch=NEGATIVE, ): 29,
+    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, endSwitch=NEGATIVE, ): 30,
+    HomingParam(indexPulse=True, direction=NEGATIVE,): 33,
+    HomingParam(indexPulse=True, direction=POSITIVE,): 34,
+    HomingParam(): 35,  # TODO(atheler): Got replaced with 37 in newer versions
+}
+"""CiA 402 homing method lookup."""
+
+
+assert len(HOMING_METHODS) == 35, 'Something went wrong with HOMING_METHODS keys! Not enough homing methods anymore.'
+
+
+def determine_homing_method(
+        endSwitch: int = UNAVAILABLE,
+        homeSwitch: int = UNAVAILABLE,
+        homeSwitchEdge: int = UNDEFINED,
+        indexPulse: bool = False,
+        direction: int = UNDEFINED,
+        hardStop: bool = False,
+    ) -> int:
+    """Determine homing method."""
+    param = HomingParam(endSwitch, homeSwitch, homeSwitchEdge, indexPulse, direction, hardStop)
+    return HOMING_METHODS[param]
+
+
+assert determine_homing_method(hardStop=True, direction=FORWARD) == -3
+assert determine_homing_method(hardStop=True, direction=BACKWARD) == -4
+
+
 class CiA402Node(RemoteNode):
 
     """Alternative / simplified implementation of canopen.BaseNode402.
@@ -282,7 +373,6 @@ class CiA402Node(RemoteNode):
     def __init__(self, nodeId, objectDictionary, network):
         super().__init__(nodeId, objectDictionary, load_od=False)
         self.logger = get_logger(str(self))
-        self.units: Units = None
 
         network.add_node(self, objectDictionary)
 
@@ -301,19 +391,17 @@ class CiA402Node(RemoteNode):
         #
         # -> We clear all of them and have the Controlword only in the first RxPDO1.
 
-        self.setup_txpdo(1, 'Statusword', 'Error Register')
-        self.setup_txpdo(2, 'Position Actual Value')
-        self.setup_txpdo(3, 'Velocity Actual Value')
+        # EPOS4 has no PDO mapping for Error Register,
+        # thus re-register later txpdo1 if available
+        self.setup_txpdo(1, STATUSWORD)
+        self.setup_txpdo(2, POSITION_ACTUAL_VALUE)
+        self.setup_txpdo(3, VELOCITY_ACTUAL_VALUE)
         self.setup_txpdo(4, enabled=False)
 
-        self.setup_rxpdo(1, 'Controlword')
-        self.setup_rxpdo(2, 'Target Position')
-        self.setup_rxpdo(3, 'Target Velocity')
+        self.setup_rxpdo(1, CONTROLWORD)
+        self.setup_rxpdo(2, TARGET_POSITION)
+        self.setup_rxpdo(3, TARGET_VELOCITY)
         self.setup_rxpdo(4, enabled=False)
-
-        # Determine device units
-        manu = self.sdo[MANUFACTURER_DEVICE_NAME].raw
-        self.units = UNITS[manu]
 
     def setup_txpdo(self,
             nr: int,
@@ -321,11 +409,12 @@ class CiA402Node(RemoteNode):
             overwrite: bool = True,
             enabled: bool = True,
             trans_type: TransmissionType = TransmissionType.SYNCHRONOUS_CYCLIC,
-            event_timer: int = 0,
+            event_timer: Optional[int] = None,
         ):
         """Setup single transmission PDO of node (receiving PDO messages from
         remote node). Note: Sending / receiving direction always from the remote
-        nodes perspective.
+        nodes perspective. Setting `event_timer` to 0 can lead to KeyErrors on
+        some controllers.
 
         Args:
             nr: TxPDO number (1-4).
@@ -333,9 +422,9 @@ class CiA402Node(RemoteNode):
                 node via TxPDO.
 
         Kwargs:
-            enabled: Enable or disable RxPDO.
-            overwrite: Overwrite RxPDO.
-            trans_type:
+            enabled: Enable or disable TxPDO.
+            overwrite: Overwrite TxPDO.
+            trans_type: Event based or synchronized transmission
             event_timer:
         """
         tx = self.tpdo[nr]
@@ -347,7 +436,9 @@ class CiA402Node(RemoteNode):
 
         tx.enabled = enabled
         tx.trans_type = trans_type
-        tx.event_timer = event_timer
+        if event_timer is not None:
+            tx.event_timer = event_timer
+
         tx.save()
 
     def setup_rxpdo(self,
@@ -355,6 +446,7 @@ class CiA402Node(RemoteNode):
             *variables: CanOpenRegister,
             overwrite: bool = True,
             enabled: bool = True,
+            trans_type: TransmissionType = TransmissionType.SYNCHRONOUS_CYCLIC,
         ):
         """Setup single receiving PDO of node (sending PDO messages to remote
         node). Note: Sending / receiving direction always from the remote nodes
@@ -368,6 +460,7 @@ class CiA402Node(RemoteNode):
         Kwargs:
             enabled: Enable or disable RxPDO.
             overwrite: Overwrite RxPDO.
+            trans_type: Event based or synchronized transmission
         """
         rx = self.rpdo[nr]
         if overwrite:
@@ -377,6 +470,7 @@ class CiA402Node(RemoteNode):
             rx.add_variable(var)
 
         rx.enabled = enabled
+        rx.trans_type = trans_type
         rx.save()
 
     def get_state(self) -> State:
@@ -385,25 +479,40 @@ class CiA402Node(RemoteNode):
         #sw = self.pdo['Statusword'].raw  # This takes approx. 0.027 ms
         return which_state(sw)
 
-    def set_state(self, target: State):
+    def set_state(self, target: State, timeout: float = 0.100):
         """Set node state. This method only works for possible transitions from
         current state (single step). For arbitrary transitions use
         CiA402Node.change_state.
 
         Args:
             target: New target state.
+
+        Kwargs:
+            timeout: Timeout for
         """
         self.logger.info('Switching to state %r', target)
         current = self.get_state()
         if target is current:
             return
 
-        if not target in POSSIBLE_TRANSITIONS[current]:
+        if target not in POSSIBLE_TRANSITIONS[current]:
             raise RuntimeError(f'Invalid state transition from {current!r} to {target!r}!')
 
         edge = (current, target)
         cw = TRANSITIONS[edge]
         self.sdo[CONTROLWORD].raw = cw
+
+        # Some controllers are to slow to switch
+        # TODO: Is there any other way?
+        endTime = time.perf_counter() + timeout
+        sleepTime = min(0.5 * timeout, 0.010)
+        while time.perf_counter() < endTime:
+            if self.get_state() is target:
+                break
+
+            time.sleep(sleepTime)
+        else:  # If no break
+            raise RuntimeError(f'Could not transition from {current!r} to {target!r}. Timeout expired!')
 
     def change_state(self, target: State):
         """Change to a specific state. Will traverse all necessary states in
@@ -417,6 +526,9 @@ class CiA402Node(RemoteNode):
             return
 
         path = find_shortest_state_path(current, target)
+        if len(path) == 0:
+            self.logger.error('Found no path from %s to %s', current, target)
+
         for state in path[1:]:
             self.set_state(state)
 
@@ -464,8 +576,6 @@ class CiA402Node(RemoteNode):
         self.change_state(oldState)
         self.nmt.state = oldNmt
 
-    # TODO: Wording. Any English speakers in the house?
-
     def switch_off(self):
         """Switch off drive. Same state as on power-up."""
         self.nmt.state = PRE_OPERATIONAL
@@ -473,31 +583,29 @@ class CiA402Node(RemoteNode):
 
     def disable(self):
         """Disable drive (no power)."""
-        self.nmt.state = OPERATIONAL
         self.change_state(State.SWITCHED_ON)
 
     def enable(self):
         """Enable drive."""
-        self.nmt.state = OPERATIONAL
         self.change_state(State.OPERATION_ENABLE)
 
     def set_target_position(self, pos):
-        """Set target position in SI units"""
-        self.pdo['Target Position'].raw = pos * self.units.length
+        """Set target position in device units."""
+        self.pdo[TARGET_POSITION].raw = pos
         self.rpdo[2].transmit()
 
     def get_actual_position(self):
-        """Get actual position in SI units"""
-        return self.pdo['Position Actual Value'].raw / self.units.length
+        """Get actual position in device units."""
+        return self.pdo[POSITION_ACTUAL_VALUE].raw
 
     def set_target_velocity(self, vel):
-        """Set target velocity in SI units."""
-        self.pdo['Target Velocity'].raw = vel * self.units.speed
+        """Set target velocity in device units."""
+        self.pdo[TARGET_VELOCITY].raw = vel
         self.rpdo[3].transmit()
 
     def get_actual_velocity(self):
-        """Get actual velocity in SI units."""
-        return self.pdo['Velocity Actual Value'].raw / self.units.speed
+        """Get actual velocity in device units."""
+        return self.pdo[VELOCITY_ACTUAL_VALUE].raw
 
     def _get_info(self) -> dict:
         """Get the current states."""
@@ -507,5 +615,8 @@ class CiA402Node(RemoteNode):
             'op': self.get_operation_mode(),
         }
 
+    def manufacturer_device_name(self):
+        return self.sdo[MANUFACTURER_DEVICE_NAME].raw
+
     def __str__(self):
-        return f'{type(self).__name__}(id={self.id})'
+        return f'{type(self).__name__}(id: {self.id})'

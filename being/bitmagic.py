@@ -32,3 +32,13 @@ def check_bit_mask(value: int, mask: int) -> bool:
         False
     """
     return (value & mask) == mask
+
+
+def bit_mask(width: int) -> int:
+    """All ones bit mask for a given width.
+
+    Usage:
+        >>> bin(bit_mask(width=4))
+        '0b1111'
+    """
+    return (2 ** width) - 1

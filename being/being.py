@@ -4,12 +4,14 @@ from typing import List, Optional
 from being.backends import CanBackend
 from being.behavior import Behavior
 from being.block import Block
+from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.clock import Clock
 from being.connectables import ValueOutput, MessageOutput
 from being.execution import execute, block_network_graph
 from being.graph import topological_sort
 from being.motion_player import MotionPlayer
-from being.motors import Motor
+from being.motors.blocks import MotorBlock
+from being.motors.homing import HomingState
 from being.params import Parameter
 from being.utils import filter_by_type
 
@@ -24,6 +26,7 @@ def message_outputs(blocks):
     """Collect all message outputs from blocks."""
     for block in blocks:
         yield from filter_by_type(block.outputs, MessageOutput)
+
 
 
 class Being:
@@ -51,8 +54,49 @@ class Being:
         self.messageOutputs = list(message_outputs(self.execOrder))
         self.behaviors = list(filter_by_type(self.execOrder, Behavior))
         self.motionPlayers = list(filter_by_type(self.execOrder, MotionPlayer))
-        self.motors = list(filter_by_type(self.execOrder, Motor))
+        self.motors = list(filter_by_type(self.execOrder, MotorBlock))
         self.params = list(filter_by_type(self.execOrder, Parameter))
+
+    def _enable_pdo_communication(self):
+        if self.network:
+            self.network.nmt.state = OPERATIONAL
+
+    def _disable_pdo_communication(self):
+        if self.network:
+            self.network.nmt.state = PRE_OPERATIONAL
+
+    def enable_motors(self):
+        """Enable all motors and set global NMT to OPERATIONAL."""
+        for motor in self.motors:
+            motor.enable(publish=False)
+
+        self._enable_pdo_communication()
+
+    def disable_motors(self):
+        """Disable all motors and set global NMT to PRE-OPERATIONAL."""
+        self._disable_pdo_communication()
+        for motor in self.motors:
+            motor.disable(publish=False)
+
+    def home_motors(self):
+        """Home all motors."""
+        self._disable_pdo_communication()
+        for motor in self.motors:
+            motor.home()
+
+    def motor_changed(self):
+        """Motor changed callback. Used to track if all motors are homed and
+        then to set global NMT to OPERATIONAL.
+
+        Reasoning:
+            CiA 402 state changes can be slow. Slower motors can lead to perform
+            hits which would trigger RPDO timeout errors in the motors which
+            have homed before.
+            -> Wait until all motors are homed before resuming PDO communication
+               (NMT OPERATIONAL).
+        """
+        if all(mot.homing is HomingState.HOMED for mot in self.motors):
+            self._enable_pdo_communication()
 
     def start_behaviors(self):
         """Start all behaviors."""
@@ -66,8 +110,9 @@ class Being:
 
     def single_cycle(self):
         """Execute single cycle of block networks."""
-        execute(self.execOrder)
         if self.network:
             self.network.send_sync()
+
+        execute(self.execOrder)
 
         self.clock.step()
