@@ -207,11 +207,11 @@ class CanMotor(MotorBlock):
     def __init__(self,
              nodeId,
              motor: Union[str, Motor],
+             name: Optional[str] = None,
              node: Optional[CiA402Node] = None,
              objectDictionary=None,
              network: Optional[CanBackend] = None,
              settings: Optional[Dict[str, Any]] = None,
-             name: Optional[str] = None,
              **controllerKwargs,
          ):
         """Args:

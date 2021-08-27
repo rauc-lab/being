@@ -18,7 +18,6 @@ STORE_EDS = 0x1021  # Some manufacturer use this for downloading object
 # Faulhaber specific registers (not with Maxon!)
 MOTOR_DATA = 0x2350
 ENCODER_DATA = 0x2351
-HOMING_OFFSET = 0x607C
 
 
 class FunctionCode(enum.IntEnum):

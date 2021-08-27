@@ -4,14 +4,11 @@ parameters / settings.
 from typing import NamedTuple
 from fractions import Fraction
 
-from being.utils import merge_dicts
-from being.constants import TAU, MICRO, MILLI, NANO
+from being.constants import TAU, INF, MICRO, MILLI
 from being.config import CONFIG
 from being.motors.vendor import (
     MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,
     MAXON_INPUT_LOW_ACTIVE,
-    MAXON_INTERPOLATION_DISABLED,
-    MAXON_POLARITY_CCW,
     MaxonControlStructure,
     MaxonMotorType,
     MaxonSensorsConfiguration,
@@ -34,17 +31,19 @@ class Motor(NamedTuple):
     name: str
     """Motor name."""
 
-    length: float = None
-    """Linear motor Length."""
+    position_si_2_device: float = 1.0
+    """Conversion factor for position SI -> device units. Motor only. Not with
+    gear.
+    """
 
     defaultSettings: dict = {}
     """Default settings for this motor."""
 
+    length: float = INF
+    """Linear motor Length."""
+
     gear: Fraction = Fraction(1, 1)
     """Gear ratio."""
-
-    position_si_2_device: float = 1.0
-    """Conversion factor for position SI -> device units."""
 
 
 FAULHABER_DEFAULT_SETTINGS = {
@@ -107,12 +106,47 @@ MAXON_DC_22_DEFAULT_SETTINGS = {
 
 
 MOTORS = {
-    'LM1247': Motor('Faulhaber', 'LM 1247', length=0.105, defaultSettings=FAULHABER_DEFAULT_SETTINGS, position_si_2_device=1 / MICRO),
-    'LM0830': Motor('Faulhaber', 'LM 0830', length=0.040, defaultSettings=FAULHABER_DEFAULT_SETTINGS, position_si_2_device=1 / MICRO),
-    'LM1483': Motor('Faulhaber', 'LM 1483', length=0.080, defaultSettings=FAULHABER_DEFAULT_SETTINGS, position_si_2_device=1 / MICRO),
-    'LM2070': Motor('Faulhaber', 'LM 2070', length=0.220, defaultSettings=FAULHABER_DEFAULT_SETTINGS, position_si_2_device=1 / MICRO),
-    'EC45': Motor('Maxon', 'EC 45', length=TAU, defaultSettings=MAXON_EC_45_DEFAULT_SETTINGS, position_si_2_device=4 * 2048 / TAU),
-    'DC22': Motor('Maxon', 'DC 22', length=TAU, defaultSettings=MAXON_DC_22_DEFAULT_SETTINGS, position_si_2_device=4 * 1024 / TAU, gear=Fraction(69, 13)),
+    'LM1247': Motor(
+        'Faulhaber',
+        'LM 1247',
+        position_si_2_device=1 / MICRO,
+        defaultSettings=FAULHABER_DEFAULT_SETTINGS,
+        length=0.120,
+    ),
+    'LM0830': Motor(
+        'Faulhaber',
+        'LM 0830',
+        position_si_2_device=1 / MICRO,
+        defaultSettings=FAULHABER_DEFAULT_SETTINGS,
+        length=0.040,
+    ),
+    'LM1483': Motor(
+        'Faulhaber',
+        'LM 1483',
+        position_si_2_device=1 / MICRO,
+        defaultSettings=FAULHABER_DEFAULT_SETTINGS,
+        length=0.080,
+    ),
+    'LM2070': Motor(
+        'Faulhaber',
+        'LM 2070',
+        position_si_2_device=1 / MICRO,
+        defaultSettings=FAULHABER_DEFAULT_SETTINGS,
+        length=0.220,
+    ),
+    'EC45': Motor(
+        'Maxon',
+        'EC 45',
+        position_si_2_device=4 * 2048 / TAU,
+        defaultSettings=MAXON_EC_45_DEFAULT_SETTINGS,
+    ),
+    'DC22': Motor(
+        'Maxon',
+        'DC 22',
+        position_si_2_device=4 * 1024 / TAU,
+        defaultSettings=MAXON_DC_22_DEFAULT_SETTINGS,
+        gear=Fraction(69, 13),
+    ),
 }
 
 
