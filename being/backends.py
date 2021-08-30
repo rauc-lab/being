@@ -44,6 +44,7 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         self.bitrate = bitrate
         self.bustype = bustype
         self.channel = channel
+        self.logger = get_logger(str(self))
 
     @property
     def drives(self) -> List[CiA402Node]:
@@ -60,6 +61,7 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         for sending out sync messages at the end of the cycle for driving the
         PDO communication.
         """
+        self.logger.debug("Send SYNC")
         self.send_message(0x80, [])  # Std. CAN SYNC message
 
     def __enter__(self):

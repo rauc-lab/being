@@ -291,8 +291,7 @@ class Controller:
         return self.node.get_actual_position() / self.position_si_2_device
 
     def apply_settings(self, settings: Dict[str, Any]):
-        """Apply settings to CANopen node. Convert physical SI values to device
-        units (if present in DEVICE_UNITS dict).
+        """Apply settings to CANopen node.
 
         Args:
             settings: Settings to apply. Addresses (path syntax) -> value
