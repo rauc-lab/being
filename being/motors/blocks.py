@@ -290,12 +290,11 @@ class CanMotor(MotorBlock):
 
     def to_dict(self):
         dct = super().to_dict()
-        dct['length'] = self.controller.motor.length
+        dct['length'] = self.controller.length
         return dct
 
     def __str__(self):
         controller = self.controller
-        node = self.controller.node
         return f'{type(self).__name__}({controller})'
 
 

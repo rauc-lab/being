@@ -180,6 +180,8 @@ class Controller:
 
         if length is None:
             length = motor.length
+        else:
+            length = min(length, motor.length)
 
         homingKwargs.setdefault('homingDirection', FORWARD)  # TODO: Or direction as default?
         if 'homingMethod' in homingKwargs:
@@ -196,6 +198,7 @@ class Controller:
         self.position_si_2_device = float(multiplier * motor.gear * motor.position_si_2_device)
         self.homingMethod = homingMethod
         self.homingDirection = homingDirection
+        self.length = length
         self.lower = 0.
         self.upper = length * self.position_si_2_device
         self.logger = get_logger(str(self))
@@ -420,6 +423,7 @@ class Epos4(Controller):
     DEVICE_ERROR_REGISTER = MAXON_DEVICE_ERROR_REGISTER
     EMERGENCY_DESCRIPTIONS = MAXON_EMERGENCY_DESCRIPTIONS
     SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
+
 
     """
     def __init__(self, node, *args, **kwargs):
