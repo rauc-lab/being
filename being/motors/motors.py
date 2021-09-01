@@ -81,8 +81,6 @@ MAXON_DC_22_DEFAULT_SETTINGS = {
     'Axis configuration/Commutation sensors': 0,
     'Axis configuration/Control structure': MaxonControlStructure(gear=1).to_int(),
     'Axis configuration/Sensors configuration': MaxonSensorsConfiguration(sensorType3=0, sensorType2=0, sensorType1=1).to_int(),
-    'Current control parameter set/Current controller I gain': 147725541,
-    'Current control parameter set/Current controller P gain': 18071556,
     'Digital incremental encoder 1/Digital incremental encoder 1 number of pulses': 1024,
     'Digital incremental encoder 1/Digital incremental encoder 1 type': 1,
     'Digital input properties/Digital inputs polarity': MAXON_INPUT_LOW_ACTIVE,
@@ -99,11 +97,6 @@ MAXON_DC_22_DEFAULT_SETTINGS = {
     'Motor data/Torque constant': 30800,
     'Motor rated torque': 12228,
     'Motor type': MaxonMotorType.PHASE_MODULATED_DC_MOTOR,
-    'Position control parameter set/Position controller D gain': 20733,
-    'Position control parameter set/Position controller FF acceleration gain': 108,
-    'Position control parameter set/Position controller FF velocity gain': 908,
-    'Position control parameter set/Position controller I gain': 32078755,
-    'Position control parameter set/Position controller P gain': 1443132,
     'Store parameters': 0,
 }
 

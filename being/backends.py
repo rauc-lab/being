@@ -17,6 +17,7 @@ except ImportError:
     pyaudio = None
     warnings.warn('PyAudio is not installed!')
 
+import can
 import canopen
 from being.utils import SingleInstanceCache, filter_by_type
 from being.logging import get_logger
@@ -33,6 +34,9 @@ if sys.platform.startswith('darwin'):
 else:
     _BUS_TYPE = 'socketcan'
     _CHANNEL = 'can0'
+
+
+SYNC_MSG = can.Message(is_extended_id=False, arbitration_id=0x80, data=[], is_remote_frame=False)
 
 
 class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContextManager):
@@ -61,8 +65,8 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         for sending out sync messages at the end of the cycle for driving the
         PDO communication.
         """
-        self.logger.debug("Send SYNC")
-        self.send_message(0x80, [])  # Std. CAN SYNC message
+        #self.send_message(0x80, [])  # Std. CAN SYNC message
+        self.bus.send(SYNC_MSG)
 
     def __enter__(self):
         self.connect(bitrate=self.bitrate, bustype=self.bustype, channel=self.channel)
