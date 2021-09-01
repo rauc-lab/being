@@ -1,0 +1,18 @@
+# Changelog
+
+## [0.2.0] - 2021-09-01
+
+### Added
+- License
+- CiA 402 homings
+- Choreo to spline conversion
+- EPOS4 support
+- Web UI control panel with block diagram
+- Web UI notifications
+- Some third-party JS libraries
+
+### Changed
+- Readme
+- Motor blocks, controllers, motors
+- Motion players / motors web API
+- Web UI console moved to control panel
