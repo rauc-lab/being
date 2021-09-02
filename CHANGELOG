@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1] - 2021-09-02
+
+### Fixed
+- Reset software position limits on Faulhaber motors
+- No overlap with plotting lines
+
 ## [0.2.0] - 2021-09-01
 
 ### Added

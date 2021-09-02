@@ -402,6 +402,9 @@ class Mclm3002(Controller):
             upper -= relMargin * width
 
             sdo[faulhaberHomingOffset].raw = lower
+            sdo['Software Position Limit'][1].raw = -1e7
+            sdo['Software Position Limit'][2].raw = +1e7
+
             self.lower = 0
             self.upper = upper - lower
 
