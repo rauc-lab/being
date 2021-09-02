@@ -329,16 +329,12 @@ class Mclm3002(Controller):
             negativePolarity = (1 << 6) | (1 << 7)  # Position and velocity
             self.node.sdo['Polarity'].raw = negativePolarity
 
-    def hard_stop_homing(self, speed: int = 100, relMargin: float = 0.050):
+    def hard_stop_homing(self, speed: int = 100):
         """Crude hard stop homing for Faulhaber linear motors.
 
         Kwargs:
             speed: Speed for homing in device units.
-            relMargin: Relative margin on both sides.
         """
-        relMargin = clip(relMargin, 0.00, 0.50)  # In [0%, 50%]!
-        speed = abs(speed)
-
         lower = INF
         upper = -INF
 
@@ -369,7 +365,7 @@ class Mclm3002(Controller):
             return current > limit  # TODO: Add percentage threshold?
 
         faulhaberHomingOffset = 0x607C
-
+        final = HomingState.UNHOMED
         with node.restore_states_and_operation_mode():
             node.change_state(CiA402State.READY_TO_SWITCH_ON)
             node.sdo[faulhaberHomingOffset].raw = 0
@@ -396,19 +392,26 @@ class Mclm3002(Controller):
             node.nmt.state = PRE_OPERATIONAL
             node.change_state(CiA402State.READY_TO_SWITCH_ON)
 
-            # Margin
             width = upper - lower
-            lower += relMargin * width
-            upper -= relMargin * width
+            length = self.position_si_2_device * self.length
+            if width < length:
+                final = HomingState.FAILED
+            else:
+                final = HomingState.HOMED
 
-            sdo[faulhaberHomingOffset].raw = lower
-            sdo['Software Position Limit'][1].raw = -1e7
-            sdo['Software Position Limit'][2].raw = +1e7
+                # Center in the middle
+                margin = .5 * (width - length)
+                lower += margin
+                upper -= margin
 
-            self.lower = 0
-            self.upper = upper - lower
+                sdo[faulhaberHomingOffset].raw = lower
+                sdo['Software Position Limit'][1].raw = -1e7
+                sdo['Software Position Limit'][2].raw = +1e7
 
-        yield HomingState.HOMED
+                self.lower = 0
+                self.upper = upper - lower
+
+        yield final
 
     def home(self):
         # Faulhaber does not support unofficial hard stop homing methods
