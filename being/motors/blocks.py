@@ -39,6 +39,9 @@ INTERVAL = CONFIG['General']['INTERVAL']
 MOTOR_CHANGED = 'MOTOR_CHANGED'
 """Motor changed event."""
 
+MOTOR_ERROR = 'MOTOR_ERROR'
+"""Motor error event."""
+
 CONTROLLER_TYPES: Dict[str, Controller] = {
     'MCLM3002P-CO': Mclm3002,
     'EPOS4': Epos4,
@@ -69,7 +72,7 @@ class MotorBlock(Block, PubSub, abc.ABC):
             name: Block name.
         """
         super().__init__(name=name)
-        PubSub.__init__(self, events=[MOTOR_CHANGED])
+        PubSub.__init__(self, events=[MOTOR_CHANGED, MOTOR_ERROR])
         self.add_value_input('targetPosition')
         self.add_value_output('actualPosition')
         self.homing = HomingState.UNHOMED
@@ -254,6 +257,8 @@ class CanMotor(MotorBlock):
             **controllerKwargs,
         )
         self.logger = get_logger(str(self))
+        for msg in self.controller.error_history_messages():
+            self.publish(MOTOR_ERROR, msg)
 
     def enable(self, publish=True):
         self.controller.enable()
@@ -272,10 +277,11 @@ class CanMotor(MotorBlock):
         super().home()
 
     def update(self):
-        for emcy in self.controller.new_emcy():
-            desc = self.controller.emcy_description(emcy)
+        for emcy in self.controller.new_emcy_errors():
+            desc = self.controller.emcy_message(emcy)
             msg = f'EMCY 0x{emcy.code:04x}, {desc}'
             self.logger.error(msg)
+            self.publish(MOTOR_ERROR, msg)
 
         if self.homing is HomingState.HOMED:
             sw = self.controller.node.pdo[STATUSWORD].raw  # PDO instead of SDO for speed. This takes approx. 0.027 ms

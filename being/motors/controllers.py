@@ -258,11 +258,11 @@ class Controller:
             f'Unknown device error message for error code: {code}',
         )
 
-    def new_emcy(self) -> Generator[EmcyError, None, None]:
+    def new_emcy_errors(self) -> Generator[EmcyError, None, None]:
         """Iterate over all new emergency error message frames (if any)."""
         yield from self.only_new_ones(self.node.emcy.active)
 
-    def emcy_description(self, emcy: EmcyError) -> str:
+    def emcy_message(self, emcy: EmcyError) -> str:
         """Get vendor specific description of EMCY error."""
         return format_error_code(emcy.code, self.EMERGENCY_DESCRIPTIONS)
 
