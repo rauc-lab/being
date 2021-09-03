@@ -20,6 +20,7 @@ from being.can.cia_402 import (
     determine_homing_method,
 )
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
+from being.config import CONFIG
 from being.constants import FORWARD, INF
 from being.error import BeingError
 from being.logging import get_logger
@@ -40,6 +41,9 @@ from being.motors.vendor import (
     MAXON_SUPPORTED_HOMING_METHODS,
 )
 from being.utils import merge_dicts
+
+
+INTERVAL = CONFIG['General']['INTERVAL']
 
 
 def nested_get(dct, keys):
@@ -212,7 +216,6 @@ class Controller:
             node.reset_fault()
 
         self.switch_off()
-        self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
 
         self.logger.debug('direction: %f', self.direction)
         self.logger.debug('homingDirection: %f', self.homingDirection)
@@ -323,6 +326,10 @@ class Mclm3002(Controller):
     EMERGENCY_DESCRIPTIONS = FAULHABER_EMERGENCY_DESCRIPTIONS
     SUPPORTED_HOMING_METHODS = FAULHABER_SUPPORTED_HOMING_METHODS
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
+
     def apply_motor_direction(self, direction: float):
         if direction >= 0:
             positivePolarity = 0
@@ -431,19 +438,23 @@ class Epos4(Controller):
     DEVICE_ERROR_REGISTER = MAXON_DEVICE_ERROR_REGISTER
     EMERGENCY_DESCRIPTIONS = MAXON_EMERGENCY_DESCRIPTIONS
     SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
+    USE_POSITION_CONTROLLER = True
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # TODO: Test if firmwareVersion < 0x170h?
+        self.logger.info('Firmware version 0x%04x', self.firmware_version())
+        if self.USE_POSITION_CONTROLLER:
+            self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
+        else:
+            self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_VELOCITY)
 
-    """
-    def __init__(self, node, *args, **kwargs):
-        fw_version = node.sdo['Identity object']['Revision number'].raw
-        LOW_WORD = 16
-        fw_version = fw_version >> LOW_WORD
-        if fw_version < 0x170:
-            raise ControllerError(f"Node {node.id} firmware version {hex(fw_version)} < 0x170h. Update required!")
-        self.logger.debug(f"Node {node.id} firmware version {hex(fw_version)}")
-        super().__init__(node, *args, **kwargs)
-        self.state = KinematicState()
-    """
+    def firmware_version(self) -> int:
+        """Firmware version of EPOS4 node."""
+        revisionNumber = self.node.sdo['Identity object']['Revision number'].raw
+        lowWord = 16
+        firmwareVersion = revisionNumber >> lowWord
+        return firmwareVersion
 
     def apply_motor_direction(self, direction: float):
         variable = self.node.sdo['Axis configuration']['Axis configuration miscellaneous']
@@ -463,3 +474,13 @@ class Epos4(Controller):
 
         self.node.sdo[HOMING_METHOD].raw = homingMethod
         return proper_homing(self.node)
+
+    def set_target_position(self, targetPosition):
+        tarPosDev = targetPosition * self.position_si_2_device
+        posSoll = clip(tarPosDev, self.lower, self.upper)
+        if self.USE_POSITION_CONTROLLER:
+            self.node.set_target_position(posSoll)
+        else:
+            posIst = self.node.get_actual_position()
+            velSoll = 1e-3 / INTERVAL * (posSoll - posIst)
+            self.node.set_target_velocity(velSoll)

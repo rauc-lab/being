@@ -74,6 +74,7 @@ MAXON_EC_45_DEFAULT_SETTINGS = {
     'Digital incremental encoder 1/Digital incremental encoder 1 type': 0,
     'Interpolation time period/Interpolation time period value': INTERVAL / MILLI,
     'Digital input properties/Digital inputs polarity': MAXON_INPUT_LOW_ACTIVE,
+    'Following error window': MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,
 }
 
 
