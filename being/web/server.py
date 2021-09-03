@@ -48,12 +48,7 @@ def wire_being_loggers_to_web_socket(ws: WebSocket):
     """
     class WsHandler(logging.Handler):
         def emit(self, record):
-            ws.send_json_buffered({
-                'type': 'log',
-                'level': record.levelno,
-                'name': record.name,
-                'message': self.format(record),
-            })
+            ws.send_json_buffered(record)
 
     handler = WsHandler()
     for logger in BEING_LOGGERS:
