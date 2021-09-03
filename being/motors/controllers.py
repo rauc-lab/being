@@ -90,7 +90,7 @@ def default_homing_method(
             return determine_homing_method(direction=NEGATIVE, hardStop=True, indexPulse=indexPulse)
 
 
-def get_description(errorCode: int, descriptions: list) -> str:
+def format_error_code(errorCode: int, descriptions: list) -> str:
     """Emergency error code -> description.
 
     Args:
@@ -106,7 +106,7 @@ def get_description(errorCode: int, descriptions: list) -> str:
             description = desc
 
     if description == '':
-        return f'Unknown emergency error for code {errorCode:#04x}'
+        return f'Unknown emergency error for code 0x{errorCode:#04x}'
 
     return description
 
@@ -180,8 +180,6 @@ class Controller:
 
         if length is None:
             length = motor.length
-        else:
-            length = min(length, motor.length)
 
         homingKwargs.setdefault('homingDirection', FORWARD)  # TODO: Or direction as default?
         if 'homingMethod' in homingKwargs:
@@ -189,29 +187,29 @@ class Controller:
         else:
             homingMethod = default_homing_method(**homingKwargs)
 
-        homingDirection = homingKwargs['homingDirection']
-
         # Attrs
         self.node: CiA402Node = node
         self.motor: Motor = motor
         self.direction = direction
         self.position_si_2_device = float(multiplier * motor.gear * motor.position_si_2_device)
         self.homingMethod = homingMethod
-        self.homingDirection = homingDirection
-        self.length = length
+        self.homingDirection = homingKwargs['homingDirection']
+        self.length = min(length, motor.length)
         self.lower = 0.
         self.upper = length * self.position_si_2_device
         self.logger = get_logger(str(self))
         self.only_new_ones = OnlyOnce()
 
         # Init
+        self.apply_motor_direction(direction)
+        merged = merge_dicts(self.motor.defaultSettings, settings)
+        self.apply_settings(merged)
+
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 
-        self.apply_motor_direction(direction)
-
-        merged = merge_dicts(self.motor.defaultSettings, settings)
-        self.apply_settings(merged)
+        if node.get_state() is CiA402State.FAULT:
+            node.reset_fault()
 
         self.switch_off()
         self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
@@ -264,6 +262,10 @@ class Controller:
         """Iterate over all new emergency error message frames (if any)."""
         yield from self.only_new_ones(self.node.emcy.active)
 
+    def emcy_description(self, emcy: EmcyError) -> str:
+        """Get vendor specific description of EMCY error."""
+        return format_error_code(emcy.code, self.EMERGENCY_DESCRIPTIONS)
+
     def error_history_messages(self):
         """Iterate over current error messages in error history register."""
         errorHistory = self.node.sdo[0x1003]
@@ -272,7 +274,7 @@ class Controller:
             number = errorHistory[nr + 1].raw
             raw = number.to_bytes(4, sys.byteorder)
             code = int.from_bytes(raw[:2], 'little')
-            yield get_description(code, self.EMERGENCY_DESCRIPTIONS)
+            yield format_error_code(code, self.EMERGENCY_DESCRIPTIONS)
 
     def validate_homing_method(self, method: int):
         """Validate homing method for this controller. Raises a ControllerError

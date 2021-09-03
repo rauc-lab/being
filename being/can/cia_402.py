@@ -502,6 +502,9 @@ class CiA402Node(RemoteNode):
         cw = TRANSITIONS[edge]
         self.sdo[CONTROLWORD].raw = cw
 
+        if timeout is None:
+            return
+
         # Some controllers are to slow to switch
         # TODO: Is there any other way?
         endTime = time.perf_counter() + timeout
@@ -575,6 +578,12 @@ class CiA402Node(RemoteNode):
         self.set_operation_mode(oldOp)
         self.change_state(oldState)
         self.nmt.state = oldNmt
+
+    def reset_fault(self):
+        """Performe fault reset to SWITCH_ON_DISABLED."""
+        self.logger.info('Resetting fault')
+        self.sdo[CONTROLWORD].raw = 0
+        self.sdo[CONTROLWORD].raw = CW.FAULT_RESET
 
     def switch_off(self):
         """Switch off drive. Same state as on power-up."""

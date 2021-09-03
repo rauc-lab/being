@@ -272,8 +272,10 @@ class CanMotor(MotorBlock):
         super().home()
 
     def update(self):
-        for emcyMsg in self.controller.new_emcy():
-            self.logger.error(emcyMsg)
+        for emcy in self.controller.new_emcy():
+            desc = self.controller.emcy_description(emcy)
+            msg = f'EMCY 0x{emcy.code:04x}, {desc}'
+            self.logger.error(msg)
 
         if self.homing is HomingState.HOMED:
             sw = self.controller.node.pdo[STATUSWORD].raw  # PDO instead of SDO for speed. This takes approx. 0.027 ms
