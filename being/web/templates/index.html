@@ -67,6 +67,7 @@
         // Wire up web socket to the different widgets.
         ws.subscribe_to_message("motor-update", msg => notificationCenter.new_motor_message(msg));
         ws.subscribe_to_message("motor-updates", msg => notificationCenter.new_motor_message(msg));
+        ws.subscribe_to_message("motor-error", msg => notificationCenter.new_motor_message(msg));
 
         for (let controlPanel of document.getElementsByTagName("being-control-panel")) {
             controlPanel.set_notification_center(notificationCenter);

@@ -152,6 +152,9 @@ export class NotificationCenter {
             this.update_motor_notification(msg.motor);
         } else if (msg.type === "motor-updates") {
             msg.motors.forEach(motor => this.update_motor_notification(motor));
+        } else if (msg.type === "motor-error") {
+            const name = this.assign_motor_name(msg.motor);
+            this.notify(name + " " + msg.message, "error", 5);
         } else {
             throw "Unsupported message type: " + msg.type;
         }

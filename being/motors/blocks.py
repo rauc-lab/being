@@ -278,8 +278,7 @@ class CanMotor(MotorBlock):
 
     def update(self):
         for emcy in self.controller.new_emcy_errors():
-            desc = self.controller.emcy_message(emcy)
-            msg = f'EMCY 0x{emcy.code:04x}, {desc}'
+            msg = self.controller.emcy_message(emcy)
             self.logger.error(msg)
             self.publish(MOTOR_ERROR, msg)
 

@@ -15,7 +15,7 @@ from being.config import CONFIG
 from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
 from being.logging import BEING_LOGGERS, get_logger
-from being.motors.blocks import MOTOR_CHANGED
+from being.motors.blocks import MOTOR_CHANGED, MOTOR_ERROR
 from being.sensors import Sensor
 from being.utils import filter_by_type
 from being.web.api import (
@@ -140,8 +140,17 @@ def init_api(being, ws: WebSocket) -> web.Application:
 
     # Motors
     api.add_routes(motor_controllers(being))
+
+    def ws_motor_error_notification(motor):
+        return lambda msg: ws.send_json_buffered({
+            'type': 'motor-error',
+            'motor': motor,
+            'message': msg,
+        })
+
     for motor in being.motors:
         motor.subscribe(MOTOR_CHANGED, ws_emit(motor))
+        motor.subscribe(MOTOR_ERROR, ws_motor_error_notification(motor))
 
     wire_being_loggers_to_web_socket(ws)
 
