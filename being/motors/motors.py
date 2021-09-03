@@ -107,7 +107,7 @@ MOTORS = {
         'LM 1247',
         position_si_2_device=1 / MICRO,
         defaultSettings=FAULHABER_DEFAULT_SETTINGS,
-        length=0.120,
+        length=0.100,
     ),
     'LM0830': Motor(
         'Faulhaber',

@@ -58,14 +58,6 @@ def create_controller_for_node(node: CiA402Node, *args, **kwargs) -> Controller:
     return controllerType(node, *args, **kwargs)
 
 
-def resolve_motor(motor: Union[str, Motor]) -> Motor:
-    """Resolve motor."""
-    if isinstance(motor, str):
-        return get_motor(motor)
-
-    return motor
-
-
 class DriveError(BeingError):
 
     """Something went wrong on the drive."""
@@ -252,7 +244,9 @@ class CanMotor(MotorBlock):
         if settings is None:
             settings = {}
 
-        motor = resolve_motor(motor)
+        if isinstance(motor, str):
+            motor = get_motor(motor)
+
         self.controller: Controller = create_controller_for_node(
             node,
             motor,
@@ -308,16 +302,9 @@ class LinearMotor(CanMotor):
 
     """Default linear Faulhaber motor."""
 
-    DEFAULT_LENGTHS = {
-        'LM 1247': 0.100,
-    }
 
-    def __init__(self, nodeId, motor='LM 1247', length=None, **kwargs):
-        motor = resolve_motor(motor)
-        if length is None:
-            length = self.DEFAULT_LENGTHS.get(motor.name)
-
-        super().__init__(nodeId, motor, length=length, **kwargs)
+    def __init__(self, nodeId, motor='LM 1247', **kwargs):
+        super().__init__(nodeId, motor, **kwargs)
 
 
 class RotaryMotor(CanMotor):
