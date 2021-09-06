@@ -42,6 +42,9 @@ MOTOR_CHANGED = 'MOTOR_CHANGED'
 MOTOR_ERROR = 'MOTOR_ERROR'
 """Motor error event."""
 
+MOTOR_DONE_HOMING = 'MOTOR_DONE_HOMING'
+"""Motor error event."""
+
 CONTROLLER_TYPES: Dict[str, Controller] = {
     'MCLM3002P-CO': Mclm3002,
     'EPOS4': Epos4,
@@ -72,7 +75,7 @@ class MotorBlock(Block, PubSub, abc.ABC):
             name: Block name.
         """
         super().__init__(name=name)
-        PubSub.__init__(self, events=[MOTOR_CHANGED, MOTOR_ERROR])
+        PubSub.__init__(self, events=[MOTOR_CHANGED, MOTOR_ERROR, MOTOR_DONE_HOMING])
         self.add_value_input('targetPosition')
         self.add_value_output('actualPosition')
         self.homing = HomingState.UNHOMED
@@ -111,6 +114,7 @@ class MotorBlock(Block, PubSub, abc.ABC):
         """Start homing routine for this motor. Has then to be driven via the
         update() method.
         """
+        print('publish MOTOR_CHANGE')
         self.publish(MOTOR_CHANGED)
 
     def to_dict(self):
@@ -171,6 +175,7 @@ class DummyMotor(MotorBlock):
         if self.homing is HomingState.ONGOING:
             self.homing = next(self.homingJob)
             if self.homing is not HomingState.ONGOING:
+                self.publish(MOTOR_DONE_HOMING)
                 self.publish(MOTOR_CHANGED)
 
             target = 0.
@@ -260,12 +265,12 @@ class CanMotor(MotorBlock):
         for msg in self.controller.error_history_messages():
             self.publish(MOTOR_ERROR, msg)
 
-    def enable(self, publish=True):
-        self.controller.enable()
+    def enable(self, publish: bool = True, timeout: Optional[float] = None):
+        self.controller.enable(timeout)
         super().enable(publish)
 
-    def disable(self, publish=True):
-        self.controller.disable()
+    def disable(self, publish: bool = True, timeout: Optional[float] = None):
+        self.controller.disable(timeout)
         super().disable(publish)
 
     def enabled(self):
@@ -282,8 +287,9 @@ class CanMotor(MotorBlock):
             self.logger.error(msg)
             self.publish(MOTOR_ERROR, msg)
 
+        sw = self.controller.node.pdo[STATUSWORD].raw  # PDO instead of SDO for speed. This takes approx. 0.027 ms
+        #print(which_state(sw))
         if self.homing is HomingState.HOMED:
-            sw = self.controller.node.pdo[STATUSWORD].raw  # PDO instead of SDO for speed. This takes approx. 0.027 ms
             state = which_state(sw)
             if state is CiA402State.OPERATION_ENABLE:
                 self.controller.set_target_position(self.targetPosition.value)
@@ -291,6 +297,7 @@ class CanMotor(MotorBlock):
         elif self.homing is HomingState.ONGOING:
             self.homing = next(self.homingJob)
             if self.homing is not HomingState.ONGOING:
+                self.publish(MOTOR_DONE_HOMING)
                 self.publish(MOTOR_CHANGED)
 
         self.output.value = self.controller.get_actual_position()

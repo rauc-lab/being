@@ -15,7 +15,6 @@ from canopen import RemoteNode
 from being.bitmagic import check_bit
 from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.definitions import TransmissionType
-from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.constants import FORWARD, BACKWARD
 from being.logging import get_logger
 
@@ -497,11 +496,12 @@ class CiA402Node(RemoteNode):
             target: New target state.
 
         Kwargs:
-            timeout: Timeout for
+            timeout: Optional timeout.
         """
         self.logger.info('Switching to state %s', target)
         current = self.get_state()
         if target is current:
+            self.logger.debug('Already in state %s', target)
             return
 
         if target not in POSSIBLE_TRANSITIONS[current]:
@@ -517,14 +517,13 @@ class CiA402Node(RemoteNode):
         # Some controllers are to slow to switch
         # TODO: Is there any other way?
         endTime = time.perf_counter() + timeout
-        sleepTime = min(0.5 * timeout, 0.010)
         while time.perf_counter() < endTime:
             if self.get_state() is target:
                 break
 
-            time.sleep(sleepTime)
+            time.sleep(0.050)
         else:  # If no break
-            raise RuntimeError(f'Could not transition from {current!r} to {target!r}. Timeout expired!')
+            raise TimeoutError(f'Could not transition from {current!r} to {target!r} in {timeout:.3f} sec')
 
     def change_state(self, target: State, timeout: Optional[float] = None):
         """Change to a specific state. Will traverse all necessary states in
@@ -532,6 +531,9 @@ class CiA402Node(RemoteNode):
 
         Args:
             target: New target state.
+
+        Kwargs:
+            timeout: Optional timeout.
         """
         current = self.get_state()
         if target is current:
@@ -560,6 +562,11 @@ class CiA402Node(RemoteNode):
             op: New target mode of operation.
         """
         self.logger.info('Switching to operation mode %r', op)
+        current = self.get_operation_mode()
+        if current is op:
+            self.logger.debug('Already operation mode %s', op)
+            return
+
         state = self.get_state()
         if state not in VALID_OP_MODE_CHANGE_STATES:
             raise RuntimeError(f'Can not change to {op!r} when in {state!r}')
@@ -571,51 +578,55 @@ class CiA402Node(RemoteNode):
         self.sdo[MODES_OF_OPERATION].raw = op
 
     @contextlib.contextmanager
-    def restore_states_and_operation_mode(self):
+    def restore_states_and_operation_mode(self, timeout: Optional[float] = None):
         """Restore NMT state, CiA 402 state and operation mode. Implemented as
         context manager.
+
+        Kwargs:
+            timeout: Optional timeout.
 
         Usage:
             >>> with node.restore_states_and_operation_mode():
             ...     # Do something fancy with the states
             ...     pass
         """
-        oldNmt = self.nmt.state
         oldOp = self.get_operation_mode()
         oldState = self.get_state()
 
         yield self
 
-        # TODO: Should we do a d-tour via READY_TO_SWITCH_ON so that we can
-        # restore the operation mode in any case?
-        #self.change_state(State.READY_TO_SWITCH_ON)
         self.set_operation_mode(oldOp)
-        self.change_state(oldState)
-        self.nmt.state = oldNmt
+        self.change_state(oldState, timeout)
 
     def reset_fault(self):
         """Performe fault reset to SWITCH_ON_DISABLED."""
         self.logger.info('Resetting fault')
-        self.sdo[CONTROLWORD].raw = 0
+        #self.sdo[CONTROLWORD].raw = 0
         self.sdo[CONTROLWORD].raw = CW.FAULT_RESET
 
-    def switch_off(self):
-        """Switch off drive. Same state as on power-up."""
-        #self.nmt.state = PRE_OPERATIONAL
-        self.change_state(State.READY_TO_SWITCH_ON)
+    def switch_off(self, timeout: Optional[float] = None):
+        """Switch off drive. Same state as on power-up.
 
-    def disable(self):
-        """Disable drive (no power)."""
-        #self.nmt.state = OPERATIONAL
-        self.change_state(State.SWITCHED_ON)
+        Kwargs:
+            timeout: Optional timeout.
+        """
+        self.change_state(State.SWITCH_ON_DISABLED, timeout)
 
-    def enable(self):
-        """Enable drive."""
-        #self.nmt.state = OPERATIONAL
-        self.change_state(State.OPERATION_ENABLE)
+    def disable(self, timeout: Optional[float] = None):
+        """Disable drive (no power).
 
-    def enabled(self):
-        return self.get_state() is State.OPERATION_ENABLE
+        Kwargs:
+            timeout: Optional timeout.
+        """
+        self.change_state(State.READY_TO_SWITCH_ON, timeout)
+
+    def enable(self, timeout: Optional[float] = None):
+        """Enable drive.
+
+        Kwargs:
+            timeout: Optional timeout.
+        """
+        self.change_state(State.OPERATION_ENABLE, timeout)
 
     def set_target_position(self, pos):
         """Set target position in device units."""

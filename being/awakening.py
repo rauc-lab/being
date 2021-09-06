@@ -13,7 +13,7 @@ from being.clock import Clock
 from being.config import CONFIG
 from being.connectables import MessageInput
 from being.logging import get_logger
-from being.motors.blocks import MOTOR_CHANGED
+from being.motors.blocks import MOTOR_DONE_HOMING
 from being.web.server import init_web_server, run_web_server
 from being.web.web_socket import WebSocket
 
@@ -141,7 +141,7 @@ def awake(
 
     being = Being(blocks, clock, network)
     for motor in being.motors:
-        motor.subscribe(MOTOR_CHANGED, being.motor_changed)
+        motor.subscribe(MOTOR_DONE_HOMING, being.motor_done_homing)
 
     being.enable_motors()
     being.home_motors()

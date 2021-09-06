@@ -1,5 +1,6 @@
 """Motor controllers."""
 import sys
+import time
 from typing import Optional, Dict, Generator, Set, Any
 
 from canopen.emcy import EmcyError
@@ -212,10 +213,13 @@ class Controller:
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 
+        self.logger.debug('state before %s', node.get_state())
         if node.get_state() is CiA402State.FAULT:
             node.reset_fault()
+            time.sleep(0.5)
 
-        self.switch_off()
+        node.change_state(CiA402State.READY_TO_SWITCH_ON, timeout=0.5)
+        self.logger.debug('state after %s', node.get_state())
 
         self.logger.debug('direction: %f', self.direction)
         self.logger.debug('homingDirection: %f', self.homingDirection)
@@ -226,17 +230,20 @@ class Controller:
         """Configure direction or orientation of controller / motor."""
         raise NotImplementedError
 
-    def switch_off(self):
+    def switch_off(self, timeout: Optional[float] = None):
         """Switch off drive. Same state as on power-up."""
-        self.node.switch_off()
+        self.logger.debug('switch_off()')
+        self.node.switch_off(timeout)
 
-    def disable(self):
+    def disable(self, timeout: Optional[float] = None):
         """Disable drive (no power)."""
-        self.node.disable()
+        self.logger.debug('disable()')
+        self.node.disable(timeout)
 
-    def enable(self):
+    def enable(self, timeout: Optional[float] = None):
         """Enable drive."""
-        self.node.enable()
+        self.logger.debug('enable()')
+        self.node.enable(timeout)
 
     def enabled(self) -> bool:
         """Is motor enabled?"""
@@ -244,6 +251,7 @@ class Controller:
 
     def home(self) -> HomingProgress:
         """Create homing job routine for this controller."""
+        self.logger.debug('home()')
         self.validate_homing_method(self.homingMethod)
         # Configure the homing registers
         # - Modes of operation (object 0x6060) set to Homing mode (6)
@@ -373,13 +381,12 @@ class Mclm3002(Controller):
             current = sdo['Current Actual Value'].raw
             return current > limit  # TODO: Add percentage threshold?
 
-        faulhaberHomingOffset = 0x607C
         final = HomingState.UNHOMED
+
         with node.restore_states_and_operation_mode():
             node.change_state(CiA402State.READY_TO_SWITCH_ON)
-            node.sdo[faulhaberHomingOffset].raw = 0
+            node.sdo['Home Offset'].raw = 0
             node.set_operation_mode(OperationMode.PROFILED_VELOCITY)
-            node.nmt.state = OPERATIONAL
 
             if self.homingDirection >= 0:
                 velocities = [speed, -speed]
@@ -398,7 +405,6 @@ class Mclm3002(Controller):
                 node.change_state(CiA402State.READY_TO_SWITCH_ON)
 
             halt()
-            node.nmt.state = PRE_OPERATIONAL
             node.change_state(CiA402State.READY_TO_SWITCH_ON)
 
             width = upper - lower
@@ -413,7 +419,7 @@ class Mclm3002(Controller):
                 lower += margin
                 upper -= margin
 
-                sdo[faulhaberHomingOffset].raw = lower
+                node.sdo['Home Offset'].raw = lower
                 sdo['Software Position Limit'][1].raw = -1e7
                 sdo['Software Position Limit'][2].raw = +1e7
 
@@ -467,6 +473,7 @@ class Epos4(Controller):
         variable.raw = newMisc
 
     def home(self):
+        self.logger.debug('home()')
         if self.homingMethod == 35:
             homingMethod = 37
         else:
@@ -482,5 +489,6 @@ class Epos4(Controller):
             self.node.set_target_position(posSoll)
         else:
             posIst = self.node.get_actual_position()
-            velSoll = 1e-3 / INTERVAL * (posSoll - posIst)
+            err = (posSoll - posIst)
+            velSoll = 1e-3 / INTERVAL * err
             self.node.set_target_velocity(velSoll)

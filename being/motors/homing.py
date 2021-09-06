@@ -15,7 +15,7 @@ from being.can.cia_402 import (
     SW,
     State as CiA402State,
 )
-from being.can.nmt import OPERATIONAL
+from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.error import BeingError
 
 
@@ -40,9 +40,11 @@ HomingProgress = Generator[HomingState, None, None]
 """Yielding the current homing state."""
 
 
-class HomingFailed(BeingError):
-
-    """Something went wrong while homing."""
+def change_state_gen(node, target):
+    """Generator based change_state() function. Some controllers are slow..."""
+    node.change_state(target)
+    while not node.get_state() is target:
+        yield HomingState.ONGOING
 
 
 # TODO(atheler): Move CiA 402 homing functions -> CiA402Node as methods
@@ -89,20 +91,30 @@ def homing_reference_run(node: CiA402Node) -> HomingProgress:
         yield HomingState.ONGOING
 
 
-def proper_homing(node: CiA402Node, timeout: float = 10.0) -> HomingProgress:
-    """Proper CiA 402 homing."""
+def proper_homing(node: CiA402Node, timeout: float = 5.0) -> HomingProgress:
+    """Proper CiA 402 homing.
+
+    Args:
+        node: Node to home
+
+    Kwargs:
+        timeout: Max duration of homing
+        node: Node to home
+
+    """
+    startTime = time.perf_counter()
+    endTime = startTime + timeout
+
+    def timeout_expired():
+        expired = time.perf_counter() > endTime
+        return expired
+
+    state = HomingState.ONGOING
+
     with node.restore_states_and_operation_mode():
-        node.change_state(CiA402State.READY_TO_SWITCH_ON)
+        yield from change_state_gen(node, CiA402State.SWITCHED_ON)
         node.set_operation_mode(OperationMode.HOMING)
-        node.nmt.state = OPERATIONAL
-        node.change_state(CiA402State.OPERATION_ENABLE)
-
-        startTime = time.perf_counter()
-        endTime = startTime + timeout
-
-        def timeout_expired():
-            expired = time.perf_counter() > endTime
-            return expired
+        yield from change_state_gen(node, CiA402State.OPERATION_ENABLE)
 
         start_homing(node)
 
@@ -113,11 +125,12 @@ def proper_homing(node: CiA402Node, timeout: float = 10.0) -> HomingProgress:
                 break
 
             yield state
+
         else:  # If no break
             state = HomingState.HOMED
 
         stop_homing(node)
 
-        node.change_state(CiA402State.READY_TO_SWITCH_ON)
+        yield from change_state_gen(node, CiA402State.SWITCHED_ON)
 
     yield state

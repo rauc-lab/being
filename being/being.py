@@ -9,6 +9,7 @@ from being.clock import Clock
 from being.connectables import ValueOutput, MessageOutput
 from being.execution import execute, block_network_graph
 from being.graph import topological_sort
+from being.logging import get_logger
 from being.motion_player import MotionPlayer
 from being.motors.blocks import MotorBlock
 from being.motors.homing import HomingState
@@ -25,7 +26,6 @@ def message_outputs(blocks):
     """Collect all message outputs from blocks."""
     for block in blocks:
         yield from filter_by_type(block.outputs, MessageOutput)
-
 
 
 class Being:
@@ -55,34 +55,40 @@ class Being:
         self.motionPlayers = list(filter_by_type(self.execOrder, MotionPlayer))
         self.motors = list(filter_by_type(self.execOrder, MotorBlock))
 
-    def _enable_pdo_communication(self):
-        if self.network:
-            self.network.nmt.state = OPERATIONAL
-
-    def _disable_pdo_communication(self):
-        if self.network:
-            self.network.nmt.state = PRE_OPERATIONAL
+        self.logger = get_logger('Being')
 
     def enable_motors(self):
-        """Enable all motors and set global NMT to OPERATIONAL."""
-        for motor in self.motors:
-            motor.enable(publish=False)
+        """Enable all motor blocks."""
+        self.logger.info('enable_motors()')
+        if self.network:
+            self.network.disable_pdo_communication()
 
-        self._enable_pdo_communication()
+        for motor in self.motors:
+            motor.enable(timeout=0.100)
+
+        if self.network:
+            self.network.enable_pdo_communication()
 
     def disable_motors(self):
-        """Disable all motors and set global NMT to PRE-OPERATIONAL."""
-        self._disable_pdo_communication()
+        """Disable all motor blocks."""
+        self.logger.info('disable_motors()')
+        if self.network:
+            self.network.disable_pdo_communication()
+
         for motor in self.motors:
-            motor.disable(publish=False)
+            motor.disable(timeout=0.100)
+
+        if self.network:
+            self.network.enable_pdo_communication()
 
     def home_motors(self):
         """Home all motors."""
-        self._disable_pdo_communication()
+        self.logger.info('home_motors()')
+        self.network.disable_pdo_communication()
         for motor in self.motors:
             motor.home()
 
-    def motor_changed(self):
+    def motor_done_homing(self):
         """Motor changed callback. Used to track if all motors are homed and
         then to set global NMT to OPERATIONAL.
 
@@ -94,7 +100,10 @@ class Being:
                (NMT OPERATIONAL).
         """
         if all(mot.homing is HomingState.HOMED for mot in self.motors):
-            self._enable_pdo_communication()
+            self.logger.info('All motors homed')
+            self.network.enable_pdo_communication()
+        else:
+            self.logger.info('Not all motors homed')
 
     def start_behaviors(self):
         """Start all behaviors."""
