@@ -20,6 +20,7 @@ from being.can.cia_402 import (
     which_state,
 )
 from being.config import CONFIG
+from being.constants import TAU
 from being.error import BeingError
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
