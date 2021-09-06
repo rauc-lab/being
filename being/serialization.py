@@ -12,6 +12,7 @@ Notes:
 """
 import base64
 import json
+import logging
 from collections import OrderedDict
 from enum import EnumMeta
 from typing import Generator, Dict
@@ -228,6 +229,17 @@ class BeingEncoder(json.JSONEncoder):
 
         if isinstance(o, Block):
             return o.to_dict()
+
+        if isinstance(o, logging.LogRecord):
+            return {
+                'type': 'LogRecord',
+                'name': o.name,
+                #'msg': o.msg,
+                #'args': o.args,
+                'message': o.msg % o.args,
+                'levelname': o.levelname,
+                'levelno': o.levelno,
+            }
 
         return json.JSONEncoder.default(self, o)
 

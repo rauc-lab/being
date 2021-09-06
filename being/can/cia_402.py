@@ -96,13 +96,22 @@ class Command(IntEnum):
 
     """CANopen CiA 402 controlword commands for state transitions."""
 
-    SHUT_DOWN = CW.ENABLE_VOLTAGE | CW.QUICK_STOP
-    SWITCH_ON = CW.SWITCH_ON | CW.ENABLE_VOLTAGE | CW.QUICK_STOP
+    SHUT_DOWN = CW.QUICK_STOP | CW.ENABLE_VOLTAGE
+    SWITCH_ON = CW.QUICK_STOP | CW.ENABLE_VOLTAGE | CW.SWITCH_ON
     DISABLE_VOLTAGE = 0
     QUICK_STOP = CW.ENABLE_VOLTAGE
-    DISABLE_OPERATION = CW.ENABLE_VOLTAGE | CW.QUICK_STOP | CW.ENABLE_OPERATION
-    ENABLE_OPERATION = CW.SWITCH_ON | CW.ENABLE_VOLTAGE | CW.QUICK_STOP | CW.ENABLE_OPERATION
+    DISABLE_OPERATION = CW.QUICK_STOP | CW.ENABLE_VOLTAGE | CW.SWITCH_ON
+    ENABLE_OPERATION = CW.ENABLE_OPERATION | CW.QUICK_STOP | CW.ENABLE_VOLTAGE | CW.SWITCH_ON
     FAULT_RESET = CW.FAULT_RESET
+
+
+assert Command.SHUT_DOWN == 0b110
+assert Command.SWITCH_ON == 0b111
+assert Command.DISABLE_VOLTAGE == 0
+assert Command.QUICK_STOP == 0b10
+assert Command.DISABLE_OPERATION == 0b111
+assert Command.ENABLE_OPERATION == 0b1111
+assert Command.FAULT_RESET == (1 << 7)
 
 
 class SW(IntEnum):
@@ -479,7 +488,7 @@ class CiA402Node(RemoteNode):
         #sw = self.pdo['Statusword'].raw  # This takes approx. 0.027 ms
         return which_state(sw)
 
-    def set_state(self, target: State, timeout: float = 0.100):
+    def set_state(self, target: State, timeout: Optional[float] = None):
         """Set node state. This method only works for possible transitions from
         current state (single step). For arbitrary transitions use
         CiA402Node.change_state.
@@ -490,7 +499,7 @@ class CiA402Node(RemoteNode):
         Kwargs:
             timeout: Timeout for
         """
-        self.logger.info('Switching to state %r', target)
+        self.logger.info('Switching to state %s', target)
         current = self.get_state()
         if target is current:
             return
@@ -501,6 +510,9 @@ class CiA402Node(RemoteNode):
         edge = (current, target)
         cw = TRANSITIONS[edge]
         self.sdo[CONTROLWORD].raw = cw
+
+        if timeout is None:
+            return
 
         # Some controllers are to slow to switch
         # TODO: Is there any other way?
@@ -514,7 +526,7 @@ class CiA402Node(RemoteNode):
         else:  # If no break
             raise RuntimeError(f'Could not transition from {current!r} to {target!r}. Timeout expired!')
 
-    def change_state(self, target: State):
+    def change_state(self, target: State, timeout: Optional[float] = None):
         """Change to a specific state. Will traverse all necessary states in
         between to get there.
 
@@ -529,8 +541,13 @@ class CiA402Node(RemoteNode):
         if len(path) == 0:
             self.logger.error('Found no path from %s to %s', current, target)
 
+        startTime = time.perf_counter()
         for state in path[1:]:
-            self.set_state(state)
+            if timeout is None:
+                self.set_state(state)
+            else:
+                passed = time.perf_counter() - startTime
+                self.set_state(state, timeout - passed)
 
     def get_operation_mode(self) -> OperationMode:
         """Get current operation mode."""
@@ -576,18 +593,29 @@ class CiA402Node(RemoteNode):
         self.change_state(oldState)
         self.nmt.state = oldNmt
 
+    def reset_fault(self):
+        """Performe fault reset to SWITCH_ON_DISABLED."""
+        self.logger.info('Resetting fault')
+        self.sdo[CONTROLWORD].raw = 0
+        self.sdo[CONTROLWORD].raw = CW.FAULT_RESET
+
     def switch_off(self):
         """Switch off drive. Same state as on power-up."""
-        self.nmt.state = PRE_OPERATIONAL
+        #self.nmt.state = PRE_OPERATIONAL
         self.change_state(State.READY_TO_SWITCH_ON)
 
     def disable(self):
         """Disable drive (no power)."""
+        #self.nmt.state = OPERATIONAL
         self.change_state(State.SWITCHED_ON)
 
     def enable(self):
         """Enable drive."""
+        #self.nmt.state = OPERATIONAL
         self.change_state(State.OPERATION_ENABLE)
+
+    def enabled(self):
+        return self.get_state() is State.OPERATION_ENABLE
 
     def set_target_position(self, pos):
         """Set target position in device units."""

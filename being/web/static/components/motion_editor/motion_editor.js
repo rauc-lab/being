@@ -665,7 +665,7 @@ export class Editor extends CurverBase {
         const duration = current.end;
         this.transport.duration = duration;
         this.lines.forEach(line => {
-            line.maxlen = duration / this.interval;
+            line.maxlen = 0.9 * duration / this.interval;
         });
 
         this.drawer.clear();

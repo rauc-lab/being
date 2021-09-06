@@ -61,18 +61,17 @@ export class Console {
     /**
      * Process new log record.
      */
-    new_log_message(msg) {
+    new_log_message(record) {
         while (this.list.childNodes.length > this.maxlen) {
             this.remove_oldest_log();
         }
 
+        this.records.push(record);
+
         const li = document.createElement("li");
         this.list.appendChild(li);
-        li.innerHTML = msg.name + "<i> " + msg.message.replaceAll("\n", "<br>") + "</i>";
-        li.style.color = get_color(msg.level / MAX_LOG_LEVEL);
-
-        const record = msg.level + " - " + msg.name + " - " + msg.message;
-        this.records.push(record);
+        li.innerHTML = record.name + "<i> " + record.message.replaceAll("\n", "<br>") + "</i>";
+        li.style.color = get_color(record.levelno / MAX_LOG_LEVEL);
 
         if (this.auto_scrolling) {
             this.scroll_all_the_way_down();
@@ -86,7 +85,9 @@ export class Console {
         // Copy record texts to clipboard via dummy input element.
         // Note: document.execCommand instead of the newer clipboard API so
         // that not dependent on a seconds SSL / HTTPS connection.
-        const text = this.records.join("\n");
+        const text = this.records.map(rec => {
+            return rec.levelname + " - " + rec.name + " - " + rec.message;
+        }).join("\n");
         const input = document.createElement("textarea");
         input.value = text;
         document.body.appendChild(input);

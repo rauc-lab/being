@@ -76,7 +76,14 @@ async def _send_being_state_to_front_end(being: Being, ws: WebSocket):
         out.connect(dummy)
         dummies.append(dummy)
 
+    time_func = asyncio.get_running_loop().time
+    cycle = int(time_func() / WEB_INTERVAL)
     while True:
+        now = time_func()
+        then = cycle * WEB_INTERVAL
+        if then > now:
+            await asyncio.sleep(then - now)
+
         await ws.send_json({
             'type': 'being-state',
             'timestamp': being.clock.now(),
@@ -86,7 +93,8 @@ async def _send_being_state_to_front_end(being: Being, ws: WebSocket):
                 for dummy in dummies
             ],
         })
-        await asyncio.sleep(WEB_INTERVAL)
+
+        cycle += 1
 
 
 async def _run_being_with_web_server(being):
