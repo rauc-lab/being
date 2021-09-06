@@ -42,9 +42,11 @@
         {% endfor %}
     {% endif %}
 
-    <a class="anchor" id="editor-anchor"></a>
-    <h1>Motion Editor</h1>
-    <being-editor id="editor"></being-editor>
+    {% if motionPlayers %}
+        <a class="anchor" id="editor-anchor"></a>
+        <h1>Motion Editor</h1>
+        <being-editor id="editor"></being-editor>
+    {% endif %}
 
     <script type="module">
         import { WS_ADDRESS } from "/static/js/config.js";
