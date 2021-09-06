@@ -114,7 +114,6 @@ class MotorBlock(Block, PubSub, abc.ABC):
         """Start homing routine for this motor. Has then to be driven via the
         update() method.
         """
-        print('publish MOTOR_CHANGE')
         self.publish(MOTOR_CHANGED)
 
     def to_dict(self):
@@ -325,8 +324,8 @@ class RotaryMotor(CanMotor):
 
     """Default rotary Maxon motor."""
 
-    def __init__(self, nodeId, motor='DC 22', **kwargs):
-        super().__init__(nodeId, motor, **kwargs)
+    def __init__(self, nodeId, motor='DC 22', length=TAU, **kwargs):
+        super().__init__(nodeId, motor, length=length, **kwargs)
 
 
 class WindupMotor(MotorBlock):
