@@ -84,7 +84,9 @@ class Being:
     def home_motors(self):
         """Home all motors."""
         self.logger.info('home_motors()')
-        self.network.disable_pdo_communication()
+        if self.network:
+            self.network.disable_pdo_communication()
+
         for motor in self.motors:
             motor.home()
 
@@ -101,7 +103,8 @@ class Being:
         """
         if all(mot.homing is HomingState.HOMED for mot in self.motors):
             self.logger.info('All motors homed')
-            self.network.enable_pdo_communication()
+            if self.network:
+                self.network.enable_pdo_communication()
         else:
             self.logger.info('Not all motors homed')
 
