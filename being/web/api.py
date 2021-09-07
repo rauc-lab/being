@@ -480,17 +480,13 @@ def motor_controllers(being)  -> web.RouteTableDef:
     @routes.put('/motors/disable')
     async def disable_motors(request):
         pause_others()
-        try:
-            being.disable_motors()
-        finally:  # Independent of state transition timeouts
-            return json_response(being.motors)
+        being.disable_motors()
+        return json_response(being.motors)
 
     @routes.put('/motors/enable')
     async def enable_motors(request):
-        try:
-            being.enable_motors()
-        finally:  # Independent of state transition timeouts
-            return json_response(being.motors)
+        being.enable_motors()
+        return json_response(being.motors)
 
     @routes.put('/motors/home')
     async def home_motors(request):

@@ -200,6 +200,7 @@ def init_web_server(being, ws) -> web.Application:
         return {
             'version': BEING_VERSION_NUMBER,
             'behaviors': being.behaviors,
+            'motionPlayers': being.motionPlayers,
             'year': which_year_is_it(),
         }
 
