@@ -5,8 +5,9 @@ TODO: VideoBackend.
 """
 import contextlib
 import sys
+import threading
 import warnings
-from typing import List, ForwardRef
+from typing import List
 
 
 try:
@@ -18,8 +19,8 @@ except ImportError:
 import can
 import canopen
 
-from being.can.cia_402 import CiA402Node, State
-from being.can.nmt import STOPPED, PRE_OPERATIONAL, OPERATIONAL
+from being.can.cia_402 import CiA402Node
+from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL
 from being.config import CONFIG
 from being.logging import get_logger
 from being.rpi_gpio import GPIO
@@ -27,6 +28,7 @@ from being.utils import SingleInstanceCache, filter_by_type
 
 
 DEFAULT_CAN_BITRATE = CONFIG['Can']['DEFAULT_CAN_BITRATE']
+INTERVAL = CONFIG['General']['INTERVAL']
 
 
 # Default system dependent CAN bus parameters
@@ -43,15 +45,29 @@ SYNC_MSG = can.Message(is_extended_id=False, arbitration_id=0x80, data=[], is_re
 
 class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContextManager):
 
-    """CANopen network wrapper. Automatic connect during __enter__."""
+    """CANopen network wrapper.
 
-    def __init__(self, bitrate=DEFAULT_CAN_BITRATE, bustype=_BUS_TYPE, channel=_CHANNEL):
+    Automatic connect during __enter__ phase. Also has custom SYNC sender thread
+    which works with a event to sync main loop with periodically sending out
+    SYNC messages over CAN.
+    """
+
+    def __init__(self,
+            bitrate=DEFAULT_CAN_BITRATE,
+            bustype=_BUS_TYPE,
+            channel=_CHANNEL,
+            syncThread=True,
+        ):
         super().__init__(bus=None)
         self.bitrate = bitrate
         self.bustype = bustype
         self.channel = channel
+        self.syncThread = syncThread
 
         self.logger = get_logger('CanBackend')
+        self.running = syncThread
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.sendSyncEvt = threading.Event()
 
     @property
     def drives(self) -> List[CiA402Node]:
@@ -63,14 +79,6 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         for drive in self.drives:
             drive.switch_off()
 
-    def send_sync(self):
-        """Custom update method so that we can include CanBackend in execOrder
-        for sending out sync messages at the end of the cycle for driving the
-        PDO communication.
-        """
-        #self.send_message(0x80, [])  # Std. CAN SYNC message
-        self.bus.send(SYNC_MSG)
-
     def enable_pdo_communication(self):
         """Enable PDO communication by setting NMT state to OPERATIONAL."""
         self.logger.debug('Global NMT -> OPERATIONAL')
@@ -81,14 +89,42 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         self.logger.debug('Global NMT -> PRE-OPERATIONAL')
         self.nmt.state = PRE_OPERATIONAL
 
+    def send_sync(self):
+        """Send SYNC message over CAN network."""
+        if self.syncThread:
+            self.sendSyncEvt.set()
+        else:
+            # self.send_message(0x80, [])  # send_message() has a lock inside
+            self.bus.send(SYNC_MSG)
+
+    def _run(self):
+        maxWait = 1.5 * INTERVAL  # Allow for some timing slack
+        while self.running:
+            self.sendSyncEvt.wait(maxWait)
+            self.bus.send(SYNC_MSG)
+            self.sendSyncEvt.clear()
+
+    def start_sync_thread(self):
+        """Start sync thread. Only possible to start it once..."""
+        self.running = True
+        self.thread.start()
+
+    def stop_sync_thread(self):
+        """Stop sync thread."""
+        self.running = False
+        self.sendSyncEvt.set()  # Skip unnecessary waiting time
+        self.thread.join()
+
     def __enter__(self):
         self.connect(bitrate=self.bitrate, bustype=self.bustype, channel=self.channel)
         self.check()
+        self.start_sync_thread()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.disable_pdo_communication()
         self.switch_off_drives()
+        self.stop_sync_thread()
         self.disconnect()
 
 

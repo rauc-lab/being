@@ -121,5 +121,4 @@ class Being:
             self.network.send_sync()
 
         execute(self.execOrder)
-
         self.clock.step()
