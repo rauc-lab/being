@@ -198,7 +198,7 @@ class Controller:
         self.position_si_2_device = float(multiplier * motor.gear * motor.position_si_2_device)
         self.homingMethod = homingMethod
         self.homingDirection = homingKwargs['homingDirection']
-        self.length = min(length, motor.length)
+        self.length = length
         self.lower = 0.
         self.upper = length * self.position_si_2_device
         self.logger = get_logger(str(self))
