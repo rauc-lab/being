@@ -20,7 +20,6 @@ from being.can.cia_402 import (
     TARGET_VELOCITY,
     determine_homing_method,
 )
-from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.config import CONFIG
 from being.constants import FORWARD, INF
 from being.error import BeingError
@@ -444,13 +443,21 @@ class Epos4(Controller):
     DEVICE_ERROR_REGISTER = MAXON_DEVICE_ERROR_REGISTER
     EMERGENCY_DESCRIPTIONS = MAXON_EMERGENCY_DESCRIPTIONS
     SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
-    USE_POSITION_CONTROLLER = True
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, usePositionController=True, **kwargs):
+        """Kwargs:
+            usePositionController: If True use position controller on EPOS4 with
+                operation mode CYCLIC_SYNCHRONOUS_POSITION. Otherwise simple
+                custom application side position controller working with the
+                CYCLIC_SYNCHRONOUS_VELOCITY.
+        """
         super().__init__(*args, **kwargs)
+        self.usePositionController = usePositionController
+
         # TODO: Test if firmwareVersion < 0x170h?
         self.logger.info('Firmware version 0x%04x', self.firmware_version())
-        if self.USE_POSITION_CONTROLLER:
+
+        if self.usePositionController:
             self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
         else:
             self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_VELOCITY)
@@ -485,7 +492,7 @@ class Epos4(Controller):
     def set_target_position(self, targetPosition):
         tarPosDev = targetPosition * self.position_si_2_device
         posSoll = clip(tarPosDev, self.lower, self.upper)
-        if self.USE_POSITION_CONTROLLER:
+        if self.usePositionController:
             self.node.set_target_position(posSoll)
         else:
             posIst = self.node.get_actual_position()
