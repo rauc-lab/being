@@ -6,6 +6,7 @@ import time
 
 from being.backends import AudioBackend
 from being.block import Block
+from being.clock import Clock
 from being.config import CONFIG
 from being.constants import TAU
 from being.math import linear_mapping
@@ -137,3 +138,32 @@ class DummySensor(Sensor):
 
         self.nextUpd = now + self.interval
         self.output.send('But hey')
+
+
+def sine_pulse(phase: float) -> float:
+    """Cosine pulse from [0., 1.]."""
+    return .5 * (1 - math.cos(phase))
+
+
+def ranged_sine_pulse(phase: float, lower: float = 0.0, upper: float = 1.0) -> float:
+    """Cosine pulse in interval [lower, upper]."""
+    return (upper - lower) * sine_pulse(phase) + lower
+
+
+def ranged_sine_pulse_integrated(phase: float, lower: float = 0.0, upper: float = 1.0) -> float:
+    """Integrated cosine pulse for derivative range in [lower, upper]."""
+    return .5 * (lower - upper) * math.sin(phase) + .5 * (lower + upper) * phase
+
+
+class Pendulum(Block):
+    def __init__(self, frequency=1., lower=0., upper=1.):
+        super().__init__()
+        self.add_value_output()
+        self.frequency = frequency
+        self.lower = lower
+        self.upper = upper
+        self.clock = Clock.single_instance_setdefault()
+
+    def update(self):
+        phase = TAU * self.frequency * self.clock.now()
+        self.output.value = ranged_sine_pulse(phase, self.lower, self.upper)
