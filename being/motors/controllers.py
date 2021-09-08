@@ -115,6 +115,25 @@ def format_error_code(errorCode: int, descriptions: list) -> str:
     return description
 
 
+def apply_settings_to_node(node, settings: Dict[str, Any]):
+    """Apply settings to CANopen node. Convert physical SI values to device
+    units (if present in DEVICE_UNITS dict).
+
+    Args:
+        settings: Settings to apply. Addresses (path syntax) -> value
+            entries.
+    """
+    #print('apply_settings_to_node()')
+    for name, value in settings.items():
+        *path, last = name.split('/')
+        sdo = node.sdo
+        for key in path:
+            sdo = sdo[key]
+
+        #print(name, ':', value)
+        sdo[last].raw = value
+
+
 class ControllerError(BeingError):
 
     """General Being controller errors."""
@@ -207,7 +226,7 @@ class Controller:
         # Init
         self.apply_motor_direction(direction)
         merged = merge_dicts(self.motor.defaultSettings, settings)
-        self.apply_settings(merged)
+        apply_settings_to_node(self.node, merged)
 
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
@@ -305,21 +324,6 @@ class Controller:
         """Get actual position in SI units."""
         return self.node.get_actual_position() / self.position_si_2_device
 
-    def apply_settings(self, settings: Dict[str, Any]):
-        """Apply settings to CANopen node. Convert physical SI values to device
-        units (if present in DEVICE_UNITS dict).
-
-        Args:
-            settings: Settings to apply. Addresses (path syntax) -> value
-                entries.
-        """
-        for name, value in settings.items():
-            *path, last = name.split('/')
-            sdo = self.node.sdo
-            for key in path:
-                sdo = sdo[key]
-
-            sdo[last].raw = value
 
     def __str__(self):
         return f'{type(self).__name__}({self.node}, {self.motor})'
