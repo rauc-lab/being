@@ -1,4 +1,4 @@
-"""Being object. Encapsulates the various blocks for a given programm."""
+"""Being object. Encapsulates the various blocks for a given program."""
 import contextlib
 import threading
 

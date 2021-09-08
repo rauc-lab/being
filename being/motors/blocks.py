@@ -6,6 +6,7 @@ and home multiple motors / nodes in parallel. This results in quasi coroutines.
 We do not use asyncio because we want to keep the core async free for now.
 """
 import abc
+import enum
 import random
 import time
 from typing import Optional, Dict, Any, Union
@@ -37,15 +38,6 @@ from being.resources import register_resource
 INTERVAL = CONFIG['General']['INTERVAL']
 """General delta t interval."""
 
-MOTOR_CHANGED = 'MOTOR_CHANGED'
-"""Motor changed event."""
-
-MOTOR_ERROR = 'MOTOR_ERROR'
-"""Motor error event."""
-
-MOTOR_DONE_HOMING = 'MOTOR_DONE_HOMING'
-"""Motor error event."""
-
 CONTROLLER_TYPES: Dict[str, Controller] = {
     'MCLM3002P-CO': Mclm3002,
     'EPOS4': Epos4,
@@ -65,9 +57,10 @@ def create_controller_for_node(node: CiA402Node, *args, **kwargs) -> Controller:
     return controllerType(node, *args, **kwargs)
 
 
-class DriveError(BeingError):
-
-    """Something went wrong on the drive."""
+class MotorEvent(enum.Enum):
+    CHANGED = enum.auto()
+    ERROR = enum.auto()
+    DONE_HOMING = enum.auto()
 
 
 class MotorBlock(Block, PubSub, abc.ABC):
@@ -76,7 +69,7 @@ class MotorBlock(Block, PubSub, abc.ABC):
             name: Block name.
         """
         super().__init__(name=name)
-        PubSub.__init__(self, events=[MOTOR_CHANGED, MOTOR_ERROR, MOTOR_DONE_HOMING])
+        PubSub.__init__(self, events=MotorEvent)
         self.add_value_input('targetPosition')
         self.add_value_output('actualPosition')
         self.homing = HomingState.UNHOMED
@@ -95,7 +88,7 @@ class MotorBlock(Block, PubSub, abc.ABC):
             timeout: Blocking state change with timeout.
         """
         if publish:
-            self.publish(MOTOR_CHANGED)
+            self.publish(MotorEvent.CHANGED)
 
     @abc.abstractmethod
     def disable(self, publish: bool = True, timeout: Optional[float] = None):
@@ -106,7 +99,7 @@ class MotorBlock(Block, PubSub, abc.ABC):
             timeout: Blocking state change with timeout.
         """
         if publish:
-            self.publish(MOTOR_CHANGED)
+            self.publish(MotorEvent.CHANGED)
 
     @abc.abstractmethod
     def enabled(self) -> bool:
@@ -117,7 +110,7 @@ class MotorBlock(Block, PubSub, abc.ABC):
         """Start homing routine for this motor. Has then to be driven via the
         update() method.
         """
-        self.publish(MOTOR_CHANGED)
+        self.publish(MotorEvent.CHANGED)
 
     def to_dict(self):
         dct = super().to_dict()
@@ -177,8 +170,8 @@ class DummyMotor(MotorBlock):
         if self.homing is HomingState.ONGOING:
             self.homing = next(self.homingJob)
             if self.homing is not HomingState.ONGOING:
-                self.publish(MOTOR_DONE_HOMING)
-                self.publish(MOTOR_CHANGED)
+                self.publish(MotorEvent.DONE_HOMING)
+                self.publish(MotorEvent.CHANGED)
 
             target = 0.
         else:
@@ -265,7 +258,7 @@ class CanMotor(MotorBlock):
         )
         self.logger = get_logger(str(self))
         for msg in self.controller.error_history_messages():
-            self.publish(MOTOR_ERROR, msg)
+            self.publish(MotorEvent.ERROR, msg)
 
     def enable(self, publish: bool = True, timeout: Optional[float] = None):
         self.controller.enable(timeout)
@@ -287,7 +280,7 @@ class CanMotor(MotorBlock):
         for emcy in self.controller.new_emcy_errors():
             msg = self.controller.emcy_message(emcy)
             self.logger.error(msg)
-            self.publish(MOTOR_ERROR, msg)
+            self.publish(MotorEvent.ERROR)
 
         sw = self.controller.node.pdo[STATUSWORD].raw  # PDO instead of SDO for speed. This takes approx. 0.027 ms
         #print(which_state(sw))
@@ -299,8 +292,8 @@ class CanMotor(MotorBlock):
         elif self.homing is HomingState.ONGOING:
             self.homing = next(self.homingJob)
             if self.homing is not HomingState.ONGOING:
-                self.publish(MOTOR_DONE_HOMING)
-                self.publish(MOTOR_CHANGED)
+                self.publish(MotorEvent.DONE_HOMING)
+                self.publish(MotorEvent.CHANGED)
 
         self.output.value = self.controller.get_actual_position()
 
