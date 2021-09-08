@@ -91,7 +91,7 @@ def homing_reference_run(node: CiA402Node) -> HomingProgress:
         yield HomingState.ONGOING
 
 
-def proper_homing(node: CiA402Node, timeout: float = 5.0) -> HomingProgress:
+def proper_homing(node: CiA402Node, timeout: float = 10.0) -> HomingProgress:
     """Proper CiA 402 homing.
 
     Args:
