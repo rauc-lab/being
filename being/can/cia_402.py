@@ -411,6 +411,9 @@ class CiA402Node(RemoteNode):
         self.setup_rxpdo(3, TARGET_VELOCITY)
         self.setup_rxpdo(4, enabled=False)
 
+        network.register_rpdo(self.rpdo[2])
+        network.register_rpdo(self.rpdo[3])
+
     def setup_txpdo(self,
             nr: int,
             *variables: CanOpenRegister,
@@ -601,7 +604,7 @@ class CiA402Node(RemoteNode):
     def reset_fault(self):
         """Performe fault reset to SWITCH_ON_DISABLED."""
         self.logger.info('Resetting fault')
-        #self.sdo[CONTROLWORD].raw = 0
+        self.sdo[CONTROLWORD].raw = 0
         self.sdo[CONTROLWORD].raw = CW.FAULT_RESET
 
     def switch_off(self, timeout: Optional[float] = None):
@@ -631,7 +634,6 @@ class CiA402Node(RemoteNode):
     def set_target_position(self, pos):
         """Set target position in device units."""
         self.pdo[TARGET_POSITION].raw = pos
-        self.rpdo[2].transmit()
 
     def get_actual_position(self):
         """Get actual position in device units."""
@@ -640,7 +642,6 @@ class CiA402Node(RemoteNode):
     def set_target_velocity(self, vel):
         """Set target velocity in device units."""
         self.pdo[TARGET_VELOCITY].raw = vel
-        self.rpdo[3].transmit()
 
     def get_actual_velocity(self):
         """Get actual velocity in device units."""

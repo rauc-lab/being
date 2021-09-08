@@ -43,8 +43,6 @@ def _run_being_standalone(being):
         sleepTime = then - now
         if sleepTime >= 0:
             time.sleep(then - now)
-        else:
-            LOGGER.critical('Sleep time: %.1f ms', 1000 * sleepTime)
 
         being.single_cycle()
         cycle += 1
@@ -61,8 +59,6 @@ async def _run_being_async(being):
         sleepTime = then - now
         if sleepTime >= 0:
             await asyncio.sleep(sleepTime)
-        else:
-            LOGGER.critical('Sleep time: %.1f ms', 1000 * sleepTime)
 
         being.single_cycle()
         cycle += 1

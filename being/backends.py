@@ -56,18 +56,14 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
             bitrate=DEFAULT_CAN_BITRATE,
             bustype=_BUS_TYPE,
             channel=_CHANNEL,
-            syncThread=True,
         ):
         super().__init__(bus=None)
         self.bitrate = bitrate
         self.bustype = bustype
         self.channel = channel
-        self.syncThread = syncThread
 
         self.logger = get_logger('CanBackend')
-        self.running = syncThread
-        self.thread = threading.Thread(target=self._run, daemon=True)
-        self.sendSyncEvt = threading.Event()
+        self.rpdos = set()
 
     @property
     def drives(self) -> List[CiA402Node]:
@@ -91,40 +87,33 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
 
     def send_sync(self):
         """Send SYNC message over CAN network."""
-        if self.syncThread:
-            self.sendSyncEvt.set()
-        else:
-            # self.send_message(0x80, [])  # send_message() has a lock inside
-            self.bus.send(SYNC_MSG)
+        # self.send_message(0x80, [])  # send_message() has a lock inside
+        self.bus.send(SYNC_MSG)
 
-    def _run(self):
-        maxWait = 1.5 * INTERVAL  # Allow for some timing slack
-        while self.running:
-            self.sendSyncEvt.wait(maxWait)
-            self.bus.send(SYNC_MSG)
-            self.sendSyncEvt.clear()
+    def register_rpdo(self, rx):
+        """Register RPDO map to be transmitted repeadely by sender thread."""
+        self.rpdos.add(rx)
 
-    def start_sync_thread(self):
-        """Start sync thread. Only possible to start it once..."""
-        self.running = True
-        self.thread.start()
-
-    def stop_sync_thread(self):
-        """Stop sync thread."""
-        self.running = False
-        self.sendSyncEvt.set()  # Skip unnecessary waiting time
-        self.thread.join()
+    def transmit_all_rpdos(self):
+        """Transmit current value of all registered RPDO maps."""
+        for rx in self.rpdos:
+            #self.pdo_node.network.send_message(rx.cob_id, rx.data)  # Lock inside
+            msg = can.Message(
+                is_extended_id=rx.cob_id > 0x7FF,
+                arbitration_id=rx.cob_id,
+                data=rx.data,
+                is_remote_frame=False,
+            )
+            self.bus.send(msg)
 
     def __enter__(self):
         self.connect(bitrate=self.bitrate, bustype=self.bustype, channel=self.channel)
         self.check()
-        self.start_sync_thread()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.disable_pdo_communication()
         self.switch_off_drives()
-        self.stop_sync_thread()
         self.disconnect()
 
 
