@@ -331,7 +331,14 @@ class RotaryMotor(CanMotor):
         super().__init__(nodeId, motor, length=length, **kwargs)
 
 
-class WindupMotor(MotorBlock):
-    def __init__(self, nodeId, *args, **kwargs):
-        raise NotImplementedError
-        # TODO: Make me!
+class WindupMotor(CanMotor):
+
+    """Default windup motor with Maxon controller"""
+
+    def __init__(self, nodeId, motor="EC 45", spool_diameter: float = 1.0, length: float = 1.0, **kwargs):
+        """Args:
+            spool_diameter: diameter [m] of spool where the filament is winded up
+            length: length of filament [m]
+        """
+        multiplier = 1 / (spool_diameter / 2)
+        super().__init__(nodeId, motor, multiplier, length=length, multiplier=multiplier, **kwargs)

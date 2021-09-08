@@ -312,14 +312,25 @@ class Controller:
             settings: Settings to apply. Addresses (path syntax) -> value
                 entries.
         """
+        def maybe_int(value):
+            value = value.strip()
+            if value.isnumeric():
+                return int(value)
+
+            if value.startswith('0x'):
+                return int(value, base=16)
+
+            return value
+
         for name, value in settings.items():
-            *path, last = name.split('/')
+            parts = map(maybe_int, name.split('/'))
+            *path, last = parts
             sdo = self.node.sdo
             for key in path:
                 sdo = sdo[key]
 
             sdo[last].raw = value
-
+       
     def __str__(self):
         return f'{type(self).__name__}({self.node}, {self.motor})'
 

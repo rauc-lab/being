@@ -75,6 +75,11 @@ MAXON_EC_45_DEFAULT_SETTINGS = {
     'Interpolation time period/Interpolation time period value': INTERVAL / MILLI,
     'Digital input properties/Digital inputs polarity': MAXON_INPUT_LOW_ACTIVE,
     'Following error window': MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,
+    'Motor data/Nominal current': 3210,  # mA
+    'Motor data/Output current limit': 2 * 3210,  # mA
+    'Motor data/Thermal time constant winding': 29.6,
+    'Motor data/Torque constant': 36900,
+    'Motor rated torque': 128000,
 }
 
 
