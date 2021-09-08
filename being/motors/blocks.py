@@ -87,21 +87,23 @@ class MotorBlock(Block, PubSub, abc.ABC):
     #    pass
 
     @abc.abstractmethod
-    def enable(self, publish: bool = True):
+    def enable(self, publish: bool = True, timeout: Optional[float] = None):
         """Engage motor. This is switching motor on and engaging its drive.
 
         Kwargs:
             publish: If to publish motor changes.
+            timeout: Blocking state change with timeout.
         """
         if publish:
             self.publish(MOTOR_CHANGED)
 
     @abc.abstractmethod
-    def disable(self, publish: bool = True):
+    def disable(self, publish: bool = True, timeout: Optional[float] = None):
         """Switch motor on.
 
         Kwargs:
             publish: If to publish motor changes.
+            timeout: Blocking state change with timeout.
         """
         if publish:
             self.publish(MOTOR_CHANGED)
@@ -136,11 +138,11 @@ class DummyMotor(MotorBlock):
         self.homing = HomingState.HOMED
         self._enabled = False
 
-    def enable(self, publish=True):
+    def enable(self, publish: bool = True, timeout: Optional[float] = None):
         self._enabled = True
         super().enable(publish)
 
-    def disable(self, publish=True):
+    def disable(self, publish: bool = True, timeout: Optional[float] = None):
         self._enabled = False
         super().disable(publish)
 

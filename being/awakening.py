@@ -40,8 +40,11 @@ def _run_being_standalone(being):
     while True:
         now = time.perf_counter()
         then = cycle * INTERVAL
-        if then > now:
+        sleepTime = then - now
+        if sleepTime >= 0:
             time.sleep(then - now)
+        else:
+            LOGGER.critical('Sleep time: %.1f ms', 1000 * sleepTime)
 
         being.single_cycle()
         cycle += 1
@@ -51,11 +54,15 @@ async def _run_being_async(being):
     """Run being inside async loop."""
     time_func = asyncio.get_running_loop().time
     cycle = int(time_func() / INTERVAL)
+
     while True:
         now = time_func()
         then = cycle * INTERVAL
-        if then > now:
-            await asyncio.sleep(then - now)
+        sleepTime = then - now
+        if sleepTime >= 0:
+            await asyncio.sleep(sleepTime)
+        else:
+            LOGGER.critical('Sleep time: %.1f ms', 1000 * sleepTime)
 
         being.single_cycle()
         cycle += 1
