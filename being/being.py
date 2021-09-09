@@ -183,7 +183,7 @@ class Being:
             -> Wait until all motors are homed before resuming PDO communication
                (NMT OPERATIONAL).
         """
-        if all(mot.homing is HomingState.HOMED for mot in self.motors):
+        if all(mot.homed() is HomingState.HOMED for mot in self.motors):
             self.logger.info('All motors homed')
             if self.network:
                 self.network.enable_pdo_communication()

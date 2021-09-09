@@ -656,6 +656,7 @@ class CiA402Node(RemoteNode):
         }
 
     def manufacturer_device_name(self):
+        """Get manufacturer device name."""
         return self.sdo[MANUFACTURER_DEVICE_NAME].raw
 
     def __str__(self):

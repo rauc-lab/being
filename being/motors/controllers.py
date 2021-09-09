@@ -1,7 +1,9 @@
 """Motor controllers."""
+import enum
 import sys
 import time
-from typing import Optional, Dict, Generator, Set, Any
+import warnings
+from typing import Optional, Dict, Generator, Set, Any, Union
 
 from canopen.emcy import EmcyError
 
@@ -16,19 +18,19 @@ from being.can.cia_402 import (
     OperationMode,
     POSITION_ACTUAL_VALUE,
     POSITIVE,
+    STATUSWORD,
     State as CiA402State,
+    TARGET_POSITION,
     TARGET_VELOCITY,
     determine_homing_method,
+    which_state,
 )
 from being.config import CONFIG
 from being.constants import FORWARD, INF
 from being.error import BeingError
 from being.logging import get_logger
 from being.math import clip
-from being.motors.homing import (
-    HomingProgress,
-    proper_homing,
-)
+from being.motors.homing import HomingProgress, proper_homing
 from being.motors.homing import HomingState
 from being.motors.motors import Motor
 from being.motors.vendor import (
@@ -40,10 +42,23 @@ from being.motors.vendor import (
     MAXON_EMERGENCY_DESCRIPTIONS,
     MAXON_SUPPORTED_HOMING_METHODS,
 )
+from being.pubsub import PubSub
 from being.utils import merge_dicts
 
 
 INTERVAL = CONFIG['General']['INTERVAL']
+
+
+class ControllerError(BeingError):
+
+    """General Being controller errors."""
+
+
+class ControllerEvent(enum.Enum):
+    STATE_CHANGED = enum.auto()
+    HOMING_CHANGED = enum.auto()
+    DONE_HOMING = enum.auto()
+    ERROR = enum.auto()
 
 
 def nested_get(dct, keys):
@@ -104,39 +119,40 @@ def format_error_code(errorCode: int, descriptions: list) -> str:
     Returns:
         Text error description.
     """
-    description = ''
+    description = 'Unknown emergency error'
     for code, mask, desc in descriptions:
         if errorCode & mask == code:
             description = desc
 
-    if description == '':
-        return f'Unknown emergency error for code 0x{errorCode:#04x}'
+    return f'{description} (error code 0x{errorCode:#04x})'
 
-    return description
+
+def maybe_int(string: str) -> Union[int, str]:
+    """Try to cast string to int."""
+    string = string.strip()
+    if string.isnumeric():
+        return int(string)
+
+    if string.startswith('0x'):
+        return int(string, base=16)
+
+    return string
 
 
 def apply_settings_to_node(node, settings: Dict[str, Any]):
-    """Apply settings to CANopen node. Convert physical SI values to device
-    units (if present in DEVICE_UNITS dict).
+    """Apply settings to CANopen node.
 
     Args:
         settings: Settings to apply. Addresses (path syntax) -> value
             entries.
     """
-    #print('apply_settings_to_node()')
     for name, value in settings.items():
-        *path, last = name.split('/')
+        *path, last = map(maybe_int, name.split('/'))
         sdo = node.sdo
         for key in path:
             sdo = sdo[key]
 
-        #print(name, ':', value)
         sdo[last].raw = value
-
-
-class ControllerError(BeingError):
-
-    """General Being controller errors."""
 
 
 class OnlyOnce:
@@ -152,7 +168,7 @@ class OnlyOnce:
         self.before = current
 
 
-class Controller:
+class Controller(PubSub):
 
     """Semi abstract controller base class.
 
@@ -210,18 +226,23 @@ class Controller:
         else:
             homingMethod = default_homing_method(**homingKwargs)
 
+        super().__init__(events=ControllerEvent)
+
         # Attrs
         self.node: CiA402Node = node
         self.motor: Motor = motor
         self.direction = direction
         self.position_si_2_device = float(multiplier * motor.gear * motor.position_si_2_device)
-        self.homingMethod = homingMethod
-        self.homingDirection = homingKwargs['homingDirection']
         self.length = length
         self.lower = 0.
         self.upper = length * self.position_si_2_device
         self.logger = get_logger(str(self))
         self.only_new_ones = OnlyOnce()
+
+        self.homingMethod = homingMethod
+        self.homingDirection = homingKwargs['homingDirection']
+        self.homingJob = None
+        self.homingState = HomingState.UNHOMED
 
         # Init
         self.apply_motor_direction(direction)
@@ -237,6 +258,8 @@ class Controller:
             time.sleep(0.5)
 
         node.change_state(CiA402State.READY_TO_SWITCH_ON, timeout=0.5)
+        self.lastState = node.get_state()
+
         self.logger.debug('state after %s', node.get_state())
 
         self.logger.debug('direction: %f', self.direction)
@@ -252,16 +275,19 @@ class Controller:
         """Switch off drive. Same state as on power-up."""
         self.logger.debug('switch_off()')
         self.node.switch_off(timeout)
+        self.publish(ControllerEvent.STATE_CHANGED)
 
     def disable(self, timeout: Optional[float] = None):
         """Disable drive (no power)."""
         self.logger.debug('disable()')
         self.node.disable(timeout)
+        self.publish(ControllerEvent.STATE_CHANGED)
 
     def enable(self, timeout: Optional[float] = None):
         """Enable drive."""
         self.logger.debug('enable()')
         self.node.enable(timeout)
+        self.publish(ControllerEvent.STATE_CHANGED)
 
     def enabled(self) -> bool:
         """Is motor enabled?"""
@@ -278,7 +304,9 @@ class Controller:
         # - Homing limit switch (object 0x2310)  Homing Method (object 0x6098)
         # - Homing speed (object 0x6099)
         # - Homing Acceleration (object 0x609A)
-        return proper_homing(self.node)
+        self.homingState = HomingState.ONGOING
+        self.homingJob = proper_homing(self.node)
+        self.publish(ControllerEvent.HOMING_CHANGED)
 
     def device_error_message(self, code: int) -> str:
         """Device error message from error code."""
@@ -317,13 +345,37 @@ class Controller:
 
     def set_target_position(self, targetPosition):
         """Set target position in SI units."""
-        tarPosDev = targetPosition * self.position_si_2_device
-        self.node.set_target_position(clip(tarPosDev, self.lower, self.upper))
+        if self.homingState is HomingState.HOMED and self.lastState is CiA402State.OPERATION_ENABLE:
+            dev = targetPosition * self.position_si_2_device
+            clipped = clip(dev, self.lower, self.upper)
+            self.node.pdo[TARGET_POSITION].raw = clipped
 
     def get_actual_position(self) -> float:
         """Get actual position in SI units."""
-        return self.node.get_actual_position() / self.position_si_2_device
+        return self.node.pdo[POSITION_ACTUAL_VALUE].raw / self.position_si_2_device
 
+    def state_changed(self, state):
+        if state is self.lastState:
+            return False
+
+        self.lastState = state
+        return True
+
+    def update(self):
+        state = which_state(self.node.pdo[STATUSWORD].raw)
+        if self.state_changed(state):
+            self.publish(ControllerEvent.STATE_CHANGED)
+
+        for emcy in self.new_emcy_errors():
+            msg = self.emcy_message(emcy)
+            self.logger.error(msg)
+            self.publish(ControllerEvent.ERROR, msg)
+
+        if self.homingState is HomingState.ONGOING:
+            self.homingState = next(self.homingJob)
+            if self.homingState is not HomingState.ONGOING:
+                self.publish(ControllerEvent.HOMING_CHANGED)
+                self.publish(ControllerEvent.DONE_HOMING)
 
     def __str__(self):
         return f'{type(self).__name__}({self.node}, {self.motor})'
@@ -434,9 +486,12 @@ class Mclm3002(Controller):
     def home(self):
         # Faulhaber does not support unofficial hard stop homing methods
         if self.homingMethod in {-1, -2, -3, -4}:
-            return self.hard_stop_homing()
+            self.homingState = HomingState.ONGOING
+            self.homingJob = self.hard_stop_homing()
+            self.publish(ControllerEvent.HOMING_CHANGED)
 
-        return super().home()
+        else:
+            super().home()
 
 
 class Epos4(Controller):
@@ -448,14 +503,18 @@ class Epos4(Controller):
     EMERGENCY_DESCRIPTIONS = MAXON_EMERGENCY_DESCRIPTIONS
     SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
 
-    def __init__(self, *args, usePositionController=True, **kwargs):
+    def __init__(self, *args, homingMethod=37, usePositionController=True, **kwargs):
         """Kwargs:
             usePositionController: If True use position controller on EPOS4 with
                 operation mode CYCLIC_SYNCHRONOUS_POSITION. Otherwise simple
                 custom application side position controller working with the
                 CYCLIC_SYNCHRONOUS_VELOCITY.
         """
-        super().__init__(*args, **kwargs)
+        if homingMethod == 35:
+            homingMethod = 37
+            warnings.warn('Epos4 does not support homing method 35. Using 37 instead.')
+
+        super().__init__(*args, homingMethod=homingMethod, **kwargs)
         self.usePositionController = usePositionController
 
         # TODO: Test if firmwareVersion < 0x170h?
@@ -483,23 +542,15 @@ class Epos4(Controller):
 
         variable.raw = newMisc
 
-    def home(self):
-        self.logger.debug('home()')
-        if self.homingMethod == 35:
-            homingMethod = 37
-        else:
-            homingMethod = self.homingMethod
-
-        self.node.sdo[HOMING_METHOD].raw = homingMethod
-        return proper_homing(self.node)
-
     def set_target_position(self, targetPosition):
-        tarPosDev = targetPosition * self.position_si_2_device
-        posSoll = clip(tarPosDev, self.lower, self.upper)
-        if self.usePositionController:
-            self.node.set_target_position(posSoll)
-        else:
-            posIst = self.node.get_actual_position()
-            err = (posSoll - posIst)
-            velSoll = 1e-3 / INTERVAL * err
-            self.node.set_target_velocity(velSoll)
+        if self.homingState is HomingState.HOMED and self.lastState is CiA402State.OPERATION_ENABLE:
+            dev = targetPosition * self.position_si_2_device
+            posSoll = clip(dev, self.lower, self.upper)
+
+            if self.usePositionController:
+                self.node.pdo[TARGET_POSITION].raw = posSoll
+            else:
+                posIst = self.node.pdo[POSITION_ACTUAL_VALUE]
+                err = (posSoll - posIst)
+                velSoll = 1e-3 / INTERVAL * err
+                self.node.pdo[TARGET_VELOCITY].raw = velSoll

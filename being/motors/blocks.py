@@ -25,7 +25,7 @@ from being.constants import TAU
 from being.error import BeingError
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
-from being.motors.controllers import Controller, Mclm3002, Epos4
+from being.motors.controllers import Controller, Mclm3002, Epos4, ControllerEvent
 from being.motors.homing import (
     HomingProgress,
     HomingState,
@@ -45,6 +45,12 @@ CONTROLLER_TYPES: Dict[str, Controller] = {
 """Device name -> Controller type lookup."""
 
 
+class MotorEvent(enum.Enum):
+    CHANGED = enum.auto()
+    ERROR = enum.auto()
+    DONE_HOMING = enum.auto()
+
+
 def create_controller_for_node(node: CiA402Node, *args, **kwargs) -> Controller:
     """Controller factory. Different controllers depending on device name. Wraps
     CanOpen node.
@@ -57,12 +63,6 @@ def create_controller_for_node(node: CiA402Node, *args, **kwargs) -> Controller:
     return controllerType(node, *args, **kwargs)
 
 
-class MotorEvent(enum.Enum):
-    CHANGED = enum.auto()
-    ERROR = enum.auto()
-    DONE_HOMING = enum.auto()
-
-
 class MotorBlock(Block, PubSub, abc.ABC):
     def __init__(self, name: Optional[str] = None):
         """Kwargs:
@@ -72,8 +72,6 @@ class MotorBlock(Block, PubSub, abc.ABC):
         PubSub.__init__(self, events=MotorEvent)
         self.add_value_input('targetPosition')
         self.add_value_output('actualPosition')
-        self.homing = HomingState.UNHOMED
-        self.homingJob = None
 
     # @abc.abstractmethod
     # def switch_off(self, publish=True):
@@ -104,6 +102,7 @@ class MotorBlock(Block, PubSub, abc.ABC):
     @abc.abstractmethod
     def enabled(self) -> bool:
         """Is motor enabled?"""
+        # TODO: Have some kind of motor state enum: [ERROR, DISABLED, ENABLED]?
 
     @abc.abstractmethod
     def home(self):
@@ -112,10 +111,14 @@ class MotorBlock(Block, PubSub, abc.ABC):
         """
         self.publish(MotorEvent.CHANGED)
 
+    @abc.abstractmethod
+    def homed(self) -> HomingState:
+        raise NotImplementedError
+
     def to_dict(self):
         dct = super().to_dict()
         dct['enabled'] = self.enabled()
-        dct['homing'] = self.homing
+        dct['homing'] = self.homed()
         return dct
 
 
@@ -128,7 +131,8 @@ class DummyMotor(MotorBlock):
         self.length = length
         self.state = KinematicState()
         self.dt = INTERVAL
-        self.homing = HomingState.HOMED
+        self.homingState = HomingState.HOMED
+        self.homingJob = None
         self._enabled = False
 
     def enable(self, publish: bool = True, timeout: Optional[float] = None):
@@ -141,6 +145,9 @@ class DummyMotor(MotorBlock):
 
     def enabled(self):
         return self._enabled
+
+    def homed(self):
+        return self.homingState
 
     @staticmethod
     def dummy_homing(minDuration: float = 2., maxDuration: float = 5.) -> HomingProgress:
@@ -161,17 +168,17 @@ class DummyMotor(MotorBlock):
         yield HomingState.HOMED
 
     def home(self):
+        self.homingState = HomingState.ONGOING
         self.homingJob = self.dummy_homing()
-        self.homing = HomingState.ONGOING
         super().home()
 
     def update(self):
         # Kinematic filter input target position
-        if self.homing is HomingState.ONGOING:
-            self.homing = next(self.homingJob)
-            if self.homing is not HomingState.ONGOING:
-                self.publish(MotorEvent.DONE_HOMING)
+        if self.homingState is HomingState.ONGOING:
+            self.homingState = next(self.homingJob)
+            if self.homingState is not HomingState.ONGOING:
                 self.publish(MotorEvent.CHANGED)
+                self.publish(MotorEvent.DONE_HOMING)
 
             target = 0.
         else:
@@ -260,6 +267,15 @@ class CanMotor(MotorBlock):
         for msg in self.controller.error_history_messages():
             self.publish(MotorEvent.ERROR, msg)
 
+        self.controller.subscribe(ControllerEvent.STATE_CHANGED, lambda: self.publish(MotorEvent.CHANGED))
+        self.controller.subscribe(ControllerEvent.ERROR, lambda msg: self.publish(MotorEvent.ERROR, msg))
+        self.controller.subscribe(ControllerEvent.HOMING_CHANGED, lambda: self.publish(MotorEvent.CHANGED))
+        self.controller.subscribe(ControllerEvent.DONE_HOMING, lambda: self.publish(MotorEvent.DONE_HOMING))
+
+    @property
+    def homingState(self):
+        return self.controller.homingState
+
     def enable(self, publish: bool = True, timeout: Optional[float] = None):
         self.controller.enable(timeout)
         super().enable(publish)
@@ -272,29 +288,15 @@ class CanMotor(MotorBlock):
         return self.controller.enabled()
 
     def home(self):
-        self.homingJob = self.controller.home()
-        self.homing = HomingState.ONGOING
+        self.controller.home()
         super().home()
 
+    def homed(self):
+        return self.controller.homingState
+
     def update(self):
-        for emcy in self.controller.new_emcy_errors():
-            msg = self.controller.emcy_message(emcy)
-            self.logger.error(msg)
-            self.publish(MotorEvent.ERROR)
-
-        sw = self.controller.node.pdo[STATUSWORD].raw  # PDO instead of SDO for speed. This takes approx. 0.027 ms
-        #print(which_state(sw))
-        if self.homing is HomingState.HOMED:
-            state = which_state(sw)
-            if state is CiA402State.OPERATION_ENABLE:
-                self.controller.set_target_position(self.targetPosition.value)
-
-        elif self.homing is HomingState.ONGOING:
-            self.homing = next(self.homingJob)
-            if self.homing is not HomingState.ONGOING:
-                self.publish(MotorEvent.DONE_HOMING)
-                self.publish(MotorEvent.CHANGED)
-
+        self.controller.update()
+        self.controller.set_target_position(self.targetPosition.value)
         self.output.value = self.controller.get_actual_position()
 
     def to_dict(self):
