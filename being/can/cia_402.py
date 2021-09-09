@@ -574,6 +574,7 @@ class CiA402Node(RemoteNode):
         if timeout is None:
             return next(job)
 
+        current = self.get_state()
         endTime = time.perf_counter() + timeout
         for _ in job:
             if time.perf_counter() > endTime:
@@ -581,7 +582,7 @@ class CiA402Node(RemoteNode):
 
             time.sleep(0.050)
 
-    def change_state(self, target: State, timeout: float = 0.200):
+    def change_state(self, target: State, timeout: Optional[float] = None):
         """Change to a specific state. Will traverse all necessary states in
         between to get there.
 
@@ -591,13 +592,22 @@ class CiA402Node(RemoteNode):
         Kwargs:
             timeout: Optional timeout.
         """
-        job = change_state_job(self.sdo[STATUSWORD], self.sdo[CONTROLWORD], target, self.logger)
-        endTime = time.perf_counter() + timeout
-        for _ in job:
-            if time.perf_counter() > endTime:
-                raise TimeoutError(f'Could not transition from {current!r} to {target!r} in {timeout:.3f} sec')
+        current = self.get_state()
+        if current is target:
+            self.logger.debug('Already in state %s', target)
+            return
 
-            time.sleep(0.050)
+        if timeout is None:
+            for state in find_shortest_state_path(current, target):
+                self.set_state(state)
+        else:
+            job = change_state_job(self.sdo[STATUSWORD], self.sdo[CONTROLWORD], target, self.logger)
+            endTime = time.perf_counter() + timeout
+            for _ in job:
+                if time.perf_counter() > endTime:
+                    raise TimeoutError(f'Could not transition from {current!r} to {target!r} in {timeout:.3f} sec')
+
+                time.sleep(0.050)
 
     def get_operation_mode(self) -> OperationMode:
         """Get current operation mode."""
