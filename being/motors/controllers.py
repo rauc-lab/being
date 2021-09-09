@@ -1,9 +1,8 @@
 """Motor controllers."""
 import enum
 import sys
-import time
 import warnings
-from typing import Optional, Dict, Generator, Set, Any, Union
+from typing import Optional, Dict, Set, Any, Union
 
 from canopen.emcy import EmcyError
 
@@ -18,14 +17,12 @@ from being.can.cia_402 import (
     OperationMode,
     POSITION_ACTUAL_VALUE,
     POSITIVE,
-    POSSIBLE_TRANSITIONS,
-    TRANSITIONS,
     STATUSWORD,
     State as CiA402State,
     TARGET_POSITION,
     TARGET_VELOCITY,
+    change_state_job,
     determine_homing_method,
-    find_shortest_state_path,
     which_state,
 )
 from being.config import CONFIG
@@ -39,7 +36,6 @@ from being.motors.motors import Motor
 from being.motors.vendor import (
     FAULHABER_EMERGENCY_DESCRIPTIONS,
     FAULHABER_SUPPORTED_HOMING_METHODS,
-    MAXON_DEVICE_ERROR_REGISTER,
     MAXON_EMERGENCY_DESCRIPTIONS,
     MAXON_SUPPORTED_HOMING_METHODS,
 )
@@ -48,6 +44,7 @@ from being.utils import merge_dicts
 
 
 INTERVAL = CONFIG['General']['INTERVAL']
+LOGGER = get_logger(__name__)
 
 
 class ControllerError(BeingError):
@@ -129,13 +126,30 @@ def format_error_code(errorCode: int, descriptions: list) -> str:
 
 
 def maybe_int(string: str) -> Union[int, str]:
-    """Try to cast string to int."""
+    """Try to cast string to int.
+
+    Args:
+        string: Input string.
+
+    Returns:
+        Maybe an int. Pass on input string otherwise.
+
+    Usage:
+        >>> maybe_int('123')
+        123
+
+        >>> maybe_int('  0x7b')
+        123
+    """
     string = string.strip()
     if string.isnumeric():
         return int(string)
 
     if string.startswith('0x'):
         return int(string, base=16)
+
+    if string.startswith('0b'):
+        return int(string, base=2)
 
     return string
 
@@ -277,33 +291,6 @@ class Controller(PubSub):
         self.homingJob = proper_homing(self.node)
         self.publish(ControllerEvent.HOMING_CHANGED)
 
-    def _set_state_job(self, target: CiA402State) -> Generator:
-        """Set node state via PDO controlword generator."""
-        if target is self.lastState:
-            return
-
-        if target not in POSSIBLE_TRANSITIONS[self.lastState]:
-            raise RuntimeError(f'Invalid state transition from {self.lastState!r} to {target!r}!')
-
-        edge = (self.lastState, target)
-        cw = TRANSITIONS[edge]
-        self.node.pdo[CONTROLWORD].raw = cw
-
-        while self.lastState is not target:
-            yield
-
-    def _change_state_job(self, target: CiA402State) -> Generator:
-        """Change node state via PDO controlword generator."""
-        if target is self.lastState:
-            return
-
-        path = find_shortest_state_path(self.lastState, target)
-        if len(path) == 0:
-            self.logger.error('Found no path from %s to %s', self.lastState, target)
-
-        for state in path[1:]:
-            yield from self._set_state_job(state)
-
     def change_state(self, target: CiA402State):
         """Change node state. This will create a switchJob generato. Only works
         together with calling the controllers update method.
@@ -312,7 +299,12 @@ class Controller(PubSub):
             self.logger.warning('State change not possible because homing job in progress.')
             return
 
-        self.switchJob = self._change_state_job(target)
+        self.switchJob = change_state_job(
+            self.node.pdo[STATUSWORD],
+            self.node.pdo[CONTROLWORD],
+            target,
+            self.logger,
+        )
 
     def apply_motor_direction(self, direction: float):
         """Configure direction or orientation of controller / motor."""

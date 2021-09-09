@@ -11,12 +11,16 @@ from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union, Optiona
 from collections import deque, defaultdict
 
 from canopen import RemoteNode
+from canopen.variable import Variable
 
 from being.bitmagic import check_bit
 from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.definitions import TransmissionType
 from being.constants import FORWARD, BACKWARD
 from being.logging import get_logger
+
+
+LOGGER = get_logger(__name__)
 
 
 # Mandatory (?) CiA 402 object dictionary entries
@@ -274,6 +278,70 @@ def find_shortest_state_path(start: State, end: State) -> List[State]:
     return min(paths, key=len, default=[])
 
 
+SwitchingProgress = Generator[bool, None, None]
+
+
+def set_state_job(statusword: Variable, controlword: Variable, target: State, logger=LOGGER) -> SwitchingProgress:
+    """Set node state generator job.
+
+    Args:
+        statusword: CanOpen statusword variable.
+        controlword: CanOpen controlword variable.
+        target: Target state.
+
+    Kwargs:
+        logger: Logger instance.
+
+    Yields:
+        If switched to target state.
+    """
+    logger.info('Switching to state %s', target)
+    current = which_state(statusword.raw)
+    if target is current:
+        logger.debug('Already in state %s', target)
+        yield True
+        return
+
+    if target not in POSSIBLE_TRANSITIONS[current]:
+        raise RuntimeError(f'Invalid state transition from {current!r} to {target!r}!')
+
+    edge = (current, target)
+    controlword.raw = TRANSITIONS[edge]
+    while which_state(statusword.raw) is not target:
+        yield False
+
+    yield True
+
+
+def change_state_job(statusword: Variable, controlword: Variable, target: State, logger=LOGGER) -> SwitchingProgress:
+    """Change node state generator job.
+
+    Args:
+        statusword: CanOpen statusword variable.
+        controlword: CanOpen controlword variable.
+        target: Target state.
+
+    Kwargs:
+        logger: Logger instance.
+
+    Yields:
+        If switched to target state.
+    """
+    logger.info('Changing to state %s', target)
+    current = which_state(statusword.raw)
+    if target is current:
+        logger.debug('Already in state %s', target)
+        yield True
+        return
+
+    path = find_shortest_state_path(current, target)
+    for state in path:
+        for _ in set_state_job(statusword, controlword, state, logger):
+            yield False
+
+    yield True
+
+
 def target_reached(statusword: int) -> bool:
     """Check if target has been reached from statusword.
 
@@ -502,34 +570,18 @@ class CiA402Node(RemoteNode):
         Kwargs:
             timeout: Optional timeout.
         """
-        self.logger.info('Switching to state %s', target)
-        current = self.get_state()
-        if target is current:
-            self.logger.debug('Already in state %s', target)
-            return
-
-        if target not in POSSIBLE_TRANSITIONS[current]:
-            raise RuntimeError(f'Invalid state transition from {current!r} to {target!r}!')
-
-        edge = (current, target)
-        cw = TRANSITIONS[edge]
-        self.sdo[CONTROLWORD].raw = cw
-
+        job = set_state_job(self.sdo[STATUSWORD], self.sdo[CONTROLWORD], target, self.logger)
         if timeout is None:
-            return
+            return next(job)
 
-        # Some controllers are to slow to switch
-        # TODO: Is there any other way?
         endTime = time.perf_counter() + timeout
-        while time.perf_counter() < endTime:
-            if self.get_state() is target:
-                break
+        for _ in job:
+            if time.perf_counter() > endTime:
+                raise TimeoutError(f'Could not transition from {current!r} to {target!r} in {timeout:.3f} sec')
 
             time.sleep(0.050)
-        else:  # If no break
-            raise TimeoutError(f'Could not transition from {current!r} to {target!r} in {timeout:.3f} sec')
 
-    def change_state(self, target: State, timeout: Optional[float] = None):
+    def change_state(self, target: State, timeout: float = 0.200):
         """Change to a specific state. Will traverse all necessary states in
         between to get there.
 
@@ -539,21 +591,13 @@ class CiA402Node(RemoteNode):
         Kwargs:
             timeout: Optional timeout.
         """
-        current = self.get_state()
-        if target is current:
-            return
+        job = change_state_job(self.sdo[STATUSWORD], self.sdo[CONTROLWORD], target, self.logger)
+        endTime = time.perf_counter() + timeout
+        for _ in job:
+            if time.perf_counter() > endTime:
+                raise TimeoutError(f'Could not transition from {current!r} to {target!r} in {timeout:.3f} sec')
 
-        path = find_shortest_state_path(current, target)
-        if len(path) == 0:
-            self.logger.error('Found no path from %s to %s', current, target)
-
-        startTime = time.perf_counter()
-        for state in path[1:]:
-            if timeout is None:
-                self.set_state(state)
-            else:
-                passed = time.perf_counter() - startTime
-                self.set_state(state, timeout - passed)
+            time.sleep(0.050)
 
     def get_operation_mode(self) -> OperationMode:
         """Get current operation mode."""
