@@ -142,6 +142,9 @@ def awake(
     if network is None:
         network = CanBackend.single_instance_get()
 
+    if network is not None:
+        network.enable_pdo_communication()
+
     being = Being(blocks, clock, network)
     for motor in being.motors:
         motor.subscribe(MotorEvent.DONE_HOMING, being.motor_done_homing)

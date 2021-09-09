@@ -22,7 +22,6 @@ from being.can.cia_402 import (
 )
 from being.config import CONFIG
 from being.constants import TAU
-from being.error import BeingError
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
 from being.motors.controllers import Controller, Mclm3002, Epos4, ControllerEvent
@@ -73,28 +72,22 @@ class MotorBlock(Block, PubSub, abc.ABC):
         self.add_value_input('targetPosition')
         self.add_value_output('actualPosition')
 
-    # @abc.abstractmethod
-    # def switch_off(self, publish=True):
-    #    pass
-
     @abc.abstractmethod
-    def enable(self, publish: bool = True, timeout: Optional[float] = None):
+    def enable(self, publish: bool = True):
         """Engage motor. This is switching motor on and engaging its drive.
 
         Kwargs:
             publish: If to publish motor changes.
-            timeout: Blocking state change with timeout.
         """
         if publish:
             self.publish(MotorEvent.CHANGED)
 
     @abc.abstractmethod
-    def disable(self, publish: bool = True, timeout: Optional[float] = None):
+    def disable(self, publish: bool = True):
         """Switch motor on.
 
         Kwargs:
             publish: If to publish motor changes.
-            timeout: Blocking state change with timeout.
         """
         if publish:
             self.publish(MotorEvent.CHANGED)
@@ -113,6 +106,7 @@ class MotorBlock(Block, PubSub, abc.ABC):
 
     @abc.abstractmethod
     def homed(self) -> HomingState:
+        """Return current homing state."""
         raise NotImplementedError
 
     def to_dict(self):
@@ -135,11 +129,11 @@ class DummyMotor(MotorBlock):
         self.homingJob = None
         self._enabled = False
 
-    def enable(self, publish: bool = True, timeout: Optional[float] = None):
+    def enable(self, publish: bool = True):
         self._enabled = True
         super().enable(publish)
 
-    def disable(self, publish: bool = True, timeout: Optional[float] = None):
+    def disable(self, publish: bool = True):
         self._enabled = False
         super().disable(publish)
 
@@ -276,13 +270,13 @@ class CanMotor(MotorBlock):
     def homingState(self):
         return self.controller.homingState
 
-    def enable(self, publish: bool = True, timeout: Optional[float] = None):
-        self.controller.enable(timeout)
-        super().enable(publish)
+    def enable(self, publish: bool = False):
+        print('CanMotor.enable()')
+        self.controller.enable()
 
-    def disable(self, publish: bool = True, timeout: Optional[float] = None):
-        self.controller.disable(timeout)
-        super().disable(publish)
+    def disable(self, publish: bool = True):
+        print('CanMotor.disable()')
+        self.controller.disable()
 
     def enabled(self):
         return self.controller.enabled()

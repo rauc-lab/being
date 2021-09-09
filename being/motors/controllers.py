@@ -18,11 +18,14 @@ from being.can.cia_402 import (
     OperationMode,
     POSITION_ACTUAL_VALUE,
     POSITIVE,
+    POSSIBLE_TRANSITIONS,
+    TRANSITIONS,
     STATUSWORD,
     State as CiA402State,
     TARGET_POSITION,
     TARGET_VELOCITY,
     determine_homing_method,
+    find_shortest_state_path,
     which_state,
 )
 from being.config import CONFIG
@@ -34,10 +37,8 @@ from being.motors.homing import HomingProgress, proper_homing
 from being.motors.homing import HomingState
 from being.motors.motors import Motor
 from being.motors.vendor import (
-    FAULHABER_DEVICE_ERROR_CODES,
     FAULHABER_EMERGENCY_DESCRIPTIONS,
     FAULHABER_SUPPORTED_HOMING_METHODS,
-    MAXON_DEVICE_ERROR_CODES,
     MAXON_DEVICE_ERROR_REGISTER,
     MAXON_EMERGENCY_DESCRIPTIONS,
     MAXON_SUPPORTED_HOMING_METHODS,
@@ -160,7 +161,6 @@ class Controller(PubSub):
     """Semi abstract controller base class.
 
     Attributes:
-        DEVICE_ERROR_CODES: Device error code -> error message text lookup.
         EMERGENCY_ERROR_CODES: TODO.
         SUPPORTED_HOMING_METHODS: Supported homing methods.
         node: Connected CiA 402 CANopen node.
@@ -174,7 +174,6 @@ class Controller(PubSub):
         only_new_ones: Filter for showing error messages only once.
     """
 
-    DEVICE_ERROR_CODES: Dict[int, str] = {}
     EMERGENCY_DESCRIPTIONS: list = []
     SUPPORTED_HOMING_METHODS: Set[int] = {}
 
@@ -225,6 +224,9 @@ class Controller(PubSub):
         self.upper = length * self.position_si_2_device
         self.logger = get_logger(str(self))
 
+        self.lastState = node.get_state()
+        self.switchJob = None
+
         self.homingMethod = homingMethod
         self.homingDirection = homingKwargs['homingDirection']
         self.homingJob = None
@@ -238,42 +240,23 @@ class Controller(PubSub):
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 
-        self.logger.debug('state before %s', node.get_state())
-        if node.get_state() is CiA402State.FAULT:
-            node.reset_fault()
-            time.sleep(0.5)
-
-        node.change_state(CiA402State.READY_TO_SWITCH_ON, timeout=0.5)
-        self.lastState = node.get_state()
+        self.change_state(CiA402State.READY_TO_SWITCH_ON)
 
         self.logger.debug('state after %s', node.get_state())
-
         self.logger.debug('direction: %f', self.direction)
         self.logger.debug('homingDirection: %f', self.homingDirection)
         self.logger.debug('homingMethod: %d', self.homingMethod)
         self.logger.debug('position_si_2_device: %f', self.position_si_2_device)
 
-    def apply_motor_direction(self, direction: float):
-        """Configure direction or orientation of controller / motor."""
-        raise NotImplementedError
-
-    def switch_off(self, timeout: Optional[float] = None):
-        """Switch off drive. Same state as on power-up."""
-        self.logger.debug('switch_off()')
-        self.node.switch_off(timeout)
-        self.publish(ControllerEvent.STATE_CHANGED)
-
-    def disable(self, timeout: Optional[float] = None):
+    def disable(self):
         """Disable drive (no power)."""
         self.logger.debug('disable()')
-        self.node.disable(timeout)
-        self.publish(ControllerEvent.STATE_CHANGED)
+        self.change_state(CiA402State.READY_TO_SWITCH_ON)
 
-    def enable(self, timeout: Optional[float] = None):
+    def enable(self):
         """Enable drive."""
         self.logger.debug('enable()')
-        self.node.enable(timeout)
-        self.publish(ControllerEvent.STATE_CHANGED)
+        self.change_state(CiA402State.OPERATION_ENABLED)
 
     def enabled(self) -> bool:
         """Is motor enabled?"""
@@ -294,14 +277,48 @@ class Controller(PubSub):
         self.homingJob = proper_homing(self.node)
         self.publish(ControllerEvent.HOMING_CHANGED)
 
-    def device_error_message(self, code: int) -> str:
-        """Device error message from error code."""
-        return self.DEVICE_ERROR_CODES.get(
-            code,
-            f'Unknown device error message for error code: {code}',
-        )
+    def _set_state_job(self, target: CiA402State) -> Generator:
+        """Set node state via PDO controlword generator."""
+        if target is self.lastState:
+            return
 
-    def emcy_message(self, emcy: EmcyError) -> str:
+        if target not in POSSIBLE_TRANSITIONS[self.lastState]:
+            raise RuntimeError(f'Invalid state transition from {self.lastState!r} to {target!r}!')
+
+        edge = (self.lastState, target)
+        cw = TRANSITIONS[edge]
+        self.node.pdo[CONTROLWORD].raw = cw
+
+        while self.lastState is not target:
+            yield
+
+    def _change_state_job(self, target: CiA402State) -> Generator:
+        """Change node state via PDO controlword generator."""
+        if target is self.lastState:
+            return
+
+        path = find_shortest_state_path(self.lastState, target)
+        if len(path) == 0:
+            self.logger.error('Found no path from %s to %s', self.lastState, target)
+
+        for state in path[1:]:
+            yield from self._set_state_job(state)
+
+    def change_state(self, target: CiA402State):
+        """Change node state. This will create a switchJob generato. Only works
+        together with calling the controllers update method.
+        """
+        if self.homingJob:
+            self.logger.warning('State change not possible because homing job in progress.')
+            return
+
+        self.switchJob = self._change_state_job(target)
+
+    def apply_motor_direction(self, direction: float):
+        """Configure direction or orientation of controller / motor."""
+        raise NotImplementedError
+
+    def format_emcy(self, emcy: EmcyError) -> str:
         """Get vendor specific description of EMCY error."""
         return format_error_code(emcy.code, self.EMERGENCY_DESCRIPTIONS)
 
@@ -336,29 +353,45 @@ class Controller(PubSub):
         """Get actual position in SI units."""
         return self.node.pdo[POSITION_ACTUAL_VALUE].raw / self.position_si_2_device
 
-    def state_changed(self, state):
+    def state_changed(self, state: CiA402State) -> bool:
+        """Check if node state changed since last call."""
         if state is self.lastState:
             return False
 
         self.lastState = state
         return True
 
+    def publish_emcy_errors(self):
+        """Go through all active EMCY erros and publish them (if any). Reset
+        EMCY active and log.
+        """
+        if not self.node.emcy.active:
+            return
+
+        for emcy in self.node.emcy.active:
+            msg = self.format_emcy(emcy)
+            self.logger.error(msg)
+            self.publish(ControllerEvent.ERROR, msg)
+
+        self.node.emcy.reset()
+
     def update(self):
         state = which_state(self.node.pdo[STATUSWORD].raw)
         if self.state_changed(state):
             self.publish(ControllerEvent.STATE_CHANGED)
 
-        if self.node.emcy.active:
-            for emcy in self.node.emcy.active:
-                msg = self.emcy_message(emcy)
-                self.logger.error(msg)
-                self.publish(ControllerEvent.ERROR, msg)
+        self.publish_emcy_errors()
 
-            self.node.emcy.reset()
+        if self.switchJob:
+            try:
+                next(self.switchJob)
+            except StopIteration:
+                self.switchJob = None
 
         if self.homingState is HomingState.ONGOING:
             self.homingState = next(self.homingJob)
             if self.homingState is not HomingState.ONGOING:
+                self.homingJob = None
                 self.publish(ControllerEvent.HOMING_CHANGED)
                 self.publish(ControllerEvent.DONE_HOMING)
 
@@ -370,7 +403,6 @@ class Mclm3002(Controller):
 
     """Faulhaber MCLM 3002 controller."""
 
-    DEVICE_ERROR_CODES = FAULHABER_DEVICE_ERROR_CODES
     EMERGENCY_DESCRIPTIONS = FAULHABER_EMERGENCY_DESCRIPTIONS
     SUPPORTED_HOMING_METHODS = FAULHABER_SUPPORTED_HOMING_METHODS
 
@@ -483,8 +515,6 @@ class Epos4(Controller):
 
     """Maxon EPOS4 controller."""
 
-    DEVICE_ERROR_CODES = MAXON_DEVICE_ERROR_CODES
-    DEVICE_ERROR_REGISTER = MAXON_DEVICE_ERROR_REGISTER
     EMERGENCY_DESCRIPTIONS = MAXON_EMERGENCY_DESCRIPTIONS
     SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
 

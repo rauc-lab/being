@@ -411,6 +411,7 @@ class CiA402Node(RemoteNode):
         self.setup_rxpdo(3, TARGET_VELOCITY)
         self.setup_rxpdo(4, enabled=False)
 
+        network.register_rpdo(self.rpdo[1])
         network.register_rpdo(self.rpdo[2])
         network.register_rpdo(self.rpdo[3])
 

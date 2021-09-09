@@ -142,26 +142,14 @@ class Being:
     def enable_motors(self):
         """Enable all motor blocks."""
         self.logger.info('enable_motors()')
-        if self.network:
-            self.network.disable_pdo_communication()
-
         for motor in self.motors:
-            motor.enable(timeout=0.100)
-
-        if self.network:
-            self.network.enable_pdo_communication()
+            motor.enable()
 
     def disable_motors(self):
         """Disable all motor blocks."""
         self.logger.info('disable_motors()')
-        if self.network:
-            self.network.disable_pdo_communication()
-
         for motor in self.motors:
-            motor.disable(timeout=0.100)
-
-        if self.network:
-            self.network.enable_pdo_communication()
+            motor.disable()
 
     def home_motors(self):
         """Home all motors."""
