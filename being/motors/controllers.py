@@ -155,19 +155,6 @@ def apply_settings_to_node(node, settings: Dict[str, Any]):
         sdo[last].raw = value
 
 
-class OnlyOnce:
-
-    """Say it only once."""
-
-    def __init__(self):
-        self.before = set()
-
-    def __call__(self, iterable):
-        current = set(iterable)
-        yield from current - self.before
-        self.before = current
-
-
 class Controller(PubSub):
 
     """Semi abstract controller base class.
@@ -237,7 +224,6 @@ class Controller(PubSub):
         self.lower = 0.
         self.upper = length * self.position_si_2_device
         self.logger = get_logger(str(self))
-        self.only_new_ones = OnlyOnce()
 
         self.homingMethod = homingMethod
         self.homingDirection = homingKwargs['homingDirection']
@@ -315,10 +301,6 @@ class Controller(PubSub):
             f'Unknown device error message for error code: {code}',
         )
 
-    def new_emcy_errors(self) -> Generator[EmcyError, None, None]:
-        """Iterate over all new emergency error message frames (if any)."""
-        yield from self.only_new_ones(self.node.emcy.active)
-
     def emcy_message(self, emcy: EmcyError) -> str:
         """Get vendor specific description of EMCY error."""
         return format_error_code(emcy.code, self.EMERGENCY_DESCRIPTIONS)
@@ -366,10 +348,13 @@ class Controller(PubSub):
         if self.state_changed(state):
             self.publish(ControllerEvent.STATE_CHANGED)
 
-        for emcy in self.new_emcy_errors():
-            msg = self.emcy_message(emcy)
-            self.logger.error(msg)
-            self.publish(ControllerEvent.ERROR, msg)
+        if self.node.emcy.active:
+            for emcy in self.node.emcy.active:
+                msg = self.emcy_message(emcy)
+                self.logger.error(msg)
+                self.publish(ControllerEvent.ERROR, msg)
+
+            self.node.emcy.reset()
 
         if self.homingState is HomingState.ONGOING:
             self.homingState = next(self.homingJob)
