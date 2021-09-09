@@ -291,7 +291,7 @@ class Controller(PubSub):
 
     def enabled(self) -> bool:
         """Is motor enabled?"""
-        return self.node.get_state() is CiA402State.OPERATION_ENABLE
+        return self.node.get_state() is CiA402State.OPERATION_ENABLED
 
     def home(self) -> HomingProgress:
         """Create homing job routine for this controller."""
@@ -345,7 +345,7 @@ class Controller(PubSub):
 
     def set_target_position(self, targetPosition):
         """Set target position in SI units."""
-        if self.homingState is HomingState.HOMED and self.lastState is CiA402State.OPERATION_ENABLE:
+        if self.homingState is HomingState.HOMED and self.lastState is CiA402State.OPERATION_ENABLED:
             dev = targetPosition * self.position_si_2_device
             clipped = clip(dev, self.lower, self.upper)
             self.node.pdo[TARGET_POSITION].raw = clipped
@@ -543,7 +543,7 @@ class Epos4(Controller):
         variable.raw = newMisc
 
     def set_target_position(self, targetPosition):
-        if self.homingState is HomingState.HOMED and self.lastState is CiA402State.OPERATION_ENABLE:
+        if self.homingState is HomingState.HOMED and self.lastState is CiA402State.OPERATION_ENABLED:
             dev = targetPosition * self.position_si_2_device
             posSoll = clip(dev, self.lower, self.upper)
 

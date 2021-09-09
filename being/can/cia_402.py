@@ -67,7 +67,7 @@ class State(Enum):
     SWITCH_ON_DISABLED = auto()
     READY_TO_SWITCH_ON = auto()
     SWITCHED_ON = auto()
-    OPERATION_ENABLE = auto()
+    OPERATION_ENABLED = auto()
     QUICK_STOP_ACTIVE = auto()
     FAULT_REACTION_ACTIVE = auto()
     FAULT = auto()
@@ -159,23 +159,23 @@ TRANSITIONS: Dict[Edge, Command] = {
     # Shut down: 2, 6, 8
     (State.SWITCH_ON_DISABLED, State.READY_TO_SWITCH_ON):     Command.SHUT_DOWN,
     (State.SWITCHED_ON, State.READY_TO_SWITCH_ON):            Command.SHUT_DOWN,
-    (State.OPERATION_ENABLE, State.READY_TO_SWITCH_ON):       Command.SHUT_DOWN,
+    (State.OPERATION_ENABLED, State.READY_TO_SWITCH_ON):      Command.SHUT_DOWN,
     # Switch On: 3
     (State.READY_TO_SWITCH_ON, State.SWITCHED_ON):            Command.SWITCH_ON,
     # Disable Voltage: 7, 9, 10, 12
     (State.READY_TO_SWITCH_ON, State.SWITCH_ON_DISABLED):     Command.DISABLE_VOLTAGE,
-    (State.OPERATION_ENABLE, State.SWITCH_ON_DISABLED):       Command.DISABLE_VOLTAGE,
+    (State.OPERATION_ENABLED, State.SWITCH_ON_DISABLED):      Command.DISABLE_VOLTAGE,
     (State.SWITCHED_ON, State.SWITCH_ON_DISABLED):            Command.DISABLE_VOLTAGE,
     (State.QUICK_STOP_ACTIVE, State.SWITCH_ON_DISABLED):      Command.DISABLE_VOLTAGE,
     # Quick Stop: 7, 10, 11
     (State.READY_TO_SWITCH_ON, State.SWITCH_ON_DISABLED):     Command.QUICK_STOP,
     (State.SWITCHED_ON, State.SWITCH_ON_DISABLED):            Command.QUICK_STOP,
-    (State.OPERATION_ENABLE, State.QUICK_STOP_ACTIVE):        Command.QUICK_STOP,
+    (State.OPERATION_ENABLED, State.QUICK_STOP_ACTIVE):       Command.QUICK_STOP,
     # Disable Operation: 5
-    (State.OPERATION_ENABLE, State.SWITCHED_ON):              Command.DISABLE_OPERATION,
+    (State.OPERATION_ENABLED, State.SWITCHED_ON):             Command.DISABLE_OPERATION,
     # Enable Operation: 4, 16
-    (State.SWITCHED_ON, State.OPERATION_ENABLE):              Command.ENABLE_OPERATION,
-    (State.QUICK_STOP_ACTIVE, State.OPERATION_ENABLE):        Command.ENABLE_OPERATION,
+    (State.SWITCHED_ON, State.OPERATION_ENABLED):             Command.ENABLE_OPERATION,
+    (State.QUICK_STOP_ACTIVE, State.OPERATION_ENABLED):       Command.ENABLE_OPERATION,
     # Fault Reset: 15
     (State.FAULT, State.SWITCH_ON_DISABLED):                  Command.FAULT_RESET,
     # Automatic: 0, 1, 14
@@ -207,7 +207,7 @@ def which_state(statusword: int) -> State:
         (0b1001111, 0b1000000, State.SWITCH_ON_DISABLED),
         (0b1101111, 0b0100001, State.READY_TO_SWITCH_ON),
         (0b1101111, 0b0100011, State.SWITCHED_ON),
-        (0b1101111, 0b0100111, State.OPERATION_ENABLE),
+        (0b1101111, 0b0100111, State.OPERATION_ENABLED),
         (0b1101111, 0b0000111, State.QUICK_STOP_ACTIVE),
         (0b1001111, 0b0001111, State.FAULT_REACTION_ACTIVE),
         (0b1001111, 0b0001000, State.FAULT),
@@ -629,7 +629,7 @@ class CiA402Node(RemoteNode):
         Kwargs:
             timeout: Optional timeout.
         """
-        self.change_state(State.OPERATION_ENABLE, timeout)
+        self.change_state(State.OPERATION_ENABLED, timeout)
 
     def set_target_position(self, pos):
         """Set target position in device units."""

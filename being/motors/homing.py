@@ -114,7 +114,7 @@ def proper_homing(node: CiA402Node, timeout: float = 10.0) -> HomingProgress:
     with node.restore_states_and_operation_mode():
         yield from change_state_gen(node, CiA402State.SWITCHED_ON)
         node.set_operation_mode(OperationMode.HOMING)
-        yield from change_state_gen(node, CiA402State.OPERATION_ENABLE)
+        yield from change_state_gen(node, CiA402State.OPERATION_ENABLED)
 
         start_homing(node)
 
