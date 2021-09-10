@@ -13,7 +13,7 @@ from being.clock import Clock
 from being.config import CONFIG
 from being.connectables import MessageInput
 from being.logging import get_logger
-from being.motors.events import MotorEvent
+from being.motors.definitions import MotorEvent
 from being.web.server import init_web_server, run_web_server
 from being.web.web_socket import WebSocket
 

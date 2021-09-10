@@ -25,6 +25,7 @@ from being.can.cia_402 import (
     determine_homing_method,
 )
 from being.constants import INF
+from being.serialization import register_enum
 from being.utils import toss_coin
 
 
@@ -39,6 +40,9 @@ class HomingState(enum.Enum):
     UNHOMED = 1
     ONGOING = 2
     HOMED = 3
+
+
+register_enum(HomingState)
 
 
 HomingProgress = Generator[HomingState, None, None]

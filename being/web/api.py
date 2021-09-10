@@ -19,8 +19,7 @@ from being.connectables import ValueOutput, _ValueContainer
 from being.content import CONTENT_CHANGED, Content
 from being.logging import get_logger
 from being.motors.blocks import MotorBlock
-from being.motors.homing import HomingState
-from being.serialization import loads, spline_from_dict, register_enum
+from being.serialization import loads, spline_from_dict
 from being.spline import fit_spline
 from being.typing import Spline
 from being.utils import filter_by_type
@@ -29,9 +28,6 @@ from being.web.responses import respond_ok, json_response
 
 LOGGER = get_logger(__name__)
 """API module logger."""
-
-
-register_enum(HomingState)
 
 
 def messageify(obj) -> collections.OrderedDict:

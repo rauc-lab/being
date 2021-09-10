@@ -58,7 +58,7 @@ export class NotificationCenter {
         this.persistentNotifications = {};
         this.beenSaid = {};
         this.motorNotifications = defaultdict(Number);
-        this.motorNames = {};
+        this.homingStates = defaultdict(Number);
     }
 
     /**
@@ -103,33 +103,17 @@ export class NotificationCenter {
     }
 
     /**
-     * Assign and return a name to a motor. If motor has a name assigned use
-     * this. If name is the same as blockType (name's default value) us
-     * blockType but assign a increasing number
-     *
-     * @param {Object} motor Motor object.
-     * @returns {String} Assigned motor name.
-     */
-    assign_motor_name(motor) {
-        if (!(motor.id in this.motorNames)) {
-            if (motor.name !== motor.blockType) {
-                this.motorNames[motor.id] = motor.name;
-            } else {
-                const size = object_size(this.motorNames);
-                this.motorNames[motor.id] = "Motor " + (size + 1) + " ";
-            }
-        }
-
-        return this.motorNames[motor.id];
-    }
-
-    /**
      * Process single motor message and update notifications.
      *
      * @param {Object} motor Motor object.
      */
     update_motor_notification(motor) {
-        const name = this.assign_motor_name(motor);
+        const homing = motor.homing.value;
+        if (this.homingStates[motor.id] === homing) {
+            return;
+        }
+        this.homingStates[motor.id] = homing;
+        const name = motor.name;
         const notis = this.motorNotifications;
         switch(motor.homing.value) {
             case 0:
@@ -153,7 +137,7 @@ export class NotificationCenter {
         } else if (msg.type === "motor-updates") {
             msg.motors.forEach(motor => this.update_motor_notification(motor));
         } else if (msg.type === "motor-error") {
-            const name = this.assign_motor_name(msg.motor);
+            const name = msg.motor.name;
             this.notify(name + " " + msg.message, "error", 5);
         } else {
             throw "Unsupported message type: " + msg.type;

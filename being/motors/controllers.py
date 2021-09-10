@@ -11,10 +11,9 @@ from being.bitmagic import clear_bit, set_bit
 from being.can.cia_402 import CiA402Node, HOMING_METHOD, OperationMode, State
 from being.config import CONFIG
 from being.constants import FORWARD
-from being.error import BeingError
 from being.logging import get_logger
 from being.math import clip
-from being.motors.events import MotorEvent
+from being.motors.definitions import MotorInterface, MotorState, MotorEvent
 from being.motors.homing import CiA402Homing, CrudeHoming, default_homing_method
 from being.motors.motors import Motor
 from being.motors.vendor import (
@@ -23,7 +22,6 @@ from being.motors.vendor import (
     MAXON_EMERGENCY_DESCRIPTIONS,
     MAXON_SUPPORTED_HOMING_METHODS,
 )
-from being.pubsub import PubSub
 from being.utils import merge_dicts
 
 
@@ -114,7 +112,7 @@ def apply_settings_to_node(node, settings: Dict[str, Any]):
         sdo[last].raw = value
 
 
-class Controller(PubSub, abc.ABC):
+class Controller(MotorInterface):
 
     """Semi abstract controller base class.
 
@@ -164,7 +162,7 @@ class Controller(PubSub, abc.ABC):
         if length is None:
             length = motor.length
 
-        super().__init__(events=MotorEvent)
+        super().__init__()
 
         # Attrs
         self.node: CiA402Node = node
@@ -192,24 +190,27 @@ class Controller(PubSub, abc.ABC):
         self.node.change_state(State.READY_TO_SWITCH_ON, how='sdo', timeout=0.5)
 
     def disable(self):
-        """Disable drive (no power)."""
-        self.logger.debug('disable()')
         self.switchJob = self.node.change_state(State.READY_TO_SWITCH_ON, how='pdo', generator=True)
 
     def enable(self):
-        """Enable drive."""
-        self.logger.debug('enable()')
         self.switchJob = self.node.change_state(State.OPERATION_ENABLED, how='pdo', generator=True)
 
-    def enabled(self) -> bool:
-        """Is motor enabled?"""
-        return self.node.get_state() is State.OPERATION_ENABLED
+    def motor_state(self):
+        if self.lastState is State.OPERATION_ENABLED:
+            return MotorState.ENABLED
+        elif self.lastState is State.FAULT:
+            return MotorState.FAULT
+        else:
+            return MotorState.DISABLED
 
     def home(self):
         """Create homing job routine for this controller."""
         self.logger.debug('home()')
         self.homing.home()
         self.publish(MotorEvent.HOMING_CHANGED)
+
+    def homing_state(self):
+        return self.homing.state
 
     def init_homing(self, **homingKwargs):
         """Setup homing."""

@@ -5,7 +5,7 @@ complicated but we do this so that we can move blocking aspects to the caller
 and home multiple motors / nodes in parallel. This results in quasi coroutines.
 We do not use asyncio because we want to keep the core async free for now.
 """
-import abc
+import itertools
 from typing import Optional, Dict, Any, Union
 
 from being.backends import CanBackend
@@ -17,10 +17,9 @@ from being.constants import TAU
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
 from being.motors.controllers import Controller, Mclm3002, Epos4
-from being.motors.events import MotorEvent
+from being.motors.definitions import MotorState, MotorEvent, MotorInterface
 from being.motors.homing import DummyHoming, HomingState
 from being.motors.motors import get_motor, Motor
-from being.pubsub import PubSub
 from being.resources import register_resource
 
 
@@ -46,57 +45,25 @@ def create_controller_for_node(node: CiA402Node, *args, **kwargs) -> Controller:
     return controllerType(node, *args, **kwargs)
 
 
-class MotorBlock(Block, PubSub, abc.ABC):
+class MotorBlock(Block, MotorInterface):
+
+    FREE_NUMBERS = itertools.count(1)
+
     def __init__(self, name: Optional[str] = None):
         """Kwargs:
             name: Block name.
         """
+        if name is None:
+            name = 'Motor %d' % next(self.FREE_NUMBERS)
+
         super().__init__(name=name)
-        PubSub.__init__(self, events=MotorEvent)
+        MotorInterface.__init__(self)
         self.add_value_input('targetPosition')
         self.add_value_output('actualPosition')
 
-    @abc.abstractmethod
-    def enable(self, publish: bool = True):
-        """Engage motor. This is switching motor on and engaging its drive.
-
-        Kwargs:
-            publish: If to publish motor changes.
-        """
-        if publish:
-            self.publish(MotorEvent.STATE_CHANGED)
-
-    @abc.abstractmethod
-    def disable(self, publish: bool = True):
-        """Switch motor on.
-
-        Kwargs:
-            publish: If to publish motor changes.
-        """
-        if publish:
-            self.publish(MotorEvent.STATE_CHANGED)
-
-    @abc.abstractmethod
-    def enabled(self) -> bool:
-        """Is motor enabled?"""
-        # TODO: Have some kind of motor state enum: [ERROR, DISABLED, ENABLED]?
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def home(self):
-        """Start homing routine for this motor. Has then to be driven via the
-        update() method.
-        """
-        self.publish(MotorEvent.STATE_CHANGED)
-
-    @abc.abstractmethod
-    def homing_state(self) -> HomingState:
-        """Return current homing state."""
-        raise NotImplementedError
-
     def to_dict(self):
         dct = super().to_dict()
-        dct['enabled'] = self.enabled()
+        dct['state'] = self.motor_state()
         dct['homing'] = self.homing_state()
         return dct
 
@@ -122,8 +89,11 @@ class DummyMotor(MotorBlock):
         self._enabled = False
         super().disable(publish)
 
-    def enabled(self):
-        return self._enabled
+    def motor_state(self):
+        if self._enabled:
+            return MotorState.ENABLED
+        else:
+            return MotorState.DISABLED
 
     def home(self):
         self.homing.home()
@@ -226,25 +196,21 @@ class CanMotor(MotorBlock):
         self.controller.subscribe(MotorEvent.ERROR, lambda msg: self.publish(MotorEvent.ERROR, msg))
         self.controller.subscribe(MotorEvent.HOMING_CHANGED, lambda: self.publish(MotorEvent.STATE_CHANGED))
 
-    @property
-    def homingState(self):
-        return self.controller.homingState
-
     def enable(self, publish: bool = False):
         self.controller.enable()
 
     def disable(self, publish: bool = True):
         self.controller.disable()
 
-    def enabled(self):
-        return self.controller.enabled()
+    def motor_state(self):
+        return self.controller.motor_state()
 
     def home(self):
         self.controller.home()
         super().home()
 
     def homing_state(self):
-        return self.controller.homing.state
+        return self.controller.homing_state()
 
     def update(self):
         self.controller.update()
@@ -254,7 +220,6 @@ class CanMotor(MotorBlock):
     def to_dict(self):
         dct = super().to_dict()
         dct['length'] = self.controller.length
-        dct['homing'] = self.controller.homing.state
         return dct
 
     def __str__(self):
