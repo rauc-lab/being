@@ -5,7 +5,7 @@ import itertools
 import logging
 import random
 import time
-from typing import Generator, Tuple, Callable
+from typing import Generator, Callable, Optional
 
 from canopen.variable import Variable
 
@@ -15,19 +15,20 @@ from being.can.cia_402 import (
     CW,
     Command,
     MODES_OF_OPERATION,
+    NEGATIVE,
     OperationMode,
+    POSITIVE,
     STATUSWORD,
     SW,
     State as CiA402State,
+    UNDEFINED,
+    determine_homing_method,
 )
+from being.constants import INF
 from being.utils import toss_coin
 
 
 LOGGER = logging.getLogger(__name__)
-
-
-HomingRange = Tuple[int, int]
-"""Lower and upper homing range."""
 
 
 class HomingState(enum.Enum):
@@ -45,6 +46,31 @@ HomingProgress = Generator[HomingState, None, None]
 
 
 # TODO(atheler): Move CiA 402 homing functions -> CiA402Node as methods
+
+
+def default_homing_method(
+        homingMethod: Optional[int] = None,
+        homingDirection: int = UNDEFINED,
+        endSwitches: bool = False,
+        indexPulse: bool = False,
+    ) -> int:
+    """Determine homing method from default homing kwargs."""
+    if homingMethod is not None:
+        return homingMethod
+
+    if homingDirection == UNDEFINED:
+        return 35
+
+    if endSwitches:
+        if homingDirection > 0:
+            return determine_homing_method(endSwitch=POSITIVE, indexPulse=indexPulse)
+        else:
+            return determine_homing_method(endSwitch=NEGATIVE, indexPulse=indexPulse)
+    else:
+        if homingDirection > 0:
+            return determine_homing_method(direction=POSITIVE, hardStop=True, indexPulse=indexPulse)
+        else:
+            return determine_homing_method(direction=NEGATIVE, hardStop=True, indexPulse=indexPulse)
 
 
 def start_homing(controlword: Variable) -> Generator:
@@ -122,6 +148,11 @@ class HomingBase(abc.ABC):
         """True if homing in progress."""
         return self.state is HomingState.ONGOING
 
+    @property
+    def homed(self) -> bool:
+        """True if homing in progress."""
+        return self.state is HomingState.HOMED
+
     def teardown(self) -> Generator:
         """Tear down logic. Will be used to abort an ongoing homing job."""
         return
@@ -195,22 +226,18 @@ class DummyHoming(HomingBase):
 
 
 class CiA402Homing(HomingBase):
-    def __init__(self, node, timeout=10.0, useCustomHardStop=False):
+    def __init__(self, node, timeout=10.0, **kwargs):
         super().__init__()
         self.node = node
         self.timeout = timeout
+        self.homingMethod = default_homing_method(**kwargs)
 
+        self.logger = logging.getLogger(f'CiA402Homing(nodeId: {node.id})')
         self.statusword = node.pdo[STATUSWORD]
         self.controlword = node.pdo[CONTROLWORD]
         self.oldState = None
         self.oldOp = None
-        self.logger = logging.getLogger(f'CiA402Homing(nodeId: {node.id})')
         self.endTime = -1
-
-        self.useCustomHardStop = useCustomHardStop
-
-        self.lower = None
-        self.upper = None
 
     def change_state(self, target) -> Generator:
         """Change to node's state job."""
@@ -226,11 +253,9 @@ class CiA402Homing(HomingBase):
         """Restore node's state and operation mode."""
         self.logger.debug('restore()')
         if self.oldState is None or self.oldOp is None:
-            print('Nothing to restore')
             return
 
         self.logger.debug('Restoring oldState: %s, oldOp: %s', self.oldState, self.oldOp)
-
         yield from self.change_state(CiA402State.SWITCHED_ON)
         self.logger.debug('Setting operation mode %s', self.oldOp)
         self.node.sdo[MODES_OF_OPERATION].raw = self.oldOp
@@ -250,8 +275,9 @@ class CiA402Homing(HomingBase):
         yield from stop_homing(self.controlword)
         yield from self.restore()
 
-    def cia_402_homing_job(self):
+    def homing_job(self):
         """CiA 402 homing routine."""
+        self.logger.debug('homing_job()')
         startTime = time.perf_counter()
         self.endTime = startTime + self.timeout
         self.capture()
@@ -273,19 +299,107 @@ class CiA402Homing(HomingBase):
         yield from self.teardown()
         self.state = final
 
-    def faulhabr_hard_stop_homing(self):
-        raise NotImplementedError
-
-    def homing_job(self):
-        self.logger.debug('homing_job()')
-        if self.useCustomHardStop:
-            return self.faulhabr_hard_stop_homing()
-        else:
-            return self.cia_402_homing_job()
-
     def __str__(self):
         return f'{type(self).__name__}({self.node}, {self.state})'
 
 
 class CrudeHoming(CiA402Homing):
-    pass
+    """Crude hard stop homing for Faulhaber linear motors.
+
+    Kwargs:
+        speed: Speed for homing in device units.
+    """
+
+    def __init__(self, node, minWidth, *args, **kwargs):
+        super().__init__(node, *args, **kwargs)
+        self.minWidth = minWidth
+        self.lower = INF
+        self.upper = -INF
+        self.currentLimit = self.node.sdo['Current Control Parameter Set']['Continuous Current Limit'].raw
+
+    @property
+    def width(self) -> float:
+        """Current homing width in device units."""
+        return self.upper - self.lower
+
+    def reset_range(self):
+        """Reset homing range."""
+        self.lower = INF
+        self.upper = -INF
+
+    def expand_range(self, pos: float):
+        """Expand homing range."""
+        self.lower = min(self.lower, pos)
+        self.upper = max(self.upper, pos)
+
+    def halt_drive(self) -> Generator:
+        """Stop drive."""
+        self.controlword.raw = Command.ENABLE_OPERATION | CW.HALT
+        yield
+
+    def move_drive(self, velocity: int) -> Generator:
+        """Move motor with constant velocity."""
+        self.controlword.raw = Command.ENABLE_OPERATION
+        yield
+        self.node.set_target_velocity(velocity)
+        yield
+        self.controlword.raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
+
+    def on_the_wall(self) -> bool:
+        """Check if motor is on the wall."""
+        current = self.node.sdo['Current Actual Value'].raw
+        return current > self.currentLimit  # TODO: Add percentage threshold?
+
+    def teardown(self):
+        yield from self.halt_drive()
+        yield from self.restore()
+
+    def homing_job(self, speed: int = 100):
+        self.logger.debug('homing_job()')
+        self.lower = INF
+        self.upper = -INF
+        node = self.node
+        sdo = self.node.sdo
+        if self.homingMethod in {-1, -3}:
+            # Forward direction
+            velocities = [speed, -speed]
+        else:
+            # Backward direction
+            velocities = [-speed, speed]
+
+        self.capture()
+
+        yield from self.change_state(CiA402State.READY_TO_SWITCH_ON)
+        sdo['Home Offset'].raw = 0
+        node.set_operation_mode(OperationMode.PROFILED_VELOCITY)
+
+        for vel in velocities:
+            yield from self.halt_drive()
+            yield from self.move_drive(vel)
+            while not self.on_the_wall():
+                self.expand_range(node.get_actual_position())
+                yield
+
+            yield from self.halt_drive()
+
+            # Turn off voltage to reset current current value
+            node.change_state(CiA402State.READY_TO_SWITCH_ON)
+
+        yield from self.teardown()
+
+        width = self.upper - self.lower
+        if width < self.minWidth:
+            self.logger.info('Homing failed. Width too narrow %f', width)
+            final = HomingState.FAILED
+        else:
+            self.logger.info('Homing successful')
+            final = HomingState.HOMED
+
+            # Center in the middle
+            margin = .5 * (width - self.minWidth)
+            self.lower += margin
+            self.upper -= margin
+
+            sdo['Home Offset'].raw = self.lower
+
+        self.state = final
