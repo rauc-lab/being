@@ -258,6 +258,14 @@ class Controller(PubSub, abc.ABC):
         self.lastState = state
         return True
 
+    def publish_errors(self):
+        for emcy in self.node.emcy.active:
+            msg = self.format_emcy(emcy)
+            self.logger.error(msg)
+            self.publish(MotorEvent.ERROR, msg)
+
+        self.node.emcy.reset()
+
     def update(self):
         """Controller tick function. Does the following:
           - Observe state changes and publish
@@ -270,12 +278,7 @@ class Controller(PubSub, abc.ABC):
             self.publish(MotorEvent.STATE_CHANGED)
 
         if state is State.FAULT:
-            for emcy in self.node.emcy.active:
-                msg = self.format_emcy(emcy)
-                self.logger.error(msg)
-                self.publish(MotorEvent.ERROR, msg)
-
-            self.node.emcy.reset()
+            self.publish_errors()
 
         if self.homing.ongoing:
             self.homing.update()
@@ -328,15 +331,25 @@ class Epos4(Controller):
     EMERGENCY_DESCRIPTIONS = MAXON_EMERGENCY_DESCRIPTIONS
     SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
 
-    def __init__(self, *args, usePositionController=True, **kwargs):
+    def __init__(self,
+            *args,
+            usePositionController=True,
+            recoverRpdoTimeoutError=True,
+            **kwargs,
+        ):
         """Kwargs:
             usePositionController: If True use position controller on EPOS4 with
                 operation mode CYCLIC_SYNCHRONOUS_POSITION. Otherwise simple
                 custom application side position controller working with the
                 CYCLIC_SYNCHRONOUS_VELOCITY.
+            recoverRpdoTimeoutError: Re-enable drive after a FAULT because of a
+                RPOD timeout error.
         """
         super().__init__(*args, **kwargs)
         self.usePositionController = usePositionController
+        self.recoverRpdoTimeoutError = recoverRpdoTimeoutError
+
+        self.rpodTimeoutOccurred = False
 
         # TODO: Test if firmwareVersion < 0x170h?
         self.logger.info('Firmware version 0x%04x', self.firmware_version())
@@ -349,7 +362,7 @@ class Epos4(Controller):
     def init_homing(self, **homingKwargs):
         method = default_homing_method(**homingKwargs)
         if method == 35:
-            warnings.warn(f'Epos4 does not support homing method 35. Using 37 instead.')
+            warnings.warn('Epos4 does not support homing method 35. Using 37 instead.')
             method = 37
 
         super().init_homing(homingMethod=method)
@@ -384,3 +397,22 @@ class Epos4(Controller):
                 err = (posSoll - posIst)
                 velSoll = 1e-3 / INTERVAL * err
                 self.node.set_target_velocity(velSoll)
+
+    def publish_errors(self):
+        for emcy in self.node.emcy.active:
+            rpodTimeout = 0x8250
+            if emcy.code == rpodTimeout:
+                self.rpodTimeoutOccurred = True
+
+            msg = self.format_emcy(emcy)
+            self.logger.error(msg)
+            self.publish(MotorEvent.ERROR, msg)
+
+        self.node.emcy.reset()
+
+    def update(self):
+        super().update()
+        if self.recoverRpdoTimeoutError:
+            if self.lastState is State.FAULT and self.rpodTimeoutOccurred:
+                self.enable()
+                self.rpodTimeoutOccurred = False
