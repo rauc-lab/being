@@ -112,6 +112,7 @@ async def _run_being_with_web_server(being):
 
     ws = WebSocket()
     app = init_web_server(being, ws)
+
     await asyncio.gather(
         _run_being_async(being),
         _send_being_state_to_front_end(being, ws),
@@ -142,12 +143,10 @@ def awake(
     if network is None:
         network = CanBackend.single_instance_get()
 
+    being = Being(blocks, clock, network)
+
     if network is not None:
         network.enable_pdo_communication()
-
-    being = Being(blocks, clock, network)
-    for motor in being.motors:
-        motor.subscribe(MotorEvent.DONE_HOMING, being.motor_done_homing)
 
     being.enable_motors()
     being.home_motors()

@@ -4,6 +4,7 @@ import fnmatch
 import glob
 import itertools
 import os
+import random
 import weakref
 from typing import Dict, List, Generator
 
@@ -152,3 +153,8 @@ def merge_dicts(first: dict, *others) -> dict:
         merged.update(dct)
 
     return merged
+
+
+def toss_coin(probability: float = .5) -> bool:
+    """Toss a coin."""
+    return random.random() < probability

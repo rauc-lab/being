@@ -54,7 +54,7 @@ class Pacemaker(contextlib.AbstractContextManager):
         """
         self.network = network
         self.maxWait = maxWait
-        self.logger = get_logger('Watchdog')
+        self.logger = get_logger('Pacemaker')
         self.pulseEvent = threading.Event()
         self.running = False
         self.thread = None
@@ -154,29 +154,8 @@ class Being:
     def home_motors(self):
         """Home all motors."""
         self.logger.info('home_motors()')
-        if self.network:
-            self.network.disable_pdo_communication()
-
         for motor in self.motors:
             motor.home()
-
-    def motor_done_homing(self):
-        """Motor changed callback. Used to track if all motors are homed and
-        then to set global NMT to OPERATIONAL.
-
-        Reasoning:
-            CiA 402 state changes can be slow. Slower motors can lead to perform
-            hits which would trigger RPDO timeout errors in the motors which
-            have homed before.
-            -> Wait until all motors are homed before resuming PDO communication
-               (NMT OPERATIONAL).
-        """
-        if all(mot.homed() is HomingState.HOMED for mot in self.motors):
-            self.logger.info('All motors homed')
-            if self.network:
-                self.network.enable_pdo_communication()
-        else:
-            self.logger.info('Not all motors homed')
 
     def start_behaviors(self):
         """Start all behaviors."""

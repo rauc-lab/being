@@ -1,7 +1,10 @@
 """Homing procedures and definitions."""
+import abc
 import enum
-import time
+import itertools
 import logging
+import random
+import time
 from typing import Generator, Tuple
 
 from being.bitmagic import check_bit_mask
@@ -14,9 +17,10 @@ from being.can.cia_402 import (
     STATUSWORD,
     SW,
     State as CiA402State,
+    which_state,
+    MODES_OF_OPERATION,
 )
-from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
-from being.error import BeingError
+from being.utils import toss_coin
 
 
 LOGGER = logging.getLogger(__name__)
@@ -40,97 +44,214 @@ HomingProgress = Generator[HomingState, None, None]
 """Yielding the current homing state."""
 
 
-def change_state_gen(node, target):
-    """Generator based change_state() function. Some controllers are slow..."""
-    node.change_state(target)
-    while not node.get_state() is target:
-        yield HomingState.ONGOING
-
-
 # TODO(atheler): Move CiA 402 homing functions -> CiA402Node as methods
 
 
-def start_homing(node):
+def start_homing(controlword):
     """Start homing procedure for node."""
     LOGGER.info('start_homing()')
     # Controlword bit 4 has to go from 0 -> 1
-    node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
-    node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
+    controlword.raw = Command.ENABLE_OPERATION
+    yield
+    controlword.raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
 
 
-def stop_homing(node):
+def stop_homing(controlword):
     """Stop homing procedure for node."""
     LOGGER.info('stop_homing()')
     # Controlword bit has to go from 1 -> 0
-    node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
-    node.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
+    controlword.raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
+    yield
+    controlword.raw = Command.ENABLE_OPERATION
 
 
-def homing_started(node) -> bool:
+def homing_started(statusword) -> bool:
     """Check if homing procedure has started."""
-    sw = node.sdo[STATUSWORD].raw
+    sw = statusword.raw
     started = not check_bit_mask(sw, SW.HOMING_ATTAINED) and not check_bit_mask(sw, SW.TARGET_REACHED)
     #print('homing_started()', started)
     return started
 
 
-def homing_ended(node) -> bool:
+def homing_ended(statusword) -> bool:
     """Check if homing procedure has ended."""
-    sw = node.sdo[STATUSWORD].raw
+    sw = statusword.raw
     ended = check_bit_mask(sw, SW.HOMING_ATTAINED) and check_bit_mask(sw, SW.TARGET_REACHED)
     #print('homing_ended()', ended)
     return ended
 
 
-def homing_reference_run(node: CiA402Node) -> HomingProgress:
+def homing_reference_run(statusword) -> HomingProgress:
     """Travel down homing road."""
-    while not homing_started(node):
+    while not homing_started(statusword):
         yield HomingState.ONGOING
 
-    while not homing_ended(node):
+    while not homing_ended(statusword):
         yield HomingState.ONGOING
 
 
-def proper_homing(node: CiA402Node, timeout: float = 10.0) -> HomingProgress:
-    """Proper CiA 402 homing.
+class HomingBase(abc.ABC):
 
-    Args:
-        node: Node to home
+    """Abstract homing base class."""
 
-    Kwargs:
-        timeout: Max duration of homing
-        node: Node to home
+    def __init__(self):
+        self.state = HomingState.UNHOMED
+        self.job = None
+        self.logger = logging.getLogger('Homing')
 
-    """
-    startTime = time.perf_counter()
-    endTime = startTime + timeout
+    @property
+    def ongoing(self) -> bool:
+        """True if homing in progress."""
+        return self.state is HomingState.ONGOING
 
-    def timeout_expired():
-        expired = time.perf_counter() > endTime
+    @abc.abstractmethod
+    def abort_job(self) -> Generator:
+        """Abort homing job."""
+
+    @abc.abstractmethod
+    def homing_job(self) -> Generator:
+        """Homing job."""
+
+    def home(self):
+        """Start homing."""
+        self.state = HomingState.ONGOING
+        if self.job:
+            self.job = itertools.chain(
+                self.abort_job(),
+                self.homing_job(),
+            )
+        else:
+            self.job = self.homing_job()
+
+    def update(self):
+        if not self.job:
+            return
+
+        try:
+            next(self.job)
+        except StopIteration:
+            self.job = None
+            return
+
+    def __str__(self):
+        return f'{type(self).__name__}({self.state})'
+
+
+class DummyHoming(HomingBase):
+    def __init__(self,
+            minDuration=1.,
+            maxDuration=2.,
+            successProbability=0.9,
+            time_func=time.perf_counter,
+        ):
+        super().__init__()
+        self.minDuration = minDuration
+        self.maxDuration = maxDuration
+        self.successProbability = successProbability
+        self.time_func = time_func
+
+    def abort_job(self):
+        self.state = HomingState.UNHOMED
+        return
+        yield
+
+    def homing_job(self) -> Generator:
+        duration = random.uniform(self.minDuration, self.maxDuration)
+        endTime = self.time_func() + duration
+        self.state = HomingState.ONGOING
+        while self.time_func() < endTime:
+            yield
+
+        if toss_coin(self.successProbability):
+            self.state = HomingState.HOMED
+        else:
+            self.state = HomingState.FAILED
+
+    def __str__(self):
+        return f'{type(self).__name__}({self.state})'
+
+
+class CiA402Homing(HomingBase):
+    def __init__(self, node, timeout=10.0, useCustomHardStop=False):
+        super().__init__()
+        self.node = node
+        self.timeout = timeout
+
+        self.statusword = node.pdo[STATUSWORD]
+        self.controlword = node.pdo[CONTROLWORD]
+        self.oldState = None
+        self.oldOp = None
+        self.logger = logging.getLogger(f'CiA402Homing(nodeId: {node.id})')
+        self.endTime = -1
+
+        self.useCustomHardStop = useCustomHardStop
+
+        self.lower = None
+        self.upper = None
+
+    def change_state(self, target):
+        return self.node.change_state(target, how='pdo', generator=True)
+
+    def capture(self):
+        self.logger.debug('capture()')
+        self.oldState = which_state(self.statusword.raw)
+        self.oldOp = self.node.get_operation_mode()
+
+    def restore(self):
+        self.logger.debug('restore()')
+        if self.oldState is None or self.oldOp is None:
+            return
+
+        yield from self.change_state(CiA402State.SWITCHED_ON)
+        self.node.sdo[MODES_OF_OPERATION].raw = self.oldOp
+        yield from self.change_state(self.oldState)
+        self.oldState = self.oldOp = None
+
+    def timeout_expired(self):
+        expired = time.perf_counter() > self.endTime
+        if expired:
+            self.logger.warning('Timeout expired')
         return expired
 
-    state = HomingState.ONGOING
-
-    with node.restore_states_and_operation_mode():
-        yield from change_state_gen(node, CiA402State.SWITCHED_ON)
-        node.set_operation_mode(OperationMode.HOMING)
-        yield from change_state_gen(node, CiA402State.OPERATION_ENABLED)
-
-        start_homing(node)
-
-        for state in homing_reference_run(node):
-            if timeout_expired():
-                LOGGER.error('Homing for %s: Timeout expired!', node)
-                state = HomingState.FAILED
+    def cia_402_homing_job(self):
+        startTime = time.perf_counter()
+        self.endTime = startTime + self.timeout
+        self.capture()
+        yield from self.change_state(CiA402State.SWITCHED_ON)
+        self.node.sdo[MODES_OF_OPERATION].raw = OperationMode.HOMING
+        yield from start_homing(self.controlword)
+        final = HomingState.UNHOMED
+        self.logger.debug('homing reference run')
+        for _ in homing_reference_run(self.statusword):
+            if self.timeout_expired():
+                final = HomingState.FAILED
                 break
 
-            yield state
+            yield
+        else:
+            final = HomingState.HOMED
 
-        else:  # If no break
-            state = HomingState.HOMED
+        yield from stop_homing(self.controlword)
+        yield from self.restore()
+        self.state = final
 
-        stop_homing(node)
+    def faulhabr_hard_stop_homing(self):
+        raise NotImplementedError
 
-        yield from change_state_gen(node, CiA402State.SWITCHED_ON)
+    def homing_job(self):
+        if self.useCustomHardStop:
+            return self.faulhabr_hard_stop_homing()
+        else:
+            return self.cia_402_homing_job()
 
-    yield state
+    def abort_job(self):
+        yield from self.stop()
+        yield from self.restore()
+        self.state = HomingState.UNHOMED
+
+    def __str__(self):
+        return f'{type(self).__name__}({self.node}, {self.state})'
+
+
+class CrudeHoming(CiA402Homing):
+    pass
