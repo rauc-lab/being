@@ -5,7 +5,9 @@ import itertools
 import logging
 import random
 import time
-from typing import Generator, Tuple
+from typing import Generator, Tuple, Callable
+
+from canopen.variable import Variable
 
 from being.bitmagic import check_bit_mask
 from being.can.cia_402 import (
@@ -47,8 +49,12 @@ HomingProgress = Generator[HomingState, None, None]
 # TODO(atheler): Move CiA 402 homing functions -> CiA402Node as methods
 
 
-def start_homing(controlword):
-    """Start homing procedure for node."""
+def start_homing(controlword: Variable) -> Generator:
+    """Start homing procedure for node.
+
+    Args:
+        controlword: canopen control word variable.
+    """
     LOGGER.info('start_homing()')
     # Controlword bit 4 has to go from 0 -> 1
     controlword.raw = Command.ENABLE_OPERATION
@@ -56,8 +62,12 @@ def start_homing(controlword):
     controlword.raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
 
 
-def stop_homing(controlword):
-    """Stop homing procedure for node."""
+def stop_homing(controlword: Variable) -> Generator:
+    """Stop homing procedure for node.
+
+    Args:
+        controlword: canopen control word variable.
+    """
     LOGGER.info('stop_homing()')
     # Controlword bit has to go from 1 -> 0
     controlword.raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
@@ -65,24 +75,34 @@ def stop_homing(controlword):
     controlword.raw = Command.ENABLE_OPERATION
 
 
-def homing_started(statusword) -> bool:
-    """Check if homing procedure has started."""
+def homing_started(statusword: Variable) -> bool:
+    """Check if homing procedure has started.
+
+    Args:
+        statusword: canopen status word variable.
+    """
     sw = statusword.raw
     started = not check_bit_mask(sw, SW.HOMING_ATTAINED) and not check_bit_mask(sw, SW.TARGET_REACHED)
-    #print('homing_started()', started)
     return started
 
 
-def homing_ended(statusword) -> bool:
-    """Check if homing procedure has ended."""
+def homing_ended(statusword: Variable) -> bool:
+    """Check if homing procedure has ended.
+
+    Args:
+        statusword: canopen status word variable.
+    """
     sw = statusword.raw
     ended = check_bit_mask(sw, SW.HOMING_ATTAINED) and check_bit_mask(sw, SW.TARGET_REACHED)
-    #print('homing_ended()', ended)
     return ended
 
 
-def homing_reference_run(statusword) -> HomingProgress:
-    """Travel down homing road."""
+def homing_reference_run(statusword: Variable) -> HomingProgress:
+    """Travel down homing road.
+
+    Args:
+        controlword: canopen controlword variable.
+    """
     while not homing_started(statusword):
         yield HomingState.ONGOING
 
@@ -104,26 +124,28 @@ class HomingBase(abc.ABC):
         """True if homing in progress."""
         return self.state is HomingState.ONGOING
 
-    @abc.abstractmethod
-    def abort_job(self) -> Generator:
-        """Abort homing job."""
+    def teardown(self) -> Generator:
+        """Tear down logic. Will be used to abort an ongoing homing job."""
+        return
+        yield
 
     @abc.abstractmethod
     def homing_job(self) -> Generator:
-        """Homing job."""
+        """Primary homing job."""
+        return
+        yield
 
     def home(self):
         """Start homing."""
-        self.state = HomingState.ONGOING
         if self.job:
-            self.job = itertools.chain(
-                self.abort_job(),
-                self.homing_job(),
-            )
+            self.job = itertools.chain(self.teardown(), self.homing_job())
         else:
             self.job = self.homing_job()
 
+        self.state = HomingState.ONGOING
+
     def update(self):
+        """Tick homing one step further."""
         if not self.job:
             return
 
@@ -131,29 +153,32 @@ class HomingBase(abc.ABC):
             next(self.job)
         except StopIteration:
             self.job = None
-            return
 
     def __str__(self):
         return f'{type(self).__name__}({self.state})'
 
 
 class DummyHoming(HomingBase):
+
+    """Dummy homing for testing with virtual motors."""
+
     def __init__(self,
-            minDuration=1.,
-            maxDuration=2.,
-            successProbability=0.9,
-            time_func=time.perf_counter,
+            minDuration: float = 1.,
+            maxDuration: float = 2.,
+            successProbability: float = 0.9,
+            time_func: Callable = time.perf_counter,
         ):
+        """Kwargs:
+            minDuration: Minimum duration of dummy homing.
+            maxDuration: Maximum duration of dummy homing.
+            successProbability: Success probability of dummy homing.
+            time_func: Timing function.
+        """
         super().__init__()
         self.minDuration = minDuration
         self.maxDuration = maxDuration
         self.successProbability = successProbability
         self.time_func = time_func
-
-    def abort_job(self):
-        self.state = HomingState.UNHOMED
-        return
-        yield
 
     def homing_job(self) -> Generator:
         duration = random.uniform(self.minDuration, self.maxDuration)
@@ -189,38 +214,54 @@ class CiA402Homing(HomingBase):
         self.lower = None
         self.upper = None
 
-    def change_state(self, target):
+    def change_state(self, target) -> Generator:
+        """Change to node's state job."""
         return self.node.change_state(target, how='pdo', generator=True)
 
     def capture(self):
+        """Capture current node's state and operation mode."""
         self.logger.debug('capture()')
         self.oldState = which_state(self.statusword.raw)
         self.oldOp = self.node.get_operation_mode()
 
     def restore(self):
+        """Restore node's state and operation mode."""
         self.logger.debug('restore()')
         if self.oldState is None or self.oldOp is None:
+            print('Nothing to restore')
             return
 
+        self.logger.debug('Restoring oldState: %s, oldOp: %s', self.oldState, self.oldOp)
+
         yield from self.change_state(CiA402State.SWITCHED_ON)
+        self.logger.debug('Setting operation mode %s', self.oldOp)
         self.node.sdo[MODES_OF_OPERATION].raw = self.oldOp
         yield from self.change_state(self.oldState)
         self.oldState = self.oldOp = None
+        self.logger.debug('Done with restoring')
 
-    def timeout_expired(self):
+    def timeout_expired(self) -> bool:
+        """Check if timeout expired."""
         expired = time.perf_counter() > self.endTime
         if expired:
             self.logger.warning('Timeout expired')
+
         return expired
 
+    def teardown(self):
+        yield from stop_homing(self.controlword)
+        yield from self.restore()
+
     def cia_402_homing_job(self):
+        """CiA 402 homing routine."""
         startTime = time.perf_counter()
         self.endTime = startTime + self.timeout
         self.capture()
         yield from self.change_state(CiA402State.SWITCHED_ON)
+        self.logger.debug('Setting operation mode %s', OperationMode.HOMING)
         self.node.sdo[MODES_OF_OPERATION].raw = OperationMode.HOMING
         yield from start_homing(self.controlword)
-        final = HomingState.UNHOMED
+        self.final = HomingState.UNHOMED
         self.logger.debug('homing reference run')
         for _ in homing_reference_run(self.statusword):
             if self.timeout_expired():
@@ -231,23 +272,18 @@ class CiA402Homing(HomingBase):
         else:
             final = HomingState.HOMED
 
-        yield from stop_homing(self.controlword)
-        yield from self.restore()
+        yield from self.teardown()
         self.state = final
 
     def faulhabr_hard_stop_homing(self):
         raise NotImplementedError
 
     def homing_job(self):
+        self.logger.debug('homing_job()')
         if self.useCustomHardStop:
             return self.faulhabr_hard_stop_homing()
         else:
             return self.cia_402_homing_job()
-
-    def abort_job(self):
-        yield from self.stop()
-        yield from self.restore()
-        self.state = HomingState.UNHOMED
 
     def __str__(self):
         return f'{type(self).__name__}({self.node}, {self.state})'
