@@ -1,5 +1,4 @@
 """Motor controllers."""
-import enum
 import logging
 import sys
 import warnings
@@ -18,12 +17,11 @@ from being.can.cia_402 import (
     OperationMode,
     POSITION_ACTUAL_VALUE,
     POSITIVE,
-    STATUSWORD,
     State as CiA402State,
     TARGET_POSITION,
     TARGET_VELOCITY,
+    UNDEFINED,
     determine_homing_method,
-    which_state,
 )
 from being.config import CONFIG
 from being.constants import FORWARD, INF
@@ -31,8 +29,7 @@ from being.error import BeingError
 from being.logging import get_logger
 from being.math import clip
 from being.motors.events import MotorEvent
-from being.motors.homing import HomingProgress, HomingProgress
-from being.motors.homing import HomingState
+from being.motors.homing import HomingProgress, HomingState, CiA402Homing
 from being.motors.motors import Motor
 from being.motors.vendor import (
     FAULHABER_EMERGENCY_DESCRIPTIONS,
@@ -42,9 +39,6 @@ from being.motors.vendor import (
 )
 from being.pubsub import PubSub
 from being.utils import merge_dicts
-from being.motors.homing import CiA402Homing
-from being.can.cia_402 import CW, Command
-from being.can.cia_402 import UNDEFINED, POSITIVE, NEGATIVE
 
 
 INTERVAL = CONFIG['General']['INTERVAL']
@@ -319,7 +313,6 @@ direction: Motor direction.
         return True
 
     def update(self):
-        #state = which_state(self.node.pdo[STATUSWORD].raw)
         state = self.node.get_state('pdo')
         if self.state_changed(state):
             self.publish(MotorEvent.STATE_CHANGED)

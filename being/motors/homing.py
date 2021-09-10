@@ -13,14 +13,12 @@ from being.bitmagic import check_bit_mask
 from being.can.cia_402 import (
     CONTROLWORD,
     CW,
-    CiA402Node,
     Command,
+    MODES_OF_OPERATION,
     OperationMode,
     STATUSWORD,
     SW,
     State as CiA402State,
-    which_state,
-    MODES_OF_OPERATION,
 )
 from being.utils import toss_coin
 
@@ -221,7 +219,7 @@ class CiA402Homing(HomingBase):
     def capture(self):
         """Capture current node's state and operation mode."""
         self.logger.debug('capture()')
-        self.oldState = which_state(self.statusword.raw)
+        self.oldState = self.node.get_state('pdo')
         self.oldOp = self.node.get_operation_mode()
 
     def restore(self):

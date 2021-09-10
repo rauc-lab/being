@@ -6,31 +6,19 @@ and home multiple motors / nodes in parallel. This results in quasi coroutines.
 We do not use asyncio because we want to keep the core async free for now.
 """
 import abc
-import enum
-import random
-import time
 from typing import Optional, Dict, Any, Union
 
 from being.backends import CanBackend
 from being.block import Block
 from being.can import load_object_dictionary
-from being.can.cia_402 import (
-    CiA402Node,
-    STATUSWORD,
-    State as CiA402State,
-    which_state,
-)
+from being.can.cia_402 import CiA402Node
 from being.config import CONFIG
 from being.constants import TAU
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
 from being.motors.controllers import Controller, Mclm3002, Epos4
 from being.motors.events import MotorEvent
-from being.motors.homing import (
-    HomingProgress,
-    HomingState,
-    DummyHoming,
-)
+from being.motors.homing import DummyHoming, HomingState
 from being.motors.motors import get_motor, Motor
 from being.pubsub import PubSub
 from being.resources import register_resource

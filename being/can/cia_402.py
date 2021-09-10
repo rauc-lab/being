@@ -4,16 +4,14 @@ CiA402Node is a trimmed down version of canopen.BaseNode402. We favor SDO
 communication during setup but synchronous acyclic PDO communication during
 operation. Also added support for CYCLIC_SYNCHRONOUS_POSITION mode.
 """
+import collections
 import contextlib
+import enum
 import logging
-import itertools
 import time
-from enum import auto, IntEnum, Enum
 from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union, Optional, NamedTuple
-from collections import deque, defaultdict
 
 from canopen import RemoteNode
-from canopen.variable import Variable
 
 from being.bitmagic import check_bit
 from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
@@ -65,23 +63,23 @@ Edge = Tuple[State, State]
 CanOpenRegister = Union[int, str]
 
 
-class State(Enum):
+class State(enum.Enum):
 
     """CANopen CiA 402 states."""
 
-    START = auto()
-    NOT_READY_TO_SWITCH_ON = auto()
-    SWITCH_ON_DISABLED = auto()
-    READY_TO_SWITCH_ON = auto()
-    SWITCHED_ON = auto()
-    OPERATION_ENABLED = auto()
-    QUICK_STOP_ACTIVE = auto()
-    FAULT_REACTION_ACTIVE = auto()
-    FAULT = auto()
-    HALT = auto()
+    START = enum.auto()
+    NOT_READY_TO_SWITCH_ON = enum.auto()
+    SWITCH_ON_DISABLED = enum.auto()
+    READY_TO_SWITCH_ON = enum.auto()
+    SWITCHED_ON = enum.auto()
+    OPERATION_ENABLED = enum.auto()
+    QUICK_STOP_ACTIVE = enum.auto()
+    FAULT_REACTION_ACTIVE = enum.auto()
+    FAULT = enum.auto()
+    HALT = enum.auto()
 
 
-class CW(IntEnum):
+class CW(enum.IntEnum):
 
     """Controlword bits."""
 
@@ -98,7 +96,7 @@ class CW(IntEnum):
     HALT = (1 << 8)
 
 
-class Command(IntEnum):
+class Command(enum.IntEnum):
 
     """CANopen CiA 402 controlword commands for state transitions."""
 
@@ -120,7 +118,7 @@ assert Command.ENABLE_OPERATION == 0b1111
 assert Command.FAULT_RESET == (1 << 7)
 
 
-class SW(IntEnum):
+class SW(enum.IntEnum):
 
     """Statusword bits."""
 
@@ -144,7 +142,7 @@ class SW(IntEnum):
     #NOT_IN_USE_1 = (1 << 15)
 
 
-class OperationMode(IntEnum):
+class OperationMode(enum.IntEnum):
 
     """Modes of Operation (0x6060 / 0x6061)."""
 
@@ -194,7 +192,7 @@ TRANSITIONS: Dict[Edge, Command] = {
 edge -> command.
 """
 
-POSSIBLE_TRANSITIONS: Dict[State, Set[State]] = defaultdict(set)
+POSSIBLE_TRANSITIONS: Dict[State, Set[State]] = collections.defaultdict(set)
 for _src, _dst in TRANSITIONS:
     POSSIBLE_TRANSITIONS[_src].add(_dst)
 """Reachable states from a given state."""
@@ -264,7 +262,7 @@ def find_shortest_state_path(start: State, end: State) -> List[State]:
         start -> end.
     """
     # Breadth-first search
-    queue = deque([[start]])
+    queue = collections.deque([[start]])
     paths = []
     while queue:
         path = queue.popleft()
