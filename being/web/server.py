@@ -15,7 +15,7 @@ from being.config import CONFIG
 from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
 from being.logging import BEING_LOGGERS, get_logger
-from being.motors.blocks import MotorEvent
+from being.motors.events import MotorEvent
 from being.sensors import Sensor
 from being.utils import filter_by_type
 from being.web.api import (
@@ -149,7 +149,8 @@ def init_api(being, ws: WebSocket) -> web.Application:
         })
 
     for motor in being.motors:
-        motor.subscribe(MotorEvent.CHANGED, ws_emit(motor))
+        motor.subscribe(MotorEvent.STATE_CHANGED, ws_emit(motor))
+        motor.subscribe(MotorEvent.HOMING_CHANGED, ws_emit(motor))
         motor.subscribe(MotorEvent.ERROR, ws_motor_error_notification(motor))
 
     wire_being_loggers_to_web_socket(ws)

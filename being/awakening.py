@@ -13,7 +13,7 @@ from being.clock import Clock
 from being.config import CONFIG
 from being.connectables import MessageInput
 from being.logging import get_logger
-from being.motors.blocks import MotorEvent
+from being.motors.events import MotorEvent
 from being.web.server import init_web_server, run_web_server
 from being.web.web_socket import WebSocket
 
@@ -124,6 +124,8 @@ async def _run_being_with_web_server(being):
 def awake(
         *blocks: Iterable[Block],
         web: bool = True,
+        enableMotors: bool = True,
+        homeMotors: bool = True,
         clock: Optional[Clock] = None,
         network: Optional[CanBackend] = None,
     ):
@@ -134,6 +136,8 @@ def awake(
 
     Kwargs:
         web: Run with web server.
+        enableMotors: Enable motors on startup.
+        homeMotors: Home motors on startup.
         clock: Clock instance.
         network: CanBackend instance.
     """
@@ -148,8 +152,11 @@ def awake(
     if network is not None:
         network.enable_pdo_communication()
 
-    being.enable_motors()
-    being.home_motors()
+    if enableMotors:
+        being.enable_motors()
+
+    if homeMotors:
+        being.home_motors()
 
     try:
         if web:

@@ -24,7 +24,8 @@ from being.config import CONFIG
 from being.constants import TAU
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
-from being.motors.controllers import Controller, Mclm3002, Epos4, ControllerEvent
+from being.motors.controllers import Controller, Mclm3002, Epos4
+from being.motors.events import MotorEvent
 from being.motors.homing import (
     HomingProgress,
     HomingState,
@@ -43,12 +44,6 @@ CONTROLLER_TYPES: Dict[str, Controller] = {
     'EPOS4': Epos4,
 }
 """Device name -> Controller type lookup."""
-
-
-class MotorEvent(enum.Enum):
-    CHANGED = enum.auto()
-    ERROR = enum.auto()
-    DONE_HOMING = enum.auto()
 
 
 def create_controller_for_node(node: CiA402Node, *args, **kwargs) -> Controller:
@@ -81,7 +76,7 @@ class MotorBlock(Block, PubSub, abc.ABC):
             publish: If to publish motor changes.
         """
         if publish:
-            self.publish(MotorEvent.CHANGED)
+            self.publish(MotorEvent.STATE_CHANGED)
 
     @abc.abstractmethod
     def disable(self, publish: bool = True):
@@ -91,7 +86,7 @@ class MotorBlock(Block, PubSub, abc.ABC):
             publish: If to publish motor changes.
         """
         if publish:
-            self.publish(MotorEvent.CHANGED)
+            self.publish(MotorEvent.STATE_CHANGED)
 
     @abc.abstractmethod
     def enabled(self) -> bool:
@@ -104,7 +99,7 @@ class MotorBlock(Block, PubSub, abc.ABC):
         """Start homing routine for this motor. Has then to be driven via the
         update() method.
         """
-        self.publish(MotorEvent.CHANGED)
+        self.publish(MotorEvent.STATE_CHANGED)
 
     @abc.abstractmethod
     def homing_state(self) -> HomingState:
@@ -153,7 +148,7 @@ class DummyMotor(MotorBlock):
         if self.homing.ongoing:
             self.homing.update()
             if not self.homing.ongoing:
-                self.publish(MotorEvent.CHANGED)
+                self.publish(MotorEvent.STATE_CHANGED)
         elif self.homing.state is HomingState.HOMED:
             target = self.input.value
             self.state = kinematic_filter(
@@ -239,9 +234,9 @@ class CanMotor(MotorBlock):
         for msg in self.controller.error_history_messages():
             self.publish(MotorEvent.ERROR, msg)
 
-        self.controller.subscribe(ControllerEvent.STATE_CHANGED, lambda: self.publish(MotorEvent.CHANGED))
-        self.controller.subscribe(ControllerEvent.ERROR, lambda msg: self.publish(MotorEvent.ERROR, msg))
-        self.controller.subscribe(ControllerEvent.HOMING_CHANGED, lambda: self.publish(MotorEvent.CHANGED))
+        self.controller.subscribe(MotorEvent.STATE_CHANGED, lambda: self.publish(MotorEvent.STATE_CHANGED))
+        self.controller.subscribe(MotorEvent.ERROR, lambda msg: self.publish(MotorEvent.ERROR, msg))
+        self.controller.subscribe(MotorEvent.HOMING_CHANGED, lambda: self.publish(MotorEvent.STATE_CHANGED))
 
     @property
     def homingState(self):

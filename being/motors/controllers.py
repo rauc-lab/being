@@ -30,6 +30,7 @@ from being.constants import FORWARD, INF
 from being.error import BeingError
 from being.logging import get_logger
 from being.math import clip
+from being.motors.events import MotorEvent
 from being.motors.homing import HomingProgress, HomingProgress
 from being.motors.homing import HomingState
 from being.motors.motors import Motor
@@ -53,12 +54,6 @@ LOGGER = get_logger(__name__)
 class ControllerError(BeingError):
 
     """General Being controller errors."""
-
-
-class ControllerEvent(enum.Enum):
-    STATE_CHANGED = enum.auto()
-    HOMING_CHANGED = enum.auto()
-    ERROR = enum.auto()
 
 
 def nested_get(dct, keys):
@@ -216,7 +211,7 @@ direction: Motor direction.
         if length is None:
             length = motor.length
 
-        super().__init__(events=ControllerEvent)
+        super().__init__(events=MotorEvent)
 
         # Attrs
         self.node: CiA402Node = node
@@ -266,7 +261,7 @@ direction: Motor direction.
         """Create homing job routine for this controller."""
         self.logger.debug('home()')
         self.homing.home()
-        self.publish(ControllerEvent.HOMING_CHANGED)
+        self.publish(MotorEvent.HOMING_CHANGED)
 
     @staticmethod
     def determine_homing_method(homingMethod: Optional[int] = None, **kwargs) -> int:
@@ -327,20 +322,20 @@ direction: Motor direction.
         #state = which_state(self.node.pdo[STATUSWORD].raw)
         state = self.node.get_state('pdo')
         if self.state_changed(state):
-            self.publish(ControllerEvent.STATE_CHANGED)
+            self.publish(MotorEvent.STATE_CHANGED)
 
         if state is CiA402State.FAULT:
             for emcy in self.node.emcy.active:
                 msg = self.format_emcy(emcy)
                 self.logger.error(msg)
-                self.publish(ControllerEvent.ERROR, msg)
+                self.publish(MotorEvent.ERROR, msg)
 
             self.node.emcy.reset()
 
         if self.homing.ongoing:
             self.homing.update()
             if not self.homing.ongoing:
-                self.publish(ControllerEvent.HOMING_CHANGED)
+                self.publish(MotorEvent.HOMING_CHANGED)
         else:
             if self.switchJob:
                 try:
@@ -458,7 +453,7 @@ class Mclm3002(Controller):
         if self.homingMethod in {-1, -2, -3, -4}:
             self.homingState = HomingState.ONGOING
             self.homingJob = self.hard_stop_homing()
-            self.publish(ControllerEvent.HOMING_CHANGED)
+            self.publish(MotorEvent.HOMING_CHANGED)
 
         else:
             super().home()
