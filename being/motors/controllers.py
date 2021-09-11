@@ -1,6 +1,5 @@
 """Motor controllers."""
 import abc
-import logging
 import sys
 import warnings
 from typing import Optional, Dict, Set, Any, Union
@@ -26,7 +25,7 @@ from being.utils import merge_dicts
 
 
 INTERVAL = CONFIG['General']['INTERVAL']
-LOGGER = get_logger(__name__)
+LOGGER = get_logger(name=__name__, parent=None)
 
 
 def nested_get(dct, keys):
@@ -170,8 +169,7 @@ class Controller(MotorInterface):
         self.direction = direction
         self.length = length
 
-        #self.logger = get_logger(str(self))
-        self.logger = logging.getLogger(str(self))
+        self.logger = get_logger(str(self))
         self.position_si_2_device = float(multiplier * motor.gear * motor.position_si_2_device)
         self.lower = 0.
         self.upper = length * self.position_si_2_device

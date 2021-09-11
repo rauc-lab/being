@@ -14,7 +14,7 @@ from being.behavior import BEHAVIOR_CHANGED
 from being.config import CONFIG
 from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
-from being.logging import BEING_LOGGERS, get_logger
+from being.logging import BEING_LOGGER, get_logger
 from being.motors.definitions import MotorEvent
 from being.sensors import Sensor
 from being.utils import filter_by_type
@@ -35,7 +35,8 @@ WEB_SOCKET_ADDRESS = CONFIG['Web']['WEB_SOCKET_ADDRESS']
 INTERVAL = CONFIG['General']['INTERVAL']
 WEB_INTERVAL = CONFIG['Web']['INTERVAL']
 
-LOGGER = get_logger(__name__)
+
+LOGGER = get_logger(name=__name__, parent=None)
 """Server module logger."""
 
 
@@ -51,9 +52,7 @@ def wire_being_loggers_to_web_socket(ws: WebSocket):
             ws.send_json_buffered(record)
 
     handler = WsHandler()
-    for logger in BEING_LOGGERS:
-        logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
+    BEING_LOGGER.addHandler(handler)
 
 
 def patch_sensor_to_web_socket(sensor, ws: WebSocket):

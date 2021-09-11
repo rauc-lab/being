@@ -26,7 +26,7 @@ from being.utils import filter_by_type
 from being.web.responses import respond_ok, json_response
 
 
-LOGGER = get_logger(__name__)
+LOGGER = get_logger(name=__name__, parent=None)
 """API module logger."""
 
 

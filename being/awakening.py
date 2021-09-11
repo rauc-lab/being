@@ -22,7 +22,7 @@ API_PREFIX = CONFIG['Web']['API_PREFIX']
 WEB_SOCKET_ADDRESS = CONFIG['Web']['WEB_SOCKET_ADDRESS']
 INTERVAL = CONFIG['General']['INTERVAL']
 WEB_INTERVAL = CONFIG['Web']['INTERVAL']
-LOGGER = get_logger(__name__)
+LOGGER = get_logger(name=__name__, parent=None)
 
 
 def _exit_signal_handler(signum=None, frame=None):

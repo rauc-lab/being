@@ -2,7 +2,6 @@
 import abc
 import enum
 import itertools
-import logging
 import random
 import time
 from typing import Generator, Callable, Optional
@@ -25,11 +24,12 @@ from being.can.cia_402 import (
     determine_homing_method,
 )
 from being.constants import INF
+from being.logging import get_logger
 from being.serialization import register_enum
 from being.utils import toss_coin
 
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(name=__name__, parent=None)
 
 
 class HomingState(enum.Enum):
@@ -43,10 +43,6 @@ class HomingState(enum.Enum):
 
 
 register_enum(HomingState)
-
-
-HomingProgress = Generator[HomingState, None, None]
-"""Yielding the current homing state."""
 
 
 # TODO(atheler): Move CiA 402 homing functions -> CiA402Node as methods
@@ -125,17 +121,17 @@ def homing_ended(statusword: Variable) -> bool:
     return ended
 
 
-def homing_reference_run(statusword: Variable) -> HomingProgress:
+def homing_reference_run(statusword: Variable) -> Generator:
     """Travel down homing road.
 
     Args:
         controlword: canopen controlword variable.
     """
     while not homing_started(statusword):
-        yield HomingState.ONGOING
+        yield
 
     while not homing_ended(statusword):
-        yield HomingState.ONGOING
+        yield
 
 
 class HomingBase(abc.ABC):
@@ -145,7 +141,7 @@ class HomingBase(abc.ABC):
     def __init__(self):
         self.state = HomingState.UNHOMED
         self.job = None
-        self.logger = logging.getLogger('Homing')
+        self.logger = get_logger('Homing')
 
     @property
     def ongoing(self) -> bool:
@@ -236,7 +232,7 @@ class CiA402Homing(HomingBase):
         self.timeout = timeout
         self.homingMethod = default_homing_method(**kwargs)
 
-        self.logger = logging.getLogger(f'CiA402Homing(nodeId: {node.id})')
+        self.logger = get_logger(f'CiA402Homing(nodeId: {node.id})')
         self.statusword = node.pdo[STATUSWORD]
         self.controlword = node.pdo[CONTROLWORD]
         self.oldState = None

@@ -7,7 +7,6 @@ operation. Also added support for CYCLIC_SYNCHRONOUS_POSITION mode.
 import collections
 import contextlib
 import enum
-import logging
 import time
 from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union, Optional, NamedTuple
 
@@ -20,7 +19,7 @@ from being.constants import FORWARD, BACKWARD
 from being.logging import get_logger
 
 
-LOGGER = get_logger(__name__)
+LOGGER = get_logger(name=__name__, parent=None)
 
 
 # Mandatory (?) CiA 402 object dictionary entries
@@ -388,8 +387,7 @@ class CiA402Node(RemoteNode):
 
     def __init__(self, nodeId, objectDictionary, network):
         super().__init__(nodeId, objectDictionary, load_od=False)
-        #self.logger = get_logger(str(self))
-        self.logger = logging.getLogger(str(self))
+        self.logger = get_logger(str(self))
 
         network.add_node(self, objectDictionary)
 
