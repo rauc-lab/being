@@ -36,6 +36,21 @@ def message_outputs(blocks):
         yield from filter_by_type(block.outputs, MessageOutput)
 
 
+class Once:
+
+    """Value changed detector."""
+
+    def __init__(self, initial):
+        self.prev = initial
+
+    def changed(self, value):
+        if value == self.prev:
+            return False
+
+        self.prev = value
+        return True
+
+
 class Pacemaker(contextlib.AbstractContextManager):
 
     """Pacemaker / watchdog / dead man's switch daemon thread.
@@ -58,6 +73,7 @@ class Pacemaker(contextlib.AbstractContextManager):
         self.pulseEvent = threading.Event()
         self.running = False
         self.thread = None
+        self.once = Once(initial=True)
 
     def tick(self):
         """Push the dead man's switch."""
@@ -65,10 +81,15 @@ class Pacemaker(contextlib.AbstractContextManager):
 
     def _run(self):
         while self.running:
-            if not self.pulseEvent.wait(timeout=self.maxWait):
+            if self.pulseEvent.wait(timeout=self.maxWait):
+                if self.once.changed(True):
+                    self.logger.warning('Off')
+
+            else:
                 self.network.transmit_all_rpdos()
                 self.network.send_sync()
-                self.logger.warning('Main thread not on time. Stepping in')
+                if self.once.changed(False):
+                    self.logger.warning('On')
 
             self.pulseEvent.clear()
 
