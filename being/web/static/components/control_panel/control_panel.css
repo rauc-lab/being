@@ -30,6 +30,19 @@
     z-index : 2;
 }
 
+div.toolbar button.state-fault {
+    background-color: red;
+}
+
+div.toolbar button.state-disabled {
+    background-color: white;
+}
+
+div.toolbar button.state-enabled {
+    background-color: black;
+    color: white;
+}
+
 @keyframes pulsating-black {
     0% {
         background-color: white;

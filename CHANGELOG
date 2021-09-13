@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.2] - 2021-09-07
+
+### Added
+- Dedicated SYNC message sender thread
+- Enabling / disabling motor with optional timeout
+- Motor blocks done homing event
+- Software side position controller for Epos4
+
+### Changed
+- proper_homing() routine
+
+### Fixed
+- Motor state change timeout issues
+- Wrong NMT state causing on errors on some controllers
+- Wrong CiA 402 state change command
+
 ## [0.2.1] - 2021-09-02
 
 ### Fixed
