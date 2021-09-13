@@ -13,7 +13,7 @@ from being.clock import Clock
 from being.config import CONFIG
 from being.connectables import MessageInput
 from being.logging import get_logger
-from being.motors.blocks import MOTOR_DONE_HOMING
+from being.motors.definitions import MotorEvent
 from being.web.server import init_web_server, run_web_server
 from being.web.web_socket import WebSocket
 
@@ -22,7 +22,7 @@ API_PREFIX = CONFIG['Web']['API_PREFIX']
 WEB_SOCKET_ADDRESS = CONFIG['Web']['WEB_SOCKET_ADDRESS']
 INTERVAL = CONFIG['General']['INTERVAL']
 WEB_INTERVAL = CONFIG['Web']['INTERVAL']
-LOGGER = get_logger(__name__)
+LOGGER = get_logger(name=__name__, parent=None)
 
 
 def _exit_signal_handler(signum=None, frame=None):
@@ -43,8 +43,6 @@ def _run_being_standalone(being):
         sleepTime = then - now
         if sleepTime >= 0:
             time.sleep(then - now)
-        else:
-            LOGGER.critical('Sleep time: %.1f ms', 1000 * sleepTime)
 
         being.single_cycle()
         cycle += 1
@@ -61,8 +59,6 @@ async def _run_being_async(being):
         sleepTime = then - now
         if sleepTime >= 0:
             await asyncio.sleep(sleepTime)
-        else:
-            LOGGER.critical('Sleep time: %.1f ms', 1000 * sleepTime)
 
         being.single_cycle()
         cycle += 1
@@ -116,6 +112,7 @@ async def _run_being_with_web_server(being):
 
     ws = WebSocket()
     app = init_web_server(being, ws)
+
     await asyncio.gather(
         _run_being_async(being),
         _send_being_state_to_front_end(being, ws),
@@ -127,6 +124,8 @@ async def _run_being_with_web_server(being):
 def awake(
         *blocks: Iterable[Block],
         web: bool = True,
+        enableMotors: bool = True,
+        homeMotors: bool = True,
         clock: Optional[Clock] = None,
         network: Optional[CanBackend] = None,
     ):
@@ -137,6 +136,8 @@ def awake(
 
     Kwargs:
         web: Run with web server.
+        enableMotors: Enable motors on startup.
+        homeMotors: Home motors on startup.
         clock: Clock instance.
         network: CanBackend instance.
     """
@@ -147,11 +148,15 @@ def awake(
         network = CanBackend.single_instance_get()
 
     being = Being(blocks, clock, network)
-    for motor in being.motors:
-        motor.subscribe(MOTOR_DONE_HOMING, being.motor_done_homing)
 
-    being.enable_motors()
-    being.home_motors()
+    if network is not None:
+        network.enable_pdo_communication()
+
+    if enableMotors:
+        being.enable_motors()
+
+    if homeMotors:
+        being.home_motors()
 
     try:
         if web:
