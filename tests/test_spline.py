@@ -1,4 +1,5 @@
 import unittest
+import math
 
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_equal
@@ -7,6 +8,7 @@ from scipy.interpolate import BPoly, PPoly
 from being.spline import (
     build_ppoly,
     copy_spline,
+    sample_spline,
     ppoly_coefficients_at,
     ppoly_insert,
     smoothing_spline,
@@ -147,6 +149,61 @@ class TestCopySpline(unittest.TestCase):
 
         self.assertEqual(copy.extrapolate, orig.extrapolate)
         self.assertEqual(copy.axis, orig.axis)
+
+
+def wiggle_bpoly(extrapolate: bool = True) -> BPoly:
+    """Test bbpoly wiggle from -1 -> 1."""
+    c = [[-1], [-2], [2], [1]]
+    x = [2, 5]
+    return BPoly(c, x, extrapolate)
+
+
+class TestSplineSampling(unittest.TestCase):
+    def test_works_with_both_spline_types(self):
+        bpoly = wiggle_bpoly(False)
+        ppoly = PPoly.from_bernstein_basis(bpoly)
+
+        self.assertEqual(sample_spline(bpoly, 2), -1)
+        self.assertEqual(sample_spline(ppoly, 2), -1)
+
+    def test_looping_spline(self):
+        period = 5.
+        spline = wiggle_bpoly(False)
+        self.assertEqual(sample_spline(spline, 2. - 1 * period, loop=True), -1)
+        self.assertEqual(sample_spline(spline, 2. + 0 * period, loop=True), -1)
+        self.assertEqual(sample_spline(spline, 2. + 1 * period, loop=True), -1)
+
+    def test_looping_spline_always_starts_from_zero(self):
+        period = 5.
+        spline = wiggle_bpoly(False)
+        self.assertEqual(sample_spline(spline, 0., loop=True), -1)
+        self.assertEqual(sample_spline(spline, 1., loop=True), -1)
+        self.assertEqual(sample_spline(spline, 2., loop=True), -1)
+
+    def test_non_extrapolate_splines_get_clipped(self):
+        spline = wiggle_bpoly(False)
+
+        #self.assertEqual(sample_spline(spline, 0.), -1)
+        #self.assertEqual(sample_spline(spline, 10.), 1)
+
+    def test_non_extrapolate_spline_does_not_nan_on_the_edge(self):
+        x = [0., 0., 0., 0., 10., 10., 10., 10.]
+        nKnots = len(x)
+        c = np.random.random((4, nKnots - 1))
+        c[0, :4] = -1  # spline(0) -> -1
+        c[-1, :] = 1  # spline(10) ~> 1
+        spline = BPoly(c, x, extrapolate=False)
+
+        # Out of bound on the edge
+        assert_equal(spline(10), np.nan)
+
+        assert_equal(sample_spline(spline, 0.), -1)
+        assert_almost_equal(sample_spline(spline, 10.), 1)
+
+    def test_extrapolate_splines_get_extrapolated(self):
+        spline = wiggle_bpoly(True)
+
+        self.assertNotEqual(sample_spline(spline, 1.), np.nan)
 
 
 if __name__ == '__main__':
