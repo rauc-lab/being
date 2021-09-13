@@ -283,14 +283,16 @@ class CanMotor(MotorBlock):
         self.homing = HomingState.ONGOING
         super().home()
 
-    def update(self):
+    def _check_emcy_errors(self):
+        """Check and publish new emergency errors and publish (if any)"""
         for emcy in self.controller.new_emcy_errors():
             msg = self.controller.emcy_message(emcy)
             self.logger.error(msg)
             self.publish(MOTOR_ERROR, msg)
 
-        sw = self.controller.node.pdo[STATUSWORD].raw  # PDO instead of SDO for speed. This takes approx. 0.027 ms
-        #print(which_state(sw))
+    def update(self):
+        self.check_emcy_errors()
+        sw = self.controller.node.pdo[STATUSWORD].raw
         if self.homing is HomingState.HOMED:
             state = which_state(sw)
             if state is CiA402State.OPERATION_ENABLE:
@@ -342,3 +344,18 @@ class WindupMotor(CanMotor):
         """
         multiplier = 1 / (spool_diameter / 2)
         super().__init__(nodeId, motor, multiplier, length=length, multiplier=multiplier, **kwargs)
+
+    def update(self):
+        self.check_emcy_errors()
+        sw = self.controller.node.pdo[STATUSWORD].raw
+        if self.homing is HomingState.HOMED:
+            state = which_state(sw)
+            if state is CiA402State.OPERATION_ENABLE:
+                # TODO: Update multiplier depending on target position
+                self.controller.set_target_position(self.targetPosition.value)
+
+        elif self.homing is HomingState.ONGOING:
+            self.homing = next(self.homingJob)
+            if self.homing is not HomingState.ONGOING:
+                self.publish(MOTOR_DONE_HOMING)
+                self.publish(MOTOR_CHANGED)
