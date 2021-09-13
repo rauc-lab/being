@@ -250,23 +250,10 @@ class WindupMotor(CanMotor):
 
     def __init__(self, nodeId, motor="EC 45", spool_diameter: float = 1.0, length: float = 1.0, **kwargs):
         """Args:
-            spool_diameter: diameter [m] of spool where the filament is winded up
+            spool_diameter: (average) diameter [m] of spool where the filament is winded up
             length: length of filament [m]
         """
+        # TODO: Having two diameters (un-winded / winded-up) would allow to have
+        # a more exact multiplier (linear interpolate depending on target position)
         multiplier = 1 / (spool_diameter / 2)
         super().__init__(nodeId, motor, multiplier, length=length, multiplier=multiplier, **kwargs)
-
-    def update(self):
-        self.check_emcy_errors()
-        sw = self.controller.node.pdo[STATUSWORD].raw
-        if self.homing is HomingState.HOMED:
-            state = which_state(sw)
-            if state is CiA402State.OPERATION_ENABLE:
-                # TODO: Update multiplier depending on target position
-                self.controller.set_target_position(self.targetPosition.value)
-
-        elif self.homing is HomingState.ONGOING:
-            self.homing = next(self.homingJob)
-            if self.homing is not HomingState.ONGOING:
-                self.publish(MOTOR_DONE_HOMING)
-                self.publish(MOTOR_CHANGED)
