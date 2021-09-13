@@ -2,7 +2,7 @@
 import abc
 import sys
 import warnings
-from typing import Optional, Dict, Set, Any, Union
+from typing import Optional, Set
 
 from canopen.emcy import EmcyError
 
@@ -64,51 +64,6 @@ def format_error_code(errorCode: int, descriptions: list) -> str:
             description = desc
 
     return f'{description} (error code {errorCode:#04x})'
-
-
-def maybe_int(string: str) -> Union[int, str]:
-    """Try to cast string to int.
-
-    Args:
-        string: Input string.
-
-    Returns:
-        Maybe an int. Pass on input string otherwise.
-
-    Usage:
-        >>> maybe_int('123')
-        123
-
-        >>> maybe_int('  0x7b')
-        123
-    """
-    string = string.strip()
-    if string.isnumeric():
-        return int(string)
-
-    if string.startswith('0x'):
-        return int(string, base=16)
-
-    if string.startswith('0b'):
-        return int(string, base=2)
-
-    return string
-
-
-def apply_settings_to_node(node, settings: Dict[str, Any]):
-    """Apply settings to CANopen node.
-
-    Args:
-        settings: Settings to apply. Addresses (path syntax) -> value
-            entries.
-    """
-    for name, value in settings.items():
-        *path, last = map(maybe_int, name.split('/'))
-        sdo = node.sdo
-        for key in path:
-            sdo = sdo[key]
-
-        sdo[last].raw = value
 
 
 class Controller(MotorInterface):
@@ -180,7 +135,7 @@ class Controller(MotorInterface):
         # Configure node
         self.apply_motor_direction(direction)
         merged = merge_dicts(self.motor.defaultSettings, settings)
-        apply_settings_to_node(self.node, merged)
+        self.node.apply_settings(merged)
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 

@@ -8,7 +8,18 @@ import collections
 import contextlib
 import enum
 import time
-from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union, Optional, NamedTuple
+from typing import (
+    Any,
+    Dict,
+    ForwardRef,
+    Generator,
+    List,
+    NamedTuple,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
 
 from canopen import RemoteNode
 
@@ -369,6 +380,35 @@ assert determine_homing_method(hardStop=True, direction=BACKWARD) == -4
 
 
 StateSwitching = Generator[State, None, None]
+
+
+def maybe_int(string: str) -> Union[int, str]:
+    """Try to cast string to int.
+
+    Args:
+        string: Input string.
+
+    Returns:
+        Maybe an int. Pass on input string otherwise.
+
+    Usage:
+        >>> maybe_int('123')
+        123
+
+        >>> maybe_int('  0x7b')
+        123
+    """
+    string = string.strip()
+    if string.isnumeric():
+        return int(string)
+
+    if string.startswith('0x'):
+        return int(string, base=16)
+
+    if string.startswith('0b'):
+        return int(string, base=2)
+
+    return string
 
 
 class CiA402Node(RemoteNode):
@@ -760,6 +800,22 @@ class CiA402Node(RemoteNode):
     def manufacturer_device_name(self):
         """Get manufacturer device name."""
         return self.sdo[MANUFACTURER_DEVICE_NAME].raw
+
+
+    def apply_settings(self, settings: Dict[str, Any]):
+        """Apply settings to CANopen node.
+
+        Args:
+            settings: Settings to apply. Addresses (path syntax) -> value
+                entries.
+        """
+        for name, value in settings.items():
+            *path, last = map(maybe_int, name.split('/'))
+            sdo = self.sdo
+            for key in path:
+                sdo = sdo[key]
+
+            sdo[last].raw = value
 
     def __str__(self):
         return f'{type(self).__name__}(id: {self.id})'
