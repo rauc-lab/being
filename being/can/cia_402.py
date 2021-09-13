@@ -35,7 +35,6 @@ LOGGER = get_logger(name=__name__, parent=None)
 
 # Mandatory (?) CiA 402 object dictionary entries
 # (SJA): CiA 402 is still a Draft Specification Proposal (DSP).
-
 CONTROLWORD = 0x6040
 STATUSWORD = 0x6041
 MODES_OF_OPERATION = 0x6060
@@ -57,11 +56,9 @@ PROFILE_ACCELERATION = 0x6083
 PROFILE_DECELERATION = 0x6084
 QUICK_STOP_DECELERATION = 0x6085
 HOMING_METHOD = 0x6098
-
 HOMING_SPEEDS = 0x6099
 SPEED_FOR_SWITCH_SEARCH = 1
 SPEED_FOR_ZERO_SEARCH = 2
-
 HOMING_ACCELERATION = 0x609A
 DIGITAL_INPUTS = 0x60FD
 TARGET_VELOCITY = 0x60FF
@@ -157,10 +154,10 @@ class OperationMode(enum.IntEnum):
     """Modes of Operation (0x6060 / 0x6061)."""
 
     NO_MODE = 0
-    PROFILED_POSITION = 1
+    PROFILE_POSITION = 1
     VELOCITY = 2
-    PROFILED_VELOCITY = 3
-    PROFILED_TORQUE = 4
+    PROFILE_VELOCITY = 3
+    PROFILE_TORQUE = 4
     HOMING = 6
     INTERPOLATED_POSITION = 7
     CYCLIC_SYNCHRONOUS_POSITION = 8
@@ -247,8 +244,8 @@ def supported_operation_modes(supportedDriveModes: int) -> Generator[OperationMo
     # Look-up is identical between Faulhaber / Maxon
 
     stuff = [
-        (0, OperationMode.PROFILED_POSITION),
-        (2, OperationMode.PROFILED_VELOCITY),
+        (0, OperationMode.PROFILE_POSITION),
+        (2, OperationMode.PROFILE_VELOCITY),
         (5, OperationMode.HOMING),
         (7, OperationMode.CYCLIC_SYNCHRONOUS_POSITION),
         (8, OperationMode.CYCLIC_SYNCHRONOUS_VELOCITY),
@@ -789,6 +786,63 @@ class CiA402Node(RemoteNode):
         """Get actual velocity in device units."""
         return self.pdo[VELOCITY_ACTUAL_VALUE].raw
 
+    def move_to(self,
+            position: int,
+            velocity: Optional[int] = None,
+            acceleration: Optional[int] = None,
+            immediately: bool = True,
+        ):
+        """Move to position. OperationMode.PROFILED_POSITION.
+
+        Args:
+            position: Target position.
+
+        Kwargs:
+            velocity: Profile velocity (if any).
+            acceleration: Profile acceleration / deceleration (if any).
+            immediately: If True overwrite ongoing command.
+        """
+        self.logger.debug('move_to(%s, velocity=%s, acceleration=%s)', position, velocity, acceleration)
+        self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
+        self.sdo[TARGET_POSITION].raw = position
+        if velocity is not None:
+            self.sdo[PROFILE_VELOCITY].raw = velocity
+
+        if acceleration is not None:
+            self.sdo[PROFILE_ACCELERATION].raw = acceleration
+            self.sdo[PROFILE_DECELERATION].raw = acceleration
+
+        if immediately:
+            self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT | CW.CHANGE_SET_IMMEDIATELY
+        else:
+            self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
+
+    def move(self,
+            velocity: int,
+            acceleration: Optional[int] = None,
+            immediately: bool = True,
+        ):
+        """Move with velocity. OperationMode.PROFILE_VELOCITY.
+
+        Args:
+            velocity: Profile velocity (if any).
+
+        Kwargs:
+            acceleration: Profile acceleration / deceleration (if any).
+            immediately: If True overwrite ongoing command.
+        """
+        self.logger.debug('move_to(%s, acceleration=%s)', velocity, acceleration)
+        self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
+        self.sdo[PROFILE_VELOCITY].raw = velocity
+        if acceleration is not None:
+            self.sdo[PROFILE_ACCELERATION].raw = acceleration
+            self.sdo[PROFILE_DECELERATION].raw = acceleration
+
+        if immediately:
+            self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT | CW.CHANGE_SET_IMMEDIATELY
+        else:
+            self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
+
     def _get_info(self) -> dict:
         """Get the current states."""
         return {
@@ -815,6 +869,7 @@ class CiA402Node(RemoteNode):
             for key in path:
                 sdo = sdo[key]
 
+            self.logger.debug('Applying %r = %s', name, value)
             sdo[last].raw = value
 
     def __str__(self):
