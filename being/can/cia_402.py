@@ -545,6 +545,7 @@ class CiA402Node(RemoteNode):
             raise ValueError(f'Unknown how {how!r}')
 
         while current is not target:
+            self.logger.debug('Not yet in %s. Still in %s', target, current)
             yield current
             current = self.get_state(how)
 

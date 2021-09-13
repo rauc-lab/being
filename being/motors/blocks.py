@@ -7,6 +7,7 @@ We do not use asyncio because we want to keep the core async free for now.
 """
 import itertools
 from typing import Optional, Dict, Any, Union
+from scipy.interpolate import interp1d
 
 from being.backends import CanBackend
 from being.block import Block
@@ -248,12 +249,40 @@ class WindupMotor(CanMotor):
 
     """Default windup motor with Maxon controller"""
 
-    def __init__(self, nodeId, motor="EC 45", spool_diameter: float = 1.0, length: float = 1.0, **kwargs):
+    def __init__(self, nodeId, motor="EC 45", spoolDiameter: float = 1.0, length: float = 1.0, **kwargs):
         """Args:
             spool_diameter: (average) diameter [m] of spool where the filament is winded up
             length: length of filament [m]
         """
         # TODO: Having two diameters (un-winded / winded-up) would allow to have
         # a more exact multiplier (linear interpolate depending on target position)
-        multiplier = 1 / (spool_diameter / 2)
-        super().__init__(nodeId, motor, multiplier, length=length, multiplier=multiplier, **kwargs)
+        multiplier = 1 / (spoolDiameter / 2)
+        super().__init__(nodeId, motor, length=length, multiplier=multiplier, **kwargs)
+
+
+class WindupMotorAlternative(CanMotor):
+
+    """Alternative windup motor with Maxon controller for more accuracy"""
+
+    def __init__(self,
+        nodeId, 
+        motor="EC 45",
+        spoolDiameterEmpty: float = 1.0,
+        spoolDiameterFull: float = 1.0,
+        length: float = 1.0,
+        **kwargs):
+        """Args:
+            spool_diameter: (average) diameter [m] of spool where the filament is winded up
+            length: length of filament [m]
+        """
+
+        self.interpFunc = interp1d([0, length], [spoolDiameterFull, spoolDiameterEmpty])
+        super().__init__(nodeId, motor, length=length, **kwargs)
+
+    def update(self):
+        spoolDiameter = self.interpFunc(self.targetPosition.value)
+        multiplier = 1 / (spoolDiameter / 2)
+        motor = self.controller.motor
+        self.controller.position_si_2_device = float(multiplier * motor.gear * motor.position_si_2_device)
+        self.controller.upper = self.controller.length * self.controller.position_si_2_device
+        super().update()
