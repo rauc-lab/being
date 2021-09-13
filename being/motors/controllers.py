@@ -303,7 +303,7 @@ class Epos4(Controller):
         self.usePositionController = usePositionController
         self.recoverRpdoTimeoutError = recoverRpdoTimeoutError
 
-        self.rpodTimeoutOccurred = False
+        self.rpdoTimeoutOccurred = False
 
         # TODO: Test if firmwareVersion < 0x170h?
         self.logger.info('Firmware version 0x%04x', self.firmware_version())
@@ -356,7 +356,7 @@ class Epos4(Controller):
         for emcy in self.node.emcy.active:
             rpodTimeout = 0x8250
             if emcy.code == rpodTimeout:
-                self.rpodTimeoutOccurred = True
+                self.rpdoTimeoutOccurred = True
 
             msg = self.format_emcy(emcy)
             self.logger.error(msg)
@@ -367,6 +367,6 @@ class Epos4(Controller):
     def update(self):
         super().update()
         if self.recoverRpdoTimeoutError:
-            if self.lastState is State.FAULT and self.rpodTimeoutOccurred:
+            if self.lastState is State.FAULT and self.rpdoTimeoutOccurred:
                 self.enable()
-                self.rpodTimeoutOccurred = False
+                self.rpdoTimeoutOccurred = False
