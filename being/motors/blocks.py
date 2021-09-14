@@ -254,8 +254,6 @@ class WindupMotor(CanMotor):
             spool_diameter: (average) diameter [m] of spool where the filament is winded up
             length: length of filament [m]
         """
-        # TODO: Having two diameters (un-winded / winded-up) would allow to have
-        # a more exact multiplier (linear interpolate depending on target position)
         multiplier = 1 / (spoolDiameter / 2)
         super().__init__(nodeId, motor, length=length, multiplier=multiplier, **kwargs)
 
@@ -272,8 +270,8 @@ class WindupMotorAlternative(CanMotor):
         length: float = 1.0,
         **kwargs):
         """Args:
-            spool_diameter: (average) diameter [m] of spool where the filament is winded up
-            length: length of filament [m]
+            spool_diameter: (Average) diameter [m] of spool where the filament is winded up
+            length: Length of filament [m]
         """
 
         self.interpFunc = interp1d([0, length], [spoolDiameterFull, spoolDiameterEmpty])
@@ -286,3 +284,29 @@ class WindupMotorAlternative(CanMotor):
         self.controller.position_si_2_device = float(multiplier * motor.gear * motor.position_si_2_device)
         self.controller.upper = self.controller.length * self.controller.position_si_2_device
         super().update()
+
+
+class LeadScrewMotor(CanMotor):
+
+    """Default lead screw motor with Maxon controller"""
+
+    def __init__(self, nodeId, motor="DC 22", threadPitch: float = 1.0, length: float = 1.0, **kwargs):
+        """Args:
+            threadPitch: Pitch on lead screw thread ("heigth" per revolution) [m]
+            length: Total length of the lead screw [m]
+        """
+        multiplier = TAU / threadPitch
+        super().__init__(nodeId, motor, length=length, multiplier=multiplier, **kwargs)
+
+
+class BeltDriveMotor(CanMotor):
+
+    """Default belt drive motor with Maxon controller"""
+
+    def __init__(self, nodeId, motor="DC 22", pinionDiameter: float = 1.0, length: float = 1.0, **kwargs):
+        """Args:
+            pinionDiameter: Diameter of the pinion including the belt
+            length: Total length of the beltt drive [m]
+        """
+        multiplier = 1 / (pinionDiameter / 2)
+        super().__init__(nodeId, motor, length=length, multiplier=multiplier, **kwargs)
