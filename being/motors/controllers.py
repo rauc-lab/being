@@ -138,7 +138,6 @@ class Controller(MotorInterface):
             direction: int = FORWARD,
             length: Optional[float] = None,
             settings: Optional[dict] = None,
-            multiplier: float = 1.0,
             **homingKwargs,
         ):
         """Args:
@@ -149,9 +148,6 @@ class Controller(MotorInterface):
             direction: Movement direction.
             length: Length of associated motor. Motor length by default.
             settings: Motor settings.
-            multiplier: Additional Multiplier factor for SI position ->
-                multiplier -> gear -> motor.position_si_2_device. For windup
-                module / spindle drive.
             **homingKwargs: Homing parameters.
         """
         # Defaults
@@ -170,7 +166,7 @@ class Controller(MotorInterface):
         self.length = length
 
         self.logger = get_logger(str(self))
-        self.position_si_2_device = float(multiplier * motor.gear * motor.position_si_2_device)
+        self.position_si_2_device = float(motor.gear * motor.position_si_2_device)
         self.lower = 0.
         self.upper = length * self.position_si_2_device
         self.lastState = node.get_state()

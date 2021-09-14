@@ -249,54 +249,31 @@ class WindupMotor(CanMotor):
 
     """Default windup motor with Maxon controller"""
 
-    def __init__(self, nodeId, motor="EC 45", spoolDiameter: float = 1.0, length: float = 1.0, **kwargs):
+    def __init__(self, nodeId, motor="EC 45", spoolDiameter: float,  spoolDiameter: float, length: float, **kwargs):
         """Args:
-            spool_diameter: (average) diameter [m] of spool where the filament is winded up
+            spool_diameter: (unwinded) diameter [m] of spool where the filament is winded up
             length: length of filament [m]
         """
         multiplier = 1 / (spoolDiameter / 2)
         super().__init__(nodeId, motor, length=length, multiplier=multiplier, **kwargs)
 
 
-class WindupMotorAlternative(CanMotor):
-
-    """Alternative windup motor with Maxon controller for more accuracy"""
-
-    def __init__(self,
-        nodeId, 
-        motor="EC 45",
-        spoolDiameterEmpty: float = 1.0,
-        spoolDiameterFull: float = 1.0,
-        length: float = 1.0,
-        **kwargs):
-        """Args:
-            spool_diameter: (Average) diameter [m] of spool where the filament is winded up
-            length: Length of filament [m]
-        """
-
-        self.interpFunc = interp1d([0, length], [spoolDiameterFull, spoolDiameterEmpty])
-        super().__init__(nodeId, motor, length=length, **kwargs)
-
-    def update(self):
-        spoolDiameter = self.interpFunc(self.targetPosition.value)
-        multiplier = 1 / (spoolDiameter / 2)
-        motor = self.controller.motor
-        self.controller.position_si_2_device = float(multiplier * motor.gear * motor.position_si_2_device)
-        self.controller.upper = self.controller.length * self.controller.position_si_2_device
-        super().update()
-
-
 class LeadScrewMotor(CanMotor):
 
     """Default lead screw motor with Maxon controller"""
 
-    def __init__(self, nodeId, motor="DC 22", threadPitch: float = 1.0, length: float = 1.0, **kwargs):
+    def __init__(self, nodeId, motor="DC 22", threadPitch: float = 1.0, length: float, **kwargs):
         """Args:
             threadPitch: Pitch on lead screw thread ("heigth" per revolution) [m]
             length: Total length of the lead screw [m]
         """
-        multiplier = TAU / threadPitch
-        super().__init__(nodeId, motor, length=length, multiplier=multiplier, **kwargs)
+        self.multiplier = TAU / threadPitch
+        super().__init__(nodeId, motor, length=self.multiplier * length, **kwargs)
+
+    def update(self):
+        self.controller.update()
+        self.controller.set_target_position(self.multiplier * self.targetPosition.value)
+        self.output.value = self.controller.get_actual_position() / self.multiplier
 
 
 class BeltDriveMotor(CanMotor):
@@ -305,10 +282,16 @@ class BeltDriveMotor(CanMotor):
     to be moved is attached on the belt
     """
 
-    def __init__(self, nodeId, motor="DC 22", pinionDiameter: float = 1.0, length: float = 1.0, **kwargs):
+    def __init__(self, nodeId, motor="DC 22", pinionDiameter: float = 1.0, length: float, **kwargs):
         """Args:
             pinionDiameter: Diameter of the pinion including the belt
             length: Total length of the beltt drive [m]
         """
-        multiplier = 1 / (pinionDiameter / 2)
-        super().__init__(nodeId, motor, length=length, multiplier=multiplier, **kwargs)
+        radius = .5 * pinionDiameter
+        self.multiplier = 1 / radius
+        super().__init__(nodeId, motor, length=self.multiplier * length, **kwargs)
+
+    def update(self):
+        self.controller.update()
+        self.controller.set_target_position(self.multiplier * self.targetPosition.value)
+        self.output.value = self.controller.get_actual_position() / self.multiplier
