@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.3] - 2021-09-14
+
+### Added
+- Support for generator based CiA402Node state switching 
+- Node settings path now support int parts
+- MotorInterface abc, MotorState
+- CiA402Node move_to() / move_with() methods
+
+### Changed
+- SYNC thread now in Pacemaker class
+- Homing
+- Being root logger
+
+### Fixed
+- Typo State.OPERATION_ENABLE -> State.OPERATION_ENABLED
+
+### Removed
+- Deactivating PDO communication during state switching 
+
 ## [0.2.2] - 2021-09-07
 
 ### Added
