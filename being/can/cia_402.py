@@ -792,7 +792,7 @@ class CiA402Node(RemoteNode):
             acceleration: Optional[int] = None,
             immediately: bool = True,
         ):
-        """Move to position. OperationMode.PROFILED_POSITION.
+        """Move to position. For OperationMode.PROFILED_POSITION.
 
         Args:
             position: Target position.
@@ -817,21 +817,21 @@ class CiA402Node(RemoteNode):
         else:
             self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
 
-    def move(self,
+    def move_with(self,
             velocity: int,
             acceleration: Optional[int] = None,
             immediately: bool = True,
         ):
-        """Move with velocity. OperationMode.PROFILE_VELOCITY.
+        """Move with velocity. For OperationMode.PROFILE_VELOCITY.
 
         Args:
-            velocity: Profile velocity (if any).
+            velocity: Target velocity.
 
         Kwargs:
             acceleration: Profile acceleration / deceleration (if any).
             immediately: If True overwrite ongoing command.
         """
-        self.logger.debug('move_to(%s, acceleration=%s)', velocity, acceleration)
+        self.logger.debug('move_with(%s, acceleration=%s)', velocity, acceleration)
         self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
         self.sdo[PROFILE_VELOCITY].raw = velocity
         if acceleration is not None:
