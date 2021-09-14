@@ -5,6 +5,7 @@ complicated but we do this so that we can move blocking aspects to the caller
 and home multiple motors / nodes in parallel. This results in quasi coroutines.
 We do not use asyncio because we want to keep the core async free for now.
 """
+import abc
 import itertools
 from typing import Optional, Dict, Any, Union
 from scipy.interpolate import interp1d
@@ -62,10 +63,15 @@ class MotorBlock(Block, MotorInterface):
         self.add_value_input('targetPosition')
         self.add_value_output('actualPosition')
 
+    @abc.abstractmethod
+    def get_length(self) -> float:
+        """What is the length of the motor that will be shown in the UI?."""
+
     def to_dict(self):
         dct = super().to_dict()
         dct['state'] = self.motor_state()
         dct['homing'] = self.homing_state()
+        dct['length'] = self.get_length()
         return dct
 
 
@@ -103,6 +109,9 @@ class DummyMotor(MotorBlock):
     def homing_state(self):
         return self.homing.state
 
+    def get_length(self):
+        return self.length
+
     def update(self):
         if self.homing.ongoing:
             self.homing.update()
@@ -121,11 +130,6 @@ class DummyMotor(MotorBlock):
             )
 
         self.output.value = self.state.position
-
-    def to_dict(self):
-        dct = super().to_dict()
-        dct['length'] = self.length
-        return dct
 
 
 class CanMotor(MotorBlock):
@@ -213,15 +217,13 @@ class CanMotor(MotorBlock):
     def homing_state(self):
         return self.controller.homing_state()
 
+    def get_length(self):
+        return self.controller.length
+
     def update(self):
         self.controller.update()
         self.controller.set_target_position(self.targetPosition.value)
         self.output.value = self.controller.get_actual_position()
-
-    def to_dict(self):
-        dct = super().to_dict()
-        dct['length'] = self.controller.length
-        return dct
 
     def __str__(self):
         controller = self.controller
@@ -249,26 +251,56 @@ class WindupMotor(CanMotor):
 
     """Default windup motor with Maxon controller"""
 
-    def __init__(self, nodeId, motor="EC 45", spoolDiameter: float,  spoolDiameter: float, length: float, **kwargs):
+    def __init__(self,
+            nodeId,
+            diameter: float,
+            length: float,
+            motor: str = 'EC 45',
+            outerDiameter: Optional[float] = None,
+            **kwargs,
+        ):
         """Args:
             spool_diameter: (unwinded) diameter [m] of spool where the filament is winded up
             length: length of filament [m]
         """
-        multiplier = 1 / (spoolDiameter / 2)
-        super().__init__(nodeId, motor, length=length, multiplier=multiplier, **kwargs)
+        if outerDiameter is None:
+            outerDiameter = diameter
+
+        radius = .5 * diameter
+        self.multiplier = 1 / radius
+        super().__init__(nodeId, motor, length=self.multiplier * length, **kwargs)
+        self.length = length
+
+    def get_length(self):
+        return self.length
+
+    def update(self):
+        self.controller.update()
+        self.controller.set_target_position(self.multiplier * self.targetPosition.value)
+        self.output.value = self.controller.get_actual_position() / self.multiplier
 
 
 class LeadScrewMotor(CanMotor):
 
     """Default lead screw motor with Maxon controller"""
 
-    def __init__(self, nodeId, motor="DC 22", threadPitch: float = 1.0, length: float, **kwargs):
+    def __init__(self,
+            nodeId,
+            length: float,
+            motor='DC 22',
+            threadPitch: float = 1.0,
+            **kwargs,
+        ):
         """Args:
             threadPitch: Pitch on lead screw thread ("heigth" per revolution) [m]
             length: Total length of the lead screw [m]
         """
         self.multiplier = TAU / threadPitch
         super().__init__(nodeId, motor, length=self.multiplier * length, **kwargs)
+        self.length = length
+
+    def get_length(self):
+        return self.length
 
     def update(self):
         self.controller.update()
@@ -282,7 +314,13 @@ class BeltDriveMotor(CanMotor):
     to be moved is attached on the belt
     """
 
-    def __init__(self, nodeId, motor="DC 22", pinionDiameter: float = 1.0, length: float, **kwargs):
+    def __init__(self,
+            nodeId,
+            length: float,
+            motor='DC 22',
+            pinionDiameter: float = 1.0,
+            **kwargs,
+        ):
         """Args:
             pinionDiameter: Diameter of the pinion including the belt
             length: Total length of the beltt drive [m]
@@ -290,6 +328,10 @@ class BeltDriveMotor(CanMotor):
         radius = .5 * pinionDiameter
         self.multiplier = 1 / radius
         super().__init__(nodeId, motor, length=self.multiplier * length, **kwargs)
+        self.length = length
+
+    def get_length(self):
+        return self.length
 
     def update(self):
         self.controller.update()
