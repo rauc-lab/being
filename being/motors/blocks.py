@@ -8,7 +8,8 @@ We do not use asyncio because we want to keep the core async free for now.
 import abc
 import itertools
 from typing import Optional, Dict, Any, Union
-from scipy.interpolate import interp1d
+
+import numpy as np
 
 from being.backends import CanBackend
 from being.block import Block
@@ -18,6 +19,7 @@ from being.config import CONFIG
 from being.constants import TAU
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
+from being.math import ArchimedeanSpiral
 from being.motors.controllers import Controller, Mclm3002, Epos4
 from being.motors.definitions import MotorState, MotorEvent, MotorInterface
 from being.motors.homing import DummyHoming, HomingState
@@ -49,6 +51,14 @@ def create_controller_for_node(node: CiA402Node, *args, **kwargs) -> Controller:
 
 class MotorBlock(Block, MotorInterface):
 
+    """Base class for a motor block.
+
+    Each motor block has an `targetPosition` ValueInput connection and a
+    `actualPosition` ValueOutput connection. This base class also takes most of
+    the heavy lifting for the serialization for the front-end. Child classes no
+    to implement various abstract methods from the MotorInterface class.
+    """
+
     FREE_NUMBERS = itertools.count(1)
 
     def __init__(self, name: Optional[str] = None):
@@ -79,13 +89,11 @@ class DummyMotor(MotorBlock):
 
     """Dummy motor for testing and standalone usage."""
 
-    def __init__(self, length: float = 0.040, name=None):
+    def __init__(self, length: float = 0.040, name: Optional[str] = None):
         super().__init__(name=name)
         self.length = length
         self.state = KinematicState()
-        self.dt = INTERVAL
         self._enabled = False
-
         self.homing = DummyHoming()
 
     def enable(self, publish: bool = True):
@@ -112,22 +120,25 @@ class DummyMotor(MotorBlock):
     def get_length(self):
         return self.length
 
+    def step(self, target):
+        self.state = kinematic_filter(
+            target,
+            dt=INTERVAL,
+            initial=self.state,
+            maxSpeed=1.,
+            maxAcc=1.,
+            lower=0.,
+            upper=self.length,
+        )
+
     def update(self):
         if self.homing.ongoing:
             self.homing.update()
             if not self.homing.ongoing:
                 self.publish(MotorEvent.STATE_CHANGED)
+
         elif self.homing.state is HomingState.HOMED:
-            target = self.input.value
-            self.state = kinematic_filter(
-                target,
-                dt=self.dt,
-                initial=self.state,
-                maxSpeed=1.,
-                maxAcc=1.,
-                lower=0.,
-                upper=self.length,
-            )
+            self.step(target=self.input.value)
 
         self.output.value = self.state.position
 
@@ -148,6 +159,8 @@ class CanMotor(MotorBlock):
              nodeId,
              motor: Union[str, Motor],
              name: Optional[str] = None,
+             multiplier: float = 1.0,
+             length: Optional[float] = None,
              node: Optional[CiA402Node] = None,
              objectDictionary=None,
              network: Optional[CanBackend] = None,
@@ -156,7 +169,7 @@ class CanMotor(MotorBlock):
          ):
         """Args:
             nodeId: CANopen node id.
-            motor: Motor object or motor name [str]
+            motor: Motor object or motor name.
 
         Kwargs:
             node: CiA402Node driver node. If non given create new one
@@ -181,15 +194,21 @@ class CanMotor(MotorBlock):
 
             node = CiA402Node(nodeId, objectDictionary, network)
 
-        if settings is None:
-            settings = {}
-
         if isinstance(motor, str):
             motor = get_motor(motor)
 
+        if length is None:
+            length = motor.length
+
+        if settings is None:
+            settings = {}
+
+        self.multiplier = multiplier
+        self.length = length
         self.controller: Controller = create_controller_for_node(
             node,
             motor,
+            multiplier * length,
             settings=settings,
             **controllerKwargs,
         )
@@ -218,16 +237,15 @@ class CanMotor(MotorBlock):
         return self.controller.homing_state()
 
     def get_length(self):
-        return self.controller.length
+        return self.length
 
     def update(self):
         self.controller.update()
-        self.controller.set_target_position(self.targetPosition.value)
-        self.output.value = self.controller.get_actual_position()
+        self.controller.set_target_position(self.multiplier * self.targetPosition.value)
+        self.output.value = self.controller.get_actual_position() / self.multiplier
 
     def __str__(self):
-        controller = self.controller
-        return f'{type(self).__name__}({controller})'
+        return f'{type(self).__name__}({self.controller})'
 
 
 class LinearMotor(CanMotor):
@@ -236,6 +254,12 @@ class LinearMotor(CanMotor):
 
 
     def __init__(self, nodeId, motor='LM 1247', **kwargs):
+        """Args:
+            nodeId: CANopen node id.
+
+        Kwargs:
+            motor: Motor object or motor name.
+        """
         super().__init__(nodeId, motor, **kwargs)
 
 
@@ -244,12 +268,56 @@ class RotaryMotor(CanMotor):
     """Default rotary Maxon motor."""
 
     def __init__(self, nodeId, motor='DC 22', length=TAU, **kwargs):
+        """Args:
+            nodeId: CANopen node id.
+
+        Kwargs:
+            motor: Motor object or motor name.
+            length: Length of rotary motor in radian.
+        """
         super().__init__(nodeId, motor, length=length, **kwargs)
+
+
+class BeltDriveMotor(CanMotor):
+
+    """Default belt drive motor with Maxon controller where the object
+    to be moved is attached on the belt
+    """
+
+    def __init__(self, nodeId, length: float, diameter: float, motor='DC 22', **kwargs):
+        """Args:
+            nodeId: CANopen node id.
+            length: Length of belt in meter
+            diameter: Diameter of pinion belt wheel.
+
+        Kwargs:
+            motor: Motor object or motor name.
+        """
+        radius = .5 * diameter
+        multiplier = 1 / radius
+        super().__init__(nodeId, motor, length=length, multiplier=multiplier, **kwargs)
+
+
+class LeadScrewMotor(CanMotor):
+
+    """Default lead screw motor with Maxon controller."""
+
+    def __init__(self, nodeId, length: float, threadPitch: float, motor='DC 22', **kwargs):
+        """Args:
+            nodeId: CANopen node id.
+            length: Total length of the lead screw in meter.
+            threadPitch: Pitch on lead screw thread ("heigth" per revolution) in meter.
+
+        Kwargs:
+            motor: Motor object or motor name.
+        """
+        multiplier = TAU / threadPitch
+        super().__init__(nodeId, motor, length=length, multiplier=multiplier, **kwargs)
 
 
 class WindupMotor(CanMotor):
 
-    """Default windup motor with Maxon controller"""
+    """Default windup motor with Maxon controller."""
 
     def __init__(self,
             nodeId,
@@ -260,80 +328,32 @@ class WindupMotor(CanMotor):
             **kwargs,
         ):
         """Args:
-            spool_diameter: (unwinded) diameter [m] of spool where the filament is winded up
-            length: length of filament [m]
-        """
+            nodeId: CANopen node id.
+            diameter: Inner diameter of the spool / coil. Filament is completely
+                unwind. In meters.
+            length: Length of the filament. Corresponds to the arc length on the coil.
+
+        Kwargs:
+            motor: Motor object or motor name.
+            outerDiameter: Outer diameter of the spool / coil. This is the
+                diameter when the filament is completely windup. Can be used to
+                compensate of the windup effect of thicker filament. Default is
+                the same as `diameter` resulting in a circle.
+            """
         if outerDiameter is None:
             outerDiameter = diameter
 
-        radius = .5 * diameter
-        self.multiplier = 1 / radius
-        super().__init__(nodeId, motor, length=self.multiplier * length, **kwargs)
-        self.length = length
+        spiral, phiEst = ArchimedeanSpiral.fit(diameter, outerDiameter, arcLength=length)
+        super().__init__(nodeId, motor, length=phiEst, **kwargs)
+        self.length = length  # Overwrite length (=phiEst) sine we are doing our own transformation
 
-    def get_length(self):
-        return self.length
-
-    def update(self):
-        self.controller.update()
-        self.controller.set_target_position(self.multiplier * self.targetPosition.value)
-        self.output.value = self.controller.get_actual_position() / self.multiplier
-
-
-class LeadScrewMotor(CanMotor):
-
-    """Default lead screw motor with Maxon controller"""
-
-    def __init__(self,
-            nodeId,
-            length: float,
-            motor='DC 22',
-            threadPitch: float = 1.0,
-            **kwargs,
-        ):
-        """Args:
-            threadPitch: Pitch on lead screw thread ("heigth" per revolution) [m]
-            length: Total length of the lead screw [m]
-        """
-        self.multiplier = TAU / threadPitch
-        super().__init__(nodeId, motor, length=self.multiplier * length, **kwargs)
-        self.length = length
-
-    def get_length(self):
-        return self.length
+        # xp, yp for linear position <-> angle target position interpolation
+        self.angles = np.linspace(0, phiEst, 100)
+        self.positions = np.array([spiral.arc_length(phi) for phi in self.angles])
 
     def update(self):
         self.controller.update()
-        self.controller.set_target_position(self.multiplier * self.targetPosition.value)
-        self.output.value = self.controller.get_actual_position() / self.multiplier
-
-
-class BeltDriveMotor(CanMotor):
-
-    """Default belt drive motor with Maxon controller where the object
-    to be moved is attached on the belt
-    """
-
-    def __init__(self,
-            nodeId,
-            length: float,
-            motor='DC 22',
-            pinionDiameter: float = 1.0,
-            **kwargs,
-        ):
-        """Args:
-            pinionDiameter: Diameter of the pinion including the belt
-            length: Total length of the beltt drive [m]
-        """
-        radius = .5 * pinionDiameter
-        self.multiplier = 1 / radius
-        super().__init__(nodeId, motor, length=self.multiplier * length, **kwargs)
-        self.length = length
-
-    def get_length(self):
-        return self.length
-
-    def update(self):
-        self.controller.update()
-        self.controller.set_target_position(self.multiplier * self.targetPosition.value)
-        self.output.value = self.controller.get_actual_position() / self.multiplier
+        pos = np.interp(self.targetPosition.value, self.positions, self.angles)
+        self.controller.set_target_position(pos)
+        actual = np.interp(self.controller.get_actual_position(), self.angles, self.positions)
+        self.output.value = actual

@@ -135,27 +135,24 @@ class Controller(MotorInterface):
     def __init__(self,
             node: CiA402Node,
             motor: Motor,
+            length: float,
             direction: int = FORWARD,
-            length: Optional[float] = None,
             settings: Optional[dict] = None,
             **homingKwargs,
         ):
         """Args:
             node: Connected CanOpen node.
             motor: Motor definitions / settings.
+            length: Clipping length in SI units.
 
         Kwargs:
             direction: Movement direction.
-            length: Length of associated motor. Motor length by default.
             settings: Motor settings.
             **homingKwargs: Homing parameters.
         """
         # Defaults
         if settings is None:
             settings = {}
-
-        if length is None:
-            length = motor.length
 
         super().__init__()
 
