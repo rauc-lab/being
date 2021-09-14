@@ -301,7 +301,9 @@ class LeadScrewMotor(CanMotor):
 
 class BeltDriveMotor(CanMotor):
 
-    """Default belt drive motor with Maxon controller"""
+    """Default belt drive motor with Maxon controller where the object
+    to be moved is attached on the belt
+    """
 
     def __init__(self, nodeId, motor="DC 22", pinionDiameter: float = 1.0, length: float = 1.0, **kwargs):
         """Args:
