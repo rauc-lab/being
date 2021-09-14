@@ -257,7 +257,12 @@ class Mclm3002(Controller):
     SUPPORTED_HOMING_METHODS = FAULHABER_SUPPORTED_HOMING_METHODS
     HARD_STOP_HOMING = {-1, -2, -3, -4}
 
-    def __init__(self, *args, homingMethod=None, homingDirection=FORWARD, **kwargs):
+    def __init__(self,
+            *args,
+            homingMethod: Optional[int] = None,
+            homingDirection: float = FORWARD,
+            **kwargs,
+        ):
         super().__init__(*args, homingMethod=homingMethod, homingDirection=homingDirection, **kwargs)
         self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
 
@@ -287,8 +292,8 @@ class Epos4(Controller):
 
     def __init__(self,
             *args,
-            usePositionController=True,
-            recoverRpdoTimeoutError=True,
+            usePositionController: bool = True,
+            recoverRpdoTimeoutError: bool = True,
             **kwargs,
         ):
         """Kwargs:
