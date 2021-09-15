@@ -20,6 +20,7 @@ from being.motors.vendor import (
     FAULHABER_SUPPORTED_HOMING_METHODS,
     MAXON_EMERGENCY_DESCRIPTIONS,
     MAXON_SUPPORTED_HOMING_METHODS,
+    MaxonDigitalInput,
 )
 from being.utils import merge_dicts
 
@@ -90,32 +91,25 @@ class Controller(MotorInterface):
     def __init__(self,
             node: CiA402Node,
             motor: Motor,
+            length: float,
             direction: int = FORWARD,
-            length: Optional[float] = None,
             settings: Optional[dict] = None,
-            multiplier: float = 1.0,
             operationMode: OperationMode = OperationMode.CYCLIC_SYNCHRONOUS_POSITION,
             **homingKwargs,
         ):
         """Args:
             node: Connected CanOpen node.
             motor: Motor definitions / settings.
+            length: Clipping length in SI units.
 
         Kwargs:
             direction: Movement direction.
-            length: Length of associated motor. Motor length by default.
             settings: Motor settings.
-            multiplier: Additional Multiplier factor for SI position ->
-                multiplier -> gear -> motor.position_si_2_device. For windup
-                module / spindle drive.
             **homingKwargs: Homing parameters.
         """
         # Defaults
         if settings is None:
             settings = {}
-
-        if length is None:
-            length = motor.length
 
         super().__init__()
 
@@ -126,9 +120,9 @@ class Controller(MotorInterface):
         self.length = length
 
         self.logger = get_logger(str(self))
-        self.position_si_2_device = float(multiplier * motor.si_2_device_units('position'))
-        self.velocity_si_2_device = float(multiplier * motor.si_2_device_units('velocity'))
-        self.acceleration_si_2_device = float(multiplier * motor.si_2_device_units('acceleration'))
+        self.position_si_2_device = motor.si_2_device_units('position')
+        self.velocity_si_2_device = motor.si_2_device_units('velocity')
+        self.acceleration_si_2_device = motor.si_2_device_units('acceleration')
         self.lower = 0.
         self.upper = length * self.position_si_2_device
         self.lastState = node.get_state()
@@ -324,6 +318,7 @@ class Epos4(Controller):
     SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
 
     def __init__(self,
+            node: CiA402Node,
             *args,
             usePositionController: bool = True,
             recoverRpdoTimeoutError: bool = True,
@@ -345,10 +340,10 @@ class Epos4(Controller):
                 ' position controller'
             )
 
-        super().__init__(*args, operationMode=operationMode, **kwargs)
+        self.set_all_digital_inputs_to_none(node)  # Before apply_settings_to_node
+        super().__init__(node, *args, operationMode=operationMode, **kwargs)
         self.usePositionController = usePositionController
         self.recoverRpdoTimeoutError = recoverRpdoTimeoutError
-
         self.rpdoTimeoutOccurred = False
 
         # TODO: Test if firmwareVersion < 0x170h?
@@ -378,6 +373,15 @@ class Epos4(Controller):
             newMisc = set_bit(misc, bit=0)
 
         variable.raw = newMisc
+
+    @staticmethod
+    def set_all_digital_inputs_to_none(node):
+        """Set all digital inputs of Epos4 controller to none by default.
+        Reason: Because of settings dictionary it is not possible to have two
+        entries. E.g. unset and then set to HOME_SWITCH.
+        """
+        for subindex in range(1, 9):
+            node.sdo['Configuration of digital inputs'][subindex].raw = MaxonDigitalInput.NONE
 
     def set_target_position(self, targetPosition):
         if self.homing.homed:
