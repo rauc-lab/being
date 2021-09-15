@@ -1,6 +1,7 @@
 """Abstract motor interface."""
 import abc
 import enum
+from typing import NamedTuple, Optional
 
 from being.motors.homing import HomingState
 from being.pubsub import PubSub
@@ -29,6 +30,23 @@ class MotorState(enum.Enum):
 
 
 register_enum(MotorState)
+
+
+class PositionProfile(NamedTuple):
+
+    """Position profile."""
+
+    position: float
+    velocity: Optional[float] = None
+    acceleration: Optional[float] = None
+
+
+class VelocityProfile(NamedTuple):
+
+    """Velocity profile."""
+
+    velocity: float
+    acceleration: Optional[float] = None
 
 
 class MotorInterface(PubSub, abc.ABC):

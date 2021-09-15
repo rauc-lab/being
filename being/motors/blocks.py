@@ -11,7 +11,7 @@ from typing import Optional, Dict, Any, Union
 from being.backends import CanBackend
 from being.block import Block
 from being.can import load_object_dictionary
-from being.can.cia_402 import CiA402Node
+from being.can.cia_402 import CiA402Node, OperationMode
 from being.config import CONFIG
 from being.constants import TAU
 from being.kinematics import kinematic_filter, State as KinematicState
@@ -142,6 +142,7 @@ class CanMotor(MotorBlock):
     def __init__(self,
              nodeId,
              motor: Union[str, Motor],
+             profiled: bool = False,
              name: Optional[str] = None,
              node: Optional[CiA402Node] = None,
              objectDictionary=None,
@@ -151,12 +152,13 @@ class CanMotor(MotorBlock):
          ):
         """Args:
             nodeId: CANopen node id.
-            motor: Motor object or motor name [str]
+            motor: Motor object or motor name.
 
         Kwargs:
-            node: CiA402Node driver node. If non given create new one
-                (dependency injection).
-            objectDictionary: Object dictionary for CiA402Node. If will be tried
+            profiled: If to use profiled position mode.
+            node: CAN node of motor driver / controller. If non given create new
+                one (dependency injection).
+            objectDictionary: Object dictionary for CAN node. If will be tried
                 to identified from known EDS files.
             network: External CAN network (dependency injection).
             settings: Motor settings. Dict of EDS variables -> Raw value to set.
@@ -166,6 +168,8 @@ class CanMotor(MotorBlock):
             **controllerKwargs: Key word arguments for controller.
         """
         super().__init__(name=name)
+        self.add_message_input('positionProfile')
+
         if network is None:
             network = CanBackend.single_instance_setdefault()
             register_resource(network, duplicates=False)
@@ -182,6 +186,12 @@ class CanMotor(MotorBlock):
         if isinstance(motor, str):
             motor = get_motor(motor)
 
+        if profiled:
+            op = OperationMode.PROFILE_POSITION
+        else:
+            op = OperationMode.CYCLIC_SYNCHRONOUS_POSITION
+
+        controllerKwargs.setdefault('operationMode', op)
         self.controller: Controller = create_controller_for_node(
             node,
             motor,
@@ -214,6 +224,9 @@ class CanMotor(MotorBlock):
 
     def update(self):
         self.controller.update()
+        for profile in self.positionProfile.receive():
+            self.controller.play_position_profile(profile)
+
         self.controller.set_target_position(self.targetPosition.value)
         self.output.value = self.controller.get_actual_position()
 

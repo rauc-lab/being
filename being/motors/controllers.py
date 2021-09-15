@@ -12,7 +12,7 @@ from being.config import CONFIG
 from being.constants import FORWARD
 from being.logging import get_logger
 from being.math import clip
-from being.motors.definitions import MotorInterface, MotorState, MotorEvent
+from being.motors.definitions import MotorInterface, MotorState, MotorEvent, PositionProfile, VelocityProfile
 from being.motors.homing import CiA402Homing, CrudeHoming, default_homing_method
 from being.motors.motors import Motor
 from being.motors.vendor import (
@@ -94,6 +94,7 @@ class Controller(MotorInterface):
             length: Optional[float] = None,
             settings: Optional[dict] = None,
             multiplier: float = 1.0,
+            operationMode: OperationMode = OperationMode.CYCLIC_SYNCHRONOUS_POSITION,
             **homingKwargs,
         ):
         """Args:
@@ -126,6 +127,8 @@ class Controller(MotorInterface):
 
         self.logger = get_logger(str(self))
         self.position_si_2_device = float(multiplier * motor.si_2_device_units('position'))
+        self.velocity_si_2_device = float(multiplier * motor.si_2_device_units('velocity'))
+        self.acceleration_si_2_device = float(multiplier * motor.si_2_device_units('acceleration'))
         self.lower = 0.
         self.upper = length * self.position_si_2_device
         self.lastState = node.get_state()
@@ -139,6 +142,7 @@ class Controller(MotorInterface):
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 
+        self.node.set_operation_mode(operationMode)
         self.disable()  # READY_TO_SWITCH_ON via PDO
 
     def disable(self):
@@ -203,6 +207,30 @@ class Controller(MotorInterface):
         """Get actual position in SI units."""
         return self.node.get_actual_position() / self.position_si_2_device
 
+    def play_position_profile(self, profile: PositionProfile):
+        """Play position profile."""
+        pos = self.position_si_2_device * profile.position
+        vel = None
+        acc = None
+
+        if profile.velocity is not None:
+            vel = self.velocity_si_2_device * profile.velocity
+
+        if profile.acceleration is not None:
+            acc = self.acceleration_si_2_device * profile.acceleration
+
+        self.node.move_to(position=pos, velocity=vel, acceleration=acc)
+
+    def play_velocity_profile(self, profile: VelocityProfile):
+        """Play velocity profile."""
+        vel = self.velocity_si_2_device * profile.velocity
+        acc = None
+
+        if profile.acceleration is not None:
+            acc = self.acceleration_si_2_device * profile.acceleration
+
+        self.node.move_with(velocity=vel, acceleration=acc)
+
     def state_changed(self, state: State) -> bool:
         """Check if node state changed since last call."""
         if state is self.lastState:
@@ -260,10 +288,16 @@ class Mclm3002(Controller):
             *args,
             homingMethod: Optional[int] = None,
             homingDirection: float = FORWARD,
+            operationMode: OperationMode = OperationMode.CYCLIC_SYNCHRONOUS_POSITION,
             **kwargs,
         ):
-        super().__init__(*args, homingMethod=homingMethod, homingDirection=homingDirection, **kwargs)
-        self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
+        super().__init__(
+            *args,
+            homingMethod=homingMethod,
+            homingDirection=homingDirection,
+            operationMode=operationMode,
+            **kwargs,
+        )
 
     def init_homing(self, **homingKwargs):
         method = default_homing_method(**homingKwargs)
@@ -293,6 +327,7 @@ class Epos4(Controller):
             *args,
             usePositionController: bool = True,
             recoverRpdoTimeoutError: bool = True,
+            operationMode: OperationMode = OperationMode.CYCLIC_SYNCHRONOUS_POSITION,
             **kwargs,
         ):
         """Kwargs:
@@ -303,7 +338,14 @@ class Epos4(Controller):
             recoverRpdoTimeoutError: Re-enable drive after a FAULT because of a
                 RPOD timeout error.
         """
-        super().__init__(*args, **kwargs)
+        if not usePositionController:
+            warnings.warn(
+                'Setting operation mode to'
+                f' {OperationMode.CYCLIC_SYNCHRONOUS_VELOCITY} for custom'
+                ' position controller'
+            )
+
+        super().__init__(*args, operationMode=operationMode, **kwargs)
         self.usePositionController = usePositionController
         self.recoverRpdoTimeoutError = recoverRpdoTimeoutError
 
@@ -311,11 +353,6 @@ class Epos4(Controller):
 
         # TODO: Test if firmwareVersion < 0x170h?
         self.logger.info('Firmware version 0x%04x', self.firmware_version())
-
-        if self.usePositionController:
-            self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
-        else:
-            self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_VELOCITY)
 
     def init_homing(self, **homingKwargs):
         method = default_homing_method(**homingKwargs)
