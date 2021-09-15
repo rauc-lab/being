@@ -226,6 +226,9 @@ class DummyHoming(HomingBase):
 
 
 class CiA402Homing(HomingBase):
+
+    """CiA 402 by the book."""
+
     def __init__(self, node, timeout=10.0, **kwargs):
         super().__init__()
         self.node = node

@@ -34,8 +34,10 @@ register_enum(MotorState)
 
 class PositionProfile(NamedTuple):
 
-    """Position profile."""
+    """Position profile segment.
 
+    Units are assumed to be SI. Controller has to convert to device units.
+    """
     position: float
     velocity: Optional[float] = None
     acceleration: Optional[float] = None
@@ -43,8 +45,10 @@ class PositionProfile(NamedTuple):
 
 class VelocityProfile(NamedTuple):
 
-    """Velocity profile."""
+    """Velocity profile segment.
 
+    Units are assumed to be SI. Controller has to convert to device units.
+    """
     velocity: float
     acceleration: Optional[float] = None
 

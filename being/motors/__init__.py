@@ -1,5 +1,12 @@
-"""Motor related stuff.
+"""All things motors.
 
 Different motor blocks.
 """
-from being.motors.blocks import DummyMotor, LinearMotor, RotaryMotor
+from being.motors.blocks import (
+    BeltDriveMotor,
+    DummyMotor,
+    LeadScrewMotor,
+    LinearMotor,
+    RotaryMotor,
+    WindupMotor
+)

@@ -90,6 +90,10 @@ class DummyMotor(MotorBlock):
     """Dummy motor for testing and standalone usage."""
 
     def __init__(self, length: float = 0.040, name: Optional[str] = None):
+        """Kwargs:
+            length: Length of dummy motor in meters.
+            name: Motor name.
+        """
         super().__init__(name=name)
         self.length = length
         self.state = KinematicState()
@@ -120,7 +124,13 @@ class DummyMotor(MotorBlock):
     def get_length(self):
         return self.length
 
-    def step(self, target):
+    def step(self, target: float):
+        """Step kinematic simulation one step further towards target
+        position.
+
+        Args:
+            target: Target position.
+        """
         self.state = kinematic_filter(
             target,
             dt=INTERVAL,
@@ -145,10 +155,34 @@ class DummyMotor(MotorBlock):
 
 class CanMotor(MotorBlock):
 
-    """Motor blocks which takes set-point values through its inputs and outputs
-    the current actual position value through its output. The input position
-    values are filtered with a kinematic filter. Encapsulates a and setups a
-    CiA402Node. Currently only tested with Faulhaber linear drive (0.04 m).
+    """Motor blocks for steering a CAN motor.
+
+    Set-point values are taken from the blocks position value input (cyclic
+    position mode). If profiled=True use profiled position mode instead. The
+    message input targetPosition can than be used to play new PositionProfiles.
+    In any case the actual position values are streamed via the `actualPosition`
+    value output.
+
+    This class initializes all the necessary components for accessing and
+    configuring a CAN motor:
+      - network (if non has been initialized yet)
+      - CiA402Node CAN node for given node id.
+      - Controller depending on manufacturer.
+
+    Since most of the time the network will be created implicitly always use
+    this class within `manage_resources` context manager so the that the
+    necessary cleanup can take place at the end. E.g.
+
+    >>> with manage_resources():
+    ...     motor = CanMotor(nodeId=1, 'DC 22')
+
+    This class also relays publications (PubSub) from the underlying controller
+    instance to the outside.
+
+    >>> def error_callback(errMsg):
+    ...     print('Something went wrong', errMsg)
+    ...
+    ... motor.subscribe(MotorEvent.ERROR, error_callback)
 
     Attributes:
         controller (Controller): Motor controller.
@@ -173,7 +207,14 @@ class CanMotor(MotorBlock):
             motor: Motor object or motor name.
 
         Kwargs:
-            profiled: If to use profiled position mode.
+            profiled: Use profiled position mode instead of cyclic position
+                mode.
+            name: Block name
+            multiplier: Multiplier factor which can be used to scale target
+                position / actual position values (only for cyclic position
+                mode).
+
+            length: Motor length which will be shown in the web UI.
             node: CAN node of motor driver / controller. If non given create new
                 one (dependency injection).
             objectDictionary: Object dictionary for CAN node. If will be tried
@@ -181,9 +222,9 @@ class CanMotor(MotorBlock):
             network: External CAN network (dependency injection).
             settings: Motor settings. Dict of EDS variables -> Raw value to set.
                 EDS variable with path syntax (slash '/' separator) for nested
-                settings.
-            name: Block name
-            **controllerKwargs: Key word arguments for controller.
+                settings. Will be forwarded to the controller initialization
+                function.
+            **controllerKwargs: Further Key word arguments for the controller.
         """
         super().__init__(name=name)
         self.add_message_input('positionProfile')
@@ -207,6 +248,7 @@ class CanMotor(MotorBlock):
             op = OperationMode.CYCLIC_SYNCHRONOUS_POSITION
 
         controllerKwargs.setdefault('operationMode', op)
+
         if length is None:
             length = motor.length
 
@@ -268,7 +310,7 @@ class CanMotor(MotorBlock):
 
 class LinearMotor(CanMotor):
 
-    """Default linear Faulhaber motor."""
+    """Default linear Faulhaber CAN motor."""
 
 
     def __init__(self, nodeId, motor='LM 1247', **kwargs):
@@ -277,13 +319,14 @@ class LinearMotor(CanMotor):
 
         Kwargs:
             motor: Motor object or motor name.
+            **kwargs: Further kwargs for CanMotor.
         """
         super().__init__(nodeId, motor, **kwargs)
 
 
 class RotaryMotor(CanMotor):
 
-    """Default rotary Maxon motor."""
+    """Default rotary Maxon CAN motor."""
 
     def __init__(self, nodeId, motor='DC 22', length=TAU, **kwargs):
         """Args:
@@ -292,14 +335,15 @@ class RotaryMotor(CanMotor):
         Kwargs:
             motor: Motor object or motor name.
             length: Length of rotary motor in radian.
+            **kwargs: Further kwargs for CanMotor.
         """
         super().__init__(nodeId, motor, length=length, **kwargs)
 
 
 class BeltDriveMotor(CanMotor):
 
-    """Default belt drive motor with Maxon controller where the object
-    to be moved is attached on the belt
+    """Default belt drive motor with Maxon controller where the object to be
+    moved is attached on the belt.
     """
 
     def __init__(self, nodeId, length: float, diameter: float, motor='DC 22', **kwargs):
@@ -310,6 +354,7 @@ class BeltDriveMotor(CanMotor):
 
         Kwargs:
             motor: Motor object or motor name.
+            **kwargs: Further kwargs for CanMotor.
         """
         radius = .5 * diameter
         multiplier = 1 / radius
@@ -328,6 +373,7 @@ class LeadScrewMotor(CanMotor):
 
         Kwargs:
             motor: Motor object or motor name.
+            **kwargs: Further kwargs for CanMotor.
         """
         multiplier = TAU / threadPitch
         super().__init__(nodeId, motor, length=length, multiplier=multiplier, **kwargs)
@@ -357,7 +403,8 @@ class WindupMotor(CanMotor):
                 diameter when the filament is completely windup. Can be used to
                 compensate of the windup effect of thicker filament. Default is
                 the same as `diameter` resulting in a circle.
-            """
+            **kwargs: Further kwargs for CanMotor.
+        """
         if outerDiameter is None:
             outerDiameter = diameter
 
