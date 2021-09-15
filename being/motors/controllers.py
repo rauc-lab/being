@@ -20,6 +20,7 @@ from being.motors.vendor import (
     FAULHABER_SUPPORTED_HOMING_METHODS,
     MAXON_EMERGENCY_DESCRIPTIONS,
     MAXON_SUPPORTED_HOMING_METHODS,
+    MaxonDigitalInput,
 )
 from being.utils import merge_dicts
 
@@ -324,7 +325,8 @@ class Epos4(Controller):
     SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
 
     def __init__(self,
-            *args,
+             node: CiA402Node,
+             *args,
             usePositionController=True,
             recoverRpdoTimeoutError=True,
             **kwargs,
@@ -337,7 +339,8 @@ class Epos4(Controller):
             recoverRpdoTimeoutError: Re-enable drive after a FAULT because of a
                 RPOD timeout error.
         """
-        super().__init__(*args, **kwargs)
+        self.set_all_digital_inputs_to_none(node)  # Before apply_settings_to_node
+        super().__init__(node, *args, **kwargs)
         self.usePositionController = usePositionController
         self.recoverRpdoTimeoutError = recoverRpdoTimeoutError
 
@@ -375,6 +378,15 @@ class Epos4(Controller):
             newMisc = set_bit(misc, bit=0)
 
         variable.raw = newMisc
+
+    @staticmethod
+    def set_all_digital_inputs_to_none(node):
+        """Set all digital inputs of Epos4 controller to none by default.
+        Reason: Because of settings dictionary it is not possible to have two
+        entries. E.g. unset and then set to HOME_SWITCH.
+        """
+        for subindex in range(1, 9):
+            node.sdo['Configuration of digital inputs'][subindex].raw = MaxonDigitalInput.NONE
 
     def set_target_position(self, targetPosition):
         if self.homing.homed:

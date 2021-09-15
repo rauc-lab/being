@@ -363,3 +363,25 @@ class MaxonDigitalIncrementalEncoderType(NamedTuple):
 _DEFAULT_MAXON_DIGITAL_INCREMENTAL_ENCODER_TYPE = 0x0001
 assert MaxonDigitalIncrementalEncoderType().to_int() == _DEFAULT_MAXON_DIGITAL_INCREMENTAL_ENCODER_TYPE
 assert MaxonDigitalIncrementalEncoderType.from_int(_DEFAULT_MAXON_DIGITAL_INCREMENTAL_ENCODER_TYPE) == MaxonDigitalIncrementalEncoderType()
+
+
+class MaxonDigitalInput(enum.IntEnum):
+
+    """Values for Configuration of digital inputs."""
+
+    NONE = 255
+    QUICK_STOP = 28
+    DRIVE_ENABLE = 27
+    POSITIVE_LIMIT_SWITCH_WITHOUT_ERRORS = 25
+    NEGATIVE_LIMIT_SWITCH_WITHOUT_ERRORS = 24
+    GENERAL_PURPOSE_H = 23
+    GENERAL_PURPOSE_G = 22
+    GENERAL_PURPOSE_F = 21
+    GENERAL_PURPOSE_E = 20
+    GENERAL_PURPOSE_D = 19
+    GENERAL_PURPOSE_C = 18
+    GENERAL_PURPOSE_B = 17
+    GENERAL_PURPOSE_A = 16
+    HOME_SWITCH = 2
+    POSITIVE_LIMIT_SWITCH = 1
+    NEGATIVE_LIMIT_SWITCH = 0
