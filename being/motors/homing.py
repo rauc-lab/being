@@ -371,7 +371,7 @@ class CrudeHoming(CiA402Homing):
 
         yield from self.change_state(CiA402State.READY_TO_SWITCH_ON)
         sdo['Home Offset'].raw = 0
-        node.set_operation_mode(OperationMode.PROFILED_VELOCITY)
+        node.set_operation_mode(OperationMode.PROFILE_VELOCITY)
 
         for vel in velocities:
             yield from self.halt_drive()

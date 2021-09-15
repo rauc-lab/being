@@ -4,6 +4,7 @@ from typing import Tuple
 from being.constants import TAU
 
 import numpy as np
+from numpy import ndarray
 
 
 def clip(number: float, lower: float, upper: float) -> float:
@@ -49,15 +50,15 @@ def solve_quadratic_equation(a: float, b: float, c: float) -> Tuple[float, float
     return x0, x1
 
 
-def linear_mapping(xRange, yRange):
+def linear_mapping(xRange: Tuple[float, float], yRange: Tuple[float, float]) -> ndarray:
     """Get linear coefficients for y = a * x + b.
 
     Args:
-        xRange (tuple): Input range (xmin, xmax).
-        yRange (tuple): Output range (xmin, xmax).
+        xRange: Input range (xmin, xmax).
+        yRange: Output range (xmin, xmax).
 
     Returns:
-        tuple: Linear coefficients a, b.
+        Linear coefficients [a, b].
     """
     xmin, xmax = xRange
     ymin, ymax = yRange

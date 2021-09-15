@@ -18,6 +18,12 @@ from being.motors.vendor import (
 INTERVAL = CONFIG['General']['INTERVAL']
 
 
+class DeviceUnits(NamedTuple):
+    position: float = 1.0
+    velocity: float = 1.0
+    acceleration: float = 1.0
+
+
 class Motor(NamedTuple):
 
     """Hardware motor.
@@ -31,19 +37,29 @@ class Motor(NamedTuple):
     name: str
     """Motor name."""
 
-    position_si_2_device: float = 1.0
-    """Conversion factor for position SI -> device units. Motor only. Not with
-    gear.
-    """
+    length: float = INF
+    """Default motor length."""
+
+    units: DeviceUnits = DeviceUnits()
+    """Device units."""
+
+    gear: Fraction = Fraction(1, 1)
+    """Gear ratio."""
 
     defaultSettings: dict = {}
     """Default settings for this motor."""
 
-    length: float = INF
-    """Linear motor Length."""
 
-    gear: Fraction = Fraction(1, 1)
-    """Gear ratio."""
+    def si_2_device_units(self, which: str) -> float:
+        """Get SI -> device units conversion factor.
+
+        Args:
+            which: Which factor? Either 'position', 'velocity' or 'acceleration'.
+
+        Returns:
+            Conversion factor.
+        """
+        return self.gear / getattr(self.units, which)
 
     def __str__(self):
         return f'{self.manufacturer} {self.name}'
@@ -106,43 +122,43 @@ MOTORS = {
     'LM1247': Motor(
         'Faulhaber',
         'LM 1247',
-        position_si_2_device=1 / MICRO,
-        defaultSettings=FAULHABER_DEFAULT_SETTINGS,
         length=0.100,
+        units=DeviceUnits(position=MICRO, velocity=MILLI, acceleration=MILLI),
+        defaultSettings=FAULHABER_DEFAULT_SETTINGS,
     ),
     'LM0830': Motor(
         'Faulhaber',
         'LM 0830',
-        position_si_2_device=1 / MICRO,
-        defaultSettings=FAULHABER_DEFAULT_SETTINGS,
         length=0.040,
+        units=DeviceUnits(position=MICRO, velocity=MILLI, acceleration=MILLI),
+        defaultSettings=FAULHABER_DEFAULT_SETTINGS,
     ),
     'LM1483': Motor(
         'Faulhaber',
         'LM 1483',
-        position_si_2_device=1 / MICRO,
-        defaultSettings=FAULHABER_DEFAULT_SETTINGS,
         length=0.080,
+        units=DeviceUnits(position=MICRO, velocity=MILLI, acceleration=MILLI),
+        defaultSettings=FAULHABER_DEFAULT_SETTINGS,
     ),
     'LM2070': Motor(
         'Faulhaber',
         'LM 2070',
-        position_si_2_device=1 / MICRO,
-        defaultSettings=FAULHABER_DEFAULT_SETTINGS,
         length=0.220,
+        units=DeviceUnits(position=MICRO, velocity=MILLI, acceleration=MILLI),
+        defaultSettings=FAULHABER_DEFAULT_SETTINGS,
     ),
     'EC45': Motor(
         'Maxon',
         'EC 45',
-        position_si_2_device=4 * 2048 / TAU,
+        units=DeviceUnits(position=TAU / 4 / 2048),  # TODO: velocity and acceleration?
         defaultSettings=MAXON_EC_45_DEFAULT_SETTINGS,
     ),
     'DC22': Motor(
         'Maxon',
         'DC 22',
-        position_si_2_device=4 * 1024 / TAU,
-        defaultSettings=MAXON_DC_22_DEFAULT_SETTINGS,
+        units=DeviceUnits(position=TAU / 4 / 1024),  # TODO: velocity and acceleration?
         gear=Fraction(69, 13),
+        defaultSettings=MAXON_DC_22_DEFAULT_SETTINGS,
     ),
 }
 

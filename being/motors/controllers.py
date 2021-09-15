@@ -2,7 +2,7 @@
 import abc
 import sys
 import warnings
-from typing import Optional, Dict, Set, Any, Union
+from typing import Optional, Set
 
 from canopen.emcy import EmcyError
 
@@ -66,51 +66,6 @@ def format_error_code(errorCode: int, descriptions: list) -> str:
     return f'{description} (error code {errorCode:#04x})'
 
 
-def maybe_int(string: str) -> Union[int, str]:
-    """Try to cast string to int.
-
-    Args:
-        string: Input string.
-
-    Returns:
-        Maybe an int. Pass on input string otherwise.
-
-    Usage:
-        >>> maybe_int('123')
-        123
-
-        >>> maybe_int('  0x7b')
-        123
-    """
-    string = string.strip()
-    if string.isnumeric():
-        return int(string)
-
-    if string.startswith('0x'):
-        return int(string, base=16)
-
-    if string.startswith('0b'):
-        return int(string, base=2)
-
-    return string
-
-
-def apply_settings_to_node(node, settings: Dict[str, Any]):
-    """Apply settings to CANopen node.
-
-    Args:
-        settings: Settings to apply. Addresses (path syntax) -> value
-            entries.
-    """
-    for name, value in settings.items():
-        *path, last = map(maybe_int, name.split('/'))
-        sdo = node.sdo
-        for key in path:
-            sdo = sdo[key]
-
-        sdo[last].raw = value
-
-
 class Controller(MotorInterface):
 
     """Semi abstract controller base class.
@@ -170,7 +125,7 @@ class Controller(MotorInterface):
         self.length = length
 
         self.logger = get_logger(str(self))
-        self.position_si_2_device = float(multiplier * motor.gear * motor.position_si_2_device)
+        self.position_si_2_device = float(multiplier * motor.si_2_device_units('position'))
         self.lower = 0.
         self.upper = length * self.position_si_2_device
         self.lastState = node.get_state()
@@ -180,12 +135,11 @@ class Controller(MotorInterface):
         # Configure node
         self.apply_motor_direction(direction)
         merged = merge_dicts(self.motor.defaultSettings, settings)
-        apply_settings_to_node(self.node, merged)
+        self.node.apply_settings(merged)
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 
-        #self.node.reset_fault()
-        self.node.change_state(State.READY_TO_SWITCH_ON, how='sdo', timeout=0.5)
+        self.disable()  # READY_TO_SWITCH_ON via PDO
 
     def disable(self):
         self.switchJob = self.node.change_state(State.READY_TO_SWITCH_ON, how='pdo', generator=True)
@@ -302,7 +256,12 @@ class Mclm3002(Controller):
     SUPPORTED_HOMING_METHODS = FAULHABER_SUPPORTED_HOMING_METHODS
     HARD_STOP_HOMING = {-1, -2, -3, -4}
 
-    def __init__(self, *args, homingMethod=None, homingDirection=FORWARD, **kwargs):
+    def __init__(self,
+            *args,
+            homingMethod: Optional[int] = None,
+            homingDirection: float = FORWARD,
+            **kwargs,
+        ):
         super().__init__(*args, homingMethod=homingMethod, homingDirection=homingDirection, **kwargs)
         self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
 
@@ -332,8 +291,8 @@ class Epos4(Controller):
 
     def __init__(self,
             *args,
-            usePositionController=True,
-            recoverRpdoTimeoutError=True,
+            usePositionController: bool = True,
+            recoverRpdoTimeoutError: bool = True,
             **kwargs,
         ):
         """Kwargs:
@@ -348,7 +307,7 @@ class Epos4(Controller):
         self.usePositionController = usePositionController
         self.recoverRpdoTimeoutError = recoverRpdoTimeoutError
 
-        self.rpodTimeoutOccurred = False
+        self.rpdoTimeoutOccurred = False
 
         # TODO: Test if firmwareVersion < 0x170h?
         self.logger.info('Firmware version 0x%04x', self.firmware_version())
@@ -401,7 +360,7 @@ class Epos4(Controller):
         for emcy in self.node.emcy.active:
             rpodTimeout = 0x8250
             if emcy.code == rpodTimeout:
-                self.rpodTimeoutOccurred = True
+                self.rpdoTimeoutOccurred = True
 
             msg = self.format_emcy(emcy)
             self.logger.error(msg)
@@ -412,6 +371,6 @@ class Epos4(Controller):
     def update(self):
         super().update()
         if self.recoverRpdoTimeoutError:
-            if self.lastState is State.FAULT and self.rpodTimeoutOccurred:
+            if self.lastState is State.FAULT and self.rpdoTimeoutOccurred:
                 self.enable()
-                self.rpodTimeoutOccurred = False
+                self.rpdoTimeoutOccurred = False

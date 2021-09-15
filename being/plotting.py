@@ -81,6 +81,19 @@ def plot_spline(spline: PPoly, nSamples: int = 100, **kwargs):
     plot_trajectory(t, trajectory, **kwargs)
 
 
+def plot_spline_2(spline, nSamples=100, ax=None, **kwargs):
+    if ax is None:
+        ax = plt.gca()
+
+    knots = spline.x
+    start = knots[0]
+    end = knots[-1]
+    t = np.linspace(start, end, nSamples)
+    line, = ax.plot(t, spline(t), **kwargs)
+    ax.plot(knots, spline(knots), 'o', color=line._color)
+    return line
+
+
 class Plotter(Block):
 
     """Value plotter. Plot multiple signals after shutdown."""
