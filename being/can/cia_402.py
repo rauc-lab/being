@@ -582,8 +582,11 @@ class CiA402Node(RemoteNode):
             raise ValueError(f'Unknown how {how!r}')
 
         while current is not target:
-            yield current
+            self.logger.debug('Not yet in %s. Still in %s', target, current)
             current = self.get_state(how)
+            yield current
+
+        self.logger.debug('Reached %s', target)
 
     def _change_state(self, target: State, how: str = 'sdo') -> StateSwitching:
         """Change node state to a target state. Implemented as generator for

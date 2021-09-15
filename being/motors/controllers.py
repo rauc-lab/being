@@ -125,7 +125,7 @@ class Controller(MotorInterface):
         self.length = length
 
         self.logger = get_logger(str(self))
-        self.position_si_2_device = float(multiplier * motor.gear * motor.position_si_2_device)
+        self.position_si_2_device = float(multiplier * motor.si_2_device_units('position'))
         self.lower = 0.
         self.upper = length * self.position_si_2_device
         self.lastState = node.get_state()
