@@ -13,7 +13,8 @@ from being.clock import Clock
 from being.config import CONFIG
 from being.connectables import MessageInput
 from being.logging import get_logger
-from being.motors.definitions import MotorEvent
+from being.pacemaker import Pacemaker
+from being.resources import register_resource
 from being.web.server import init_web_server, run_web_server
 from being.web.web_socket import WebSocket
 
@@ -126,6 +127,7 @@ def awake(
         web: bool = True,
         enableMotors: bool = True,
         homeMotors: bool = True,
+        usePacemaker: bool = True,
         clock: Optional[Clock] = None,
         network: Optional[CanBackend] = None,
     ):
@@ -138,6 +140,7 @@ def awake(
         web: Run with web server.
         enableMotors: Enable motors on startup.
         homeMotors: Home motors on startup.
+        usePacemaker: If to use an extra pacemaker thread.
         clock: Clock instance.
         network: CanBackend instance.
     """
@@ -147,10 +150,14 @@ def awake(
     if network is None:
         network = CanBackend.single_instance_get()
 
-    being = Being(blocks, clock, network)
+    pacemaker = Pacemaker(network)
+    being = Being(blocks, clock, pacemaker, network)
 
     if network is not None:
         network.enable_pdo_communication()
+        if usePacemaker:
+            pacemaker.start()
+            register_resource(pacemaker)
 
     if enableMotors:
         being.enable_motors()
