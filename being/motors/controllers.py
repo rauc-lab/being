@@ -145,8 +145,9 @@ class Controller(MotorInterface):
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 
+        self.node.reset_fault()
+        self.disable()
         self.node.set_operation_mode(operationMode)
-        self.disable()  # READY_TO_SWITCH_ON via PDO
 
     def disable(self):
         self.switchJob = self.node.change_state(State.READY_TO_SWITCH_ON, how='pdo', retGenerator=True)
