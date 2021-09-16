@@ -70,32 +70,6 @@ def linear_mapping(xRange: Tuple[float, float], yRange: Tuple[float, float]) -> 
     ], [ymin, ymax])
 
 
-def angular_velocity_to_rpm(angVel: float) -> float:
-    """Convert angular velocity to rotations per minute.
-
-    Args:
-        angVel: Angular velocity [rad / s]
-
-    Returns:
-        Velocity in [rpm]
-
-    """
-    return angVel * 60 / TAU
-
-
-def rpm_to_angular_velocity(rpm: float) -> float:
-    """Convert rotations per minute to angular velocity.
-
-    Args:
-        rpm: rotation per minute [rpm]
-
-    Returns:
-        Angular velocity [rad / s]
-
-    """
-    return TAU * rpm / 60
-
-
 class ArchimedeanSpiral(NamedTuple):
 
     """Archimedean spiral defined by:
