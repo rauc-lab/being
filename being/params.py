@@ -16,7 +16,7 @@ class ParamsConfigFile(ConfigFile, SingleInstanceCache):
     SingleInstanceCache.
     """
 
-    def __init__(self, filepath='being_params.yaml'):
+    def __init__(self, filepath='being_params.toml'):
         super().__init__(filepath)
 
 
@@ -63,6 +63,13 @@ class Parameter(Block):
         self.output.value = validated
         self.configFile.save()
 
+    def to_dict(self):
+        dct = super().to_dict()
+        dct['fullname'] = self.fullname
+        #dct['default'] = self.default
+        dct['value'] = self.output.value
+        return dct
+
     def __str__(self):
         return (
             f'{type(self).__name__}('
@@ -74,8 +81,10 @@ class Parameter(Block):
 
 
 class Slider(Parameter):
-    def __init__(self, fullname, minValue=0., maxValue=INF, **kwargs):
+    def __init__(self, fullname, default: Any = 0.0, minValue=0., maxValue=1., **kwargs):
         assert minValue < maxValue
+        minValue = min(minValue, default)
+        maxValue = max(maxValue, default)
         super().__init__(fullname, **kwargs)
         self.minValue = minValue
         self.maxValue = maxValue
@@ -85,12 +94,16 @@ class Slider(Parameter):
     def validate(self, value):
         return clip(value, self.minValue, self.maxValue)
 
+    def to_dict(self):
+        dct = super().to_dict()
+        dct['minValue'] = self.minValue
+        dct['maxValue'] = self.maxValue
+        return dct
+
+
 
 class SingleSelection(Parameter):
     def __init__(self, fullname, possibilities, default=None, **kwargs):
-        if default is None:
-            default = []
-
         super().__init__(fullname, default=default, **kwargs)
         self.possibilities = set(possibilities)
 

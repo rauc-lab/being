@@ -26,6 +26,7 @@ from being.web.api import (
     misc_controller,
     motion_player_controllers,
     motor_controllers,
+    params_controller,
 )
 from being.web.web_socket import WebSocket
 
@@ -151,6 +152,8 @@ def init_api(being, ws: WebSocket) -> web.Application:
         motor.subscribe(MotorEvent.STATE_CHANGED, ws_emit(motor))
         motor.subscribe(MotorEvent.HOMING_CHANGED, ws_emit(motor))
         motor.subscribe(MotorEvent.ERROR, ws_motor_error_notification(motor))
+
+    api.add_routes(params_controller(being.params))
 
     wire_being_loggers_to_web_socket(ws)
 

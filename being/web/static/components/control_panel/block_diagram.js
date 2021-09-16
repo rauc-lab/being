@@ -28,6 +28,7 @@ const BLOCK_DIAGRAM_SVG_STYLE = `
     .block text {
         text-anchor: middle;
         alignment-baseline: central;
+        font-size: 0.6em;
     }
 
     path.connection {

@@ -7,6 +7,12 @@ import { Api } from "/static/js/api.js";
 import { Widget } from "/static/js/widget.js";
 import { switch_button_on, switch_button_off, is_checked } from "/static/js/button.js";
 import { isclose } from "/static/js/math.js";
+import { init_parameters_elements } from "/static/components/control_panel/parameters.js";
+
+
+
+import {API} from "/static/js/config.js";
+import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js/fetching.js";
 
 
 /** Control panel widget template. */
@@ -14,6 +20,36 @@ const CONTROL_PANEL_TEMPLATE = `
 <div class="container">
     <svg id="svg" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
     <ul id="console" class="console"></ul>
+</div>
+<div id="parameters" style="border-top: 2px solid black;">
+    <!--
+    <h1>Params</h1>
+    <h2>General</h2>
+    <input id="Other" type="range"></input>
+    <label for="Other">Other</label>
+
+    <h2>Behaviors</h2>
+
+    <h3>Motions for State I</h3>
+
+    <ul>
+        <li>
+            <input id="first" type="checkbox"></input>
+            <label for="first">First</label>
+        </li>
+        <li>
+            <input id="second" type="checkbox"></input>
+            <label for="second">Second</label>
+        </li>
+        <li>
+            <input id="third" type="checkbox"></input>
+            <label for="third">Third</label>
+        </li>
+    </ul>
+
+    <input id="Attention Span" type="range"></input>
+    <label for="Attention Span">Attention Span</label>
+    -->
 </div>
 `;
 
@@ -41,6 +77,7 @@ export class ControlPanel extends Widget {
         this._append_link("static/components/control_panel/control_panel.css");
         this.append_template(CONTROL_PANEL_TEMPLATE);
         this.svg = this.shadowRoot.getElementById("svg");
+        this.parametersContainer = this.shadowRoot.getElementById("parameters");
 
         // Toolbar
         this.powerBtn = this.add_button_to_toolbar("power_settings_new", "Turn motors on / off");
@@ -121,6 +158,10 @@ export class ControlPanel extends Widget {
                 this.expand_console();
             }
         });
+
+        const params = await get_json("/api/params");
+        console.log('params:', params);
+        init_parameters_elements(this.parametersContainer, params);
     }
 
     /**

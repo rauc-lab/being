@@ -1,5 +1,6 @@
 """API calls / controller for communication between front end and being components."""
 import collections
+import functools
 import glob
 import io
 import itertools
@@ -14,15 +15,17 @@ from aiohttp.typedefs import MultiDictProxy
 
 from being.behavior import State as BehaviorState, Behavior
 from being.being import Being
+from being.configs import SEP, Config
 from being.configuration import CONFIG
 from being.connectables import ValueOutput, _ValueContainer
 from being.content import CONTENT_CHANGED, Content
 from being.logging import get_logger
 from being.motors.blocks import MotorBlock
+from being.params import Parameter
 from being.serialization import loads, spline_from_dict
 from being.spline import fit_spline
 from being.typing import Spline
-from being.utils import filter_by_type
+from being.utils import NestedDict, filter_by_type, update_dict_recursively
 from being.web.responses import respond_ok, json_response
 
 
@@ -197,7 +200,7 @@ def content_controller(content: Content) -> web.RouteTableDef:
     return routes
 
 
-def serialize_elk_graph(being):
+def serialize_elk_graph(being, skipParameters=True):
     """Serialize blocks to ELK style graph dict serialization."""
     # Why yet another graph serialization? Because of edge connection type and
     # double edges. For execOrder double edges do not matter, but they do for
@@ -214,6 +217,9 @@ def serialize_elk_graph(being):
     while queue:
         block = queue.popleft()
         if block in visited:
+            continue
+
+        if skipParameters and isinstance(block, Parameter):
             continue
 
         visited.add(block)
@@ -508,5 +514,41 @@ def misc_controller() -> web.RouteTableDef:
             return json_response(spline)
         except ValueError:
             return web.HTTPBadRequest(text='Wrong trajectory data format. Has to be 2d!')
+
+    return routes
+
+
+def params_controller(params) -> web.RouteTableDef:
+    """Parameter block controller / view."""
+    # Params ordering as in the config file(s)
+    c = Config()
+    for p in params:
+        update_dict_recursively(c, p.configFile, default_factory=dict)
+
+    for p in params:
+        c.store(p.fullname, p)
+
+    routes = web.RouteTableDef()
+
+    @routes.get('/params')
+    def get_params(request):
+        """Get all parameter blocks."""
+        return json_response(c.data)
+
+    async def get_param(request, param):
+        """Get single param block."""
+        return json_response(param)
+
+    async def set_param(request, param):
+        """Update value of parameter block."""
+        value = await request.json()
+        param.change(value)
+        return json_response()
+
+    for param in params:
+        # functools.partial to capture param reference while looping
+        url = '/params/' + param.fullname
+        routes.get(url)(functools.partial(get_param, param=param))
+        routes.put(url)(functools.partial(set_param, param=param))
 
     return routes

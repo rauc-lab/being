@@ -232,6 +232,10 @@ class Config(_ConfigImpl, collections.abc.MutableMapping):
         implType = IMPLEMENTATIONS[configFormat]
         self.impl: _ConfigImpl = implType(data)
 
+    @property
+    def data(self):
+        return self.impl.data
+
     def __getitem__(self, key):
         return self.impl[key]
 
