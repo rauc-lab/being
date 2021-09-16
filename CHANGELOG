@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.2.4] - 2021-09-16
+
+### Added
+- Profiled position mode via message connections
+- New motor blocks: BeltDriveMotor, LeadScrewMotor and WindupMotor
+- Some CiA 402 test cases
+
+### Changed
+- Pacemaker separate from Being object
+- MotorBlock base class with abc get_length() method
+- Change node operation mode via Controller
+- Motor with deviceUnits
+
+### Fixed
+- Stuck in SDO state change job
+
+### Removed
+- Sawtooth block
+- Old scripts
+
 ## [0.2.3] - 2021-09-14
 
 ### Added
