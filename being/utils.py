@@ -259,3 +259,13 @@ class NestedDict(collections.abc.MutableMapping):
 def toss_coin(probability: float = .5) -> bool:
     """Toss a coin."""
     return random.random() < probability
+
+
+def unique(iterable):
+    seen = set()
+    for item in iterable:
+        if item in seen:
+            continue
+
+        seen.add(item)
+        yield item

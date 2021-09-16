@@ -6,7 +6,7 @@ from being.configs import ConfigFile, split_name
 from being.constants import INF
 from being.content import Content
 from being.math import clip
-from being.utils import SingleInstanceCache
+from being.utils import SingleInstanceCache, unique
 from typing import Any, Optional
 
 
@@ -16,7 +16,7 @@ class ParamsConfigFile(ConfigFile, SingleInstanceCache):
     SingleInstanceCache.
     """
 
-    def __init__(self, filepath='being_params.toml'):
+    def __init__(self, filepath='being_params.yaml'):
         super().__init__(filepath)
 
 
@@ -30,43 +30,47 @@ class Parameter(Block):
         configFile: TODO:
     """
 
-    def __init__(self, fullname: str, default: Any = 0.0, configFile: Optional[ConfigFile] = None):
+    def __init__(self, fullname: str, configFile: Optional[ConfigFile] = None):
+        _, name = split_name(fullname)
         if configFile is None:
             configFile = ParamsConfigFile.single_instance_setdefault()
 
-        _, name = split_name(fullname)
         super().__init__(name=name)
         self.add_value_output()
         self.fullname = fullname
-        self.default = default
         self.configFile = configFile
-
-    def reload(self):
-        """Reload value from config file."""
-        value = self.configFile.storedefault(self.fullname, self.default)
-        validated = self.validate(value)
-        changes = (validated != value)
-        if changes:
-            self.configFile.store(self.name, validated)
-            self.configFile.save()
-
-        self.output.value = validated
 
     def validate(self, value: Any) -> Any:
         """Validate value. Pass-through / no validation by default."""
         return value
 
-    def change(self, value):
+    def savedefault(self, default):
+        default = self.validate(default)
+        value = self.configFile.storedefault(self.fullname, default)
+        validated = self.validate(value)
+        self.configFile.save()
+        self.output.value = validated
+
+    def load(self):
+        """Reload value from config file."""
+        value = self.configFile.retrieve(self.fullname)
+        validated = self.validate(value)
+        if validated != value:
+            self.configFile.store(self.name, validated)
+            self.configFile.save()
+
+        self.output.value = validated
+
+    def save(self, value):
         """Change value of output and config entry."""
         validated = self.validate(value)
         self.configFile.store(self.fullname, validated)
-        self.output.value = validated
         self.configFile.save()
+        self.output.value = validated
 
     def to_dict(self):
         dct = super().to_dict()
         dct['fullname'] = self.fullname
-        #dct['default'] = self.default
         dct['value'] = self.output.value
         return dct
 
@@ -82,14 +86,14 @@ class Parameter(Block):
 
 class Slider(Parameter):
     def __init__(self, fullname, default: Any = 0.0, minValue=0., maxValue=1., **kwargs):
-        assert minValue < maxValue
-        minValue = min(minValue, default)
-        maxValue = max(maxValue, default)
+        if maxValue < minValue:
+            raise ValueError
+
         super().__init__(fullname, **kwargs)
         self.minValue = minValue
         self.maxValue = maxValue
 
-        self.reload()
+        self.savedefault(default)
 
     def validate(self, value):
         return clip(value, self.minValue, self.maxValue)
@@ -101,31 +105,46 @@ class Slider(Parameter):
         return dct
 
 
-
 class SingleSelection(Parameter):
     def __init__(self, fullname, possibilities, default=None, **kwargs):
-        super().__init__(fullname, default=default, **kwargs)
-        self.possibilities = set(possibilities)
+        super().__init__(fullname, **kwargs)
+        self.possibilities = list(unique(possibilities))
+        print('self.possibilities:', self.possibilities)
+        if default is None:
+            default = self.possibilities[0]
 
-        self.reload()
+        self.savedefault(default)
 
     def validate(self, value):
-        assert value in self.possibilities
+        assert value in self.possibilities, f'{value} not in {self.possibilities}'
         return value
+
+    def to_dict(self):
+        dct = super().to_dict()
+        dct['possibilities'] = self.possibilities
+        return dct
 
 
 class MultiSelection(Parameter):
     def __init__(self, fullname, possibilities, default=None, **kwargs):
+        super().__init__(fullname, **kwargs)
         if default is None:
             default = []
 
-        super().__init__(fullname, default=default, **kwargs)
-        self.possibilities = set(possibilities)
-
-        self.reload()
+        self.possibilities = list(unique(possibilities))
+        self.savedefault(default)
 
     def validate(self, value):
-        return list(set(value) - self.possibilities)
+        return [
+            item
+            for item in value
+            if item in self.possibilities
+        ]
+
+    def to_dict(self):
+        dct = super().to_dict()
+        dct['possibilities'] = self.possibilities
+        return dct
 
 
 class MotionSelection(Parameter):
@@ -133,10 +152,10 @@ class MotionSelection(Parameter):
         if content is None:
             content = Content.single_instance_setdefault()
 
-        super().__init__(fullname, default=default, **kwargs)
+        super().__init__(fullname, **kwargs)
         self.content = content
 
-        self.reload()
+        self.load()
 
     def validate(self, motions):
         if isinstance(motions, str):

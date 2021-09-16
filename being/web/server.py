@@ -16,6 +16,7 @@ from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
 from being.logging import BEING_LOGGER, get_logger
 from being.motors.definitions import MotorEvent
+from being.params import MotionSelection
 from being.sensors import Sensor
 from being.utils import filter_by_type
 from being.web.api import (

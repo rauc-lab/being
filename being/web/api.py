@@ -521,28 +521,31 @@ def misc_controller() -> web.RouteTableDef:
 def params_controller(params) -> web.RouteTableDef:
     """Parameter block controller / view."""
     # Params ordering as in the config file(s)
-    c = Config()
+    config = Config()
     for p in params:
-        update_dict_recursively(c, p.configFile, default_factory=dict)
+        update_dict_recursively(config, p.configFile, default_factory=dict)
 
     for p in params:
-        c.store(p.fullname, p)
+        config.store(p.fullname, p)
 
     routes = web.RouteTableDef()
 
     @routes.get('/params')
     def get_params(request):
         """Get all parameter blocks."""
-        return json_response(c.data)
+        LOGGER.debug('confg.data: %r', config.data)
+        return json_response(config.data)
 
     async def get_param(request, param):
         """Get single param block."""
+        LOGGER.debug('get_param() %s', param)
         return json_response(param)
 
     async def set_param(request, param):
         """Update value of parameter block."""
         value = await request.json()
-        param.change(value)
+        LOGGER.debug('set_param() %s %s', param, value)
+        param.save(value)
         return json_response()
 
     for param in params:

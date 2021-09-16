@@ -22,34 +22,6 @@ const CONTROL_PANEL_TEMPLATE = `
     <ul id="console" class="console"></ul>
 </div>
 <div id="parameters" style="border-top: 2px solid black;">
-    <!--
-    <h1>Params</h1>
-    <h2>General</h2>
-    <input id="Other" type="range"></input>
-    <label for="Other">Other</label>
-
-    <h2>Behaviors</h2>
-
-    <h3>Motions for State I</h3>
-
-    <ul>
-        <li>
-            <input id="first" type="checkbox"></input>
-            <label for="first">First</label>
-        </li>
-        <li>
-            <input id="second" type="checkbox"></input>
-            <label for="second">Second</label>
-        </li>
-        <li>
-            <input id="third" type="checkbox"></input>
-            <label for="third">Third</label>
-        </li>
-    </ul>
-
-    <input id="Attention Span" type="range"></input>
-    <label for="Attention Span">Attention Span</label>
-    -->
 </div>
 `;
 
@@ -160,7 +132,7 @@ export class ControlPanel extends Widget {
         });
 
         const params = await get_json("/api/params");
-        console.log('params:', params);
+        window.params = params;
         init_parameters_elements(this.parametersContainer, params);
     }
 
@@ -246,5 +218,10 @@ export class ControlPanel extends Widget {
                 con.pause();
             }
         });
+    }
+
+
+    content_changed() {
+        console.log('content_changed()');
     }
 }
