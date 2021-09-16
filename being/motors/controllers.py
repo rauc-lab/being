@@ -149,10 +149,10 @@ class Controller(MotorInterface):
         self.disable()  # READY_TO_SWITCH_ON via PDO
 
     def disable(self):
-        self.switchJob = self.node.change_state(State.READY_TO_SWITCH_ON, how='pdo', generator=True)
+        self.switchJob = self.node.change_state(State.READY_TO_SWITCH_ON, how='pdo', retGenerator=True)
 
     def enable(self):
-        self.switchJob = self.node.change_state(State.OPERATION_ENABLED, how='pdo', generator=True)
+        self.switchJob = self.node.change_state(State.OPERATION_ENABLED, how='pdo', retGenerator=True)
 
     def motor_state(self):
         if self.lastState is State.OPERATION_ENABLED:

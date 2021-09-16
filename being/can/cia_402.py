@@ -14,7 +14,6 @@ from typing import (
     ForwardRef,
     Generator,
     List,
-    NamedTuple,
     Optional,
     Set,
     Tuple,
@@ -26,7 +25,6 @@ from canopen import RemoteNode
 from being.bitmagic import check_bit
 from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.definitions import TransmissionType
-from being.constants import FORWARD, BACKWARD
 from being.logging import get_logger
 
 
@@ -116,15 +114,6 @@ class Command(enum.IntEnum):
     FAULT_RESET = CW.FAULT_RESET
 
 
-assert Command.SHUT_DOWN == 0b110
-assert Command.SWITCH_ON == 0b111
-assert Command.DISABLE_VOLTAGE == 0
-assert Command.QUICK_STOP == 0b10
-assert Command.DISABLE_OPERATION == 0b111
-assert Command.ENABLE_OPERATION == 0b1111
-assert Command.FAULT_RESET == (1 << 7)
-
-
 class SW(enum.IntEnum):
 
     """Statusword bits."""
@@ -211,20 +200,21 @@ VALID_OP_MODE_CHANGE_STATES: Set[State] = {
 }
 """Not every state support switching of operation mode."""
 
+STATUSWORD_2_STATE = [
+    (0b1001111, 0b0000000, State.NOT_READY_TO_SWITCH_ON),
+    (0b1001111, 0b1000000, State.SWITCH_ON_DISABLED),
+    (0b1101111, 0b0100001, State.READY_TO_SWITCH_ON),
+    (0b1101111, 0b0100011, State.SWITCHED_ON),
+    (0b1101111, 0b0100111, State.OPERATION_ENABLED),
+    (0b1101111, 0b0000111, State.QUICK_STOP_ACTIVE),
+    (0b1001111, 0b0001111, State.FAULT_REACTION_ACTIVE),
+    (0b1001111, 0b0001000, State.FAULT),
+]
+"""Statusword bit masks for state loopkup."""
 
 def which_state(statusword: int) -> State:
     """Extract state from statusword."""
-    considerations = [
-        (0b1001111, 0b0000000, State.NOT_READY_TO_SWITCH_ON),
-        (0b1001111, 0b1000000, State.SWITCH_ON_DISABLED),
-        (0b1101111, 0b0100001, State.READY_TO_SWITCH_ON),
-        (0b1101111, 0b0100011, State.SWITCHED_ON),
-        (0b1101111, 0b0100111, State.OPERATION_ENABLED),
-        (0b1101111, 0b0000111, State.QUICK_STOP_ACTIVE),
-        (0b1001111, 0b0001111, State.FAULT_REACTION_ACTIVE),
-        (0b1001111, 0b0001000, State.FAULT),
-    ]
-    for mask, value, state in considerations:
+    for mask, value, state in STATUSWORD_2_STATE:
         if (statusword & mask) == value:
             return state
 
@@ -268,6 +258,9 @@ def find_shortest_state_path(start: State, end: State) -> List[State]:
         Path from start -> end. Empty list if the does not exist a path from
         start -> end.
     """
+    if start is end:
+        return []
+
     # Breadth-first search
     queue = collections.deque([[start]])
     paths = []
@@ -296,84 +289,6 @@ def target_reached(statusword: int) -> bool:
         If target has been reached.
     """
     return bool(statusword & SW.TARGET_REACHED)
-
-
-POSITIVE = RISING = FORWARD
-NEGATIVE = FALLING = BACKWARD
-UNAVAILABLE = UNDEFINED = 0.0
-
-
-class HomingParam(NamedTuple):
-
-    """Homing parameters to describe different CiA402 homing methods."""
-
-    endSwitch: int = UNAVAILABLE
-    homeSwitch: int = UNAVAILABLE
-    homeSwitchEdge: int = UNDEFINED
-    indexPulse: bool = False
-
-    direction: int = UNDEFINED
-    hardStop: bool = False
-
-
-HOMING_METHODS: Dict[HomingParam, int] = {
-    HomingParam(indexPulse=True, direction=POSITIVE, hardStop=True, ): -1,
-    HomingParam(indexPulse=True, direction=NEGATIVE, hardStop=True, ): -2,
-    HomingParam(direction=POSITIVE, hardStop=True, ): -3,
-    HomingParam(direction=NEGATIVE, hardStop=True, ): -4,
-    HomingParam(indexPulse=True, endSwitch=NEGATIVE, ): 1,
-    HomingParam(indexPulse=True, endSwitch=POSITIVE, ): 2,
-    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=FALLING, ): 3,
-    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=RISING, ): 4,
-    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, ): 5,
-    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=RISING, ): 6,
-    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, endSwitch=POSITIVE, ): 7,
-    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=RISING, endSwitch=POSITIVE, ): 8,
-    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=RISING, endSwitch=POSITIVE, ): 9,
-    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=FALLING, endSwitch=POSITIVE, ): 10,
-    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=FALLING, endSwitch=NEGATIVE, ): 11,
-    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=RISING, endSwitch=NEGATIVE, ): 12,
-    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=RISING, endSwitch=NEGATIVE, ): 13,
-    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, endSwitch=NEGATIVE, ): 14,
-    HomingParam(endSwitch=NEGATIVE, ): 17,
-    HomingParam(endSwitch=POSITIVE, ): 18,
-    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=FALLING, ): 19,
-    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=RISING, ): 20,
-    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, ): 21,
-    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=RISING, ): 22,
-    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, endSwitch=POSITIVE, ): 23,
-    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=RISING, endSwitch=POSITIVE, ): 24,
-    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=RISING, endSwitch=POSITIVE, ): 25,
-    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=FALLING, endSwitch=POSITIVE, ): 26,
-    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=FALLING, endSwitch=NEGATIVE, ): 27,
-    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=RISING, endSwitch=NEGATIVE, ): 28,
-    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=RISING, endSwitch=NEGATIVE, ): 29,
-    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, endSwitch=NEGATIVE, ): 30,
-    HomingParam(indexPulse=True, direction=NEGATIVE,): 33,
-    HomingParam(indexPulse=True, direction=POSITIVE,): 34,
-    HomingParam(): 35,  # TODO(atheler): Got replaced with 37 in newer versions
-}
-"""CiA 402 homing method lookup."""
-
-
-assert len(HOMING_METHODS) == 35, 'Something went wrong with HOMING_METHODS keys! Not enough homing methods anymore.'
-
-
-def determine_homing_method(
-        endSwitch: int = UNAVAILABLE,
-        homeSwitch: int = UNAVAILABLE,
-        homeSwitchEdge: int = UNDEFINED,
-        indexPulse: bool = False,
-        direction: int = UNDEFINED,
-        hardStop: bool = False,
-    ) -> int:
-    """Determine homing method."""
-    param = HomingParam(endSwitch, homeSwitch, homeSwitchEdge, indexPulse, direction, hardStop)
-    return HOMING_METHODS[param]
-
-
-assert determine_homing_method(hardStop=True, direction=FORWARD) == -3
-assert determine_homing_method(hardStop=True, direction=BACKWARD) == -4
 
 
 StateSwitching = Generator[State, None, None]
@@ -566,7 +481,7 @@ class CiA402Node(RemoteNode):
         current = self.get_state(how)
         if current is target:
             self.logger.debug('Already in %s', target)
-            yield current
+            yield target
             return
 
         if target not in POSSIBLE_TRANSITIONS[current]:
@@ -583,10 +498,11 @@ class CiA402Node(RemoteNode):
 
         while current is not target:
             self.logger.debug('Still in %s, not yet in %s', current, target)
-            current = self.get_state(how)
             yield current
+            current = self.get_state(how)
 
         self.logger.debug('Reached %s', target)
+        yield target
 
     def _change_state(self, target: State, how: str = 'sdo') -> StateSwitching:
         """Change node state to a target state. Implemented as generator for
@@ -606,7 +522,7 @@ class CiA402Node(RemoteNode):
         current = self.get_state(how)
         if current is target:
             self.logger.debug('Already in %s', target)
-            yield current
+            yield target
             return
 
         path = find_shortest_state_path(current, target)
@@ -643,7 +559,7 @@ class CiA402Node(RemoteNode):
             target: State,
             how: str = 'sdo',
             timeout: Optional[float] = None,
-            generator: bool = False,
+            retGenerator: bool = False,
         ) -> Union[State, StateSwitching]:
         """Set node state. This method only works for possible transitions from
         current state (single step). For arbitrary transitions use
@@ -655,11 +571,11 @@ class CiA402Node(RemoteNode):
         Kwargs:
             how: Either via 'sdo' or 'pdo'.
             timeout: Optional timeout.
-            generator: If True return switching job generator.
+            retGenerator: If True return switching job generator.
         """
         current = self.get_state(how)
         job = self._set_state(target, how)
-        if generator:
+        if retGenerator:
             return job
 
         if timeout is None:
@@ -672,7 +588,7 @@ class CiA402Node(RemoteNode):
             target: State,
             how: str = 'sdo',
             timeout: Optional[float] = None,
-            generator: bool = False,
+            retGenerator: bool = False,
         ) -> Union[State, StateSwitching]:
         """Change to a specific state. Will traverse all necessary states in
         between to get there.
@@ -683,11 +599,11 @@ class CiA402Node(RemoteNode):
         Kwargs:
             how: Either via 'sdo' or 'pdo'.
             timeout: Optional timeout.
-            generator: If True return switching job generator.
+            retGenerator: If True return switching job generator.
         """
         current = self.get_state(how)
         job = self._change_state(target, how)
-        if generator:
+        if retGenerator:
             return job
 
         if timeout is None:
