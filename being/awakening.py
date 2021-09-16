@@ -13,7 +13,8 @@ from being.clock import Clock
 from being.configuration import CONFIG
 from being.connectables import MessageInput
 from being.logging import get_logger
-from being.motors.blocks import MOTOR_CHANGED
+from being.pacemaker import Pacemaker
+from being.resources import register_resource
 from being.web.server import init_web_server, run_web_server
 from being.web.web_socket import WebSocket
 
@@ -22,7 +23,7 @@ API_PREFIX = CONFIG['Web']['API_PREFIX']
 WEB_SOCKET_ADDRESS = CONFIG['Web']['WEB_SOCKET_ADDRESS']
 INTERVAL = CONFIG['General']['INTERVAL']
 WEB_INTERVAL = CONFIG['Web']['INTERVAL']
-LOGGER = get_logger(__name__)
+LOGGER = get_logger(name=__name__, parent=None)
 
 
 def _exit_signal_handler(signum=None, frame=None):
@@ -40,7 +41,8 @@ def _run_being_standalone(being):
     while True:
         now = time.perf_counter()
         then = cycle * INTERVAL
-        if then > now:
+        sleepTime = then - now
+        if sleepTime >= 0:
             time.sleep(then - now)
 
         being.single_cycle()
@@ -51,11 +53,13 @@ async def _run_being_async(being):
     """Run being inside async loop."""
     time_func = asyncio.get_running_loop().time
     cycle = int(time_func() / INTERVAL)
+
     while True:
         now = time_func()
         then = cycle * INTERVAL
-        if then > now:
-            await asyncio.sleep(then - now)
+        sleepTime = then - now
+        if sleepTime >= 0:
+            await asyncio.sleep(sleepTime)
 
         being.single_cycle()
         cycle += 1
@@ -76,7 +80,14 @@ async def _send_being_state_to_front_end(being: Being, ws: WebSocket):
         out.connect(dummy)
         dummies.append(dummy)
 
+    time_func = asyncio.get_running_loop().time
+    cycle = int(time_func() / WEB_INTERVAL)
     while True:
+        now = time_func()
+        then = cycle * WEB_INTERVAL
+        if then > now:
+            await asyncio.sleep(then - now)
+
         await ws.send_json({
             'type': 'being-state',
             'timestamp': being.clock.now(),
@@ -86,7 +97,8 @@ async def _send_being_state_to_front_end(being: Being, ws: WebSocket):
                 for dummy in dummies
             ],
         })
-        await asyncio.sleep(WEB_INTERVAL)
+
+        cycle += 1
 
 
 async def _run_being_with_web_server(being):
@@ -101,6 +113,7 @@ async def _run_being_with_web_server(being):
 
     ws = WebSocket()
     app = init_web_server(being, ws)
+
     await asyncio.gather(
         _run_being_async(being),
         _send_being_state_to_front_end(being, ws),
@@ -112,6 +125,9 @@ async def _run_being_with_web_server(being):
 def awake(
         *blocks: Iterable[Block],
         web: bool = True,
+        enableMotors: bool = True,
+        homeMotors: bool = True,
+        usePacemaker: bool = True,
         clock: Optional[Clock] = None,
         network: Optional[CanBackend] = None,
     ):
@@ -122,6 +138,9 @@ def awake(
 
     Kwargs:
         web: Run with web server.
+        enableMotors: Enable motors on startup.
+        homeMotors: Home motors on startup.
+        usePacemaker: If to use an extra pacemaker thread.
         clock: Clock instance.
         network: CanBackend instance.
     """
@@ -131,12 +150,20 @@ def awake(
     if network is None:
         network = CanBackend.single_instance_get()
 
-    being = Being(blocks, clock, network)
-    for motor in being.motors:
-        motor.subscribe(MOTOR_CHANGED, being.motor_changed)
+    pacemaker = Pacemaker(network)
+    being = Being(blocks, clock, pacemaker, network)
 
-    being.enable_motors()
-    being.home_motors()
+    if network is not None:
+        network.enable_pdo_communication()
+        if usePacemaker:
+            pacemaker.start()
+            register_resource(pacemaker)
+
+    if enableMotors:
+        being.enable_motors()
+
+    if homeMotors:
+        being.home_motors()
 
     try:
         if web:

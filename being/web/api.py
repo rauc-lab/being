@@ -19,19 +19,15 @@ from being.connectables import ValueOutput, _ValueContainer
 from being.content import CONTENT_CHANGED, Content
 from being.logging import get_logger
 from being.motors.blocks import MotorBlock
-from being.motors.homing import HomingState
-from being.serialization import loads, spline_from_dict, register_enum
+from being.serialization import loads, spline_from_dict
 from being.spline import fit_spline
 from being.typing import Spline
 from being.utils import filter_by_type
 from being.web.responses import respond_ok, json_response
 
 
-LOGGER = get_logger(__name__)
+LOGGER = get_logger(name=__name__, parent=None)
 """API module logger."""
-
-
-register_enum(HomingState)
 
 
 def messageify(obj) -> collections.OrderedDict:
@@ -480,17 +476,13 @@ def motor_controllers(being)  -> web.RouteTableDef:
     @routes.put('/motors/disable')
     async def disable_motors(request):
         pause_others()
-        try:
-            being.disable_motors()
-        finally:  # Independent of state transition timeouts
-            return json_response(being.motors)
+        being.disable_motors()
+        return json_response(being.motors)
 
     @routes.put('/motors/enable')
     async def enable_motors(request):
-        try:
-            being.enable_motors()
-        finally:  # Independent of state transition timeouts
-            return json_response(being.motors)
+        being.enable_motors()
+        return json_response(being.motors)
 
     @routes.put('/motors/home')
     async def home_motors(request):

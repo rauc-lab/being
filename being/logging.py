@@ -1,30 +1,42 @@
-"""
-Note: To read:
-    https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
+"""Being logging.
+
+Resources:
+  - https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
 """
 import logging
 import logging.handlers
 import os
 from typing import Optional
+from logging import Logger
 
 from being.configuration import CONFIG
 from being.constants import MB
-
-BEING_LOGGERS = set()
-"""All being loggers. Workaround for messy logger hierarchy."""
-
-DEFAULT_EXCLUDES = [
-    'parso',
-    'matplotlib',
-    'can',
-    'canopen',
-    'aiohttp',
-]
 
 
 LEVEL = CONFIG['Logging']['LEVEL']
 DIRECTORY = CONFIG['Logging']['DIRECTORY']
 FILENAME = CONFIG['Logging']['FILENAME']
+
+BEING_LOGGER = logging.getLogger('being')
+"""Being root logger."""
+
+DEFAULT_EXCLUDES = ['parso', 'matplotlib', 'can', 'canopen', 'aiohttp',]
+
+
+def get_logger(name: Optional[str] = None, parent: Optional[Logger] = BEING_LOGGER) -> Logger:
+    """Get logger. Wrap for `logging.getLogger` in order to keep track of being
+    loggers (via evil global variable BEING_LOGGERS).
+
+    Args:
+        name: Logger name. None for root logger if not parent logger.
+
+    Kwargs:
+        parent: Parent logger. BEING_LOGGER by default.
+    """
+    if parent:
+        return parent.getChild(name)
+
+    return logging.getLogger(name)
 
 
 def suppress_other_loggers(*excludes):
@@ -36,18 +48,6 @@ def suppress_other_loggers(*excludes):
         for part in excludes:
             if part in name:
                 logging.getLogger(name).disabled = True
-
-
-def get_logger(name: Optional[str] = None):
-    """Get logger. Wrap for `logging.getLogger` in order to keep track of being
-    loggers (via evil global variable BEING_LOGGERS).
-
-    Args:
-        name: Logger name. None for root logger.
-    """
-    logger = logging.getLogger(name)
-    BEING_LOGGERS.add(logger)
-    return logger
 
 
 def setup_logging(level=LEVEL):

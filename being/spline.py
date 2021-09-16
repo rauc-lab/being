@@ -115,7 +115,7 @@ def sample_spline(spline: Spline, t, loop: bool = False):
 
     # Note: spline(end) with extrapolate = False -> nan
     #   -> Subtract epsilon for right border
-    return spline(np.clip(t, start, end - 1e-10))
+    return spline(np.clip(t, start, end - 1e-15))
 
 
 def spline_coefficients(spline: Spline, segment: int) -> ndarray:

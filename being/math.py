@@ -1,9 +1,12 @@
 """Mathematical helper functions."""
 import math
-from typing import Tuple
+from typing import Tuple, NamedTuple
+
 from being.constants import TAU
 
 import numpy as np
+from numpy import ndarray
+import scipy.optimize
 
 
 def clip(number: float, lower: float, upper: float) -> float:
@@ -49,15 +52,15 @@ def solve_quadratic_equation(a: float, b: float, c: float) -> Tuple[float, float
     return x0, x1
 
 
-def linear_mapping(xRange, yRange):
+def linear_mapping(xRange: Tuple[float, float], yRange: Tuple[float, float]) -> ndarray:
     """Get linear coefficients for y = a * x + b.
 
     Args:
-        xRange (tuple): Input range (xmin, xmax).
-        yRange (tuple): Output range (xmin, xmax).
+        xRange: Input range (xmin, xmax).
+        yRange: Output range (xmin, xmax).
 
     Returns:
-        tuple: Linear coefficients a, b.
+        Linear coefficients [a, b].
     """
     xmin, xmax = xRange
     ymin, ymax = yRange
@@ -67,27 +70,61 @@ def linear_mapping(xRange, yRange):
     ], [ymin, ymax])
 
 
-def angular_velocity_to_rpm(angVel: float) -> float:
-    """Convert angular velocity to rotations per minute.
+class ArchimedeanSpiral(NamedTuple):
 
-    Args:
-        angVel: Angular velocity [rad / s]
+    """Archimedean spiral defined by:
 
-    Returns:
-        Velocity in [rpm]
-
+        r(phi) = a + b * phi.
     """
-    return angVel * 60 / TAU
 
+    a: float
+    b: float = 0.  # Trivial case circle
 
-def rpm_to_angular_velocity(rpm: float) -> float:
-    """Convert rotations per minute to angular velocity.
+    def radius(self, angle: float) -> float:
+        """Calculate radius of spiral for a given angle."""
+        return self.a + self.b * angle
 
-    Args:
-        rpm: rotation per minute [rpm]
+    @staticmethod
+    def arc_length_helper(anlge, b):
+        """Helper function for arc length calculations."""
+        return b / 2 * (
+            anlge * math.sqrt(1 + anlge ** 2)
+            + math.log(anlge + math.sqrt(1 + anlge ** 2))
+        )
 
-    Returns:
-        Angular velocity [rad / s]
+    def _arc_length(self, angle: float) -> float:
+        return self.arc_length_helper(angle, self.b) + self.a * angle
 
-    """
-    return TAU * rpm / 60
+    def arc_length(self, endAngle: float, startAngle: float = 0) -> float:
+        """Arc length of spiral from a startAngle to an endAngle."""
+        return self._arc_length(endAngle) - self._arc_length(startAngle)
+
+    @classmethod
+    def fit(cls, diameter, outerDiameter, arcLength) -> tuple:
+        """Args:
+            diameter: Inner diameter of spiral.
+            outerDiameter: Outer diameter of spiral. If equal to diameter -> Circle.
+            arcLength: Measured arc length.
+
+        Returns:
+            Fitted spiral and estimated maximum angle.
+        """
+        if outerDiameter < diameter:
+            raise ValueError('outerDiameter >= diameter!')
+
+        a = .5 * diameter
+        phi0 = arcLength / a  # Naive phi if spiral is a circle
+        if diameter == outerDiameter:
+            # Trivial circle case
+            return ArchimedeanSpiral(a, b=0.0), phi0
+
+        def func(x):
+            b, phi = x
+            return [
+                a + b * phi - .5 * outerDiameter,
+                cls.arc_length_helper(phi, b) + a * phi - arcLength,
+            ]
+
+        x0 = [0.0, phi0]
+        bEst, phiEst = scipy.optimize.fsolve(func, x0)
+        return cls(a, b=bEst), phiEst

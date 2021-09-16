@@ -29,6 +29,8 @@ export class ControlPanel extends Widget {
         this.valueConnections = [];
         this.messageConnections = [];
         this.lastValues = [];
+        this.homingState = 4;
+        this.motorState = 3;
     }
 
     set_notification_center(notificationCenter) {
@@ -84,10 +86,17 @@ export class ControlPanel extends Widget {
         // Connect event listerners
         this.powerBtn.addEventListener("click", async evt => {
             let motors = [];
-            if (is_checked(this.powerBtn)) {
-                motors = await this.api.disable_motors();
-            } else {
-                motors = await this.api.enable_motors();
+
+            switch(this.motorState) {
+                case 0:  // Fault
+                    motors = await this.api.enable_motors();
+                    break;
+                case 1:  // Disabled
+                    motors = await this.api.enable_motors();
+                    break;
+                case 2:  // Enabled
+                    motors = await this.api.disable_motors();
+                    break;
             }
             this.update(motors);
         });
@@ -120,22 +129,20 @@ export class ControlPanel extends Widget {
      * @param {Array} motors Current motor infos.
      */
     update(motors) {
-        let enabled = true;
-        let homing = 4;  // HomingState.HOMED + 1...
+        this.motorState = 3;  // MotorState.ENABLED + 1...
+        this.homingState = 4;  // HomingState.HOMED + 1...
         motors.forEach(motor => {
-            enabled &= motor.enabled;
-            homing = Math.min(homing, motor.homing.value);
+            this.motorState = Math.min(this.motorState, motor.state.value);
+            this.homingState = Math.min(this.homingState, motor.homing.value);
         });
 
-        if (enabled) {
-            switch_button_on(this.powerBtn);
-        } else {
-            switch_button_off(this.powerBtn);
-        }
+        const stateClasses = ["state-fault", "state-disabled", "state-enabled"];
+        this.powerBtn.classList.remove(...stateClasses);
+        this.powerBtn.classList.add(stateClasses[this.motorState]);
 
         const homingClasses = ["homing-failed", "homing-unhomed", "homing-ongoing", "homing-homed" ];
         this.homeBtn.classList.remove(...homingClasses);
-        this.homeBtn.classList.add(homingClasses[homing]);
+        this.homeBtn.classList.add(homingClasses[this.homingState]);
     }
 
     /**

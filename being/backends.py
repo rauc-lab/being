@@ -5,11 +5,9 @@ TODO: VideoBackend.
 """
 import contextlib
 import sys
+import threading
 import warnings
-from typing import List, ForwardRef
-
-from being.configuration import CONFIG
-from being.rpi_gpio import GPIO
+from typing import List
 
 try:
     import pyaudio
@@ -17,13 +15,19 @@ except ImportError:
     pyaudio = None
     warnings.warn('PyAudio is not installed!')
 
+import can
 import canopen
-from being.utils import SingleInstanceCache, filter_by_type
+
+from being.can.cia_402 import CiA402Node
+from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL
+from being.configuration import CONFIG
 from being.logging import get_logger
+from being.rpi_gpio import GPIO
+from being.utils import SingleInstanceCache, filter_by_type
 
 
-CiA402Node = ForwardRef('CiA402Node')
 DEFAULT_CAN_BITRATE = CONFIG['Can']['DEFAULT_CAN_BITRATE']
+INTERVAL = CONFIG['General']['INTERVAL']
 
 
 # Default system dependent CAN bus parameters
@@ -35,32 +39,71 @@ else:
     _CHANNEL = 'can0'
 
 
+SYNC_MSG = can.Message(is_extended_id=False, arbitration_id=0x80, data=[], is_remote_frame=False)
+
+
 class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContextManager):
 
-    """CANopen network wrapper. Automatic connect during __enter__."""
+    """CANopen network wrapper.
 
-    def __init__(self, bitrate=DEFAULT_CAN_BITRATE, bustype=_BUS_TYPE, channel=_CHANNEL):
+    Automatic connect during __enter__ phase. Also has custom SYNC sender thread
+    which works with a event to sync main loop with periodically sending out
+    SYNC messages over CAN.
+    """
+
+    def __init__(self,
+            bitrate=DEFAULT_CAN_BITRATE,
+            bustype=_BUS_TYPE,
+            channel=_CHANNEL,
+        ):
         super().__init__(bus=None)
         self.bitrate = bitrate
         self.bustype = bustype
         self.channel = channel
 
+        self.logger = get_logger('CanBackend')
+        self.rpdos = set()
+
     @property
     def drives(self) -> List[CiA402Node]:
         """Get list of all drive nodes."""
-        from being.can.cia_402 import CiA402Node  # Circular import for comforts
         return filter_by_type(self.values(), CiA402Node)
 
     def switch_off_drives(self):
+        """Switch off all registered drives."""
         for drive in self.drives:
             drive.switch_off()
 
+    def enable_pdo_communication(self):
+        """Enable PDO communication by setting NMT state to OPERATIONAL."""
+        self.logger.debug('Global NMT -> OPERATIONAL')
+        self.nmt.state = OPERATIONAL
+
+    def disable_pdo_communication(self):
+        """Disable PDO communication by setting NMT state to PRE-OPERATIONAL."""
+        self.logger.debug('Global NMT -> PRE-OPERATIONAL')
+        self.nmt.state = PRE_OPERATIONAL
+
     def send_sync(self):
-        """Custom update method so that we can include CanBackend in execOrder
-        for sending out sync messages at the end of the cycle for driving the
-        PDO communication.
-        """
-        self.send_message(0x80, [])  # Std. CAN SYNC message
+        """Send SYNC message over CAN network."""
+        # self.send_message(0x80, [])  # send_message() has a lock inside
+        self.bus.send(SYNC_MSG)
+
+    def register_rpdo(self, rx):
+        """Register RPDO map to be transmitted repeadely by sender thread."""
+        self.rpdos.add(rx)
+
+    def transmit_all_rpdos(self):
+        """Transmit current value of all registered RPDO maps."""
+        for rx in self.rpdos:
+            #self.pdo_node.network.send_message(rx.cob_id, rx.data)  # Lock inside
+            msg = can.Message(
+                is_extended_id=rx.cob_id > 0x7FF,
+                arbitration_id=rx.cob_id,
+                data=rx.data,
+                is_remote_frame=False,
+            )
+            self.bus.send(msg)
 
     def __enter__(self):
         self.connect(bitrate=self.bitrate, bustype=self.bustype, channel=self.channel)
@@ -68,6 +111,7 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        self.disable_pdo_communication()
         self.switch_off_drives()
         self.disconnect()
 

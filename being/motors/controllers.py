@@ -1,45 +1,32 @@
 """Motor controllers."""
+import abc
 import sys
-from typing import Optional, Dict, Generator, Set, Any
+import warnings
+from typing import Optional, Set
 
 from canopen.emcy import EmcyError
 
 from being.bitmagic import clear_bit, set_bit
-from being.can.cia_402 import (
-    CONTROLWORD,
-    CW,
-    CiA402Node,
-    Command,
-    HOMING_METHOD,
-    NEGATIVE,
-    OperationMode,
-    POSITION_ACTUAL_VALUE,
-    POSITIVE,
-    State as CiA402State,
-    TARGET_VELOCITY,
-    determine_homing_method,
-)
-from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
-from being.constants import FORWARD, INF
-from being.error import BeingError
+from being.can.cia_402 import CiA402Node, HOMING_METHOD, OperationMode, State
+from being.configuration import CONFIG
+from being.constants import FORWARD
 from being.logging import get_logger
 from being.math import clip
-from being.motors.homing import (
-    HomingProgress,
-    proper_homing,
-)
-from being.motors.homing import HomingState
+from being.motors.definitions import MotorInterface, MotorState, MotorEvent, PositionProfile, VelocityProfile
+from being.motors.homing import CiA402Homing, CrudeHoming, default_homing_method
 from being.motors.motors import Motor
 from being.motors.vendor import (
-    FAULHABER_DEVICE_ERROR_CODES,
     FAULHABER_EMERGENCY_DESCRIPTIONS,
     FAULHABER_SUPPORTED_HOMING_METHODS,
-    MAXON_DEVICE_ERROR_CODES,
-    MAXON_DEVICE_ERROR_REGISTER,
     MAXON_EMERGENCY_DESCRIPTIONS,
     MAXON_SUPPORTED_HOMING_METHODS,
+    MaxonDigitalInput,
 )
 from being.utils import merge_dicts
+
+
+INTERVAL = CONFIG['General']['INTERVAL']
+LOGGER = get_logger(name=__name__, parent=None)
 
 
 def nested_get(dct, keys):
@@ -62,35 +49,7 @@ def inspect_many(node, names):
         inspect(node, name)
 
 
-def default_homing_method(
-        homingDirection: int = FORWARD,
-        endSwitches: bool = False,
-        indexPulse: bool = False,
-    ) -> int:
-    """Default non 35/37 homing methods.
-
-    Args:
-        homingDirection: In which direction to start homing.
-
-    Kwargs:
-        endSwitches: End switches present.
-
-    Returns:
-        Homing method number.
-    """
-    if endSwitches:
-        if homingDirection > 0:
-            return determine_homing_method(endSwitch=POSITIVE, indexPulse=indexPulse)
-        else:
-            return determine_homing_method(endSwitch=NEGATIVE, indexPulse=indexPulse)
-    else:
-        if homingDirection > 0:
-            return determine_homing_method(direction=POSITIVE, hardStop=True, indexPulse=indexPulse)
-        else:
-            return determine_homing_method(direction=NEGATIVE, hardStop=True, indexPulse=indexPulse)
-
-
-def get_description(errorCode: int, descriptions: list) -> str:
+def format_error_code(errorCode: int, descriptions: list) -> str:
     """Emergency error code -> description.
 
     Args:
@@ -100,41 +59,27 @@ def get_description(errorCode: int, descriptions: list) -> str:
     Returns:
         Text error description.
     """
-    description = ''
+    description = 'Unknown emergency error'
     for code, mask, desc in descriptions:
         if errorCode & mask == code:
             description = desc
 
-    if description == '':
-        return f'Unknown emergency error for code {errorCode:#04x}'
-
-    return description
+    return f'{description} (error code {errorCode:#04x})'
 
 
-class ControllerError(BeingError):
-
-    """General Being controller errors."""
-
-
-class OnlyOnce:
-
-    """Say it only once."""
-
-    def __init__(self):
-        self.before = set()
-
-    def __call__(self, iterable):
-        current = set(iterable)
-        yield from current - self.before
-        self.before = current
-
-
-class Controller:
+class Controller(MotorInterface):
 
     """Semi abstract controller base class.
 
+    Implements general, non-vendor specific, controller functionalities.
+      - Configuring and managing of CanOpen node.
+      - Homing
+      - Target position clipping range.
+      - Drives node state switch jobs (for asynchronous state changes).
+      - SI <-> device units conversion.
+      - Relaying EMCY errors.
+
     Attributes:
-        DEVICE_ERROR_CODES: Device error code -> error message text lookup.
         EMERGENCY_ERROR_CODES: TODO.
         SUPPORTED_HOMING_METHODS: Supported homing methods.
         node: Connected CiA 402 CANopen node.
@@ -148,118 +93,107 @@ class Controller:
         only_new_ones: Filter for showing error messages only once.
     """
 
-    DEVICE_ERROR_CODES: Dict[int, str] = {}
     EMERGENCY_DESCRIPTIONS: list = []
     SUPPORTED_HOMING_METHODS: Set[int] = {}
 
     def __init__(self,
             node: CiA402Node,
             motor: Motor,
+            length: float,
             direction: int = FORWARD,
-            length: Optional[float] = None,
             settings: Optional[dict] = None,
-            multiplier: float = 1.0,
+            operationMode: OperationMode = OperationMode.CYCLIC_SYNCHRONOUS_POSITION,
             **homingKwargs,
         ):
         """Args:
             node: Connected CanOpen node.
             motor: Motor definitions / settings.
+            length: Clipping length in SI units.
 
         Kwargs:
             direction: Movement direction.
-            length: Length of associated motor. Motor length by default.
             settings: Motor settings.
-            multiplier: Additional Multiplier factor for SI position ->
-                multiplier -> gear -> motor.position_si_2_device. For windup
-                module / spindle drive.
+            operationMode: Operation mode for node.
             **homingKwargs: Homing parameters.
         """
         # Defaults
         if settings is None:
             settings = {}
 
-        if length is None:
-            length = motor.length
-
-        homingKwargs.setdefault('homingDirection', FORWARD)  # TODO: Or direction as default?
-        if 'homingMethod' in homingKwargs:
-            homingMethod = homingKwargs['homingMethod']
-        else:
-            homingMethod = default_homing_method(**homingKwargs)
-
-        homingDirection = homingKwargs['homingDirection']
+        super().__init__()
 
         # Attrs
         self.node: CiA402Node = node
         self.motor: Motor = motor
         self.direction = direction
-        self.position_si_2_device = float(multiplier * motor.gear * motor.position_si_2_device)
-        self.homingMethod = homingMethod
-        self.homingDirection = homingDirection
+        self.length = length
+
+        self.logger = get_logger(str(self))
+        self.position_si_2_device = motor.si_2_device_units('position')
+        self.velocity_si_2_device = motor.si_2_device_units('velocity')
+        self.acceleration_si_2_device = motor.si_2_device_units('acceleration')
         self.lower = 0.
         self.upper = length * self.position_si_2_device
-        self.logger = get_logger(str(self))
-        self.only_new_ones = OnlyOnce()
+        self.lastState = node.get_state()
+        self.switchJob = None
+        self.init_homing(**homingKwargs)
 
-        # Init
+        # Configure node
+        self.apply_motor_direction(direction)
+        merged = merge_dicts(self.motor.defaultSettings, settings)
+        self.node.apply_settings(merged)
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 
-        self.apply_motor_direction(direction)
+        self.node.reset_fault()
+        self.disable()
+        self.node.set_operation_mode(operationMode)
 
-        merged = merge_dicts(self.motor.defaultSettings, settings)
-        self.apply_settings(merged)
+    def disable(self):
+        self.switchJob = self.node.change_state(State.READY_TO_SWITCH_ON, how='pdo', retGenerator=True)
 
-        self.switch_off()
-        self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
+    def enable(self):
+        self.switchJob = self.node.change_state(State.OPERATION_ENABLED, how='pdo', retGenerator=True)
 
-        self.logger.debug('direction: %f', self.direction)
-        self.logger.debug('homingDirection: %f', self.homingDirection)
-        self.logger.debug('homingMethod: %d', self.homingMethod)
-        self.logger.debug('position_si_2_device: %f', self.position_si_2_device)
+    def motor_state(self):
+        if self.lastState is State.OPERATION_ENABLED:
+            return MotorState.ENABLED
+        elif self.lastState is State.FAULT:
+            return MotorState.FAULT
+        else:
+            return MotorState.DISABLED
 
+    def home(self):
+        """Create homing job routine for this controller."""
+        self.logger.debug('home()')
+        self.homing.home()
+        self.publish(MotorEvent.HOMING_CHANGED)
+
+    def homing_state(self):
+        return self.homing.state
+
+    def init_homing(self, **homingKwargs):
+        """Setup homing. Done here and not directly in __init__ so that child
+        class can overwrite this behavior.
+
+        Kwargs:
+            **homingKwargs: Homing parameters.
+        """
+        method = default_homing_method(**homingKwargs)
+        if method not in self.SUPPORTED_HOMING_METHODS:
+            raise ValueError(f'Homing method {method} not supported for controller {self}')
+
+        self.homing = CiA402Homing(self.node)
+        self.node.sdo[HOMING_METHOD].raw = method
+
+    @abc.abstractmethod
     def apply_motor_direction(self, direction: float):
         """Configure direction or orientation of controller / motor."""
         raise NotImplementedError
 
-    def switch_off(self):
-        """Switch off drive. Same state as on power-up."""
-        self.node.switch_off()
-
-    def disable(self):
-        """Disable drive (no power)."""
-        self.node.disable()
-
-    def enable(self):
-        """Enable drive."""
-        self.node.enable()
-
-    def enabled(self) -> bool:
-        """Is motor enabled?"""
-        return self.node.get_state() is CiA402State.OPERATION_ENABLE
-
-    def home(self) -> HomingProgress:
-        """Create homing job routine for this controller."""
-        self.validate_homing_method(self.homingMethod)
-        # Configure the homing registers
-        # - Modes of operation (object 0x6060) set to Homing mode (6)
-        self.node.sdo[HOMING_METHOD].raw = self.homingMethod
-        # Assign the desired values to the following objects:
-        # - Homing limit switch (object 0x2310)  Homing Method (object 0x6098)
-        # - Homing speed (object 0x6099)
-        # - Homing Acceleration (object 0x609A)
-        return proper_homing(self.node)
-
-    def device_error_message(self, code: int) -> str:
-        """Device error message from error code."""
-        return self.DEVICE_ERROR_CODES.get(
-            code,
-            f'Unknown device error message for error code: {code}',
-        )
-
-    def new_emcy(self) -> Generator[EmcyError, None, None]:
-        """Iterate over all new emergency error message frames (if any)."""
-        yield from self.only_new_ones(self.node.emcy.active)
+    def format_emcy(self, emcy: EmcyError) -> str:
+        """Get vendor specific description of EMCY error."""
+        return format_error_code(emcy.code, self.EMERGENCY_DESCRIPTIONS)
 
     def error_history_messages(self):
         """Iterate over current error messages in error history register."""
@@ -269,42 +203,86 @@ class Controller:
             number = errorHistory[nr + 1].raw
             raw = number.to_bytes(4, sys.byteorder)
             code = int.from_bytes(raw[:2], 'little')
-            yield get_description(code, self.EMERGENCY_DESCRIPTIONS)
-
-    def validate_homing_method(self, method: int):
-        """Validate homing method for this controller. Raises a ControllerError
-        if homing method is not support.
-
-        Args:
-            method: Homing method to check.
-        """
-        if method not in self.SUPPORTED_HOMING_METHODS:
-            raise ControllerError(f'Homing method {method} not supported for controller {self}')
+            yield format_error_code(code, self.EMERGENCY_DESCRIPTIONS)
 
     def set_target_position(self, targetPosition):
         """Set target position in SI units."""
-        tarPosDev = targetPosition * self.position_si_2_device
-        self.node.set_target_position(clip(tarPosDev, self.lower, self.upper))
+        if self.homing.homed:
+            dev = targetPosition * self.position_si_2_device
+            clipped = clip(dev, self.lower, self.upper)
+            self.node.set_target_position(clipped)
 
     def get_actual_position(self) -> float:
         """Get actual position in SI units."""
         return self.node.get_actual_position() / self.position_si_2_device
 
-    def apply_settings(self, settings: Dict[str, Any]):
-        """Apply settings to CANopen node. Convert physical SI values to device
-        units (if present in DEVICE_UNITS dict).
+    def play_position_profile(self, profile: PositionProfile):
+        """Play position profile."""
+        pos = self.position_si_2_device * profile.position
+        vel = None
+        acc = None
 
-        Args:
-            settings: Settings to apply. Addresses (path syntax) -> value
-                entries.
+        if profile.velocity is not None:
+            vel = self.velocity_si_2_device * profile.velocity
+
+        if profile.acceleration is not None:
+            acc = self.acceleration_si_2_device * profile.acceleration
+
+        self.node.move_to(position=pos, velocity=vel, acceleration=acc)
+
+    def play_velocity_profile(self, profile: VelocityProfile):
+        """Play velocity profile."""
+        vel = self.velocity_si_2_device * profile.velocity
+        acc = None
+
+        if profile.acceleration is not None:
+            acc = self.acceleration_si_2_device * profile.acceleration
+
+        self.node.move_with(velocity=vel, acceleration=acc)
+
+    def state_changed(self, state: State) -> bool:
+        """Check if node state changed since last call."""
+        if state is self.lastState:
+            return False
+
+        self.lastState = state
+        return True
+
+    def publish_errors(self):
+        """Publish all active EMCY errors. Active error messages get discard
+        afterwards.
         """
-        for name, value in settings.items():
-            *path, last = name.split('/')
-            sdo = self.node.sdo
-            for key in path:
-                sdo = sdo[key]
+        for emcy in self.node.emcy.active:
+            msg = self.format_emcy(emcy)
+            self.logger.error(msg)
+            self.publish(MotorEvent.ERROR, msg)
 
-            sdo[last].raw = value
+        self.node.emcy.reset()
+
+    def update(self):
+        """Controller tick function. Does the following:
+          - Observe state changes and publish
+          - Observe errors and publish
+          - Drive homing
+          - Drive state switching jobs
+        """
+        state = self.node.get_state('pdo')
+        if self.state_changed(state):
+            self.publish(MotorEvent.STATE_CHANGED)
+
+        if state is State.FAULT:
+            self.publish_errors()
+
+        if self.homing.ongoing:
+            self.homing.update()
+            if not self.homing.ongoing:
+                self.publish(MotorEvent.HOMING_CHANGED)
+        else:
+            if self.switchJob:
+                try:
+                    next(self.switchJob)
+                except StopIteration:
+                    self.switchJob = None
 
     def __str__(self):
         return f'{type(self).__name__}({self.node}, {self.motor})'
@@ -312,11 +290,39 @@ class Controller:
 
 class Mclm3002(Controller):
 
-    """Faulhaber MCLM 3002 controller."""
+    """Faulhaber MCLM 3002 controller.
 
-    DEVICE_ERROR_CODES = FAULHABER_DEVICE_ERROR_CODES
+    This controller does not support the unofficial max current based hard stop
+    homing methods. We monkey patch a CrudeHoming for these cases, which
+    implements the same behavior.
+    """
+
     EMERGENCY_DESCRIPTIONS = FAULHABER_EMERGENCY_DESCRIPTIONS
     SUPPORTED_HOMING_METHODS = FAULHABER_SUPPORTED_HOMING_METHODS
+    HARD_STOP_HOMING = {-1, -2, -3, -4}
+
+    def __init__(self,
+            *args,
+            homingMethod: Optional[int] = None,
+            homingDirection: float = FORWARD,
+            operationMode: OperationMode = OperationMode.CYCLIC_SYNCHRONOUS_POSITION,
+            **kwargs,
+        ):
+        super().__init__(
+            *args,
+            homingMethod=homingMethod,
+            homingDirection=homingDirection,
+            operationMode=operationMode,
+            **kwargs,
+        )
+
+    def init_homing(self, **homingKwargs):
+        method = default_homing_method(**homingKwargs)
+        if method in self.HARD_STOP_HOMING:
+            minWidth = self.position_si_2_device * self.length
+            self.homing = CrudeHoming(self.node, minWidth, homingMethod=method)
+        else:
+            super().init_homing(homingMethod=method)
 
     def apply_motor_direction(self, direction: float):
         if direction >= 0:
@@ -326,112 +332,69 @@ class Mclm3002(Controller):
             negativePolarity = (1 << 6) | (1 << 7)  # Position and velocity
             self.node.sdo['Polarity'].raw = negativePolarity
 
-    def hard_stop_homing(self, speed: int = 100, relMargin: float = 0.050):
-        """Crude hard stop homing for Faulhaber linear motors.
-
-        Kwargs:
-            speed: Speed for homing in device units.
-            relMargin: Relative margin on both sides.
-        """
-        relMargin = clip(relMargin, 0.00, 0.50)  # In [0%, 50%]!
-        speed = abs(speed)
-
-        lower = INF
-        upper = -INF
-
-        def expand(pos):
-            """Expand homing range."""
-            nonlocal lower, upper
-            lower = min(lower, pos)
-            upper = max(upper, pos)
-
-        node = self.node
-        sdo = self.node.sdo
-
-        def halt():
-            """Stop drive."""
-            sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.HALT
-
-        def move(velocity: int):
-            """Move motor with constant velocity."""
-            sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
-            sdo[TARGET_VELOCITY].raw = velocity
-            sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
-
-        limit = sdo['Current Control Parameter Set']['Continuous Current Limit'].raw
-
-        def on_the_wall() -> bool:
-            """Check if motor is on the wall."""
-            current = sdo['Current Actual Value'].raw
-            return current > limit  # TODO: Add percentage threshold?
-
-        faulhaberHomingOffset = 0x607C
-
-        with node.restore_states_and_operation_mode():
-            node.change_state(CiA402State.READY_TO_SWITCH_ON)
-            node.sdo[faulhaberHomingOffset].raw = 0
-            node.set_operation_mode(OperationMode.PROFILED_VELOCITY)
-            node.nmt.state = OPERATIONAL
-
-            if self.homingDirection >= 0:
-                velocities = [speed, -speed]
-            else:
-                velocities = [-speed, speed]
-
-            for vel in velocities:
-                halt()
-                move(vel)
-                while not on_the_wall():
-                    pos = sdo[POSITION_ACTUAL_VALUE].raw
-                    expand(pos)
-                    yield HomingState.ONGOING
-
-                # Turn off voltage to disable current current value
-                node.change_state(CiA402State.READY_TO_SWITCH_ON)
-
-            halt()
-            node.nmt.state = PRE_OPERATIONAL
-            node.change_state(CiA402State.READY_TO_SWITCH_ON)
-
-            # Margin
-            width = upper - lower
-            lower += relMargin * width
-            upper -= relMargin * width
-
-            sdo[faulhaberHomingOffset].raw = lower
-            self.lower = 0
-            self.upper = upper - lower
-
-        yield HomingState.HOMED
-
-    def home(self):
-        # Faulhaber does not support unofficial hard stop homing methods
-        if self.homingMethod in {-1, -2, -3, -4}:
-            return self.hard_stop_homing()
-
-        return super().home()
-
 
 class Epos4(Controller):
 
-    """Maxon EPOS4 controller."""
+    """Maxon EPOS4 controller.
 
-    DEVICE_ERROR_CODES = MAXON_DEVICE_ERROR_CODES
-    DEVICE_ERROR_REGISTER = MAXON_DEVICE_ERROR_REGISTER
+    This controllers goes into an error state when RPOD / SYNC messages are not
+    arriving on time -> recoverRpdoTimeoutError which re-enables the motor when
+    the RPOD timeout error occurs.
+
+    Also a simple, alternative position controller which sends velocity
+    commands.
+    """
+
     EMERGENCY_DESCRIPTIONS = MAXON_EMERGENCY_DESCRIPTIONS
     SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
 
-    """
-    def __init__(self, node, *args, **kwargs):
-        fw_version = node.sdo['Identity object']['Revision number'].raw
-        LOW_WORD = 16
-        fw_version = fw_version >> LOW_WORD
-        if fw_version < 0x170:
-            raise ControllerError(f"Node {node.id} firmware version {hex(fw_version)} < 0x170h. Update required!")
-        self.logger.debug(f"Node {node.id} firmware version {hex(fw_version)}")
-        super().__init__(node, *args, **kwargs)
-        self.state = KinematicState()
-    """
+    def __init__(self,
+            node: CiA402Node,
+            *args,
+            usePositionController: bool = True,
+            recoverRpdoTimeoutError: bool = True,
+            operationMode: OperationMode = OperationMode.CYCLIC_SYNCHRONOUS_POSITION,
+            **kwargs,
+        ):
+        """Kwargs:
+            usePositionController: If True use position controller on EPOS4 with
+                operation mode CYCLIC_SYNCHRONOUS_POSITION. Otherwise simple
+                custom application side position controller working with the
+                CYCLIC_SYNCHRONOUS_VELOCITY.
+            recoverRpdoTimeoutError: Re-enable drive after a FAULT because of a
+                RPOD timeout error.
+        """
+        if not usePositionController:
+            warnings.warn(
+                'Setting operation mode to'
+                f' {OperationMode.CYCLIC_SYNCHRONOUS_VELOCITY} for custom'
+                ' position controller'
+            )
+            operationMode = OperationMode.CYCLIC_SYNCHRONOUS_VELOCITY
+
+        self.set_all_digital_inputs_to_none(node)  # Before apply_settings_to_node
+        super().__init__(node, *args, operationMode=operationMode, **kwargs)
+        self.usePositionController = usePositionController
+        self.recoverRpdoTimeoutError = recoverRpdoTimeoutError
+        self.rpdoTimeoutOccurred = False
+
+        # TODO: Test if firmwareVersion < 0x170h?
+        self.logger.info('Firmware version 0x%04x', self.firmware_version())
+
+    def init_homing(self, **homingKwargs):
+        method = default_homing_method(**homingKwargs)
+        if method == 35:
+            warnings.warn('Epos4 does not support homing method 35. Using 37 instead.')
+            method = 37
+
+        super().init_homing(homingMethod=method)
+
+    def firmware_version(self) -> int:
+        """Firmware version of EPOS4 node."""
+        revisionNumber = self.node.sdo['Identity object']['Revision number'].raw
+        lowWord = 16
+        firmwareVersion = revisionNumber >> lowWord
+        return firmwareVersion
 
     def apply_motor_direction(self, direction: float):
         variable = self.node.sdo['Axis configuration']['Axis configuration miscellaneous']
@@ -443,11 +406,44 @@ class Epos4(Controller):
 
         variable.raw = newMisc
 
-    def home(self):
-        if self.homingMethod == 35:
-            homingMethod = 37
-        else:
-            homingMethod = self.homingMethod
+    @staticmethod
+    def set_all_digital_inputs_to_none(node):
+        """Set all digital inputs of Epos4 controller to none by default.
+        Reason: Because of settings dictionary it is not possible to have two
+        entries. E.g. unset and then set to HOME_SWITCH.
+        """
+        for subindex in range(1, 9):
+            node.sdo['Configuration of digital inputs'][subindex].raw = MaxonDigitalInput.NONE
 
-        self.node.sdo[HOMING_METHOD].raw = homingMethod
-        return proper_homing(self.node)
+    def set_target_position(self, targetPosition):
+        if self.homing.homed:
+            dev = targetPosition * self.position_si_2_device
+            posSoll = clip(dev, self.lower, self.upper)
+
+            if self.usePositionController:
+                self.node.set_target_position(posSoll)
+            else:
+                posIst = self.node.get_actual_position()
+                self.node.set_target_position(posSoll)
+                err = (posSoll - posIst)
+                velSoll = 1e-3 / INTERVAL * err
+                self.node.set_target_velocity(velSoll)
+
+    def publish_errors(self):
+        for emcy in self.node.emcy.active:
+            rpodTimeout = 0x8250
+            if emcy.code == rpodTimeout:
+                self.rpdoTimeoutOccurred = True
+
+            msg = self.format_emcy(emcy)
+            self.logger.error(msg)
+            self.publish(MotorEvent.ERROR, msg)
+
+        self.node.emcy.reset()
+
+    def update(self):
+        super().update()
+        if self.recoverRpdoTimeoutError:
+            if self.lastState is State.FAULT and self.rpdoTimeoutOccurred:
+                self.enable()
+                self.rpdoTimeoutOccurred = False

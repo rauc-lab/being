@@ -14,8 +14,8 @@ from being.behavior import BEHAVIOR_CHANGED
 from being.configuration import CONFIG
 from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
-from being.logging import BEING_LOGGERS, get_logger
-from being.motors.blocks import MOTOR_CHANGED
+from being.logging import BEING_LOGGER, get_logger
+from being.motors.definitions import MotorEvent
 from being.sensors import Sensor
 from being.utils import filter_by_type
 from being.web.api import (
@@ -35,7 +35,8 @@ WEB_SOCKET_ADDRESS = CONFIG['Web']['WEB_SOCKET_ADDRESS']
 INTERVAL = CONFIG['General']['INTERVAL']
 WEB_INTERVAL = CONFIG['Web']['INTERVAL']
 
-LOGGER = get_logger(__name__)
+
+LOGGER = get_logger(name=__name__, parent=None)
 """Server module logger."""
 
 
@@ -48,17 +49,10 @@ def wire_being_loggers_to_web_socket(ws: WebSocket):
     """
     class WsHandler(logging.Handler):
         def emit(self, record):
-            ws.send_json_buffered({
-                'type': 'log',
-                'level': record.levelno,
-                'name': record.name,
-                'message': self.format(record),
-            })
+            ws.send_json_buffered(record)
 
     handler = WsHandler()
-    for logger in BEING_LOGGERS:
-        logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
+    BEING_LOGGER.addHandler(handler)
 
 
 def patch_sensor_to_web_socket(sensor, ws: WebSocket):
@@ -145,8 +139,18 @@ def init_api(being, ws: WebSocket) -> web.Application:
 
     # Motors
     api.add_routes(motor_controllers(being))
+
+    def ws_motor_error_notification(motor):
+        return lambda msg: ws.send_json_buffered({
+            'type': 'motor-error',
+            'motor': motor,
+            'message': msg,
+        })
+
     for motor in being.motors:
-        motor.subscribe(MOTOR_CHANGED, ws_emit(motor))
+        motor.subscribe(MotorEvent.STATE_CHANGED, ws_emit(motor))
+        motor.subscribe(MotorEvent.HOMING_CHANGED, ws_emit(motor))
+        motor.subscribe(MotorEvent.ERROR, ws_motor_error_notification(motor))
 
     wire_being_loggers_to_web_socket(ws)
 
@@ -196,6 +200,7 @@ def init_web_server(being, ws) -> web.Application:
         return {
             'version': BEING_VERSION_NUMBER,
             'behaviors': being.behaviors,
+            'motionPlayers': being.motionPlayers,
             'year': which_year_is_it(),
         }
 

@@ -1,4 +1,4 @@
-"""Being object. Encapsulates the various blocks for a given programm."""
+"""Being object. Encapsulates the various blocks for a given program."""
 from typing import List, Optional
 
 from being.backends import CanBackend
@@ -6,14 +6,20 @@ from being.behavior import Behavior
 from being.block import Block
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.clock import Clock
+from being.configuration import CONFIG
 from being.connectables import ValueOutput, MessageOutput
 from being.execution import execute, block_network_graph
 from being.graph import topological_sort
+from being.logging import get_logger
 from being.motion_player import MotionPlayer
 from being.motors.blocks import MotorBlock
 from being.motors.homing import HomingState
+from being.pacemaker import Pacemaker
 from being.params import Parameter
 from being.utils import filter_by_type
+
+
+INTERVAL = CONFIG['General']['INTERVAL']
 
 
 def value_outputs(blocks):
@@ -28,7 +34,6 @@ def message_outputs(blocks):
         yield from filter_by_type(block.outputs, MessageOutput)
 
 
-
 class Being:
 
     """Being core.
@@ -37,18 +42,28 @@ class Being:
     graph and additional components (some back ends, clock, motors...).
     """
 
-    def __init__(self, blocks: List[Block], clock: Clock, network: Optional[CanBackend] = None):
+    def __init__(self,
+            blocks: List[Block],
+            clock: Clock,
+            pacemaker: Pacemaker,
+            network: Optional[CanBackend] = None,
+        ):
         """Args:
             blocks: Blocks to execute.
             clock: Being clock instance.
+            pacemaker: Pacemaker thread (will not be started, used as dummy).
 
         Kwargs:
             network: CanBackend instance (if any).
+            usePacemaker: If to use a pacemaker thread (if CanBackend network).
         """
         self.clock = clock
+        self.pacemaker = pacemaker
         self.network = network
         self.graph = block_network_graph(blocks)
         self.execOrder = topological_sort(self.graph)
+
+        self.logger = get_logger('Being')
 
         self.valueOutputs = list(value_outputs(self.execOrder))
         self.messageOutputs = list(message_outputs(self.execOrder))
@@ -57,46 +72,23 @@ class Being:
         self.motors = list(filter_by_type(self.execOrder, MotorBlock))
         self.params = list(filter_by_type(self.execOrder, Parameter))
 
-    def _enable_pdo_communication(self):
-        if self.network:
-            self.network.nmt.state = OPERATIONAL
-
-    def _disable_pdo_communication(self):
-        if self.network:
-            self.network.nmt.state = PRE_OPERATIONAL
-
     def enable_motors(self):
-        """Enable all motors and set global NMT to OPERATIONAL."""
+        """Enable all motor blocks."""
+        self.logger.info('enable_motors()')
         for motor in self.motors:
-            motor.enable(publish=False)
-
-        self._enable_pdo_communication()
+            motor.enable()
 
     def disable_motors(self):
-        """Disable all motors and set global NMT to PRE-OPERATIONAL."""
-        self._disable_pdo_communication()
+        """Disable all motor blocks."""
+        self.logger.info('disable_motors()')
         for motor in self.motors:
-            motor.disable(publish=False)
+            motor.disable()
 
     def home_motors(self):
         """Home all motors."""
-        self._disable_pdo_communication()
+        self.logger.info('home_motors()')
         for motor in self.motors:
             motor.home()
-
-    def motor_changed(self):
-        """Motor changed callback. Used to track if all motors are homed and
-        then to set global NMT to OPERATIONAL.
-
-        Reasoning:
-            CiA 402 state changes can be slow. Slower motors can lead to perform
-            hits which would trigger RPDO timeout errors in the motors which
-            have homed before.
-            -> Wait until all motors are homed before resuming PDO communication
-               (NMT OPERATIONAL).
-        """
-        if all(mot.homing is HomingState.HOMED for mot in self.motors):
-            self._enable_pdo_communication()
 
     def start_behaviors(self):
         """Start all behaviors."""
@@ -113,6 +105,11 @@ class Being:
         if self.network:
             self.network.send_sync()
 
+        self.pacemaker.tick()
+
         execute(self.execOrder)
+
+        if self.network:
+            self.network.transmit_all_rpdos()
 
         self.clock.step()

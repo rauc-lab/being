@@ -197,7 +197,7 @@ class Block:
 
         return self.outputs[0]
 
-    def add_value_input(self, name=None):
+    def add_value_input(self, name: Optional[str] = None):
         """Add new value input to block.
 
         Kwargs:
@@ -208,9 +208,7 @@ class Block:
         if name:
             setattr(self, name, input_)
 
-        return input_
-
-    def add_message_input(self, name=None):
+    def add_message_input(self, name: Optional[str] = None):
         """Add new message input to block.
 
         Kwargs:
@@ -223,7 +221,7 @@ class Block:
 
         return input_
 
-    def add_value_output(self, name=None):
+    def add_value_output(self, name: Optional[str] = None):
         """Add new value output to block.
 
         Kwargs:
@@ -236,7 +234,7 @@ class Block:
 
         return output
 
-    def add_message_output(self, name=None):
+    def add_message_output(self, name: Optional[str] = None):
         """Add new message output to block.
 
         Kwargs:

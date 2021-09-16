@@ -6,6 +6,7 @@ import time
 
 from being.backends import AudioBackend
 from being.block import Block
+from being.clock import Clock
 from being.configuration import CONFIG
 from being.constants import TAU
 from being.math import linear_mapping
@@ -35,29 +36,6 @@ class Sine(Block):
         self.output.value = math.sin(self.phase)
         self.phase += TAU * self.frequency.value * INTERVAL
         self.phase %= TAU
-
-    def __str__(self):
-        return '%s()' % type(self).__name__
-
-
-class Sawtooth(Block):
-
-    """Sawtooth generator. Outputs [0, TAU] for a given frequency."""
-
-    def __init__(self, frequency=1., interval=INTERVAL, **kwargs):
-        super().__init__(**kwargs)
-        self.add_value_input('frequency')
-        self.add_value_output()
-
-        self.frequency.value = frequency
-        self.interval = interval
-
-        self.phase = 0.
-
-    def update(self):
-        self.output.value = self.phase
-        self.phase += self.interval * TAU * self.frequency.value
-        # self.phase %= TAU
 
     def __str__(self):
         return '%s()' % type(self).__name__
@@ -137,3 +115,34 @@ class DummySensor(Sensor):
 
         self.nextUpd = now + self.interval
         self.output.send('But hey')
+
+
+def sine_pulse(phase: float) -> float:
+    """Cosine pulse from [0., 1.]."""
+    return .5 * (1 - math.cos(phase))
+
+
+def ranged_sine_pulse(phase: float, lower: float = 0.0, upper: float = 1.0) -> float:
+    """Shifted and scaled cosine pulse in interval [lower, upper]."""
+    return (upper - lower) * sine_pulse(phase) + lower
+
+
+def ranged_sine_pulse_integrated(phase: float, lower: float = 0.0, upper: float = 1.0) -> float:
+    """Integrated shifted and scaled cosine pulse for derivative range in
+    [lower, upper].
+    """
+    return .5 * (lower - upper) * math.sin(phase) + .5 * (lower + upper) * phase
+
+
+class Pendulum(Block):
+    def __init__(self, frequency=1., lower=0., upper=1.):
+        super().__init__()
+        self.add_value_output()
+        self.frequency = frequency
+        self.lower = lower
+        self.upper = upper
+        self.clock = Clock.single_instance_setdefault()
+
+    def update(self):
+        phase = TAU * self.frequency * self.clock.now()
+        self.output.value = ranged_sine_pulse(phase, self.lower, self.upper)

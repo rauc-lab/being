@@ -4,25 +4,35 @@ CiA402Node is a trimmed down version of canopen.BaseNode402. We favor SDO
 communication during setup but synchronous acyclic PDO communication during
 operation. Also added support for CYCLIC_SYNCHRONOUS_POSITION mode.
 """
+import collections
 import contextlib
+import enum
 import time
-from enum import auto, IntEnum, Enum
-from typing import List, Dict, Set, Tuple, ForwardRef, Generator, Union, Optional, NamedTuple
-from collections import deque, defaultdict
+from typing import (
+    Any,
+    Dict,
+    ForwardRef,
+    Generator,
+    List,
+    NamedTuple,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
+
 
 from canopen import RemoteNode
 
 from being.bitmagic import check_bit
 from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.definitions import TransmissionType
-from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.constants import FORWARD, BACKWARD
 from being.logging import get_logger
 
 
 # Mandatory (?) CiA 402 object dictionary entries
 # (SJA): CiA 402 is still a Draft Specification Proposal (DSP).
-
 CONTROLWORD = 0x6040
 STATUSWORD = 0x6041
 MODES_OF_OPERATION = 0x6060
@@ -44,38 +54,38 @@ PROFILE_ACCELERATION = 0x6083
 PROFILE_DECELERATION = 0x6084
 QUICK_STOP_DECELERATION = 0x6085
 HOMING_METHOD = 0x6098
-
 HOMING_SPEEDS = 0x6099
 SPEED_FOR_SWITCH_SEARCH = 1
 SPEED_FOR_ZERO_SEARCH = 2
-
 HOMING_ACCELERATION = 0x609A
 DIGITAL_INPUTS = 0x60FD
 TARGET_VELOCITY = 0x60FF
 SUPPORTED_DRIVE_MODES = 0x6502
 
+
 State = ForwardRef('State')
+StateSwitching = Generator[State, None, None]
 Edge = Tuple[State, State]
 CanOpenRegister = Union[int, str]
 
 
-class State(Enum):
+class State(enum.Enum):
 
     """CANopen CiA 402 states."""
 
-    START = auto()
-    NOT_READY_TO_SWITCH_ON = auto()
-    SWITCH_ON_DISABLED = auto()
-    READY_TO_SWITCH_ON = auto()
-    SWITCHED_ON = auto()
-    OPERATION_ENABLE = auto()
-    QUICK_STOP_ACTIVE = auto()
-    FAULT_REACTION_ACTIVE = auto()
-    FAULT = auto()
-    HALT = auto()
+    START = enum.auto()
+    NOT_READY_TO_SWITCH_ON = enum.auto()
+    SWITCH_ON_DISABLED = enum.auto()
+    READY_TO_SWITCH_ON = enum.auto()
+    SWITCHED_ON = enum.auto()
+    OPERATION_ENABLED = enum.auto()
+    QUICK_STOP_ACTIVE = enum.auto()
+    FAULT_REACTION_ACTIVE = enum.auto()
+    FAULT = enum.auto()
+    HALT = enum.auto()
 
 
-class CW(IntEnum):
+class CW(enum.IntEnum):
 
     """Controlword bits."""
 
@@ -92,20 +102,20 @@ class CW(IntEnum):
     HALT = (1 << 8)
 
 
-class Command(IntEnum):
+class Command(enum.IntEnum):
 
     """CANopen CiA 402 controlword commands for state transitions."""
 
-    SHUT_DOWN = CW.ENABLE_VOLTAGE | CW.QUICK_STOP
-    SWITCH_ON = CW.SWITCH_ON | CW.ENABLE_VOLTAGE | CW.QUICK_STOP
+    SHUT_DOWN = CW.QUICK_STOP | CW.ENABLE_VOLTAGE
+    SWITCH_ON = CW.QUICK_STOP | CW.ENABLE_VOLTAGE | CW.SWITCH_ON
     DISABLE_VOLTAGE = 0
     QUICK_STOP = CW.ENABLE_VOLTAGE
-    DISABLE_OPERATION = CW.ENABLE_VOLTAGE | CW.QUICK_STOP | CW.ENABLE_OPERATION
-    ENABLE_OPERATION = CW.SWITCH_ON | CW.ENABLE_VOLTAGE | CW.QUICK_STOP | CW.ENABLE_OPERATION
+    DISABLE_OPERATION = CW.QUICK_STOP | CW.ENABLE_VOLTAGE | CW.SWITCH_ON
+    ENABLE_OPERATION = CW.ENABLE_OPERATION | CW.QUICK_STOP | CW.ENABLE_VOLTAGE | CW.SWITCH_ON
     FAULT_RESET = CW.FAULT_RESET
 
 
-class SW(IntEnum):
+class SW(enum.IntEnum):
 
     """Statusword bits."""
 
@@ -129,15 +139,15 @@ class SW(IntEnum):
     #NOT_IN_USE_1 = (1 << 15)
 
 
-class OperationMode(IntEnum):
+class OperationMode(enum.IntEnum):
 
     """Modes of Operation (0x6060 / 0x6061)."""
 
     NO_MODE = 0
-    PROFILED_POSITION = 1
+    PROFILE_POSITION = 1
     VELOCITY = 2
-    PROFILED_VELOCITY = 3
-    PROFILED_TORQUE = 4
+    PROFILE_VELOCITY = 3
+    PROFILE_TORQUE = 4
     HOMING = 6
     INTERPOLATED_POSITION = 7
     CYCLIC_SYNCHRONOUS_POSITION = 8
@@ -151,23 +161,23 @@ TRANSITIONS: Dict[Edge, Command] = {
     # Shut down: 2, 6, 8
     (State.SWITCH_ON_DISABLED, State.READY_TO_SWITCH_ON):     Command.SHUT_DOWN,
     (State.SWITCHED_ON, State.READY_TO_SWITCH_ON):            Command.SHUT_DOWN,
-    (State.OPERATION_ENABLE, State.READY_TO_SWITCH_ON):       Command.SHUT_DOWN,
+    (State.OPERATION_ENABLED, State.READY_TO_SWITCH_ON):      Command.SHUT_DOWN,
     # Switch On: 3
     (State.READY_TO_SWITCH_ON, State.SWITCHED_ON):            Command.SWITCH_ON,
     # Disable Voltage: 7, 9, 10, 12
     (State.READY_TO_SWITCH_ON, State.SWITCH_ON_DISABLED):     Command.DISABLE_VOLTAGE,
-    (State.OPERATION_ENABLE, State.SWITCH_ON_DISABLED):       Command.DISABLE_VOLTAGE,
+    (State.OPERATION_ENABLED, State.SWITCH_ON_DISABLED):      Command.DISABLE_VOLTAGE,
     (State.SWITCHED_ON, State.SWITCH_ON_DISABLED):            Command.DISABLE_VOLTAGE,
     (State.QUICK_STOP_ACTIVE, State.SWITCH_ON_DISABLED):      Command.DISABLE_VOLTAGE,
     # Quick Stop: 7, 10, 11
     (State.READY_TO_SWITCH_ON, State.SWITCH_ON_DISABLED):     Command.QUICK_STOP,
     (State.SWITCHED_ON, State.SWITCH_ON_DISABLED):            Command.QUICK_STOP,
-    (State.OPERATION_ENABLE, State.QUICK_STOP_ACTIVE):        Command.QUICK_STOP,
+    (State.OPERATION_ENABLED, State.QUICK_STOP_ACTIVE):       Command.QUICK_STOP,
     # Disable Operation: 5
-    (State.OPERATION_ENABLE, State.SWITCHED_ON):              Command.DISABLE_OPERATION,
+    (State.OPERATION_ENABLED, State.SWITCHED_ON):             Command.DISABLE_OPERATION,
     # Enable Operation: 4, 16
-    (State.SWITCHED_ON, State.OPERATION_ENABLE):              Command.ENABLE_OPERATION,
-    (State.QUICK_STOP_ACTIVE, State.OPERATION_ENABLE):        Command.ENABLE_OPERATION,
+    (State.SWITCHED_ON, State.OPERATION_ENABLED):             Command.ENABLE_OPERATION,
+    (State.QUICK_STOP_ACTIVE, State.OPERATION_ENABLED):       Command.ENABLE_OPERATION,
     # Fault Reset: 15
     (State.FAULT, State.SWITCH_ON_DISABLED):                  Command.FAULT_RESET,
     # Automatic: 0, 1, 14
@@ -179,8 +189,8 @@ TRANSITIONS: Dict[Edge, Command] = {
 edge -> command.
 """
 
-POSSIBLE_TRANSITIONS: Dict[State, Set[State]] = defaultdict(set)
-for _src, _dst in TRANSITIONS:
+POSSIBLE_TRANSITIONS: Dict[State, Set[State]] = collections.defaultdict(set)
+for _src, _dst in TRANSITIONS.keys():
     POSSIBLE_TRANSITIONS[_src].add(_dst)
 """Reachable states from a given state."""
 
@@ -191,20 +201,21 @@ VALID_OP_MODE_CHANGE_STATES: Set[State] = {
 }
 """Not every state support switching of operation mode."""
 
+STATUSWORD_2_STATE = [
+    (0b1001111, 0b0000000, State.NOT_READY_TO_SWITCH_ON),
+    (0b1001111, 0b1000000, State.SWITCH_ON_DISABLED),
+    (0b1101111, 0b0100001, State.READY_TO_SWITCH_ON),
+    (0b1101111, 0b0100011, State.SWITCHED_ON),
+    (0b1101111, 0b0100111, State.OPERATION_ENABLED),
+    (0b1101111, 0b0000111, State.QUICK_STOP_ACTIVE),
+    (0b1001111, 0b0001111, State.FAULT_REACTION_ACTIVE),
+    (0b1001111, 0b0001000, State.FAULT),
+]
+"""Statusword bit masks for state loopkup."""
 
 def which_state(statusword: int) -> State:
     """Extract state from statusword."""
-    considerations = [
-        (0b1001111, 0b0000000, State.NOT_READY_TO_SWITCH_ON),
-        (0b1001111, 0b1000000, State.SWITCH_ON_DISABLED),
-        (0b1101111, 0b0100001, State.READY_TO_SWITCH_ON),
-        (0b1101111, 0b0100011, State.SWITCHED_ON),
-        (0b1101111, 0b0100111, State.OPERATION_ENABLE),
-        (0b1101111, 0b0000111, State.QUICK_STOP_ACTIVE),
-        (0b1001111, 0b0001111, State.FAULT_REACTION_ACTIVE),
-        (0b1001111, 0b0001000, State.FAULT),
-    ]
-    for mask, value, state in considerations:
+    for mask, value, state in STATUSWORD_2_STATE:
         if (statusword & mask) == value:
             return state
 
@@ -224,8 +235,8 @@ def supported_operation_modes(supportedDriveModes: int) -> Generator[OperationMo
     # Look-up is identical between Faulhaber / Maxon
 
     stuff = [
-        (0, OperationMode.PROFILED_POSITION),
-        (2, OperationMode.PROFILED_VELOCITY),
+        (0, OperationMode.PROFILE_POSITION),
+        (2, OperationMode.PROFILE_VELOCITY),
         (5, OperationMode.HOMING),
         (7, OperationMode.CYCLIC_SYNCHRONOUS_POSITION),
         (8, OperationMode.CYCLIC_SYNCHRONOUS_VELOCITY),
@@ -236,51 +247,12 @@ def supported_operation_modes(supportedDriveModes: int) -> Generator[OperationMo
             yield op
 
 
-def find_shortest_state_path(start: State, end: State) -> List[State]:
-    """Find shortest path from start to end state. Start node is also included
-    in returned path.
-
-    Args:
-        start: Start state.
-        end: Target end state.
-
-    Returns:
-        Path from start -> end. Empty list if the does not exist a path from
-        start -> end.
-    """
-    # Breadth-first search
-    queue = deque([[start]])
-    paths = []
-    while queue:
-        path = queue.popleft()
-        tail = path[-1]
-        for suc in POSSIBLE_TRANSITIONS[tail]:
-            if suc in path:
-                continue  # Cycle detected
-
-            if suc is end:
-                paths.append(path + [end])
-            else:
-                queue.append(path + [suc])
-
-    return min(paths, key=len, default=[])
-
-
-def target_reached(statusword: int) -> bool:
-    """Check if target has been reached from statusword.
-
-    Args:
-        statusword: Statusword value.
-
-    Returns:
-        If target has been reached.
-    """
-    return bool(statusword & SW.TARGET_REACHED)
-
-
-POSITIVE = RISING = FORWARD
-NEGATIVE = FALLING = BACKWARD
-UNAVAILABLE = UNDEFINED = 0.0
+POSITIVE = FORWARD
+RISING = FORWARD
+NEGATIVE = BACKWARD
+FALLING = BACKWARD
+UNAVAILABLE = 0.0
+UNDEFINED = 0.0
 
 
 class HomingParam(NamedTuple):
@@ -335,7 +307,6 @@ HOMING_METHODS: Dict[HomingParam, int] = {
 }
 """CiA 402 homing method lookup."""
 
-
 assert len(HOMING_METHODS) == 35, 'Something went wrong with HOMING_METHODS keys! Not enough homing methods anymore.'
 
 
@@ -354,6 +325,80 @@ def determine_homing_method(
 
 assert determine_homing_method(hardStop=True, direction=FORWARD) == -3
 assert determine_homing_method(hardStop=True, direction=BACKWARD) == -4
+
+
+def find_shortest_state_path(start: State, end: State) -> List[State]:
+    """Find shortest path from start to end state. Start node is also included
+    in returned path.
+
+    Args:
+        start: Start state.
+        end: Target end state.
+
+    Returns:
+        Path from start -> end. Empty list if the does not exist a path from
+        start -> end.
+    """
+    if start is end:
+        return []
+
+    # Breadth-first search
+    queue = collections.deque([[start]])
+    paths = []
+    while queue:
+        path = queue.popleft()
+        tail = path[-1]
+        for suc in POSSIBLE_TRANSITIONS[tail]:
+            if suc in path:
+                continue  # Cycle detected
+
+            if suc is end:
+                paths.append(path + [end])
+            else:
+                queue.append(path + [suc])
+
+    return min(paths, key=len, default=[])
+
+
+def target_reached(statusword: int) -> bool:
+    """Check if target has been reached from statusword.
+
+    Args:
+        statusword: Statusword value.
+
+    Returns:
+        If target has been reached.
+    """
+    return bool(statusword & SW.TARGET_REACHED)
+
+
+def maybe_int(string: str) -> Union[int, str]:
+    """Try to cast string to int.
+
+    Args:
+        string: Input string.
+
+    Returns:
+        Maybe an int. Pass on input string otherwise.
+
+    Usage:
+        >>> maybe_int('123')
+        123
+
+        >>> maybe_int('  0x7b')
+        123
+    """
+    string = string.strip()
+    if string.isnumeric():
+        return int(string)
+
+    if string.startswith('0x'):
+        return int(string, base=16)
+
+    if string.startswith('0b'):
+        return int(string, base=2)
+
+    return string
 
 
 class CiA402Node(RemoteNode):
@@ -402,6 +447,10 @@ class CiA402Node(RemoteNode):
         self.setup_rxpdo(2, TARGET_POSITION)
         self.setup_rxpdo(3, TARGET_VELOCITY)
         self.setup_rxpdo(4, enabled=False)
+
+        network.register_rpdo(self.rpdo[1])
+        network.register_rpdo(self.rpdo[2])
+        network.register_rpdo(self.rpdo[3])
 
     def setup_txpdo(self,
             nr: int,
@@ -473,26 +522,44 @@ class CiA402Node(RemoteNode):
         rx.trans_type = trans_type
         rx.save()
 
-    def get_state(self) -> State:
-        """Get current node state."""
-        sw = self.sdo[STATUSWORD].raw  # This takes approx. 2.713 ms
-        #sw = self.pdo['Statusword'].raw  # This takes approx. 0.027 ms
-        return which_state(sw)
-
-    def set_state(self, target: State, timeout: float = 0.100):
-        """Set node state. This method only works for possible transitions from
-        current state (single step). For arbitrary transitions use
-        CiA402Node.change_state.
-
-        Args:
-            target: New target state.
+    def get_state(self, how: str = 'sdo') -> State:
+        """Get current node state.
 
         Kwargs:
-            timeout: Timeout for
+            how: Either via 'sdo' or 'pdo'.
+
+        Returns:
+            Current CiA 402 state.
         """
-        self.logger.info('Switching to state %r', target)
-        current = self.get_state()
-        if target is current:
+        if how == 'pdo':
+            return which_state(self.pdo[STATUSWORD].raw)  # This takes approx. 0.027 ms
+        elif how == 'sdo':
+            return which_state(self.sdo[STATUSWORD].raw)  # This takes approx. 2.713 ms
+        else:
+            raise ValueError(f'Unknown how {how!r}')
+
+    def _set_state(self, target: State, how: str = 'sdo') -> StateSwitching:
+        """Set node to a reachable target state. Implemented as generator for
+        asynchronous usage and to dodge timeouts. This method can only switch to
+        neighbouring states and will raise a RuntimeError error otherwise.
+
+        Args:
+            target: Target state to switch to.
+
+        Kwargs:
+            how: Either via 'sdo' or 'pdo'.
+
+        Yields:
+            Current states.
+
+        Raises:
+            RuntimeError: If target state not reachable from current state.
+        """
+        self.logger.debug('Switching to %s (%s)', target, how)
+        current = self.get_state(how)
+        if current is target:
+            self.logger.debug('Already in %s', target)
+            yield target
             return
 
         if target not in POSSIBLE_TRANSITIONS[current]:
@@ -500,37 +567,128 @@ class CiA402Node(RemoteNode):
 
         edge = (current, target)
         cw = TRANSITIONS[edge]
-        self.sdo[CONTROLWORD].raw = cw
+        if how == 'pdo':
+            self.pdo[CONTROLWORD].raw = cw
+        elif how == 'sdo':
+            self.sdo[CONTROLWORD].raw = cw
+        else:
+            raise ValueError(f'Unknown how {how!r}')
 
-        # Some controllers are to slow to switch
-        # TODO: Is there any other way?
+        while current is not target:
+            self.logger.debug('Still in %s, not yet in %s', current, target)
+            yield current
+            current = self.get_state(how)
+
+        self.logger.debug('Reached %s', target)
+        yield target
+
+    def _change_state(self, target: State, how: str = 'sdo') -> StateSwitching:
+        """Change node state to a target state. Implemented as generator for
+        asynchronous usage and to dodge timeouts. This method can switch to an
+        arbitrary state and will traverse the state machine accordingly.
+
+        Args:
+            target: Target state to switch to.
+
+        Kwargs:
+            how: Either via 'sdo' or 'pdo'.
+
+        Yields:
+            Current states.
+        """
+        self.logger.debug('Changing to %s (%s)', target, how)
+        current = self.get_state(how)
+        if current is target:
+            self.logger.debug('Already in %s', target)
+            yield target
+            return
+
+        path = find_shortest_state_path(current, target)
+        for state in path[1:]:
+            yield from self._set_state(state, how)
+
+    @staticmethod
+    def _run_with_timeout(
+            generator: Generator,
+            timeout: float,
+            message: str,
+            interval: float = 0.050,
+        ) -> State:
+        """Run state switching generator blocking with a timeout.
+
+        Args:
+            generator: Generator to execute.
+            timeout: Timeout duration in seconds.
+
+        Kwargs:
+            interval: Internal sleep duration.
+        """
         endTime = time.perf_counter() + timeout
-        sleepTime = min(0.5 * timeout, 0.010)
-        while time.perf_counter() < endTime:
-            if self.get_state() is target:
-                break
+        state = None
+        for state in generator:
+            if time.perf_counter() > endTime:
+                raise TimeoutError(message)
 
-            time.sleep(sleepTime)
-        else:  # If no break
-            raise RuntimeError(f'Could not transition from {current!r} to {target!r}. Timeout expired!')
+            time.sleep(interval)
 
-    def change_state(self, target: State):
+        return state
+
+    def set_state(self,
+            target: State,
+            how: str = 'sdo',
+            timeout: Optional[float] = None,
+            retGenerator: bool = False,
+        ) -> Union[State, StateSwitching]:
+        """Set node state. This method only works for possible transitions from
+        current state (single step). For arbitrary transitions use
+        CiA402Node.change_state.
+
+        Args:
+            target: Target state to switch to.
+
+        Kwargs:
+            how: Either via 'sdo' or 'pdo'.
+            timeout: Optional timeout.
+            retGenerator: If True return switching job generator.
+        """
+        current = self.get_state(how)
+        job = self._set_state(target, how)
+        if retGenerator:
+            return job
+
+        if timeout is None:
+            return next(job)
+
+        msg = f'Could not transition from {current!r} to {target!r} in {timeout:.3f} sec'
+        return self._run_with_timeout(job, timeout, msg)
+
+    def change_state(self,
+            target: State,
+            how: str = 'sdo',
+            timeout: Optional[float] = None,
+            retGenerator: bool = False,
+        ) -> Union[State, StateSwitching]:
         """Change to a specific state. Will traverse all necessary states in
         between to get there.
 
         Args:
-            target: New target state.
+            target: Target state to switch to.
+
+        Kwargs:
+            how: Either via 'sdo' or 'pdo'.
+            timeout: Optional timeout.
+            retGenerator: If True return switching job generator.
         """
-        current = self.get_state()
-        if target is current:
-            return
+        current = self.get_state(how)
+        job = self._change_state(target, how)
+        if retGenerator:
+            return job
 
-        path = find_shortest_state_path(current, target)
-        if len(path) == 0:
-            self.logger.error('Found no path from %s to %s', current, target)
+        if timeout is None:
+            return next(job)
 
-        for state in path[1:]:
-            self.set_state(state)
+        msg = f'Could not transition from {current!r} to {target!r} in {timeout:.3f} sec'
+        return self._run_with_timeout(job, timeout, msg)
 
     def get_operation_mode(self) -> OperationMode:
         """Get current operation mode."""
@@ -542,10 +700,15 @@ class CiA402Node(RemoteNode):
         Args:
             op: New target mode of operation.
         """
-        self.logger.info('Switching to operation mode %r', op)
+        self.logger.debug('Switching to %s', op)
+        current = self.get_operation_mode()
+        if current is op:
+            self.logger.debug('Already %s', op)
+            return
+
         state = self.get_state()
         if state not in VALID_OP_MODE_CHANGE_STATES:
-            raise RuntimeError(f'Can not change to {op!r} when in {state!r}')
+            raise RuntimeError(f'Can not change to {op} when in {state}')
 
         sdm = self.sdo[SUPPORTED_DRIVE_MODES].raw
         if op not in supported_operation_modes(sdm):
@@ -554,45 +717,59 @@ class CiA402Node(RemoteNode):
         self.sdo[MODES_OF_OPERATION].raw = op
 
     @contextlib.contextmanager
-    def restore_states_and_operation_mode(self):
+    def restore_states_and_operation_mode(self, how='sdo', timeout: Optional[float] = None):
         """Restore NMT state, CiA 402 state and operation mode. Implemented as
         context manager.
+
+        Kwargs:
+            timeout: Optional timeout.
 
         Usage:
             >>> with node.restore_states_and_operation_mode():
             ...     # Do something fancy with the states
             ...     pass
         """
-        oldNmt = self.nmt.state
         oldOp = self.get_operation_mode()
-        oldState = self.get_state()
+        oldState = self.get_state(how)
 
         yield self
 
-        # TODO: Should we do a d-tour via READY_TO_SWITCH_ON so that we can
-        # restore the operation mode in any case?
-        #self.change_state(State.READY_TO_SWITCH_ON)
         self.set_operation_mode(oldOp)
-        self.change_state(oldState)
-        self.nmt.state = oldNmt
+        self.change_state(oldState, how=how, timeout=timeout)
 
-    def switch_off(self):
-        """Switch off drive. Same state as on power-up."""
-        self.nmt.state = PRE_OPERATIONAL
-        self.change_state(State.READY_TO_SWITCH_ON)
+    def reset_fault(self):
+        """Perform fault reset to SWITCH_ON_DISABLED."""
+        self.logger.info('Resetting fault')
+        self.sdo[CONTROLWORD].raw = 0
+        self.sdo[CONTROLWORD].raw = CW.FAULT_RESET
 
-    def disable(self):
-        """Disable drive (no power)."""
-        self.change_state(State.SWITCHED_ON)
+    def switch_off(self, timeout: Optional[float] = None):
+        """Switch off drive. Same state as on power-up.
 
-    def enable(self):
-        """Enable drive."""
-        self.change_state(State.OPERATION_ENABLE)
+        Kwargs:
+            timeout: Optional timeout.
+        """
+        self.change_state(State.SWITCH_ON_DISABLED, timeout=timeout)
+
+    def disable(self, timeout: Optional[float] = None):
+        """Disable drive (no power).
+
+        Kwargs:
+            timeout: Optional timeout.
+        """
+        self.change_state(State.READY_TO_SWITCH_ON, timeout=timeout)
+
+    def enable(self, timeout: Optional[float] = None):
+        """Enable drive.
+
+        Kwargs:
+            timeout: Optional timeout.
+        """
+        self.change_state(State.OPERATION_ENABLED, timeout=timeout)
 
     def set_target_position(self, pos):
         """Set target position in device units."""
         self.pdo[TARGET_POSITION].raw = pos
-        self.rpdo[2].transmit()
 
     def get_actual_position(self):
         """Get actual position in device units."""
@@ -601,11 +778,67 @@ class CiA402Node(RemoteNode):
     def set_target_velocity(self, vel):
         """Set target velocity in device units."""
         self.pdo[TARGET_VELOCITY].raw = vel
-        self.rpdo[3].transmit()
 
     def get_actual_velocity(self):
         """Get actual velocity in device units."""
         return self.pdo[VELOCITY_ACTUAL_VALUE].raw
+
+    def move_to(self,
+            position: int,
+            velocity: Optional[int] = None,
+            acceleration: Optional[int] = None,
+            immediately: bool = True,
+        ):
+        """Move to position. For OperationMode.PROFILED_POSITION.
+
+        Args:
+            position: Target position.
+
+        Kwargs:
+            velocity: Profile velocity (if any).
+            acceleration: Profile acceleration / deceleration (if any).
+            immediately: If True overwrite ongoing command.
+        """
+        self.logger.debug('move_to(%s, velocity=%s, acceleration=%s)', position, velocity, acceleration)
+        self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
+        self.sdo[TARGET_POSITION].raw = position
+        if velocity is not None:
+            self.sdo[PROFILE_VELOCITY].raw = velocity
+
+        if acceleration is not None:
+            self.sdo[PROFILE_ACCELERATION].raw = acceleration
+            self.sdo[PROFILE_DECELERATION].raw = acceleration
+
+        if immediately:
+            self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT | CW.CHANGE_SET_IMMEDIATELY
+        else:
+            self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
+
+    def move_with(self,
+            velocity: int,
+            acceleration: Optional[int] = None,
+            immediately: bool = True,
+        ):
+        """Move with velocity. For OperationMode.PROFILE_VELOCITY.
+
+        Args:
+            velocity: Target velocity.
+
+        Kwargs:
+            acceleration: Profile acceleration / deceleration (if any).
+            immediately: If True overwrite ongoing command.
+        """
+        self.logger.debug('move_with(%s, acceleration=%s)', velocity, acceleration)
+        self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
+        self.sdo[PROFILE_VELOCITY].raw = velocity
+        if acceleration is not None:
+            self.sdo[PROFILE_ACCELERATION].raw = acceleration
+            self.sdo[PROFILE_DECELERATION].raw = acceleration
+
+        if immediately:
+            self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT | CW.CHANGE_SET_IMMEDIATELY
+        else:
+            self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
 
     def _get_info(self) -> dict:
         """Get the current states."""
@@ -616,7 +849,25 @@ class CiA402Node(RemoteNode):
         }
 
     def manufacturer_device_name(self):
+        """Get manufacturer device name."""
         return self.sdo[MANUFACTURER_DEVICE_NAME].raw
+
+
+    def apply_settings(self, settings: Dict[str, Any]):
+        """Apply settings to CANopen node.
+
+        Args:
+            settings: Settings to apply. Addresses (path syntax) -> value
+                entries.
+        """
+        for name, value in settings.items():
+            *path, last = map(maybe_int, name.split('/'))
+            sdo = self.sdo
+            for key in path:
+                sdo = sdo[key]
+
+            self.logger.debug('Applying %r = %s', name, value)
+            sdo[last].raw = value
 
     def __str__(self):
         return f'{type(self).__name__}(id: {self.id})'

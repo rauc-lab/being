@@ -4,6 +4,7 @@ import fnmatch
 import glob
 import itertools
 import os
+import random
 import weakref
 from typing import Dict, List, Generator
 
@@ -253,3 +254,8 @@ class NestedDict(collections.abc.MutableMapping):
             d = d.setdefault(k, self.default_factory())
 
         return d.setdefault(last, default)
+
+
+def toss_coin(probability: float = .5) -> bool:
+    """Toss a coin."""
+    return random.random() < probability
