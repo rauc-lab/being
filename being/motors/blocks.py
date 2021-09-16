@@ -14,7 +14,7 @@ import numpy as np
 from being.backends import CanBackend
 from being.block import Block
 from being.can import load_object_dictionary
-from being.can.cia_402 import CiA402Node
+from being.can.cia_402 import CiA402Node, OperationMode
 from being.configuration import CONFIG
 from being.constants import TAU
 from being.kinematics import kinematic_filter, State as KinematicState
