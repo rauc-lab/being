@@ -14,21 +14,21 @@ from typing import (
     ForwardRef,
     Generator,
     List,
+    NamedTuple,
     Optional,
     Set,
     Tuple,
     Union,
 )
 
+
 from canopen import RemoteNode
 
 from being.bitmagic import check_bit
 from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.definitions import TransmissionType
+from being.constants import FORWARD, BACKWARD
 from being.logging import get_logger
-
-
-LOGGER = get_logger(name=__name__, parent=None)
 
 
 # Mandatory (?) CiA 402 object dictionary entries
@@ -64,6 +64,7 @@ SUPPORTED_DRIVE_MODES = 0x6502
 
 
 State = ForwardRef('State')
+StateSwitching = Generator[State, None, None]
 Edge = Tuple[State, State]
 CanOpenRegister = Union[int, str]
 
@@ -189,7 +190,7 @@ edge -> command.
 """
 
 POSSIBLE_TRANSITIONS: Dict[State, Set[State]] = collections.defaultdict(set)
-for _src, _dst in TRANSITIONS:
+for _src, _dst in TRANSITIONS.keys():
     POSSIBLE_TRANSITIONS[_src].add(_dst)
 """Reachable states from a given state."""
 
@@ -246,6 +247,86 @@ def supported_operation_modes(supportedDriveModes: int) -> Generator[OperationMo
             yield op
 
 
+POSITIVE = FORWARD
+RISING = FORWARD
+NEGATIVE = BACKWARD
+FALLING = BACKWARD
+UNAVAILABLE = 0.0
+UNDEFINED = 0.0
+
+
+class HomingParam(NamedTuple):
+
+    """Homing parameters to describe different CiA402 homing methods."""
+
+    endSwitch: int = UNAVAILABLE
+    homeSwitch: int = UNAVAILABLE
+    homeSwitchEdge: int = UNDEFINED
+    indexPulse: bool = False
+
+    direction: int = UNDEFINED
+    hardStop: bool = False
+
+
+HOMING_METHODS: Dict[HomingParam, int] = {
+    HomingParam(indexPulse=True, direction=POSITIVE, hardStop=True, ): -1,
+    HomingParam(indexPulse=True, direction=NEGATIVE, hardStop=True, ): -2,
+    HomingParam(direction=POSITIVE, hardStop=True, ): -3,
+    HomingParam(direction=NEGATIVE, hardStop=True, ): -4,
+    HomingParam(indexPulse=True, endSwitch=NEGATIVE, ): 1,
+    HomingParam(indexPulse=True, endSwitch=POSITIVE, ): 2,
+    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=FALLING, ): 3,
+    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=RISING, ): 4,
+    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, ): 5,
+    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=RISING, ): 6,
+    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, endSwitch=POSITIVE, ): 7,
+    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=RISING, endSwitch=POSITIVE, ): 8,
+    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=RISING, endSwitch=POSITIVE, ): 9,
+    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=FALLING, endSwitch=POSITIVE, ): 10,
+    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=FALLING, endSwitch=NEGATIVE, ): 11,
+    HomingParam(indexPulse=True, homeSwitch=POSITIVE, homeSwitchEdge=RISING, endSwitch=NEGATIVE, ): 12,
+    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=RISING, endSwitch=NEGATIVE, ): 13,
+    HomingParam(indexPulse=True, homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, endSwitch=NEGATIVE, ): 14,
+    HomingParam(endSwitch=NEGATIVE, ): 17,
+    HomingParam(endSwitch=POSITIVE, ): 18,
+    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=FALLING, ): 19,
+    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=RISING, ): 20,
+    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, ): 21,
+    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=RISING, ): 22,
+    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, endSwitch=POSITIVE, ): 23,
+    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=RISING, endSwitch=POSITIVE, ): 24,
+    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=RISING, endSwitch=POSITIVE, ): 25,
+    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=FALLING, endSwitch=POSITIVE, ): 26,
+    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=FALLING, endSwitch=NEGATIVE, ): 27,
+    HomingParam(homeSwitch=POSITIVE, homeSwitchEdge=RISING, endSwitch=NEGATIVE, ): 28,
+    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=RISING, endSwitch=NEGATIVE, ): 29,
+    HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, endSwitch=NEGATIVE, ): 30,
+    HomingParam(indexPulse=True, direction=NEGATIVE,): 33,
+    HomingParam(indexPulse=True, direction=POSITIVE,): 34,
+    HomingParam(): 35,  # TODO(atheler): Got replaced with 37 in newer versions
+}
+"""CiA 402 homing method lookup."""
+
+assert len(HOMING_METHODS) == 35, 'Something went wrong with HOMING_METHODS keys! Not enough homing methods anymore.'
+
+
+def determine_homing_method(
+        endSwitch: int = UNAVAILABLE,
+        homeSwitch: int = UNAVAILABLE,
+        homeSwitchEdge: int = UNDEFINED,
+        indexPulse: bool = False,
+        direction: int = UNDEFINED,
+        hardStop: bool = False,
+    ) -> int:
+    """Determine homing method."""
+    param = HomingParam(endSwitch, homeSwitch, homeSwitchEdge, indexPulse, direction, hardStop)
+    return HOMING_METHODS[param]
+
+
+assert determine_homing_method(hardStop=True, direction=FORWARD) == -3
+assert determine_homing_method(hardStop=True, direction=BACKWARD) == -4
+
+
 def find_shortest_state_path(start: State, end: State) -> List[State]:
     """Find shortest path from start to end state. Start node is also included
     in returned path.
@@ -289,9 +370,6 @@ def target_reached(statusword: int) -> bool:
         If target has been reached.
     """
     return bool(statusword & SW.TARGET_REACHED)
-
-
-StateSwitching = Generator[State, None, None]
 
 
 def maybe_int(string: str) -> Union[int, str]:

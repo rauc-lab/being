@@ -14,12 +14,15 @@ from being.can.cia_402 import (
     CW,
     Command,
     MODES_OF_OPERATION,
+    NEGATIVE,
     OperationMode,
+    POSITIVE,
     STATUSWORD,
     SW,
     State as CiA402State,
+    UNDEFINED,
+    determine_homing_method
 )
-from being.can.cia_402_homing import NEGATIVE, POSITIVE, UNDEFINED, determine_homing_method
 from being.constants import INF
 from being.logging import get_logger
 from being.serialization import register_enum
