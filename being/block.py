@@ -208,6 +208,8 @@ class Block:
         if name:
             setattr(self, name, input_)
 
+        return input_
+
     def add_message_input(self, name: Optional[str] = None):
         """Add new message input to block.
 
