@@ -127,9 +127,9 @@ export class Slider extends Param {
     }
 
     populate(param) {
-        super.populate(param);
         this.minValue = param.minValue;
         this.maxValue = param.maxValue;
+        super.populate(param);
     }
 
     connectedCallback() {
