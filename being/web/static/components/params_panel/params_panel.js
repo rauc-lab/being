@@ -20,52 +20,37 @@ function populate(container, obj, level=1) {
         }
 
         if (param.type === "Block") {
-            const label = document.createElement("label");
-            label.innerText = param.name;
-            container.appendChild(label);
+            let widget = document.createElement('p');
+            widget.innerText = `Do not know what to do with ${param.blockType}`;
             switch (param.blockType) {
                 case "Slider":
-                    const slider = document.createElement('being-slider');
-                    slider.populate(param);
-                    container.appendChild(slider);
+                    widget = document.createElement("being-slider");
+                    widget.populate(param);
                     break;
 
                 case "SingleSelection":
-                    const sel = document.createElement("being-single-selection");
-                    sel.populate(param);
-                    container.appendChild(sel);
+                    widget = document.createElement("being-single-selection");
+                    widget.populate(param);
                     break
 
                 case "MultiSelection":
-                    const mul = document.createElement("being-multi-selection");
-                    mul.populate(param);
-                    container.appendChild(mul);
+                    widget = document.createElement("being-multi-selection");
+                    widget.populate(param);
                     break
 
                 case "MotionSelection":
-                    const mosel = document.createElement("being-motion-selection");
-                    mosel.populate(param);
-                    container.appendChild(mosel);
+                    widget = document.createElement("being-motion-selection");
+                    widget.populate(param);
                     break
 
-                default:
-                    const paragraph = document.createElement('p');
-                    paragraph.innerText = `Do not know what to do with ${param.blockType}`;
-                    container.appendChild(paragraph);
             }
 
-            container.appendChild(document.createElement("br"));
-
+            container.appendChild(widget);
         } else {
-            const heading = document.createElement('h' + level);
+            const heading = document.createElement("h" + level);
             heading.innerText = key;
             container.appendChild(heading);
             populate(container, param, level + 1);
-
-        }
-
-        if (typeof value === "object" && value !== null & value.type !== "Block") {
-        } else {
         }
     }
 }

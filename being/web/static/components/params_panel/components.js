@@ -2,37 +2,10 @@ import {API} from "/static/js/config.js";
 import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js/fetching.js";
 import { clip } from "/static/js/math.js";
 import { remove_all_children, clear_array } from "/static/js/utils.js";
+import {append_template_to, append_link_to} from "/static/js/widget.js";
 
 
 const INVALID = "INVALID";
-
-
-class Param extends HTMLElement {
-    constructor() {
-        super();
-        this.fullname = "";
-        this._value = null;
-        this.attachShadow({ mode: "open" });
-    }
-
-    get value() {
-        return this._value;
-    }
-
-    set value(value) {
-        this._value = value;
-    }
-
-    populate(param) {
-        this.fullname = param.fullname;
-        this.value = param.value;
-    }
-
-    async emit() {
-        const url = API + "/params/" + this.fullname;
-        await put_json(url, this.value);
-    }
-}
 
 
 /**
@@ -99,6 +72,54 @@ function make_editable(ele, on_change, validator=null, newLines=false) {
 }
 
 
+const PARAM_STYLE = `
+<style>
+    :host {
+        display: block;
+        break-inside: avoid-column;
+        margin-bottom: 1em;
+    }
+</style>
+`;
+
+
+class Param extends HTMLElement {
+    constructor() {
+        super();
+        this.name = "";
+        this.fullname = "";
+        this._value = null;
+
+        this.attachShadow({ mode: "open" });
+
+        append_template_to(PARAM_STYLE, this.shadowRoot);
+
+        this.label = document.createElement("label");
+        this.label.innerHTML = this.name;
+        this.shadowRoot.appendChild(this.label);
+    }
+
+    get value() {
+        return this._value;
+    }
+
+    set value(value) {
+        this._value = value;
+    }
+
+    populate(param) {
+        this.fullname = param.fullname;
+        this.name = param.name;
+        this.value = param.value;
+        this.label.innerHTML = this.name;
+    }
+
+    async emit() {
+        const url = API + "/params/" + this.fullname;
+        await put_json(url, this.value);
+    }
+}
+
 export class Slider extends Param {
 
     N_TICKS = 1000;
@@ -113,6 +134,7 @@ export class Slider extends Param {
         this.slider.min = 0;
         this.slider.max = this.N_TICKS;
         this.shadowRoot.appendChild(this.slider);
+
         this.span = document.createElement("span")
         this.shadowRoot.appendChild(this.span);
     }
