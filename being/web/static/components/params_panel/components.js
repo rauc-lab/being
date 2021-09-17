@@ -7,7 +7,7 @@ import { remove_all_children, clear_array } from "/static/js/utils.js";
 const INVALID = "INVALID";
 
 
-class ParamWidget extends HTMLElement {
+class Param extends HTMLElement {
     constructor() {
         super();
         this.fullname = "";
@@ -99,7 +99,7 @@ function make_editable(ele, on_change, validator=null, newLines=false) {
 }
 
 
-export class Slider extends ParamWidget {
+export class Slider extends Param {
 
     N_TICKS = 1000;
 
@@ -163,7 +163,7 @@ export class Slider extends ParamWidget {
 }
 
 
-class Selection extends ParamWidget {
+class Selection extends Param {
     constructor() {
         super();
         this.form = document.createElement("form");
@@ -178,6 +178,7 @@ class Selection extends ParamWidget {
 
     populate(param) {
         this.fullname = param.fullname;
+        this.possibilities = param.possibilities;
         remove_all_children(this.form);
         param.possibilities.forEach((possibility, index) => {
             this.add_entry(possibility, index);

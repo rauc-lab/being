@@ -71,15 +71,15 @@ function populate(container, obj, level=1) {
 }
 
 function init_parameters_elements(container, params) {
-    console.log("init_parameters_elements()");
     populate(container, params, 1);
 }
 
 
 export class ParamsPanel extends Widget {
     constructor() {
-        console.log("BeingParamsPanel.constructor()");
         super();
+        this._append_link("static/components/params_panel/params_panel.css");
+        window.panel = this;
     }
 
     async connectedCallback() {
@@ -87,4 +87,12 @@ export class ParamsPanel extends Widget {
         const params = await get_json("/api/params");
         init_parameters_elements(this.shadowRoot, params);
     }
+
+    /*
+    on_motions_changed() {
+        for (let mosel of document.getElementsByTagName("being-motion-selection")) {
+            console.log(mosel);
+        }
+    }
+    */
 }
