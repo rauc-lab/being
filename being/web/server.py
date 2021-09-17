@@ -208,6 +208,7 @@ def init_web_server(being, ws) -> web.Application:
             'behaviors': being.behaviors,
             'motionPlayers': being.motionPlayers,
             'year': which_year_is_it(),
+            'hasParams': bool(being.params),
         }
 
     app.router.add_routes(routes)

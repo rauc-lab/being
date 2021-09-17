@@ -9,9 +9,10 @@
 
     <!-- Include being web components -->
     <script type="module">
-        import {ControlPanel, Behavior, Editor} from "/static/components.js";
-        customElements.define("being-behavior", Behavior);
+        import {ControlPanel, Behavior, Editor, ParamsPanel} from "/static/components.js";
         customElements.define("being-control-panel", ControlPanel);
+        customElements.define("being-params-panel", ParamsPanel);
+        customElements.define("being-behavior", Behavior);
         customElements.define("being-editor", Editor);
     </script>
 
@@ -33,6 +34,12 @@
     <a class="anchor" id="control-panel-anchor"></a>
     <h1>Control Panel</h1>
     <being-control-panel></being-control-panel>
+
+    {% if hasParams %}
+        <a class="anchor" id="params-anchor"></a>
+        <h1>Parameters</h1>
+        <being-params-panel></being-params-panel>
+    {% endif %}
 
     {% if behaviors %}
         <a class="anchor" id="behavior-anchor"></a>

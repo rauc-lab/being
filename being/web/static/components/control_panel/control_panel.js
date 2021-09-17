@@ -7,8 +7,6 @@ import { Api } from "/static/js/api.js";
 import { Widget } from "/static/js/widget.js";
 import { switch_button_on, switch_button_off, is_checked } from "/static/js/button.js";
 import { isclose } from "/static/js/math.js";
-import { init_parameters_elements } from "/static/components/control_panel/parameters.js";
-
 
 
 import {API} from "/static/js/config.js";
@@ -20,8 +18,6 @@ const CONTROL_PANEL_TEMPLATE = `
 <div class="container">
     <svg id="svg" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
     <ul id="console" class="console"></ul>
-</div>
-<div id="parameters" style="border-top: 2px solid black;">
 </div>
 `;
 
@@ -130,10 +126,6 @@ export class ControlPanel extends Widget {
                 this.expand_console();
             }
         });
-
-        const params = await get_json("/api/params");
-        window.params = params;
-        init_parameters_elements(this.parametersContainer, params);
     }
 
     /**
@@ -218,10 +210,5 @@ export class ControlPanel extends Widget {
                 con.pause();
             }
         });
-    }
-
-
-    content_changed() {
-        console.log('content_changed()');
     }
 }

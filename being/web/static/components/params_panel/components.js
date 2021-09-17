@@ -7,6 +7,34 @@ import { remove_all_children, clear_array } from "/static/js/utils.js";
 const INVALID = "INVALID";
 
 
+class ParamWidget extends HTMLElement {
+    constructor() {
+        super();
+        this.fullname = "";
+        this._value = null;
+        this.attachShadow({ mode: "open" });
+    }
+
+    get value() {
+        return this._value;
+    }
+
+    set value(value) {
+        this._value = value;
+    }
+
+    populate(param) {
+        this.fullname = param.fullname;
+        this.value = param.value;
+    }
+
+    async emit() {
+        const url = API + "/params/" + this.fullname;
+        await put_json(url, this.value);
+    }
+}
+
+
 /**
  * Make text field editable by double clicking it.
  * 
@@ -71,35 +99,7 @@ function make_editable(ele, on_change, validator=null, newLines=false) {
 }
 
 
-class ParamWidget extends HTMLElement {
-    constructor() {
-        super();
-        this.fullname = "";
-        this._value = null;
-        this.attachShadow({ mode: "open" });
-    }
-
-    get value() {
-        return this._value;
-    }
-
-    set value(value) {
-        this._value = value;
-    }
-
-    populate(param) {
-        this.fullname = param.fullname;
-        this.value = param.value;
-    }
-
-    async emit() {
-        const url = API + "/params/" + this.fullname;
-        await put_json(url, this.value);
-    }
-}
-
-
-customElements.define("being-slider", class BeingSlider extends ParamWidget {
+export class Slider extends ParamWidget {
 
     N_TICKS = 1000;
 
@@ -160,7 +160,7 @@ customElements.define("being-slider", class BeingSlider extends ParamWidget {
 
         return clip(num, this.minValue, this.maxValue);
     }
-});
+}
 
 
 class Selection extends ParamWidget {
@@ -193,7 +193,7 @@ class Selection extends ParamWidget {
 }
 
 
-class SingleSelection extends Selection {
+export class SingleSelection extends Selection {
     add_entry(possibility, index) {
         const id = "single " + index;
 
@@ -224,10 +224,7 @@ class SingleSelection extends Selection {
 }
 
 
-customElements.define("being-single-selection", SingleSelection);
-
-
-class BeingMultiSelection extends Selection {
+export class MultiSelection extends Selection {
     add_entry(possibility, index) {
         const id = "multi " + index;
 
@@ -266,71 +263,5 @@ class BeingMultiSelection extends Selection {
     }
 
 }
-customElements.define("being-multi-selection", BeingMultiSelection);
-customElements.define("being-motion-selection", class BeingMotionSelection extends BeingMultiSelection {
-});
 
-
-function populate(container, obj, level=1) {
-    for (const [key, param] of Object.entries(obj)) {
-        if (typeof param !== "object") {
-            console.log("Skipping", param);
-            continue;
-        }
-
-        if (param.type === "Block") {
-            const label = document.createElement("label");
-            label.innerText = param.name;
-            container.appendChild(label);
-            switch (param.blockType) {
-                case "Slider":
-                    const slider = document.createElement('being-slider');
-                    slider.populate(param);
-                    container.appendChild(slider);
-                    break;
-
-                case "SingleSelection":
-                    const sel = document.createElement("being-single-selection");
-                    sel.populate(param);
-                    container.appendChild(sel);
-                    break
-
-                case "MultiSelection":
-                    const mul = document.createElement("being-multi-selection");
-                    mul.populate(param);
-                    container.appendChild(mul);
-                    break
-
-                case "MotionSelection":
-                    const mosel = document.createElement("being-motion-selection");
-                    mosel.populate(param);
-                    container.appendChild(mosel);
-                    break
-
-                default:
-                    const paragraph = document.createElement('p');
-                    paragraph.innerText = `Do not know what to do with ${param.blockType}`;
-                    container.appendChild(paragraph);
-            }
-
-            container.appendChild(document.createElement("br"));
-
-        } else {
-            const heading = document.createElement('h' + level);
-            heading.innerText = key;
-            container.appendChild(heading);
-            populate(container, param, level + 1);
-
-        }
-
-        if (typeof value === "object" && value !== null & value.type !== "Block") {
-        } else {
-        }
-    }
-}
-
-
-export function init_parameters_elements(container, params) {
-    console.log("init_parameters_elements()");
-    populate(container, params, 1);
-}
+export class MotionSelection extends MultiSelection {}
