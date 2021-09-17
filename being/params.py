@@ -169,11 +169,11 @@ class MotionSelection(MultiSelection):
         if content is None:
             content = Content.single_instance_setdefault()
 
-        possibilities = content._sorted_names()
+        possibilities = list(content._sorted_names())
         super().__init__(fullname, possibilities, **kwargs)
         self.content = content
         self.savedefault(default)
 
     def on_content_changed(self):
-        self.possibilities = set(self.content._sorted_names())
-        self.savedefault(self.value)
+        self.possibilities = list(self.content._sorted_names())
+        self.load()

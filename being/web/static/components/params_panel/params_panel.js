@@ -83,16 +83,16 @@ export class ParamsPanel extends Widget {
     }
 
     async connectedCallback() {
-        console.log("BeingParamsPanel.connectedCallback()");
-        const params = await get_json("/api/params");
+        const params = await get_json(API + "/params");
         init_parameters_elements(this.shadowRoot, params);
     }
 
-    /*
-    on_motions_changed() {
-        for (let mosel of document.getElementsByTagName("being-motion-selection")) {
-            console.log(mosel);
+    async content_changed() {
+        const elements = this.shadowRoot.querySelectorAll("being-motion-selection")
+        for (let motionSelection of elements) {
+            const url = API + "/params/" + motionSelection.fullname;
+            const params = await get_json(url);
+            motionSelection.populate(params);
         }
     }
-    */
 }

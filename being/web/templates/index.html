@@ -89,6 +89,10 @@
             //ws.subscribe_to_message("motions", msg => controlPanel.content_changed());
         }
 
+        for (let paramsPanel of document.getElementsByTagName("being-params-panel")) {
+            ws.subscribe_to_message("motions", msg => paramsPanel.content_changed());
+        }
+
         for (let behavior of document.getElementsByTagName("being-behavior")) {
             ws.subscribe_to_message("behavior-update", msg => behavior.new_behavior_message(msg));
             ws.subscribe_to_message("motions", msg => behavior.content_message(msg));
