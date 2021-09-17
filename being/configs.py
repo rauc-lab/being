@@ -138,10 +138,18 @@ class _YamlConfig(_ConfigImpl):
         self.yaml = ruamel.yaml.YAML()
 
     def loads(self, string):
-        self.data = self.yaml.load(string)
+        data = self.yaml.load(string)
+        if data is None:
+            data = ruamel.yaml.CommentedMap()
+
+        self.data = data
 
     def load(self, stream):
-        self.data = self.yaml.load(stream)
+        data = self.yaml.load(stream)
+        if data is None:
+            data = ruamel.yaml.CommentedMap()
+
+        self.data = data
 
     def dumps(self):
         out = io.StringIO()

@@ -121,7 +121,6 @@ class SingleSelection(Parameter):
     def __init__(self, fullname, possibilities, default=None, **kwargs):
         super().__init__(fullname, **kwargs)
         self.possibilities = list(unique(possibilities))
-        print('self.possibilities:', self.possibilities)
         if default is None:
             default = self.possibilities[0]
 
