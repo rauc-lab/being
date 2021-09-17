@@ -249,7 +249,7 @@ export class SingleSelection extends Selection {
 
 export class MultiSelection extends Selection {
     add_entry(possibility, index) {
-        const id = "multi " + index;
+        const id = "multi" + index;
 
         const input = document.createElement("input");
         input.type = "checkbox";
@@ -259,7 +259,7 @@ export class MultiSelection extends Selection {
         this.form.appendChild(input);
 
         const label = document.createElement("label");
-        label.for = id;
+        label.setAttribute("for", id);
         label.innerHTML = possibility;
         this.form.appendChild(label);
 

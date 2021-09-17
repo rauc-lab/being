@@ -56,7 +56,7 @@ function populate(container, obj, level=1) {
 }
 
 function init_parameters_elements(container, params) {
-    populate(container, params, 1);
+    populate(container, params, 2);
 }
 
 
