@@ -1,11 +1,20 @@
 import {API} from "/static/js/config.js";
 import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js/fetching.js";
 import { clip } from "/static/js/math.js";
-import { remove_all_children } from "/static/js/utils.js";
+import { remove_all_children, clear_array } from "/static/js/utils.js";
 
 
 const INVALID = "INVALID";
 
+
+/**
+ * Make text field editable by double clicking it.
+ * 
+ * @param {*} ele Element to make editable.
+ * @param {*} on_change On change event callback.
+ * @param {*} validator Text content validator function.
+ * @param {*} newLines If to accept new lines or not.
+ */
 
 function make_editable(ele, on_change, validator=null, newLines=false) {
     if (validator === null) {
@@ -80,7 +89,7 @@ class ParamWidget extends HTMLElement {
 
     populate(param) {
         this.fullname = param.fullname;
-        this._value = param.value;
+        this.value = param.value;
     }
 
     async emit() {
@@ -121,12 +130,13 @@ customElements.define("being-slider", class BeingSlider extends ParamWidget {
         super.populate(param);
         this.minValue = param.minValue;
         this.maxValue = param.maxValue;
-        this.slider.addEventListener("change", async evt => {
-            this.emit();
-        });
     }
 
     connectedCallback() {
+        this.slider.addEventListener("change", async evt => {
+            this.emit();
+        });
+
         this.slider.addEventListener("input", evt => {
             this.span.innerText = this.value.toFixed(1);
         });
@@ -153,37 +163,38 @@ customElements.define("being-slider", class BeingSlider extends ParamWidget {
 });
 
 
-customElements.define("being-single-selection", class BeingSingleSelection extends ParamWidget {
+class Selection extends ParamWidget {
     constructor() {
         super();
         this.form = document.createElement("form");
         this.shadowRoot.appendChild(this.form);
     }
 
-    populate(param) {
-        super.populate(param);
-        this.clear();
-        param.possibilities.forEach((possibility, index) => {
-            this.add_radio_label(possibility, index);
-        });
-
-        const query = "input[name=" + this.fullname + "][value=" + param.value + "]";
-        this.form.querySelector(query).checked = true;
-    }
-
     connectedCallback() {
         this.form.addEventListener("change", async evt => {
-            const query = "input[name=" + this.fullname + "]:checked";
-            this.value = this.form.querySelector(query).value;
             this.emit();
         });
     }
 
-    clear() {
+    populate(param) {
+        this.fullname = param.fullname;
         remove_all_children(this.form);
+        param.possibilities.forEach((possibility, index) => {
+            this.add_entry(possibility, index);
+        });
+        super.populate(param);
     }
 
-    add_radio_label(possibility, index) {
+    base_query() {
+        return `input[name="${this.fullname}"]`;
+    }
+
+    //add_entry(possibility, index) { }
+}
+
+
+class SingleSelection extends Selection {
+    add_entry(possibility, index) {
         const id = "single " + index;
 
         const input = document.createElement("input");
@@ -200,44 +211,25 @@ customElements.define("being-single-selection", class BeingSingleSelection exten
 
         this.form.appendChild(document.createElement("br"));
     }
-});
 
-
-customElements.define("being-multi-selection", class BeingMultiSelection extends ParamWidget {
-    constructor() {
-        super();
-        this.form = document.createElement("form");
-        this.shadowRoot.appendChild(this.form);
+    get value() {
+        const query = this.base_query() + ':checked';
+        return this.form.querySelector(query).value;
     }
 
-    populate(param) {
-        super.populate(param);
-        this.clear();
-        param.possibilities.forEach((possibility, index) => {
-            this.add_checkbox_label(possibility, index);
-        });
-
-        const query = "input[name=" + this.fullname + "]";
-        this.form.querySelectorAll(query).forEach(ele => {ele.checked = true;});
+    set value(value) {
+        const query = this.base_query() + '[value="' + value + '"]';
+        this.form.querySelector(query).checked = true;
     }
+}
 
-    connectedCallback() {
-        this.form.addEventListener("change", async evt => {
-            const query = "input[name=" + this.fullname + "]:checked";
-            this.value = [];
-            this.form.querySelectorAll(query).forEach(input => {
-                this.value.push(input.value);
-            });
-            this.emit();
-        });
-    }
 
-    clear() {
-        remove_all_children(this.form);
-    }
+customElements.define("being-single-selection", SingleSelection);
 
-    add_checkbox_label(possibility, index) {
-        const id = "single " + index;
+
+class BeingMultiSelection extends Selection {
+    add_entry(possibility, index) {
+        const id = "multi " + index;
 
         const input = document.createElement("input");
         input.type = "checkbox";
@@ -253,12 +245,36 @@ customElements.define("being-multi-selection", class BeingMultiSelection extends
 
         this.form.appendChild(document.createElement("br"));
     }
+
+    get value() {
+        const value = []
+        const query = this.base_query() + ':checked';
+        this.form.querySelectorAll(query).forEach(input => {
+            value.push(input.value);
+        });
+
+        return value;
+    }
+
+    set value(value) {
+        const query = this.base_query();
+        this.form.querySelectorAll(query).forEach(ele => {
+            if (value.includes(ele.value)) {
+                ele.checked = true;
+            }
+        });
+    }
+
+}
+customElements.define("being-multi-selection", BeingMultiSelection);
+customElements.define("being-motion-selection", class BeingMotionSelection extends BeingMultiSelection {
 });
 
 
 function populate(container, obj, level=1) {
     for (const [key, param] of Object.entries(obj)) {
         if (typeof param !== "object") {
+            console.log("Skipping", param);
             continue;
         }
 
@@ -272,11 +288,7 @@ function populate(container, obj, level=1) {
                     slider.populate(param);
                     container.appendChild(slider);
                     break;
-                //case "MotionSelection":
-                //    const motionSelection = document.createElement('being-motion-selection');
-                //    motionSelection.populate(param);
-                //    container.appendChild(motionSelection);
-                //    break;
+
                 case "SingleSelection":
                     const sel = document.createElement("being-single-selection");
                     sel.populate(param);
@@ -289,9 +301,15 @@ function populate(container, obj, level=1) {
                     container.appendChild(mul);
                     break
 
+                case "MotionSelection":
+                    const mosel = document.createElement("being-motion-selection");
+                    mosel.populate(param);
+                    container.appendChild(mosel);
+                    break
+
                 default:
                     const paragraph = document.createElement('p');
-                    paragraph.innerText = param.blockType;
+                    paragraph.innerText = `Do not know what to do with ${param.blockType}`;
                     container.appendChild(paragraph);
             }
 

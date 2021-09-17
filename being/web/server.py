@@ -123,6 +123,8 @@ def init_api(being, ws: WebSocket) -> web.Application:
     # Content
     api.add_routes(content_controller(content))
     content.subscribe(CONTENT_CHANGED, lambda: ws.send_json_buffered(content.dict_motions_2()))
+    for motionSelection in filter_by_type(being.params, MotionSelection):
+        content.subscribe(CONTENT_CHANGED, motionSelection.on_content_changed)
 
     # Patch sensor events
     sensors = list(filter_by_type(being.execOrder, Sensor))

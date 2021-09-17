@@ -262,6 +262,7 @@ def toss_coin(probability: float = .5) -> bool:
 
 
 def unique(iterable):
+    """Iterate over unique elements while preserving order."""
     seen = set()
     for item in iterable:
         if item in seen:

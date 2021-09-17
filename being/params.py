@@ -26,7 +26,6 @@ class Parameter(Block):
 
     Attributes:
         fullname: TODO.
-        default: Default value.
         configFile: TODO:
     """
 
@@ -45,9 +44,16 @@ class Parameter(Block):
         return value
 
     def savedefault(self, default):
+        """Setdefault default value and validate initial value in config
+        file.
+
+        Args:
+            default: Default value.
+        """
         default = self.validate(default)
         value = self.configFile.storedefault(self.fullname, default)
         validated = self.validate(value)
+        self.configFile.store(self.fullname, validated)
         self.configFile.save()
         self.output.value = validated
 
@@ -85,13 +91,16 @@ class Parameter(Block):
 
 
 class Slider(Parameter):
+
+    """Scalar value slider."""
+
     def __init__(self, fullname, default: Any = 0.0, minValue=0., maxValue=1., **kwargs):
         if maxValue < minValue:
             raise ValueError
 
         super().__init__(fullname, **kwargs)
-        self.minValue = minValue
-        self.maxValue = maxValue
+        self.minValue = min(minValue, default)
+        self.maxValue = max(maxValue, default)
 
         self.savedefault(default)
 
@@ -106,6 +115,9 @@ class Slider(Parameter):
 
 
 class SingleSelection(Parameter):
+
+    """Single selection out of multiple possibilities."""
+
     def __init__(self, fullname, possibilities, default=None, **kwargs):
         super().__init__(fullname, **kwargs)
         self.possibilities = list(unique(possibilities))
@@ -126,6 +138,9 @@ class SingleSelection(Parameter):
 
 
 class MultiSelection(Parameter):
+
+    """Multiple selection out of multiple possibilities."""
+
     def __init__(self, fullname, possibilities, default=None, **kwargs):
         super().__init__(fullname, **kwargs)
         if default is None:
@@ -135,11 +150,7 @@ class MultiSelection(Parameter):
         self.savedefault(default)
 
     def validate(self, value):
-        return [
-            item
-            for item in value
-            if item in self.possibilities
-        ]
+        return list(set(self.possibilities).intersection(value))
 
     def to_dict(self):
         dct = super().to_dict()
@@ -147,22 +158,22 @@ class MultiSelection(Parameter):
         return dct
 
 
-class MotionSelection(Parameter):
+class MotionSelection(MultiSelection):
+
+    """Multiple motion selection."""
+
     def __init__(self, fullname, default=None, content=None, **kwargs):
+        if default is None:
+            default = []
+
         if content is None:
             content = Content.single_instance_setdefault()
 
-        super().__init__(fullname, **kwargs)
+        possibilities = content._sorted_names()
+        super().__init__(fullname, possibilities, **kwargs)
         self.content = content
+        self.savedefault(default)
 
-        self.load()
-
-    def validate(self, motions):
-        if isinstance(motions, str):
-            motions = [motions]
-
-        repertoire = set(self.content._sorted_names())
-        return list(repertoire.intersection(motions))
-
-    #def on_content_changed(self):
-    #    self.possibilities = set(self.content._sorted_names())
+    def on_content_changed(self):
+        self.possibilities = set(self.content._sorted_names())
+        self.savedefault(self.value)
