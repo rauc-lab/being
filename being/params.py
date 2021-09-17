@@ -1,13 +1,17 @@
 """Parameter blocks which can be used to control values inside the block network
 and to mirror their state inside a config file.
 """
+from typing import Any, Optional
+
 from being.block import Block
 from being.configs import ConfigFile, split_name
-from being.constants import INF
 from being.content import Content
+from being.configuration import CONFIG
 from being.math import clip
 from being.utils import SingleInstanceCache, unique
-from typing import Any, Optional
+
+
+PARAMETER_CONFIG_FILEPATH = CONFIG['General']['PARAMETER_CONFIG_FILEPATH']
 
 
 class ParamsConfigFile(ConfigFile, SingleInstanceCache):
@@ -16,7 +20,7 @@ class ParamsConfigFile(ConfigFile, SingleInstanceCache):
     SingleInstanceCache.
     """
 
-    def __init__(self, filepath='being_params.yaml'):
+    def __init__(self, filepath=PARAMETER_CONFIG_FILEPATH):
         super().__init__(filepath)
 
 

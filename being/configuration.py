@@ -10,6 +10,7 @@ CONFIG: dict = {
     'General': {
         'INTERVAL': .010,  # Main loop interval in seconds.
         'CONTENT_DIRECTORY': 'content',  # Default directory for motions / splines
+        'PARAMETER_CONFIG_FILEPATH': 'being_params.yaml',  # Filepath for parameter config file
     },
     'Can': {
         'DEFAULT_CAN_BITRATE': 1000000,  # Default bitrate (bit / sec) for CAN interface.
