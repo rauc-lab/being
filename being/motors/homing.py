@@ -21,7 +21,7 @@ from being.can.cia_402 import (
     SW,
     State as CiA402State,
     UNDEFINED,
-    determine_homing_method,
+    determine_homing_method
 )
 from being.constants import INF
 from being.logging import get_logger
@@ -226,6 +226,9 @@ class DummyHoming(HomingBase):
 
 
 class CiA402Homing(HomingBase):
+
+    """CiA 402 by the book."""
+
     def __init__(self, node, timeout=10.0, **kwargs):
         super().__init__()
         self.node = node
@@ -241,7 +244,7 @@ class CiA402Homing(HomingBase):
 
     def change_state(self, target) -> Generator:
         """Change to node's state job."""
-        return self.node.change_state(target, how='pdo', generator=True)
+        return self.node.change_state(target, how='pdo', retGenerator=True)
 
     def capture(self):
         """Capture current node's state and operation mode."""

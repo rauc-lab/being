@@ -11,6 +11,7 @@ from canopen.objectdictionary.eds import import_eds
 from being.can.definitions import FunctionCode, STORE_EDS
 from being.can.cia_301 import DEVICE_TYPE
 
+
 SUPPORTED_DEVICE_TYPES = {
     b'\x92\x01\x42\x00': 'eds_files/MCLM3002P-CO.eds',
     b'\x92\x01\x02\x00': 'eds_files/maxon_EPOS4_50-5.eds',

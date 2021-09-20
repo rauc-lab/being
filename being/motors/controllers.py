@@ -12,7 +12,7 @@ from being.config import CONFIG
 from being.constants import FORWARD
 from being.logging import get_logger
 from being.math import clip
-from being.motors.definitions import MotorInterface, MotorState, MotorEvent
+from being.motors.definitions import MotorInterface, MotorState, MotorEvent, PositionProfile, VelocityProfile
 from being.motors.homing import CiA402Homing, CrudeHoming, default_homing_method
 from being.motors.motors import Motor
 from being.motors.vendor import (
@@ -20,6 +20,7 @@ from being.motors.vendor import (
     FAULHABER_SUPPORTED_HOMING_METHODS,
     MAXON_EMERGENCY_DESCRIPTIONS,
     MAXON_SUPPORTED_HOMING_METHODS,
+    MaxonDigitalInput,
 )
 from being.utils import merge_dicts
 
@@ -70,6 +71,14 @@ class Controller(MotorInterface):
 
     """Semi abstract controller base class.
 
+    Implements general, non-vendor specific, controller functionalities.
+      - Configuring and managing of CanOpen node.
+      - Homing
+      - Target position clipping range.
+      - Drives node state switch jobs (for asynchronous state changes).
+      - SI <-> device units conversion.
+      - Relaying EMCY errors.
+
     Attributes:
         EMERGENCY_ERROR_CODES: TODO.
         SUPPORTED_HOMING_METHODS: Supported homing methods.
@@ -90,31 +99,26 @@ class Controller(MotorInterface):
     def __init__(self,
             node: CiA402Node,
             motor: Motor,
+            length: float,
             direction: int = FORWARD,
-            length: Optional[float] = None,
             settings: Optional[dict] = None,
-            multiplier: float = 1.0,
+            operationMode: OperationMode = OperationMode.CYCLIC_SYNCHRONOUS_POSITION,
             **homingKwargs,
         ):
         """Args:
             node: Connected CanOpen node.
             motor: Motor definitions / settings.
+            length: Clipping length in SI units.
 
         Kwargs:
             direction: Movement direction.
-            length: Length of associated motor. Motor length by default.
             settings: Motor settings.
-            multiplier: Additional Multiplier factor for SI position ->
-                multiplier -> gear -> motor.position_si_2_device. For windup
-                module / spindle drive.
+            operationMode: Operation mode for node.
             **homingKwargs: Homing parameters.
         """
         # Defaults
         if settings is None:
             settings = {}
-
-        if length is None:
-            length = motor.length
 
         super().__init__()
 
@@ -125,7 +129,9 @@ class Controller(MotorInterface):
         self.length = length
 
         self.logger = get_logger(str(self))
-        self.position_si_2_device = float(multiplier * motor.si_2_device_units('position'))
+        self.position_si_2_device = motor.si_2_device_units('position')
+        self.velocity_si_2_device = motor.si_2_device_units('velocity')
+        self.acceleration_si_2_device = motor.si_2_device_units('acceleration')
         self.lower = 0.
         self.upper = length * self.position_si_2_device
         self.lastState = node.get_state()
@@ -139,13 +145,15 @@ class Controller(MotorInterface):
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 
-        self.disable()  # READY_TO_SWITCH_ON via PDO
+        self.node.reset_fault()
+        self.disable()
+        self.node.set_operation_mode(operationMode)
 
     def disable(self):
-        self.switchJob = self.node.change_state(State.READY_TO_SWITCH_ON, how='pdo', generator=True)
+        self.switchJob = self.node.change_state(State.READY_TO_SWITCH_ON, how='pdo', retGenerator=True)
 
     def enable(self):
-        self.switchJob = self.node.change_state(State.OPERATION_ENABLED, how='pdo', generator=True)
+        self.switchJob = self.node.change_state(State.OPERATION_ENABLED, how='pdo', retGenerator=True)
 
     def motor_state(self):
         if self.lastState is State.OPERATION_ENABLED:
@@ -165,7 +173,12 @@ class Controller(MotorInterface):
         return self.homing.state
 
     def init_homing(self, **homingKwargs):
-        """Setup homing."""
+        """Setup homing. Done here and not directly in __init__ so that child
+        class can overwrite this behavior.
+
+        Kwargs:
+            **homingKwargs: Homing parameters.
+        """
         method = default_homing_method(**homingKwargs)
         if method not in self.SUPPORTED_HOMING_METHODS:
             raise ValueError(f'Homing method {method} not supported for controller {self}')
@@ -203,6 +216,30 @@ class Controller(MotorInterface):
         """Get actual position in SI units."""
         return self.node.get_actual_position() / self.position_si_2_device
 
+    def play_position_profile(self, profile: PositionProfile):
+        """Play position profile."""
+        pos = self.position_si_2_device * profile.position
+        vel = None
+        acc = None
+
+        if profile.velocity is not None:
+            vel = self.velocity_si_2_device * profile.velocity
+
+        if profile.acceleration is not None:
+            acc = self.acceleration_si_2_device * profile.acceleration
+
+        self.node.move_to(position=pos, velocity=vel, acceleration=acc)
+
+    def play_velocity_profile(self, profile: VelocityProfile):
+        """Play velocity profile."""
+        vel = self.velocity_si_2_device * profile.velocity
+        acc = None
+
+        if profile.acceleration is not None:
+            acc = self.acceleration_si_2_device * profile.acceleration
+
+        self.node.move_with(velocity=vel, acceleration=acc)
+
     def state_changed(self, state: State) -> bool:
         """Check if node state changed since last call."""
         if state is self.lastState:
@@ -212,6 +249,9 @@ class Controller(MotorInterface):
         return True
 
     def publish_errors(self):
+        """Publish all active EMCY errors. Active error messages get discard
+        afterwards.
+        """
         for emcy in self.node.emcy.active:
             msg = self.format_emcy(emcy)
             self.logger.error(msg)
@@ -250,7 +290,12 @@ class Controller(MotorInterface):
 
 class Mclm3002(Controller):
 
-    """Faulhaber MCLM 3002 controller."""
+    """Faulhaber MCLM 3002 controller.
+
+    This controller does not support the unofficial max current based hard stop
+    homing methods. We monkey patch a CrudeHoming for these cases, which
+    implements the same behavior.
+    """
 
     EMERGENCY_DESCRIPTIONS = FAULHABER_EMERGENCY_DESCRIPTIONS
     SUPPORTED_HOMING_METHODS = FAULHABER_SUPPORTED_HOMING_METHODS
@@ -260,10 +305,16 @@ class Mclm3002(Controller):
             *args,
             homingMethod: Optional[int] = None,
             homingDirection: float = FORWARD,
+            operationMode: OperationMode = OperationMode.CYCLIC_SYNCHRONOUS_POSITION,
             **kwargs,
         ):
-        super().__init__(*args, homingMethod=homingMethod, homingDirection=homingDirection, **kwargs)
-        self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
+        super().__init__(
+            *args,
+            homingMethod=homingMethod,
+            homingDirection=homingDirection,
+            operationMode=operationMode,
+            **kwargs,
+        )
 
     def init_homing(self, **homingKwargs):
         method = default_homing_method(**homingKwargs)
@@ -284,15 +335,25 @@ class Mclm3002(Controller):
 
 class Epos4(Controller):
 
-    """Maxon EPOS4 controller."""
+    """Maxon EPOS4 controller.
+
+    This controllers goes into an error state when RPOD / SYNC messages are not
+    arriving on time -> recoverRpdoTimeoutError which re-enables the motor when
+    the RPOD timeout error occurs.
+
+    Also a simple, alternative position controller which sends velocity
+    commands.
+    """
 
     EMERGENCY_DESCRIPTIONS = MAXON_EMERGENCY_DESCRIPTIONS
     SUPPORTED_HOMING_METHODS = MAXON_SUPPORTED_HOMING_METHODS
 
     def __init__(self,
+            node: CiA402Node,
             *args,
             usePositionController: bool = True,
             recoverRpdoTimeoutError: bool = True,
+            operationMode: OperationMode = OperationMode.CYCLIC_SYNCHRONOUS_POSITION,
             **kwargs,
         ):
         """Kwargs:
@@ -303,19 +364,22 @@ class Epos4(Controller):
             recoverRpdoTimeoutError: Re-enable drive after a FAULT because of a
                 RPOD timeout error.
         """
-        super().__init__(*args, **kwargs)
+        if not usePositionController:
+            warnings.warn(
+                'Setting operation mode to'
+                f' {OperationMode.CYCLIC_SYNCHRONOUS_VELOCITY} for custom'
+                ' position controller'
+            )
+            operationMode = OperationMode.CYCLIC_SYNCHRONOUS_VELOCITY
+
+        self.set_all_digital_inputs_to_none(node)  # Before apply_settings_to_node
+        super().__init__(node, *args, operationMode=operationMode, **kwargs)
         self.usePositionController = usePositionController
         self.recoverRpdoTimeoutError = recoverRpdoTimeoutError
-
         self.rpdoTimeoutOccurred = False
 
         # TODO: Test if firmwareVersion < 0x170h?
         self.logger.info('Firmware version 0x%04x', self.firmware_version())
-
-        if self.usePositionController:
-            self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_POSITION)
-        else:
-            self.node.set_operation_mode(OperationMode.CYCLIC_SYNCHRONOUS_VELOCITY)
 
     def init_homing(self, **homingKwargs):
         method = default_homing_method(**homingKwargs)
@@ -341,6 +405,15 @@ class Epos4(Controller):
             newMisc = set_bit(misc, bit=0)
 
         variable.raw = newMisc
+
+    @staticmethod
+    def set_all_digital_inputs_to_none(node):
+        """Set all digital inputs of Epos4 controller to none by default.
+        Reason: Because of settings dictionary it is not possible to have two
+        entries. E.g. unset and then set to HOME_SWITCH.
+        """
+        for subindex in range(1, 9):
+            node.sdo['Configuration of digital inputs'][subindex].raw = MaxonDigitalInput.NONE
 
     def set_target_position(self, targetPosition):
         if self.homing.homed:

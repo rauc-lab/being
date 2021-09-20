@@ -21,6 +21,7 @@ from typing import (
     Union,
 )
 
+
 from canopen import RemoteNode
 
 from being.bitmagic import check_bit
@@ -28,9 +29,6 @@ from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.definitions import TransmissionType
 from being.constants import FORWARD, BACKWARD
 from being.logging import get_logger
-
-
-LOGGER = get_logger(name=__name__, parent=None)
 
 
 # Mandatory (?) CiA 402 object dictionary entries
@@ -66,6 +64,7 @@ SUPPORTED_DRIVE_MODES = 0x6502
 
 
 State = ForwardRef('State')
+StateSwitching = Generator[State, None, None]
 Edge = Tuple[State, State]
 CanOpenRegister = Union[int, str]
 
@@ -114,15 +113,6 @@ class Command(enum.IntEnum):
     DISABLE_OPERATION = CW.QUICK_STOP | CW.ENABLE_VOLTAGE | CW.SWITCH_ON
     ENABLE_OPERATION = CW.ENABLE_OPERATION | CW.QUICK_STOP | CW.ENABLE_VOLTAGE | CW.SWITCH_ON
     FAULT_RESET = CW.FAULT_RESET
-
-
-assert Command.SHUT_DOWN == 0b110
-assert Command.SWITCH_ON == 0b111
-assert Command.DISABLE_VOLTAGE == 0
-assert Command.QUICK_STOP == 0b10
-assert Command.DISABLE_OPERATION == 0b111
-assert Command.ENABLE_OPERATION == 0b1111
-assert Command.FAULT_RESET == (1 << 7)
 
 
 class SW(enum.IntEnum):
@@ -200,7 +190,7 @@ edge -> command.
 """
 
 POSSIBLE_TRANSITIONS: Dict[State, Set[State]] = collections.defaultdict(set)
-for _src, _dst in TRANSITIONS:
+for _src, _dst in TRANSITIONS.keys():
     POSSIBLE_TRANSITIONS[_src].add(_dst)
 """Reachable states from a given state."""
 
@@ -211,20 +201,21 @@ VALID_OP_MODE_CHANGE_STATES: Set[State] = {
 }
 """Not every state support switching of operation mode."""
 
+STATUSWORD_2_STATE = [
+    (0b1001111, 0b0000000, State.NOT_READY_TO_SWITCH_ON),
+    (0b1001111, 0b1000000, State.SWITCH_ON_DISABLED),
+    (0b1101111, 0b0100001, State.READY_TO_SWITCH_ON),
+    (0b1101111, 0b0100011, State.SWITCHED_ON),
+    (0b1101111, 0b0100111, State.OPERATION_ENABLED),
+    (0b1101111, 0b0000111, State.QUICK_STOP_ACTIVE),
+    (0b1001111, 0b0001111, State.FAULT_REACTION_ACTIVE),
+    (0b1001111, 0b0001000, State.FAULT),
+]
+"""Statusword bit masks for state loopkup."""
 
 def which_state(statusword: int) -> State:
     """Extract state from statusword."""
-    considerations = [
-        (0b1001111, 0b0000000, State.NOT_READY_TO_SWITCH_ON),
-        (0b1001111, 0b1000000, State.SWITCH_ON_DISABLED),
-        (0b1101111, 0b0100001, State.READY_TO_SWITCH_ON),
-        (0b1101111, 0b0100011, State.SWITCHED_ON),
-        (0b1101111, 0b0100111, State.OPERATION_ENABLED),
-        (0b1101111, 0b0000111, State.QUICK_STOP_ACTIVE),
-        (0b1001111, 0b0001111, State.FAULT_REACTION_ACTIVE),
-        (0b1001111, 0b0001000, State.FAULT),
-    ]
-    for mask, value, state in considerations:
+    for mask, value, state in STATUSWORD_2_STATE:
         if (statusword & mask) == value:
             return state
 
@@ -256,51 +247,12 @@ def supported_operation_modes(supportedDriveModes: int) -> Generator[OperationMo
             yield op
 
 
-def find_shortest_state_path(start: State, end: State) -> List[State]:
-    """Find shortest path from start to end state. Start node is also included
-    in returned path.
-
-    Args:
-        start: Start state.
-        end: Target end state.
-
-    Returns:
-        Path from start -> end. Empty list if the does not exist a path from
-        start -> end.
-    """
-    # Breadth-first search
-    queue = collections.deque([[start]])
-    paths = []
-    while queue:
-        path = queue.popleft()
-        tail = path[-1]
-        for suc in POSSIBLE_TRANSITIONS[tail]:
-            if suc in path:
-                continue  # Cycle detected
-
-            if suc is end:
-                paths.append(path + [end])
-            else:
-                queue.append(path + [suc])
-
-    return min(paths, key=len, default=[])
-
-
-def target_reached(statusword: int) -> bool:
-    """Check if target has been reached from statusword.
-
-    Args:
-        statusword: Statusword value.
-
-    Returns:
-        If target has been reached.
-    """
-    return bool(statusword & SW.TARGET_REACHED)
-
-
-POSITIVE = RISING = FORWARD
-NEGATIVE = FALLING = BACKWARD
-UNAVAILABLE = UNDEFINED = 0.0
+POSITIVE = FORWARD
+RISING = FORWARD
+NEGATIVE = BACKWARD
+FALLING = BACKWARD
+UNAVAILABLE = 0.0
+UNDEFINED = 0.0
 
 
 class HomingParam(NamedTuple):
@@ -355,7 +307,6 @@ HOMING_METHODS: Dict[HomingParam, int] = {
 }
 """CiA 402 homing method lookup."""
 
-
 assert len(HOMING_METHODS) == 35, 'Something went wrong with HOMING_METHODS keys! Not enough homing methods anymore.'
 
 
@@ -376,7 +327,49 @@ assert determine_homing_method(hardStop=True, direction=FORWARD) == -3
 assert determine_homing_method(hardStop=True, direction=BACKWARD) == -4
 
 
-StateSwitching = Generator[State, None, None]
+def find_shortest_state_path(start: State, end: State) -> List[State]:
+    """Find shortest path from start to end state. Start node is also included
+    in returned path.
+
+    Args:
+        start: Start state.
+        end: Target end state.
+
+    Returns:
+        Path from start -> end. Empty list if the does not exist a path from
+        start -> end.
+    """
+    if start is end:
+        return []
+
+    # Breadth-first search
+    queue = collections.deque([[start]])
+    paths = []
+    while queue:
+        path = queue.popleft()
+        tail = path[-1]
+        for suc in POSSIBLE_TRANSITIONS[tail]:
+            if suc in path:
+                continue  # Cycle detected
+
+            if suc is end:
+                paths.append(path + [end])
+            else:
+                queue.append(path + [suc])
+
+    return min(paths, key=len, default=[])
+
+
+def target_reached(statusword: int) -> bool:
+    """Check if target has been reached from statusword.
+
+    Args:
+        statusword: Statusword value.
+
+    Returns:
+        If target has been reached.
+    """
+    return bool(statusword & SW.TARGET_REACHED)
 
 
 def maybe_int(string: str) -> Union[int, str]:
@@ -566,7 +559,7 @@ class CiA402Node(RemoteNode):
         current = self.get_state(how)
         if current is target:
             self.logger.debug('Already in %s', target)
-            yield current
+            yield target
             return
 
         if target not in POSSIBLE_TRANSITIONS[current]:
@@ -583,10 +576,11 @@ class CiA402Node(RemoteNode):
 
         while current is not target:
             self.logger.debug('Still in %s, not yet in %s', current, target)
-            current = self.get_state(how)
             yield current
+            current = self.get_state(how)
 
         self.logger.debug('Reached %s', target)
+        yield target
 
     def _change_state(self, target: State, how: str = 'sdo') -> StateSwitching:
         """Change node state to a target state. Implemented as generator for
@@ -606,7 +600,7 @@ class CiA402Node(RemoteNode):
         current = self.get_state(how)
         if current is target:
             self.logger.debug('Already in %s', target)
-            yield current
+            yield target
             return
 
         path = find_shortest_state_path(current, target)
@@ -643,7 +637,7 @@ class CiA402Node(RemoteNode):
             target: State,
             how: str = 'sdo',
             timeout: Optional[float] = None,
-            generator: bool = False,
+            retGenerator: bool = False,
         ) -> Union[State, StateSwitching]:
         """Set node state. This method only works for possible transitions from
         current state (single step). For arbitrary transitions use
@@ -655,11 +649,11 @@ class CiA402Node(RemoteNode):
         Kwargs:
             how: Either via 'sdo' or 'pdo'.
             timeout: Optional timeout.
-            generator: If True return switching job generator.
+            retGenerator: If True return switching job generator.
         """
         current = self.get_state(how)
         job = self._set_state(target, how)
-        if generator:
+        if retGenerator:
             return job
 
         if timeout is None:
@@ -672,7 +666,7 @@ class CiA402Node(RemoteNode):
             target: State,
             how: str = 'sdo',
             timeout: Optional[float] = None,
-            generator: bool = False,
+            retGenerator: bool = False,
         ) -> Union[State, StateSwitching]:
         """Change to a specific state. Will traverse all necessary states in
         between to get there.
@@ -683,11 +677,11 @@ class CiA402Node(RemoteNode):
         Kwargs:
             how: Either via 'sdo' or 'pdo'.
             timeout: Optional timeout.
-            generator: If True return switching job generator.
+            retGenerator: If True return switching job generator.
         """
         current = self.get_state(how)
         job = self._change_state(target, how)
-        if generator:
+        if retGenerator:
             return job
 
         if timeout is None:
