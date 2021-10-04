@@ -109,7 +109,7 @@ class _TomlConfig(_ConfigImpl):
 
     def __init__(self, data=None):
         if data is None:
-            data = tomlkit.document()
+            data = tomlkit.document()  # Differs from default_factory=tomlkit.table
 
         super().__init__(data, default_factory=tomlkit.table)
 
@@ -131,9 +131,6 @@ class _YamlConfig(_ConfigImpl):
     """Config implementation for YAML format."""
 
     def __init__(self, data=None):
-        if data is None:
-            data = ruamel.yaml.CommentedMap()
-
         super().__init__(data,  default_factory=ruamel.yaml.CommentedMap)
         self.yaml = ruamel.yaml.YAML()
 
@@ -168,9 +165,6 @@ class _JsonConfig(_ConfigImpl):
     """
 
     def __init__(self, data=None):
-        if data is None:
-            data = dict()
-
         super().__init__(data, default_factory=dict)
 
     def loads(self, string):
@@ -194,9 +188,6 @@ class _IniConfig(_ConfigImpl):
     """
 
     def __init__(self, data=None):
-        if data is None:
-            data = configobj.ConfigObj()
-
         super().__init__(data, default_factory=configobj.ConfigObj)
 
     def loads(self, string):
