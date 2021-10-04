@@ -66,7 +66,7 @@ class Parameter(Block):
         value = self.configFile.retrieve(self.fullname)
         validated = self.validate(value)
         if validated != value:
-            self.configFile.store(self.name, validated)
+            self.configFile.store(self.fullname, validated)
             self.configFile.save()
 
         self.output.value = validated
