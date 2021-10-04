@@ -545,7 +545,7 @@ def params_controller(params) -> web.RouteTableDef:
         """Update value of parameter block."""
         value = await request.json()
         LOGGER.debug('set_param() %s %s', param, value)
-        param.save(value)
+        param.change(value)
         return json_response()
 
     for param in params:

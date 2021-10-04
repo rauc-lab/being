@@ -29,11 +29,18 @@ class Parameter(Block):
     """Parameter block base class.
 
     Attributes:
-        fullname: TODO.
-        configFile: TODO:
+        fullname: Full name of config entry.
+        configFile: Configuration file instance.
     """
 
     def __init__(self, fullname: str, configFile: Optional[ConfigFile] = None):
+        """Args:
+            fullname: Full name of config entry.
+
+        Kwargs:
+            configFile: Configuration file instance (DI). Default is
+                ParamsConfigFile instance.
+        """
         _, name = split_name(fullname)
         if configFile is None:
             configFile = ParamsConfigFile.single_instance_setdefault()
@@ -44,25 +51,18 @@ class Parameter(Block):
         self.configFile = configFile
 
     def validate(self, value: Any) -> Any:
-        """Validate value. Pass-through / no validation by default."""
-        return value
-
-    def savedefault(self, default):
-        """Setdefault default value and validate initial value in config
-        file.
+        """Validate value. Pass-through / no validation by default.
 
         Args:
-            default: Default value.
+            value: Value to validate.
+
+        Returns:
+            Validated value.
         """
-        default = self.validate(default)
-        value = self.configFile.storedefault(self.fullname, default)
-        validated = self.validate(value)
-        self.configFile.store(self.fullname, validated)
-        self.configFile.save()
-        self.output.value = validated
+        return value
 
     def load(self):
-        """Reload value from config file."""
+        """Load value from config file."""
         value = self.configFile.retrieve(self.fullname)
         validated = self.validate(value)
         if validated != value:
@@ -71,8 +71,22 @@ class Parameter(Block):
 
         self.output.value = validated
 
-    def save(self, value):
-        """Change value of output and config entry."""
+    def loaddefault(self, default):
+        """Load value from Configuration file with default value (setdefault).
+
+        Args:
+            default: Default value.
+        """
+        default = self.validate(default)
+        self.configFile.storedefault(self.fullname, default)
+        self.load()
+
+    def change(self, value):
+        """Change value and store it to Configuration file.
+
+        Args:
+            value: New value to set.
+        """
         validated = self.validate(value)
         self.configFile.store(self.fullname, validated)
         self.configFile.save()
@@ -85,13 +99,7 @@ class Parameter(Block):
         return dct
 
     def __str__(self):
-        return (
-            f'{type(self).__name__}('
-            f'fullname: {self.fullname!r}, '
-            f'value: {self.output.value}, '
-            f'configFile: {self.configFile}'
-            ')'
-        )
+        return f'{type(self).__name__}({self.fullname!r}, value: {self.output.value}, {self.configFile})'
 
 
 class Slider(Parameter):
@@ -106,7 +114,7 @@ class Slider(Parameter):
         self.minValue = min(minValue, default)
         self.maxValue = max(maxValue, default)
 
-        self.savedefault(default)
+        self.loaddefault(default)
 
     def validate(self, value):
         return clip(value, self.minValue, self.maxValue)
@@ -128,7 +136,7 @@ class SingleSelection(Parameter):
         if default is None:
             default = self.possibilities[0]
 
-        self.savedefault(default)
+        self.loaddefault(default)
 
     def validate(self, value):
         assert value in self.possibilities, f'{value} not in {self.possibilities}'
@@ -150,7 +158,7 @@ class MultiSelection(Parameter):
             default = []
 
         self.possibilities = list(unique(possibilities))
-        self.savedefault(default)
+        self.loaddefault(default)
 
     def validate(self, value):
         return list(set(self.possibilities).intersection(value))
@@ -175,8 +183,9 @@ class MotionSelection(MultiSelection):
         possibilities = list(content._sorted_names())
         super().__init__(fullname, possibilities, **kwargs)
         self.content = content
-        self.savedefault(default)
+        self.loaddefault(default)
 
     def on_content_changed(self):
+        """Callback function on contented changed."""
         self.possibilities = list(self.content._sorted_names())
         self.load()
