@@ -22,7 +22,6 @@ class DummyConfigFile(Config):
 
 class DummyParamter(Parameter):
     def __init__(self, fullname, default=0.0, minValue=0., maxValue=1., **kwargs):
-        print('DummyParamter.__init__()', default, minValue, maxValue, kwargs)
         if maxValue < minValue:
             raise ValueError
 
