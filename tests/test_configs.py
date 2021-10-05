@@ -266,6 +266,5 @@ class TestConfig(unittest.TestCase):
     # TODO: _IniConfig commenting test cases
 
 
-
 if __name__ == '__main__':
     unittest.main()

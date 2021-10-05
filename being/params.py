@@ -77,8 +77,8 @@ class Parameter(Block):
         Args:
             default: Default value.
         """
-        default = self.validate(default)
-        self.configFile.storedefault(self.fullname, default)
+        validated = self.validate(default)
+        self.configFile.storedefault(self.fullname, validated)
         self.load()
 
     def change(self, value):

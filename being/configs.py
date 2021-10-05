@@ -92,15 +92,19 @@ class _ConfigImpl(NestedDict):
 
     def loads(self, string):
         """Load from string..."""
+        raise NotImplementedError
 
     def load(self, stream):
         """Load from stream..."""
+        raise NotImplementedError
 
     def dumps(self) -> str:
         """Dumps config to string."""
+        raise NotImplementedError
 
     def dump(self, stream) -> str:
         """Dumps to stream..."""
+        raise NotImplementedError
 
 
 class _TomlConfig(_ConfigImpl):
