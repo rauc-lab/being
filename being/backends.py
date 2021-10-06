@@ -9,7 +9,6 @@ import threading
 import warnings
 from typing import List
 
-
 try:
     import pyaudio
 except ImportError:
@@ -21,7 +20,7 @@ import canopen
 
 from being.can.cia_402 import CiA402Node
 from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.logging import get_logger
 from being.rpi_gpio import GPIO
 from being.utils import SingleInstanceCache, filter_by_type

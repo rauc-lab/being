@@ -9,7 +9,7 @@ import os
 from typing import Optional
 from logging import Logger
 
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.constants import MB
 
 

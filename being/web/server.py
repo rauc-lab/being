@@ -11,11 +11,12 @@ import jinja2
 
 from being import __version__ as BEING_VERSION_NUMBER
 from being.behavior import BEHAVIOR_CHANGED
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
 from being.logging import BEING_LOGGER, get_logger
 from being.motors.definitions import MotorEvent
+from being.params import MotionSelection
 from being.sensors import Sensor
 from being.utils import filter_by_type
 from being.web.api import (
@@ -26,6 +27,7 @@ from being.web.api import (
     misc_controller,
     motion_player_controllers,
     motor_controllers,
+    params_controller,
 )
 from being.web.web_socket import WebSocket
 
@@ -121,6 +123,8 @@ def init_api(being, ws: WebSocket) -> web.Application:
     # Content
     api.add_routes(content_controller(content))
     content.subscribe(CONTENT_CHANGED, lambda: ws.send_json_buffered(content.dict_motions_2()))
+    for motionSelection in filter_by_type(being.params, MotionSelection):
+        content.subscribe(CONTENT_CHANGED, motionSelection.on_content_changed)
 
     # Patch sensor events
     sensors = list(filter_by_type(being.execOrder, Sensor))
@@ -151,6 +155,8 @@ def init_api(being, ws: WebSocket) -> web.Application:
         motor.subscribe(MotorEvent.STATE_CHANGED, ws_emit(motor))
         motor.subscribe(MotorEvent.HOMING_CHANGED, ws_emit(motor))
         motor.subscribe(MotorEvent.ERROR, ws_motor_error_notification(motor))
+
+    api.add_routes(params_controller(being.params))
 
     wire_being_loggers_to_web_socket(ws)
 
@@ -202,6 +208,7 @@ def init_web_server(being, ws) -> web.Application:
             'behaviors': being.behaviors,
             'motionPlayers': being.motionPlayers,
             'year': which_year_is_it(),
+            'hasParams': bool(being.params),
         }
 
     app.router.add_routes(routes)

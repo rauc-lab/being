@@ -18,7 +18,8 @@ class Sensor(Block):
 
 
 class SensorGpio(Sensor):
-    def __init__(self, channel: int, edge=GPIO.RISING, pull_up_down=GPIO.PUD_DOWN, bouncetime=.01, rpi=None, name=None):
+    def __init__(self, channel: int, edge=GPIO.RISING,
+            pull_up_down=GPIO.PUD_DOWN, bouncetime=.01, rpi=None, name=None):
         """Arguments according to RPi.GPIO.
 
         Args:

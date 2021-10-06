@@ -8,7 +8,7 @@ from canopen.emcy import EmcyError
 
 from being.bitmagic import clear_bit, set_bit
 from being.can.cia_402 import CiA402Node, HOMING_METHOD, OperationMode, State
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.constants import FORWARD
 from being.logging import get_logger
 from being.math import clip

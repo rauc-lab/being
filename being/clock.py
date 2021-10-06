@@ -1,4 +1,4 @@
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.utils import SingleInstanceCache
 
 

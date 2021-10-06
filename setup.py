@@ -54,6 +54,9 @@ setup(
         'aiohttp-jinja2',
         #'RPi.GPIO',  # Needed on Rpi. We do not include it here that being can run on normal computers...
         #'PyAudio',  # Optional. Not needed right now
+        'ruamel.yaml',
+        'tomlkit',
+        'configobj',
     ],
     keywords='Poetic animatronics robotic framework',
     long_description=longDescription,

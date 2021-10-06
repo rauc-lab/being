@@ -3,7 +3,7 @@ import contextlib
 import threading
 
 from being.backends import CanBackend
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.logging import get_logger
 
 

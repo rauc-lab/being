@@ -25,6 +25,21 @@ import { create_button } from "/static/js/button.js";
 }
 
 
+/**
+ * Append CSS link node to target.
+ *
+ * @param {*} href Href link.
+ * @param {*} target Target element to append link to.
+ */
+export function append_link_to(href, target) {
+    const link = document.createElement("link");
+    link.setAttribute("href", href);
+    link.setAttribute("type", "text/css");
+    link.setAttribute("rel", "stylesheet");
+    target.appendChild(link);
+}
+
+
 export class Widget extends HTMLElement {
     constructor() {
         super();
@@ -38,16 +53,21 @@ export class Widget extends HTMLElement {
     }
 
     /**
+     * Append HTML template to shadow root.
+     *
+     * @param {HTMLElement} template to add.
+     */
+     append_template(template) {
+        append_template_to(template, this.shadowRoot);
+    }
+
+    /**
      * Add CSS stylesheet link to shadowroot.
      *
      * @param {String} href Path to CSS stylesheet.
      */
     _append_link(href) {
-        const link = document.createElement("link");
-        this.shadowRoot.appendChild(link);
-        link.setAttribute("href", href);
-        link.setAttribute("type", "text/css");
-        link.setAttribute("rel", "stylesheet");
+        append_link_to(href, this.shadowRoot);
     }
 
     /**
@@ -97,15 +117,6 @@ export class Widget extends HTMLElement {
         //this.toolbar.appendChild(container);
         this.toolbar.appendChild(select);
         return select;
-    }
-
-    /**
-     * Append HTML template to shadow root.
-     *
-     * @param {HTMLElement} template to add.
-     */
-    append_template(template) {
-        append_template_to(template, this.shadowRoot);
     }
 }
 

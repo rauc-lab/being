@@ -63,9 +63,35 @@ def write_file(filepath: str, data):
         file.write(data)
 
 
-def any_item(iterable):
-    """Pick first element of iterable."""
-    return next(iter(iterable))
+def update_dict_recursively(dct: dict, other: dict, default_factory: type = None) -> dict:
+    """Update dictionary recursively.
+
+    Args:
+        dct: Dictionary to update.
+        other: Other dict to go through.
+
+    Kwargs:
+        default_factory: Default factory for intermediate dicts.
+    """
+    if default_factory is None:
+        default_factory = type(dct)
+
+    for k, v in other.items():
+        if isinstance(v, collections.abc.Mapping):
+            dct[k] = update_dict_recursively(dct.get(k, default_factory()), v)
+        else:
+            dct[k] = v
+
+    return dct
+
+
+def merge_dicts(first: dict, *others) -> dict:
+    """Merge dict together. Pre Python 3.5 compatible."""
+    merged = first.copy()
+    for dct in others:
+        merged.update(dct)
+
+    return merged
 
 
 class SingleInstanceCache:
@@ -146,15 +172,101 @@ class IdAware:
         return self
 
 
-def merge_dicts(first: dict, *others) -> dict:
-    """Merge dict together. Pre Python 3.5 compatible."""
-    merged = first.copy()
-    for dct in others:
-        merged.update(dct)
+class NestedDict(collections.abc.MutableMapping):
 
-    return merged
+    """Nested dict.
+    Tuples as key path for accessing nested dicts within.
+    Similar to defaultdict but NestedDict wraps an existing dict-like object
+    within.
+    """
+
+    # To key error, or not to key error, that is the question. Kind of pointless
+    # to have a NestedDict when setting a new nested value always leads to key
+    # errors? Also then setdefault works as expected.
+
+    def __init__(self, data=None, default_factory=dict):
+        """Kwargs:
+            iterable: Initial data.
+            default_factory: Default factory for intermediate dicts.
+        """
+        if data is None:
+            data = default_factory()
+
+        self.data = data
+        self.default_factory = default_factory
+
+    @staticmethod
+    def _as_keys(key) -> tuple:
+        """Assure tuple key path."""
+        if isinstance(key, tuple):
+            return key
+
+        return (key,)
+
+    def __setitem__(self, key, value):
+        d = self.data
+        *path, last = self._as_keys(key)
+        for k in path:
+            #d = d[k]
+            d = d.setdefault(k, self.default_factory())
+
+        d[last] = value
+
+    def __getitem__(self, key):
+        d = self.data
+        for k in self._as_keys(key):
+            #d = d[k]
+            d = d.setdefault(k, self.default_factory())
+
+        return d
+
+    def __delitem__(self, key):
+        d = self.data
+        *path, last = self._as_keys(key)
+        for k in path:
+            d = d[k]
+
+        del d[last]
+
+    def __iter__(self):
+        return iter(self.data)
+
+    def __len__(self):
+        return len(self.data)
+
+    def __repr__(self):
+        return f'{type(self).__name__}({self.data!r})'
+
+    def get(self, key, default=None):
+        d = self.data
+        for k in self._as_keys(key):
+            if k not in d:
+                return default
+
+            d = d[k]
+
+        return d
+
+    def setdefault(self, key, default=None):
+        d = self.data
+        *path, last = self._as_keys(key)
+        for k in path:
+            d = d.setdefault(k, self.default_factory())
+
+        return d.setdefault(last, default)
 
 
 def toss_coin(probability: float = .5) -> bool:
     """Toss a coin."""
     return random.random() < probability
+
+
+def unique(iterable):
+    """Iterate over unique elements while preserving order."""
+    seen = set()
+    for item in iterable:
+        if item in seen:
+            continue
+
+        seen.add(item)
+        yield item

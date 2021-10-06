@@ -6,7 +6,7 @@ from being.behavior import Behavior
 from being.block import Block
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.clock import Clock
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.connectables import ValueOutput, MessageOutput
 from being.execution import execute, block_network_graph
 from being.graph import topological_sort
@@ -15,6 +15,7 @@ from being.motion_player import MotionPlayer
 from being.motors.blocks import MotorBlock
 from being.motors.homing import HomingState
 from being.pacemaker import Pacemaker
+from being.params import Parameter
 from being.utils import filter_by_type
 
 
@@ -69,6 +70,7 @@ class Being:
         self.behaviors = list(filter_by_type(self.execOrder, Behavior))
         self.motionPlayers = list(filter_by_type(self.execOrder, MotionPlayer))
         self.motors = list(filter_by_type(self.execOrder, MotorBlock))
+        self.params = list(filter_by_type(self.execOrder, Parameter))
 
     def enable_motors(self):
         """Enable all motor blocks."""

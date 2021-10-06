@@ -3,7 +3,7 @@ import os
 import glob
 from typing import List, Generator
 
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.logging import get_logger
 from being.pubsub import PubSub
 from being.serialization import loads, dumps
@@ -28,6 +28,7 @@ class Content(PubSub, SingleInstanceCache):
     # TODO: Hoist IO!
     # TODO: Inversion of control (IoC)
     # TODO: Extend for all kind of files, subfolders.
+    # TODO: NestedDict?
 
     def __init__(self, directory: str = DEFAULT_DIRECTORY):
         super().__init__(events=[CONTENT_CHANGED])

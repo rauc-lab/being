@@ -208,6 +208,8 @@ class Block:
         if name:
             setattr(self, name, input_)
 
+        return input_
+
     def add_message_input(self, name: Optional[str] = None):
         """Add new message input to block.
 
@@ -218,6 +220,8 @@ class Block:
         self.inputs.append(input_)
         if name:
             setattr(self, name, input_)
+
+        return input_
 
     def add_value_output(self, name: Optional[str] = None):
         """Add new value output to block.
@@ -230,6 +234,8 @@ class Block:
         if name:
             setattr(self, name, output)
 
+        return output
+
     def add_message_output(self, name: Optional[str] = None):
         """Add new message output to block.
 
@@ -240,6 +246,8 @@ class Block:
         self.outputs.append(output)
         if name:
             setattr(self, name, output)
+
+        return output
 
     def update(self):
         """Block's update / run / tick method."""

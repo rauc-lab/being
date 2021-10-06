@@ -7,7 +7,7 @@ import time
 from being.backends import AudioBackend
 from being.block import Block
 from being.clock import Clock
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.constants import TAU
 from being.math import linear_mapping
 from being.resources import register_resource

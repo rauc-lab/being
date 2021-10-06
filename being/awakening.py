@@ -10,7 +10,7 @@ from being.backends import CanBackend
 from being.being import Being
 from being.block import Block
 from being.clock import Clock
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.connectables import MessageInput
 from being.logging import get_logger
 from being.pacemaker import Pacemaker

@@ -9,6 +9,10 @@ import { switch_button_on, switch_button_off, is_checked } from "/static/js/butt
 import { isclose } from "/static/js/math.js";
 
 
+import {API} from "/static/js/config.js";
+import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js/fetching.js";
+
+
 /** Control panel widget template. */
 const CONTROL_PANEL_TEMPLATE = `
 <div class="container">
@@ -41,6 +45,7 @@ export class ControlPanel extends Widget {
         this._append_link("static/components/control_panel/control_panel.css");
         this.append_template(CONTROL_PANEL_TEMPLATE);
         this.svg = this.shadowRoot.getElementById("svg");
+        this.parametersContainer = this.shadowRoot.getElementById("parameters");
 
         // Toolbar
         this.powerBtn = this.add_button_to_toolbar("power_settings_new", "Turn motors on / off");

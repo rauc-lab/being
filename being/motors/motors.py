@@ -5,7 +5,7 @@ from typing import NamedTuple
 from fractions import Fraction
 
 from being.constants import TAU, INF, MICRO, MILLI
-from being.config import CONFIG
+from being.configuration import CONFIG
 from being.motors.vendor import (
     MAXON_FOLLOWING_ERROR_WINDOW_DISABLED,
     MAXON_INPUT_LOW_ACTIVE,
