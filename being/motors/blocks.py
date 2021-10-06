@@ -21,7 +21,7 @@ from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
 from being.math import ArchimedeanSpiral
 from being.motors.controllers import Controller, Mclm3002, Epos4
-from being.motors.definitions import MotorState, MotorEvent, MotorInterface
+from being.motors.definitions import MotorState, MotorEvent, MotorInterface, PositionProfile
 from being.motors.homing import DummyHoming, HomingState
 from being.motors.motors import get_motor, Motor
 from being.resources import register_resource
@@ -418,6 +418,10 @@ class WindupMotor(CanMotor):
 
     def update(self):
         self.controller.update()
+        for profile in self.positionProfile.receive():
+            adjustedPos = np.interp(profile.position, self.positions, self.angles)
+            adjustedProfile = PositionProfile(adjustedPos, acceleration=profile.acceleration)
+            self.controller.play_position_profile(adjustedProfile)
         pos = np.interp(self.targetPosition.value, self.positions, self.angles)
         self.controller.set_target_position(pos)
         actual = np.interp(self.controller.get_actual_position(), self.angles, self.positions)
