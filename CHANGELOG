@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.5] - 2021-10-07
+
+### Changed
+- Being CONFIG instance now resides in module being.configuration (being.config -> being.configuration)
+- Block value and message connection helper methods return created inputs /
+  outputs for concatenation
+
+### Added
+- Config / ConfigFile implementations for TOML, YAML, JSON and INI formats
+- Parameter blocks: Slider, SingleSelection, MultiSelection and
+  MotionSelection. With UI integration
+- NestedDict mutable mapping
+
 ## [0.2.4] - 2021-09-16
 
 ### Added
