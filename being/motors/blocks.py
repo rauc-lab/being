@@ -418,6 +418,10 @@ class WindupMotor(CanMotor):
 
     def update(self):
         self.controller.update()
+        for profile in self.positionProfile.receive():
+            adjustedPos = np.interp(profile.position, self.positions, self.angles)
+            adjustedProfile = profile._replace(position=adjustedPos)
+            self.controller.play_position_profile(adjustedProfile)
         pos = np.interp(self.targetPosition.value, self.positions, self.angles)
         self.controller.set_target_position(pos)
         actual = np.interp(self.controller.get_actual_position(), self.angles, self.positions)

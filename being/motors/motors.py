@@ -83,9 +83,12 @@ FAULHABER_DEFAULT_SETTINGS = {
 
 
 MAXON_EC_45_DEFAULT_SETTINGS = {
-    'Store parameters': 0,
     'Motor type': MaxonMotorType.SINUSOIDAL_PM_BL_MOTOR,
     'Motor data/Number of pole pairs': 8,
+    'Axis configuration/Sensors configuration': MaxonSensorsConfiguration().to_int(),
+    'Axis configuration/Control structure': MaxonControlStructure().to_int(),
+    'Axis configuration/Commutation sensors': 0x31,
+    'Store parameters': 0,
     'Digital incremental encoder 1/Digital incremental encoder 1 number of pulses': 2048,
     'Digital incremental encoder 1/Digital incremental encoder 1 type': 0,
     'Interpolation time period/Interpolation time period value': INTERVAL / MILLI,
