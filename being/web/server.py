@@ -182,18 +182,19 @@ def init_web_server(being, ws) -> web.Application:
     aiohttp_jinja2.setup(app, loader=jinja2.PackageLoader('being.web', 'templates'))
 
     # Web socket
-    app.router.add_get(WEB_SOCKET_ADDRESS, ws.handle_web_socket)
-    app.on_shutdown.append(ws.close_all)
+    app.router.add_get(WEB_SOCKET_ADDRESS, ws.handle_new_connection)
+
+    # Signals
+    app.on_startup.append(ws.start_broker)
+    app.on_shutdown.append(ws.stop_broker)
+    app.on_shutdown.append(ws.close_all_connections)
 
     # Static directory
     here = os.path.dirname(os.path.abspath(__file__))
     staticDir = os.path.join(here, 'static')
     app.router.add_static(prefix='/static', path=staticDir, show_index=True)
 
-    # API up api
-    api = init_api(being, ws)
-    app.add_subapp(API_PREFIX, api)
-
+    # Routes
     routes = web.RouteTableDef()
 
     @routes.get('/favicon.ico')
@@ -212,6 +213,11 @@ def init_web_server(being, ws) -> web.Application:
         }
 
     app.router.add_routes(routes)
+
+    # API
+    api = init_api(being, ws)
+    app.add_subapp(API_PREFIX, api)
+
     return app
 
 
@@ -221,7 +227,8 @@ async def run_web_server(app: web.Application):
     Args:
         app (?): Aiohttp web application.
     """
-    runner = web.AppRunner(app)
+    print('Create runner')
+    runner = web.AppRunner(app, handle_signals=True)
     LOGGER.info('Setting up runner')
     await runner.setup()
     site = web.TCPSite(
@@ -232,5 +239,8 @@ async def run_web_server(app: web.Application):
     LOGGER.info(f'Starting site at:\n{site.name}')
     await site.start()
 
-    while True:
-        await asyncio.sleep(3600)  # sleep forever
+    try:
+        while True:
+            await asyncio.sleep(3600)  # sleep forever
+    finally:
+        await runner.cleanup()

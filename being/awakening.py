@@ -107,18 +107,12 @@ async def _run_being_with_web_server(being):
     Args:
         being: Being instance.
     """
-    if os.name == 'posix':
-        loop = asyncio.get_running_loop()
-        loop.add_signal_handler(signal.SIGTERM, _exit_signal_handler)
-
     ws = WebSocket()
     app = init_web_server(being, ws)
-
     await asyncio.gather(
         _run_being_async(being),
         _send_being_state_to_front_end(being, ws),
         run_web_server(app),
-        ws.run_broker(),
     )
 
 
