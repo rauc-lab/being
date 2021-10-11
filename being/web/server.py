@@ -227,7 +227,6 @@ async def run_web_server(app: web.Application):
     Args:
         app (?): Aiohttp web application.
     """
-    print('Create runner')
     runner = web.AppRunner(app, handle_signals=True)
     LOGGER.info('Setting up runner')
     await runner.setup()
