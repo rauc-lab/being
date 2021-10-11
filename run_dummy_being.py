@@ -17,12 +17,13 @@ from being.sensors import Sensor
 
 with manage_resources():
     sensor = DummySensor()
-    behavior = Behavior.from_config('behavior.json')
-    sensor | behavior
+    behavior = Behavior.from_config('dummy_behavior.json')
 
     head = MotionPlayer(ndim=1, name='Head')
-    head.positionOutputs[0].connect(DummyMotor(name='Head Motor').input)
+    head.positionOutputs[0].connect(DummyMotor(name='Neck').input)
+
     arm = MotionPlayer(ndim=2, name='Arm')
     arm.positionOutputs[0].connect(DummyMotor(name='Elbow').input)
     arm.positionOutputs[1].connect(DummyMotor(name='Wrist').input)
-    awake(head, arm)
+
+    awake(sensor | behavior | arm, head)
