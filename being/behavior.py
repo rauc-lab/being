@@ -81,7 +81,7 @@ class Behavior(Block, PubSub):
             content = Content.single_instance_setdefault()
 
         if name is None:
-            name = 'Motor %d' % next(self.FREE_NUMBERS)
+            name = 'Behavior %d' % next(self.FREE_NUMBERS)
 
         super().__init__(name=name)
         PubSub.__init__(self, events=[BEHAVIOR_CHANGED])
