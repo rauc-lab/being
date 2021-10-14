@@ -11,6 +11,7 @@ import warnings
 from being.block import Block, output_neighbors
 from being.clock import Clock
 from being.content import Content
+from being.constants import INF
 from being.logging import get_logger
 from being.motion_player import MotionPlayer, MotionCommand
 from being.pubsub import PubSub
@@ -94,9 +95,9 @@ class Behavior(Block, PubSub):
 
         self.active = True
         self.state = State.STATE_I
-        self.lastChanged = 0.0
+        self.lastChanged = -INF
         self.lastPlayed = ''
-        self.playingUntil = 0.0
+        self.playingUntil = -INF
 
         self.filepath = ''
         self.logger = get_logger(self.name)
