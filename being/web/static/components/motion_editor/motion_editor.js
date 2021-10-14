@@ -99,7 +99,6 @@ export class Editor extends CurverBase {
         this.motorSelector = new MotorSelector(this, this.motionPlayerSelect, this.channelSelect);
 
         this.recordedTrajectory = [];
-        this.motors = [];
     }
 
     async connectedCallback() {
@@ -108,8 +107,9 @@ export class Editor extends CurverBase {
         const config = await this.api.get_config();
         this.interval = config["Web"]["INTERVAL"];
 
-        const motionPlayers = await this.api.get_motion_player_infos();
-        this.motorSelector.populate(motionPlayers);
+        const blocks = await this.api.get_blocks();
+        this.motorSelector.populate(blocks);
+
         const motionPlayer = this.motorSelector.selected_motion_player();
 
         this.motors = await this.api.get_motor_infos();
@@ -671,7 +671,7 @@ export class Editor extends CurverBase {
         this.drawer.clear();
         {
             const interactive = true;
-            const dim = this.motorSelector.selected_channel();
+            const dim = this.motorSelector.selected_motor_channel();
             this.drawer.draw_spline(current, interactive, dim);
         }
         this.update_ui();
@@ -687,7 +687,7 @@ export class Editor extends CurverBase {
         this.lines.forEach(line => line.data.clear());
         if ((position !== null) && is_checked(this.livePreviewBtn)) {
             const motionPlayer = this.motorSelector.selected_motion_player();
-            const channel = this.motorSelector.selected_channel();
+            const channel = this.motorSelector.selected_motor_channel();
             const [x, y] = position;
             this.transport.position = x;
             this.transport.draw_cursor();
@@ -870,11 +870,12 @@ export class Editor extends CurverBase {
             this.update_ui();
         }
 
-        const motionPlayer = this.motorSelector.selected_motion_player();
+        const outputIndices = this.motorSelector.selected_value_output_indices();
+
         if (this.transport.paused) {
             this.lines.forEach(line => line.data.popleft());
         } else {
-            motionPlayer.actualValueIndices.forEach((idx, nr) => {
+            outputIndices.forEach((idx, nr) => {
                 const actualValue = msg.values[idx];
                 this.lines[nr].append_data([t, actualValue]);
             });
@@ -882,7 +883,7 @@ export class Editor extends CurverBase {
 
         if (this.transport.recording) {
             const vals = [];
-            motionPlayer.actualValueIndices.forEach(i => {
+            outputIndices.forEach(i => {
                 vals.push(msg.values[i]);
             });
             this.recordedTrajectory.push([t].concat(vals));

@@ -22,69 +22,88 @@ function dont_display_select_when_no_options(select) {
 
 
 export class MotorSelector {
-    constructor(editor, mpSelect, channelSelect) {
+    constructor(editor, motionPlayerSelect, motorSelect) {
         this.editor = editor;
-        this.mpSelect = mpSelect;
-        this.channelSelect = channelSelect;
+        this.motionPlayerSelect = motionPlayerSelect;
+        this.motorSelect = motorSelect;
         this.api = new Api();
 
+        this.blocks = {};
         this.motionPlayers = [];
+        this.actualValueIndices = [];
 
-        this.mpSelect.addEventListener("change", () => {
-            this.update_channel_select();
+        this.motionPlayerSelect.addEventListener("change", () => {
+            this.update_motor_select();
             this.editor.update_default_bbox();
         });
-        this.channelSelect.addEventListener("change", () => {
+        this.motorSelect.addEventListener("change", () => {
             this.editor.draw_current_spline();
         });
     }
 
     /**
-     * Disable UI components.
+     * Disable UI components. Analog to buttons.
      */
     set disabled(value) {
-        this.mpSelect.disabled = value;
-        this.channelSelect.disabled = value;
+        this.motionPlayerSelect.disabled = value;
+        this.motorSelect.disabled = value;
     }
 
     /**
      * Update UI elements.
      */
-    update_channel_select() {
-        remove_all_children(this.channelSelect);
+    update_motor_select() {
         const motionPlayer = this.selected_motion_player();
-        arange(motionPlayer.ndim).forEach(dim => {
-            add_option(this.channelSelect, "Curve " + (dim + 1));
+        remove_all_children(this.motorSelect);
+        motionPlayer.outputNeighbors.forEach(id => {
+            const motor = this.blocks[id];
+            add_option(this.motorSelect, motor.name);
         });
-        dont_display_select_when_no_options(this.channelSelect);
+
+        //dont_display_select_when_no_options(this.motorSelect);
         this.editor.init_plotting_lines(motionPlayer.ndim);
     }
 
     /**
-     * Populate select with the currently available motors.
+     * Populate MotorSelector with available motion players / motors. All being
+     * blocks provided for motor lookup.
      * 
-     * @param {Array} motors List of motor info objects.
+     * @param {object} All being blocks. id -> block lookup dictionary.
      */
-    async populate(motionPlayers) {
-        this.motionPlayers = motionPlayers;
-        remove_all_children(this.mpSelect);
-        this.motionPlayers.forEach(async (mp, nr) => {
-            add_option(this.mpSelect, "Motor" + (nr + 1));  // TODO: This is a lie. It's a "Motion Player"
+    async populate(blocks) {
+        this.blocks = blocks;
 
-            // TODO: Bit hacky. Find indices of the actual position value
-            // outputs of the connected motors.
-            mp.actualValueIndices = [];
+        // Filter motion players
+        const motionPlayers = [];
+        for (const [id, block] of Object.entries(blocks)) {
+            if (block.blockType === "MotionPlayer") {
+                motionPlayers.push(block);
+            }
+        }
+        this.motionPlayers = motionPlayers;
+
+        // Lookup indices of actual value outputs for each motion player and its motors
+        this.actualValueIndices = [];
+        this.motionPlayers.forEach(async mp => {
+            const idx = [];
             mp.motors.forEach(async motor => {
                 const outs = await this.api.get_index_of_value_outputs(motor.id);
-                outs.forEach(out => {
-                    mp.actualValueIndices.push(out);
-                });
+                idx.push(...outs);
             });
-
+            this.actualValueIndices.push(idx);
         });
 
-        dont_display_select_when_no_options(this.mpSelect);
-        this.update_channel_select();
+        // Motion player select
+        remove_all_children(this.motionPlayerSelect);
+        this.motionPlayers.forEach(async mp => {
+            add_option(this.motionPlayerSelect, mp.name);
+        });
+
+        dont_display_select_when_no_options(this.motionPlayerSelect);
+
+        // Motor select
+        this.update_motor_select();
+
     }
 
     /**
@@ -93,7 +112,7 @@ export class MotorSelector {
      * @returns {object} Motor info dictionary.
      */
     selected_motion_player() {
-        return this.motionPlayers[this.mpSelect.selectedIndex];
+        return this.motionPlayers[this.motionPlayerSelect.selectedIndex];
     }
 
     /**
@@ -101,7 +120,18 @@ export class MotorSelector {
      *
      * @returns {Number} Index of currently selected motion channel.
      */
-    selected_channel() {
-        return this.channelSelect.selectedIndex;
+    selected_motor_channel() {
+        return this.motorSelect.selectedIndex;
+    }
+
+    /**
+     * Get ValueOutput indices for currently selected motion player. Can be
+     * used to lookup the actual output values of the currently selected motors
+     * inside the being messages.
+     *
+     * @returns {Array} Indices of actual value outputs of currently selected motors.
+     */
+    selected_value_output_indices() {
+        return this.actualValueIndices[this.motionPlayerSelect.selectedIndex];
     }
 }
