@@ -57,7 +57,7 @@ export class Widget extends HTMLElement {
      *
      * @param {HTMLElement} template to add.
      */
-     append_template(template) {
+    append_template(template) {
         append_template_to(template, this.shadowRoot);
     }
 
