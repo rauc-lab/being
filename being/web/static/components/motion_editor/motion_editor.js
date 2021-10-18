@@ -96,23 +96,28 @@ export class Editor extends CurverBase {
         this.channelSelect = null;
         this.setup_toolbar_elements();
 
-        this.motorSelector = new MotorSelector(this, this.motionPlayerSelect, this.channelSelect);
+        this.motorSelector = new MotorSelector(this.motionPlayerSelect, this.channelSelect);
 
         this.recordedTrajectory = [];
     }
 
     async connectedCallback() {
-        super.connectedCallback();
+        //super.connectedCallback();
+        addEventListener("resize", () => this.resize());
 
         const config = await this.api.get_config();
         this.interval = config["Web"]["INTERVAL"];
+        const motionPlayers = await this.api.get_motion_player_infos();
+        motionPlayers.forEach(mp => {
+            this.init_plotting_lines(mp.ndim);
+        })
 
-        const blocks = await this.api.get_blocks();
-        this.motorSelector.populate(blocks);
+        await this.motorSelector.init();
+        this.motorSelector.addEventListener("change", () => {
+            this.update_default_bbox();
+            this.draw_current_spline();
+        })
 
-        const motionPlayer = this.motorSelector.selected_motion_player();
-
-        this.motors = await this.api.get_motor_infos();
         this.update_default_bbox();
 
         this.motionList.reload_spline_list();
@@ -165,10 +170,12 @@ export class Editor extends CurverBase {
      */
     update_default_bbox() {
         this.defaultBbox = new BBox([0., 0.], [1., 0.]);
-        const motionPlayer = this.motorSelector.selected_motion_player();
-        motionPlayer.motors.forEach(motor => {
-            this.defaultBbox.expand_by_point([0., motor.length]);
-        });
+        if (this.motorSelector.is_motion_player_selected()) {
+            const motionPlayer = this.motorSelector.selected_motion_player();
+            motionPlayer.motors.forEach(motor => {
+                this.defaultBbox.expand_by_point([0., motor.length]);
+            });
+        }
     }
 
     resize() {
@@ -611,7 +618,7 @@ export class Editor extends CurverBase {
                 this.motorSelector.disabled = true;
                 break;
             default:
-                throw "Ooops, something went wrong with the FSM!";
+                throw "Ooops, something went wrong with the transport FSM!";
         }
 
         if (this.transport.looping) {
@@ -627,7 +634,7 @@ export class Editor extends CurverBase {
      * @returns {BBox} Boundaries bounding box
      */
     limits() {
-        if (is_checked(this.limitBtn)) {
+        if (is_checked(this.limitBtn) && this.motorSelector.is_motion_player_selected()) {
             const bbox = new BBox([0, 0], [Infinity, 0.001]);
             const motionPlayer = this.motorSelector.selected_motion_player();
             motionPlayer.motors.forEach(motor => {
@@ -871,7 +878,6 @@ export class Editor extends CurverBase {
         }
 
         const outputIndices = this.motorSelector.selected_value_output_indices();
-
         if (this.transport.paused) {
             this.lines.forEach(line => line.data.popleft());
         } else {
@@ -879,6 +885,7 @@ export class Editor extends CurverBase {
                 const actualValue = msg.values[idx];
                 this.lines[nr].append_data([t, actualValue]);
             });
+            this.draw_lines();
         }
 
         if (this.transport.recording) {
