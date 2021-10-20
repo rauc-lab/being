@@ -198,3 +198,26 @@ export function defaultdict(default_factory) {
 export function sleep(duration) {
     return new Promise(resolve => setTimeout(resolve, 1000 * duration));
 }
+
+
+/**
+ * Rename map entry to a new key.
+ */
+ export function rename_map_key(map, oldKey, newKey) {
+    if (map.has(oldKey)) {
+        map.set(newKey, map.get(oldKey));
+        map.delete(oldKey);
+    }
+}
+
+
+/**
+ * Find key for a value inside a map.
+ */
+ export function find_map_key_for_value(map, value) {
+    for (const [k, v] of map.entries()) {
+        if (v === value) {
+            return k;
+        }
+    }
+}
