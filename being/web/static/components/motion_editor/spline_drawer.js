@@ -10,10 +10,6 @@ import { create_element, path_d, setattr } from "/static/js/svg.js";
 import { assert, arrays_equal, clear_array } from "/static/js/utils.js";
 
 
-/** @const {number} - Precision for floating label numbers */
-const PRECISION = 3;
-
-
 /**
  * Try to snap value to array of grid values. Return value as if not close
  * enough to grid. Exclude value itself as grid line candidate.
@@ -43,12 +39,12 @@ function snap_to_value(value, grid, threshold=.001) {
 /**
  * Nice float formatting with max precision and "0" for small numbers.
  */
-function format_number(number, smallest=1e-10) {
+function format_number(number, precision=3, smallest=1e-10) {
     if (Math.abs(number) < smallest) {
         return "0";
     }
 
-    return number.toPrecision(PRECISION);
+    return number.toPrecision(precision);
 }
 
 
@@ -226,7 +222,7 @@ export class SplineDrawer {
      * line.
      *
      * @param {function} data_source Callable data source which spits out the
-         * current start and end point of the line.
+     * current start and end point of the line.
      * @param {Number} strokeWidth Stroke width of line.
      * @param {String} color Color string.
      * @returns SVG line instance.
@@ -251,7 +247,7 @@ export class SplineDrawer {
     }
 
     /**
-     * Draw spline path / curve. This is non-interative.
+     * Draw spline path / curve. This is non-interactive.
      *
      * @param {BPoly} spline Spline to draw curve / path.
      * @param {Number} lw Line width.
