@@ -35,10 +35,10 @@ class WebSocket:
             data: Data to send as JSON.
         """
         for ws in self.sockets.copy():
-            if ws.closed:
-                continue
-
-            await ws.send_json(data, dumps=dumps)
+            try:
+                await ws.send_json(data, dumps=dumps)
+            except ConnectionResetError as err:
+                self.logger.exception(err)
 
     def send_json_buffered(self, data):
         """Synchronous send_json(). Data goes into buffered and send at a later
