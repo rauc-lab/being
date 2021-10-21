@@ -13,6 +13,7 @@ import {clip} from "/static/js/math.js";
 export const NOTHING_SELECTED = -1;
 
 
+
 /**
  * Do not show select when there is only 1x option.
  *
@@ -36,8 +37,8 @@ export class MotorSelector {
         this.motorSelect = motorSelect;
         this.motionPlayers = [];
         this.actualValueIndices = [];
-
         this.listeners = defaultdict(Array);
+
         this.motionPlayerSelect.addEventListener("change", () => {
             this.update_motor_select();
             this.emit_change();
@@ -78,6 +79,27 @@ export class MotorSelector {
         dont_display_select_when_no_options(this.motionPlayerSelect);
         this.update_motor_select();
     }
+
+    select_motion_player(motionPlayer) {
+        console.log("select_motion_player()", motionPlayer);
+        const idx = this.motionPlayers.findIndex(mp => mp.id === motionPlayer.id);
+        if (idx === NOTHING_SELECTED) {
+            console.log("Did not find motionPlayer with id", motionPlayer.id);
+        } else {
+            this.motionPlayerSelect.selectedIndex = idx;
+            this.update_motor_select();
+        }
+    }
+
+    select_channel(channel) {
+        console.log("select_channel()", motionPlayer);
+        if (this.is_motion_player_selected()) {
+            const mp = this.selected_motion_player();
+            channel = clip(channel, 0, mp.ndim - 1);
+            this.motorSelect.selectedIndex = channel;
+        }
+    }
+
 
     /**
      * Is any motion player selected? Do we get valid data from
@@ -136,7 +158,7 @@ export class MotorSelector {
         mp.motors.forEach(motor => {
             add_option(this.motorSelect, motor.name);
         });
-        this.motorSelect.selectedIndex = clip(selectedIndex, 0, mp.motors.size - 1);
+        this.motorSelect.selectedIndex = clip(selectedIndex, 0, mp.ndim - 1);
         dont_display_select_when_no_options(this.motorSelect);
     }
 }

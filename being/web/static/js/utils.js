@@ -221,3 +221,15 @@ export function sleep(duration) {
         }
     }
 }
+
+
+/**
+ * Insert HTML node after an existing node (needs to have a parentNode!).
+ * 
+ * @param {HTMLElement} newNode New node to insert.
+ * @param {HTMLElement} referenceNode Reference node.
+ * @returns {HTMLElement} Inserted HTML node.
+ */
+ export function insert_after(newNode, referenceNode) {
+    return referenceNode.parentNode.insertBefore(newNode, referenceNode);
+}

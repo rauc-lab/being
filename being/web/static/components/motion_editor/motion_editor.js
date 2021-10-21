@@ -10,10 +10,11 @@ import {make_draggable} from "/static/js/draggable.js";
 import {History} from "/static/js/history.js";
 import {clip} from "/static/js/math.js";
 import {COEFFICIENTS_DEPTH, zero_spline, BPoly} from "/static/js/spline.js";
-import {clear_array} from "/static/js/utils.js";
+import {clear_array, insert_after} from "/static/js/utils.js";
 import {CurverBase} from "/static/components/motion_editor/curver.js";
 import {Line} from "/static/components/motion_editor/line.js";
 import {MotionList} from "/static/components/motion_editor/motion_list.js";
+import {CurveList} from "/static/components/motion_editor/curve_list.js";
 import {MotorSelector} from "/static/components/motion_editor/motor_selector.js";
 import {SplineDrawer} from "/static/components/motion_editor/spline_drawer.js";
 import {PAUSED, PLAYING, RECORDING, Transport} from "/static/components/motion_editor/transport.js";
@@ -73,6 +74,7 @@ function shift_spline(spline, offset) {
 }
 
 
+
 /**
  * Motion editor.
  *
@@ -99,6 +101,24 @@ export class Editor extends CurverBase {
         this.motorSelector = new MotorSelector(this.motionPlayerSelect, this.channelSelect);
 
         this.recordedTrajectory = [];
+
+        this.curveList = document.createElement("being-curve-list");
+        insert_after(this.curveList, this.graph);
+    }
+
+
+    /**
+     * Initialize enough plotting lines so that we can plot the "largest"
+     * ndim motion player.
+     */
+    async init_enough_plotting_lines() {
+        const motionPlayers = await this.api.get_motion_player_infos();
+        const maxDims = Math.max(...motionPlayers.map(mp => mp.ndim))
+        for (let channel = 0; channel < maxDims; channel++) {
+            const color = this.colorPicker.next();
+            this.lines.push(new Line(this, color, this.maxlen));
+        }
+        console.log('Motion Editor has now', this.lines.length, "lines");
     }
 
     async connectedCallback() {
@@ -107,16 +127,58 @@ export class Editor extends CurverBase {
 
         const config = await this.api.get_config();
         this.interval = config["Web"]["INTERVAL"];
-        const motionPlayers = await this.api.get_motion_player_infos();
-        motionPlayers.forEach(mp => {
-            this.init_plotting_lines(mp.ndim);
-        })
+        await this.init_enough_plotting_lines();
 
+        // Motor selector
         await this.motorSelector.init();
         this.motorSelector.addEventListener("change", () => {
+            console.log("motorSelector changed");
             this.update_default_bbox();
             this.draw_current_spline();
+            const mp = this.motorSelector.selected_motion_player();
+            this.curveList.associate_motion_player_with_current_curve(mp);
         })
+
+        // Curve list
+        this.curveList.newBtn.addEventListener("click", evt => {
+            console.log("New button clicked");
+        });
+        this.curveList.deleteBtn.addEventListener("click", evt => {
+            console.log("Delete button clicked");
+        });
+        this.curveList.duplicateBtn.addEventListener("click", evt => {
+            console.log("Duplicate button clicked");
+        });
+        this.curveList.addEventListener("change", () => {
+            console.log("MotionEditor: curveList changed");
+            if (this.confirm_unsaved_changes()) {
+                const mp = this.curveList.associated_motion_player();
+                this.motorSelector.select_motion_player(mp);
+
+                // Draw foreground and background curves
+                this.drawer.clear();
+                this.backgroundDrawer.clear();
+                const selected = this.curveList.selected;
+                console.log("MotionEditor: selected curve:", selected);
+                console.log("Going through all curves");
+                for (const [name, curve] of this.curveList.curves.entries()) {
+                    if (name === selected) {
+                        console.log(name, '-> load_spline()');
+                        //this.drawer.draw_spline(curve, true);
+                        this.load_spline(curve);
+                    } else if (this.curveList.is_armed(name)) {
+                        console.log(name, '-> backgroundDrawer.draw_spline()');
+                        this.backgroundDrawer.draw_spline(curve);
+                    }
+                }
+                this.update_default_bbox()
+                /*
+                const curve = this.curveList.curves.get(name);
+                this.draw_spline
+                console.log(name, curve);
+                */
+            }
+        });
 
         this.update_default_bbox();
 
@@ -148,7 +210,7 @@ export class Editor extends CurverBase {
     }
 
     /**
-     * C1 continuity activated?
+     * Is C1 continuity activated?
      */
     get c1() {
         return !is_checked(this.c1Btn);
@@ -161,6 +223,9 @@ export class Editor extends CurverBase {
         return is_checked(this.snapBtn);
     }
 
+    /**
+     * Register notification center.
+     */
     set_notification_center(notificationCenter) {
         this.notificationCenter = notificationCenter;
     }
@@ -178,25 +243,19 @@ export class Editor extends CurverBase {
         }
     }
 
+    /**
+     * Resize editor and redraw.
+     * TODO(atheler): To be moved to Plotter / Curver base class?
+     */
     resize() {
         super.resize();
         this.draw();
     }
 
-    /**
-     * Initialize a given number of splines.
-     *
-     * @param {Number} maxLines Maximum number of lines.
-     */
-    init_plotting_lines(maxLines = 1) {
-        while (this.lines.length < maxLines) {
-            const color = this.colorPicker.next();
-            this.lines.push(new Line(this, color, this.maxlen));
-        }
-    }
 
     /**
-     * Populate toolbar with buttons and motor selection. Wire up event listeners.
+     * Populate toolbar with buttons and motion planner / motor selections.
+     * Wire up event listeners.
      */
     setup_toolbar_elements() {
         // Toggle motion list
