@@ -11,7 +11,10 @@ export function make_editable(ele, on_change, validator=null, newLines=false) {
         validator = value => { return value; }
     }
 
-    ele.contentEditable = false;
+    ele.contentEditable = false;  // "false" prevents text syntax highlighting
+    ele.title = "Double click to edit";
+    ele.style.cursor = "text";
+    //ele.setAttribute("required", "");
     ele.addEventListener("dblclick", evt => {
         ele.contentEditable = true;
         ele.focus();
@@ -49,7 +52,8 @@ export function make_editable(ele, on_change, validator=null, newLines=false) {
                     throw "No change!";
                 }
 
-                // TODO: Swap?
+                // TODO: Swap order? But value should be changed before
+                // emitting?
                 ele.innerText = validated;
                 on_change(validated);
             }
