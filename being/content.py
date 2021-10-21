@@ -1,6 +1,7 @@
 """Content manager. Manages spline motions in content directory. Motion model."""
-import os
+import collections
 import glob
+import os
 from typing import List, Generator
 
 from being.configuration import CONFIG
@@ -140,10 +141,11 @@ class Content(PubSub, SingleInstanceCache):
         """Get dict only representation of all motions."""
         return {
             'type': 'motions',
-            'splines': {
-                name: self.load_motion(name)
-                for name in self._sorted_names()
-            }
+            'splines': collections.OrderedDict([
+                (name, self.load_motion(name))
+                for name in self._recently_modified_names()
+
+            ]),
         }
 
     def __str__(self):
