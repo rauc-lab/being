@@ -2,7 +2,6 @@
  * @module bbox Bounding box class.
  */
 import { clip } from "/static/js/math.js";
-import { deep_copy } from "/static/js/utils.js";
 
 
 /**
@@ -117,6 +116,6 @@ export class BBox {
      * Copy bounding box.
      */
     copy() {
-        return new BBox(deep_copy(this.ll), deep_copy(this.ur));
+        return new BBox([...this.ll], [...this.ur]);
     }
 }
