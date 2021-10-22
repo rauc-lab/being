@@ -55,6 +55,21 @@ export function switch_button_on(btn) {
 
 
 /**
+ * Switch button to given state.
+ * 
+ * @param {HtmlElement} btn Button to switch.
+ * @param {Boolean} state Target state.
+ */
+export function switch_button_to(btn, state) {
+    if (state) {
+        switch_button_on(btn);
+    } else {
+        switch_button_off(btn);
+    }
+}
+
+
+/**
  * Check if button has checked attribute / is turned on.
  *
  * @param {object} btn HTML button.

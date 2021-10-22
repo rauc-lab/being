@@ -4,7 +4,7 @@
 import {Api} from "/static/js/api.js";
 import {subtract_arrays, array_reshape, multiply_scalar, array_shape } from "/static/js/array.js";
 import {BBox} from "/static/js/bbox.js";
-import {toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button} from "/static/js/button.js";
+import {toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button, switch_button_to} from "/static/js/button.js";
 import {INTERVAL} from "/static/js/config.js";
 import {make_draggable} from "/static/js/draggable.js";
 import {History} from "/static/js/history.js";
@@ -626,11 +626,7 @@ export class Editor extends CurverBase {
      * / redo buttons according to history.
      */
     update_ui() {
-        if (this.motionListDiv.hasAttribute(FOLDED)) {
-            switch_button_off(this.listBtn);
-        } else {
-            switch_button_on(this.listBtn);
-        }
+        switch_button_to(this.listBtn, !this.motionListDiv.hasAttribute(FOLDED));
 
         this.saveBtn.disabled = !(this.history.length > 1);
         this.undoBtn.disabled = !this.history.undoable;
@@ -680,11 +676,7 @@ export class Editor extends CurverBase {
                 throw "Ooops, something went wrong with the transport FSM!";
         }
 
-        if (this.transport.looping) {
-            switch_button_on(this.loopBtn);
-        } else {
-            switch_button_off(this.loopBtn);
-        }
+        switch_button_to(this.loopBtn, this.transport.looping);
     }
 
     /**
