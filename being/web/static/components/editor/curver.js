@@ -87,7 +87,7 @@ export class CurverBase extends Widget {
      * Initialize DOM elements with shadow root.
      */
     init_elements() {
-        this._append_link("static/components/motion_editor/curver.css");
+        this._append_link("static/components/editor/curver.css");
         this.append_template(CURVER_TEMPLATE);
 
         this.graph = this.shadowRoot.getElementById("graph");

@@ -11,12 +11,12 @@ import {History} from "/static/js/history.js";
 import {clip} from "/static/js/math.js";
 import {COEFFICIENTS_DEPTH, zero_spline, BPoly} from "/static/js/spline.js";
 import {clear_array, insert_after} from "/static/js/utils.js";
-import {CurverBase} from "/static/components/motion_editor/curver.js";
-import {Line} from "/static/components/motion_editor/line.js";
-import { OldMotionList, CurveList } from "/static/components/motion_editor/curve_list.js";
-import {MotorSelector} from "/static/components/motion_editor/motor_selector.js";
-import {OldSplineDrawer} from "/static/components/motion_editor/drawer.js";
-import {PAUSED, PLAYING, RECORDING, Transport} from "/static/components/motion_editor/transport.js";
+import {CurverBase} from "/static/components/editor/curver.js";
+import {Line} from "/static/components/editor/line.js";
+import { OldMotionList, CurveList } from "/static/components/editor/curve_list.js";
+import {MotorSelector} from "/static/components/editor/motor_selector.js";
+import {OldSplineDrawer} from "/static/components/editor/drawer.js";
+import {PAUSED, PLAYING, RECORDING, Transport} from "/static/components/editor/transport.js";
 import { Widget, append_template_to } from "/static/js/widget.js";
 
 
@@ -84,7 +84,7 @@ export class Editor extends CurverBase {
     constructor() {
         const auto = false;
         super(auto);
-        this._append_link("static/components/motion_editor/motion_editor.css");
+        this._append_link("static/components/editor/motion_editor.css");
         this.api = new Api();
         this.history = new History();
         this.transport = new Transport(this);
