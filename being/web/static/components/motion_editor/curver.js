@@ -3,7 +3,7 @@
  */
 import { Widget } from "/static/js/widget.js";
 import { BBox } from "/static/js/bbox.js";
-import { tick_space, } from "/static/components/motion_editor/layout.js";
+import { tick_space, } from "/static/js/layout.js";
 import { divide_arrays} from "/static/js/array.js";
 import { clip } from "/static/js/math.js";
 import { cycle } from "/static/js/utils.js";

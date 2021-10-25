@@ -2,7 +2,7 @@
  *
  * Plotter widget.
  */
-import { tick_space, } from "/static/components/motion_editor/layout.js";
+import { tick_space, } from "/static/js/layout.js";
 import { array_min, array_max } from "/static/js/array.js";
 import { divide_arrays} from "/static/js/array.js";
 import { BBox } from "/static/js/bbox.js";
