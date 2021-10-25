@@ -1,12 +1,11 @@
 import { Api } from "/static/js/api.js";
 import { BPoly } from "/static/js/spline.js";
-import { create_button } from "/static/js/button.js";
 import { remove_all_children, is_valid_filename, assert, rename_map_key, find_map_key_for_value} from "/static/js/utils.js";
-import { append_link_to, append_template_to } from "/static/js/widget.js";
+import { WidgetBase } from "/static/js/widget.js";
 import { make_editable } from "/static/js/editable_text.js";
 
 
-const TEMPLATE = `
+const CURVE_LIST_TEMPLATE = `
 <style>
     :host {
         border-right: 2px solid black;
@@ -100,12 +99,11 @@ function emit_event(ele, type, bubbles=true, cancelable=true) {
 }
 
 
-export class CurveList extends HTMLElement {
+export class CurveList extends WidgetBase {
     constructor() {
         super();
-        this.attachShadow({ mode: "open" });
-        append_link_to("static/css/material_icons.css", this.shadowRoot);
-        append_template_to(TEMPLATE, this.shadowRoot);
+        this._append_link("static/css/material_icons.css");
+        this.append_template(CURVE_LIST_TEMPLATE);
         this.curveList = this.shadowRoot.getElementById("curve-list");
         this.newBtn = this.shadowRoot.getElementById("new-button");
         this.deleteBtn = this.shadowRoot.getElementById("delete-button");
@@ -156,6 +154,7 @@ export class CurveList extends HTMLElement {
         const allMotions = await api.load_motions();
         this.populate(allMotions.splines);
         this.addEventListener("contextmenu", evt => {
+            // Debug infos
             evt.preventDefault();
             console.log("CurveList current state:");
             //console.log("  curves:", this.curves);
@@ -330,5 +329,4 @@ export class CurveList extends HTMLElement {
     
 }
 
-
-customElements.define('being-curve-list', CurveList);
+customElements.define("being-curve-list", CurveList);
