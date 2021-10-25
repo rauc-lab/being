@@ -9,7 +9,7 @@ import { BBox } from "/static/js/bbox.js";
 import { Deque } from "/static/js/deque.js";
 import { clip } from "/static/js/math.js";
 import { cycle } from "/static/js/utils.js";
-import { Widget } from "/static/js/widget.js";
+import { Widget, WidgetBase, append_template_to } from "/static/js/widget.js";
 
 
 /** @const {array} - Default line colors */
@@ -25,27 +25,6 @@ const COLORS = [
     "#bcbd22",
     "#17becf",
 ];
-
-
-/** @const {String} - Plotter widget template */
-const PLOTTER_TEMPLATE = `
-<style>
-    :host {
-        display: flex;
-        flex-flow: column nowrap;
-    }
-
-    #graph {
-        flex-grow: 1;
-        overflow: hidden;
-    }
-</style>
-<div id="graph">
-    <canvas id="canvas">
-        Your browser doesn't support the HTML5 canvas tag.
-    </canvas>
-</div>
-`;
 
 
 /**
@@ -169,8 +148,34 @@ export class Line {
 }
 
 
-export class Plotter extends Widget {
+/** @const {String} - Plotter widget template */
+const PLOTTER_TEMPLATE = `
+<style>
+    :host {
+        display: flex;
+        position: relative;
+        border: 2px solid black;
+        overflow: hidden;
+    }
+
+    svg {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+    }
+</style>
+<canvas id="canvas">
+    Your browser doesn't support the HTML5 canvas tag.
+</canvas>
+<svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+`;
+
+
+export class Plotter extends WidgetBase {
     constructor(margin=50, minHeight=0.001) {
+        console.log("Plotter.constructor()");
         super()
         this.margin = margin;
         this.minViewport = new BBox([Infinity, -minHeight], [-Infinity, minHeight]);
@@ -182,8 +187,8 @@ export class Plotter extends Widget {
         this.colorPicker = cycle(COLORS);
 
         this.append_template(PLOTTER_TEMPLATE);
-        this.graph = this.shadowRoot.getElementById("graph");
         this.canvas = this.shadowRoot.getElementById("canvas");
+        this.svg = this.shadowRoot.getElementById("svg");
 
         this.ctx = this.canvas.getContext("2d");
         this.ctx.lineCap = "round";  //"butt" || "round" || "square";
@@ -197,8 +202,9 @@ export class Plotter extends Widget {
      * matrices.
      */
     resize() {
-        this.canvas.width = this.graph.clientWidth;
-        this.canvas.height = this.graph.clientHeight;
+        console.log("Plotter.resize()", [this.clientWidth, this.clientHeight]);
+        this.canvas.width = this.clientWidth;
+        this.canvas.height = this.clientHeight;
         this.update_transformation_matrices();
         this.draw();
     }
@@ -209,7 +215,7 @@ export class Plotter extends Widget {
      * @param {array} pt 2d data point.
      * @return {array} Tranformed 2d point.
      */
-     transform_point(pt) {
+    transform_point(pt) {
         const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
         return [ptHat.x, ptHat.y];
     }
@@ -394,3 +400,4 @@ export class Plotter extends Widget {
         ctx.restore();
     }
 }
+customElements.define("being-plotter", Plotter);

@@ -212,3 +212,4 @@ export class ControlPanel extends Widget {
         });
     }
 }
+customElements.define("being-control-panel", ControlPanel);

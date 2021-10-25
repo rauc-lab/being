@@ -333,3 +333,4 @@ export class Behavior extends Widget {
         this.update(behavior);
     }
 }
+customElements.define("being-behavior", Behavior);
