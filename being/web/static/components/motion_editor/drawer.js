@@ -63,7 +63,7 @@ function clip_point(pt, bbox) {
 }
 
 
-export class SplineDrawer {
+export class OldSplineDrawer {
     constructor(editor, container) {
         this.editor = editor;
         this.container = container;

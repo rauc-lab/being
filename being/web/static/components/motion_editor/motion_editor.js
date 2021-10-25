@@ -13,10 +13,9 @@ import {COEFFICIENTS_DEPTH, zero_spline, BPoly} from "/static/js/spline.js";
 import {clear_array, insert_after} from "/static/js/utils.js";
 import {CurverBase} from "/static/components/motion_editor/curver.js";
 import {Line} from "/static/components/motion_editor/line.js";
-import {MotionList} from "/static/components/motion_editor/motion_list.js";
-import {CurveList} from "/static/components/motion_editor/curve_list.js";
+import { OldMotionList, CurveList } from "/static/components/motion_editor/curve_list.js";
 import {MotorSelector} from "/static/components/motion_editor/motor_selector.js";
-import {SplineDrawer} from "/static/components/motion_editor/spline_drawer.js";
+import {OldSplineDrawer} from "/static/components/motion_editor/drawer.js";
 import {PAUSED, PLAYING, RECORDING, Transport} from "/static/components/motion_editor/transport.js";
 import { Widget, append_template_to } from "/static/js/widget.js";
 
@@ -89,9 +88,9 @@ export class Editor extends CurverBase {
         this.api = new Api();
         this.history = new History();
         this.transport = new Transport(this);
-        this.motionList = new MotionList(this);
-        this.drawer = new SplineDrawer(this, this.splineGroup);
-        this.backgroundDrawer = new SplineDrawer(this, this.backgroundGroup);
+        this.motionList = new OldMotionList(this);
+        this.drawer = new OldSplineDrawer(this, this.splineGroup);
+        this.backgroundDrawer = new OldSplineDrawer(this, this.backgroundGroup);
         this.interval = null;
         this.notificationCenter = null;
 
