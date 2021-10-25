@@ -18,7 +18,8 @@ import {CurveList} from "/static/components/motion_editor/curve_list.js";
 import {MotorSelector} from "/static/components/motion_editor/motor_selector.js";
 import {SplineDrawer} from "/static/components/motion_editor/spline_drawer.js";
 import {PAUSED, PLAYING, RECORDING, Transport} from "/static/components/motion_editor/transport.js";
-import {append_template_to} from "/static/js/widget.js";
+import { Widget, append_template_to } from "/static/js/widget.js";
+
 
 
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
@@ -955,3 +956,9 @@ export class Editor extends CurverBase {
         }
     }
 }
+
+customElements.define("being-editor", Editor);
+
+class NewEditor extends Widget {}
+
+customElements.define("being-new-editor", NewEditor);

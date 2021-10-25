@@ -384,3 +384,11 @@ export class SplineDrawer {
         this.elements.forEach(ele => ele.draw());
     }
 }
+
+
+import { Plotter } from "/static/components/plotter.js";
+
+export class CurveDrawer extends Plotter {
+};
+
+customElements.define("being-curve-drawer", CurveDrawer);
