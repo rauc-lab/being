@@ -175,7 +175,7 @@ const PLOTTER_TEMPLATE = `
 
 export class Plotter extends WidgetBase {
     constructor(margin=50, minHeight=0.001) {
-        console.log("Plotter.constructor()");
+        //console.log("Plotter.constructor()");
         super()
         this.margin = margin;
         this.minViewport = new BBox([Infinity, -minHeight], [-Infinity, minHeight]);
@@ -202,7 +202,7 @@ export class Plotter extends WidgetBase {
      * matrices.
      */
     resize() {
-        console.log("Plotter.resize()", [this.clientWidth, this.clientHeight]);
+        //console.log("Plotter.resize()", [this.clientWidth, this.clientHeight]);
         this.canvas.width = this.clientWidth;
         this.canvas.height = this.clientHeight;
         this.update_transformation_matrices();
@@ -279,7 +279,7 @@ export class Plotter extends WidgetBase {
      * 
      * @param {Object} msg Being state message.
      */
-     plot_being_state_message(msg) {
+    plot_being_state_message(msg) {
         this.plot_values(msg.timestamp, msg.values);
         this.draw();
     }
@@ -287,15 +287,22 @@ export class Plotter extends WidgetBase {
     /**
      * Draw all line artists.
      */
+    draw_lines() {
+        this.lines.forEach(line => {
+            line.draw();
+        });
+    }
+
+    /**
+     * Draw everything
+     */
     draw() {
         if (this.autoscaling) {
             this.auto_scale();
         }
         this.clear_canvas();
         this.draw_axis_and_tick_labels();
-        this.lines.forEach(line => {
-            line.draw();
-        });
+        this.draw_lines();
     }
 
     // Private
@@ -319,6 +326,7 @@ export class Plotter extends WidgetBase {
      * Update viewport bounding box current line data.
      */
     auto_scale() {
+        //console.log("Plotter.auto_scale()")
         this.viewport = this.minViewport.copy();
         this.lines.forEach(line => {
             if (line.length > 0) {
