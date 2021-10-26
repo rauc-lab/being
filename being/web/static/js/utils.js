@@ -203,7 +203,7 @@ export function sleep(duration) {
 /**
  * Rename map entry to a new key.
  */
- export function rename_map_key(map, oldKey, newKey) {
+export function rename_map_key(map, oldKey, newKey) {
     if (map.has(oldKey)) {
         map.set(newKey, map.get(oldKey));
         map.delete(oldKey);
@@ -214,7 +214,7 @@ export function sleep(duration) {
 /**
  * Find key for a value inside a map.
  */
- export function find_map_key_for_value(map, value) {
+export function find_map_key_for_value(map, value) {
     for (const [k, v] of map.entries()) {
         if (v === value) {
             return k;
@@ -230,6 +230,24 @@ export function sleep(duration) {
  * @param {HTMLElement} referenceNode Reference node.
  * @returns {HTMLElement} Inserted HTML node.
  */
- export function insert_after(newNode, referenceNode) {
+export function insert_after(newNode, referenceNode) {
     return referenceNode.parentNode.insertBefore(newNode, referenceNode);
+}
+
+
+/**
+ * Emit event for HTML element.
+ */
+export function emit_event(ele, type, bubbles=true, cancelable=true) {
+    if ("createEvent" in document) {
+        const evt = document.createEvent("HTMLEvents");
+        evt.initEvent(type, bubbles, cancelable);
+        evt.eventName = type;
+        ele.dispatchEvent(evt);
+    } else {
+        const evt = document.createEventObject();
+        evt.eventName = type;
+        evt.eventType = type;
+        ele.fireEvent("on" + evt.eventType, evt);
+    }
 }
