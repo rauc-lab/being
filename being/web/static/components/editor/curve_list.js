@@ -6,7 +6,7 @@ import { BPoly } from "/static/js/spline.js";
 import { WidgetBase } from "/static/js/widget.js";
 import { create_button } from "/static/js/button.js";
 import { make_editable } from "/static/js/editable_text.js";
-import { remove_all_children, is_valid_filename, assert, rename_map_key, find_map_key_for_value} from "/static/js/utils.js";
+import { remove_all_children, is_valid_filename, assert, rename_map_key, find_map_key_for_value, emit_event} from "/static/js/utils.js";
 
 
 export class OldMotionList {
@@ -365,21 +365,12 @@ function map_setdefault(map, key, defaultValue) {
 }
 
 
-/**
- * Emit event for HTML element.
- */
-function emit_event(ele, type, bubbles=true, cancelable=true) {
-    if ("createEvent" in document) {
-        const evt = document.createEvent("HTMLEvents");
-        evt.initEvent(type, bubbles, cancelable);
-        evt.eventName = type;
-        ele.dispatchEvent(evt);
-    } else {
-        const evt = document.createEventObject();
-        evt.eventName = type;
-        evt.eventType = type;
-        ele.fireEvent("on" + evt.eventType, evt);
-    }
+function is_empty_object(obj) {
+    // because Object.keys(new Date()).length === 0;
+    // we have to do some additional check
+    return obj // 👈 null and undefined check
+        && Object.keys(obj).length === 0
+        && Object.getPrototypeOf(obj) === Object.prototype;
 }
 
 
@@ -402,11 +393,27 @@ export class CurveList extends WidgetBase {
     }
 
     // Public
-    //get selected_curve() { return this.curves.get(this.selected); }
+
+    selected_curve() {
+        return this.curves.get(this.selected);
+    }
+
+    armed_curves() {
+        return this.armed.values();
+    }
+
+    background_curves() {
+        const names = Array.from(this.armed.values());
+        names.pop(this.selected);
+    }
 
     populate(curves) {
-        console.log("CurveList.populate()");
+        console.log("CurveList.populate()", curves);
         this.clear();
+        if (is_empty_object(curves)) {
+            return;
+        }
+
         for (const [name, obj] of Object.entries(curves)) {
             const curve = BPoly.from_object(obj);
             this.add_entry(name, curve);
@@ -436,6 +443,7 @@ export class CurveList extends WidgetBase {
         const api = new Api();
         this.motionPlayers = await api.get_motion_player_infos();
         const allMotions = await api.load_motions();
+        console.log("allMotions:", allMotions);
         this.populate(allMotions.splines);
         this.addEventListener("contextmenu", evt => {
             // Debug infos

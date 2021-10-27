@@ -13,7 +13,6 @@ import {clip} from "/static/js/math.js";
 export const NOTHING_SELECTED = -1;
 
 
-
 /**
  * Do not show select when there is only 1x option.
  *

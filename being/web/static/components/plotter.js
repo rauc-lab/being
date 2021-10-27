@@ -175,7 +175,6 @@ const PLOTTER_TEMPLATE = `
 
 export class Plotter extends WidgetBase {
     constructor(margin=50, minHeight=0.001) {
-        //console.log("Plotter.constructor()");
         super()
         this.margin = margin;
         this.minViewport = new BBox([Infinity, -minHeight], [-Infinity, minHeight]);
@@ -193,9 +192,28 @@ export class Plotter extends WidgetBase {
         this.ctx = this.canvas.getContext("2d");
         this.ctx.lineCap = "round";  //"butt" || "round" || "square";
         this.ctx.lineJoin = "round";  //"bevel" || "round" || "miter";
+
+        this._maxlen = Infinity;
     }
 
     // Public
+
+    /**
+     * Get current maxlen value.
+     */
+    get maxlen() {
+        return this._maxlen;
+    }
+
+    /**
+     * Set maxlen for all current and future lines.
+     */
+    set maxlen(value) {
+        this._maxlen = value;
+        this.lines.forEach(line => {
+            line.maxlen = value;
+        });
+    }
 
     /**
      * Resize element. Adjust canvas size and recompute transformation
@@ -248,6 +266,15 @@ export class Plotter extends WidgetBase {
     }
 
     /**
+     * Create a new line artist for the given line number.
+     */
+    init_new_line(lineNr) {
+        const newLine = new Line(this.ctx, this.colorPicker.next())
+        newLine.maxlen = this._maxlen;
+        this.lines.set(lineNr, newLine);
+    }
+
+    /**
      * Plot single new value.
      * 
      * @param {Number} timestamp Timestamp.
@@ -256,8 +283,9 @@ export class Plotter extends WidgetBase {
      */
     plot_value(timestamp, value, lineNr=0) {
         if (!this.lines.has(lineNr)) {
-            this.lines.set(lineNr, new Line(this.ctx, this.colorPicker.next()));
+            this.init_new_line(lineNr);
         }
+        //console.log('line', lineNr, 'length:', this.lines.get(lineNr).data.length);
 
         this.lines.get(lineNr).append_data([timestamp, value]);
     }
@@ -305,6 +333,29 @@ export class Plotter extends WidgetBase {
         this.draw_lines();
     }
 
+    /**
+     * Change viewport and redraw.
+     */
+    change_viewport(bbox) {
+        this.viewport = bbox;
+        this.update_transformation_matrices();
+        this.draw();
+    }
+
+    /**
+     * Make lines forget one value.
+     */
+    forget() {
+        this.lines.forEach(line => line.data.popleft());
+    }
+
+    /**
+     * Clear all lines.
+     */
+    clear_lines() {
+        this.lines.forEach(line => line.data.clear());
+    }
+
     // Private
 
     connectedCallback() {
@@ -326,7 +377,6 @@ export class Plotter extends WidgetBase {
      * Update viewport bounding box current line data.
      */
     auto_scale() {
-        //console.log("Plotter.auto_scale()")
         this.viewport = this.minViewport.copy();
         this.lines.forEach(line => {
             if (line.length > 0) {

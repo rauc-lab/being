@@ -3,11 +3,12 @@
  */
 import { BBox } from "/static/js/bbox.js";
 import { make_draggable } from "/static/js/draggable.js";
-import { arange } from "/static/js/array.js";
+import { arange, subtract_arrays } from "/static/js/array.js";
 import { clip } from "/static/js/math.js";
 import { COEFFICIENTS_DEPTH, KNOT, FIRST_CP, SECOND_CP, Degree, LEFT, RIGHT } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
-import { assert, arrays_equal, clear_array } from "/static/js/utils.js";
+import { assert, arrays_equal, clear_array, remove_all_children } from "/static/js/utils.js";
+import { Plotter } from "/static/components/plotter.js";
 
 
 /**
@@ -63,22 +64,51 @@ function clip_point(pt, bbox) {
 }
 
 
-export class OldSplineDrawer {
-    constructor(editor, container) {
-        this.editor = editor;
-        this.container = container;
+const EXTRA_STYLE = `
+<style>
+.annotation {
+    position: absolute;
+    visibility: hidden;
+    box-shadow: 0 0 10px 10px rgba(255, 255, 255, .666);
+    background-color: rgba(255, 255, 255, .666);
+}
+</style>
+`
+
+
+export class CurveDrawer extends Plotter {
+    constructor() {
+        super();
+        this.autoscaling = false;
         this.splines = [];
         this.elements = [];
+        this.container = this.svg.appendChild(create_element("g"));
 
+        this.append_template(EXTRA_STYLE);
         this.annotation = document.createElement("span");
         this.annotation.classList.add("annotation");
-        editor.graph.appendChild(this.annotation);
+        this.shadowRoot.appendChild(this.annotation);
+
+        this.c1 = true;
+        this.snapping_to_grid = true;
+        this.limits = new BBox([0, -Infinity], [Infinity, Infinity]);
+
+        this.setup_svg_drag_navigation();
     }
 
     /**
-     * Calculate data bounding box of drawn splines.
+     * Clear everything from SplineDrawer.
      */
-    bbox() {
+    clear() {
+        remove_all_children(this.container);
+        clear_array(this.splines);
+        clear_array(this.elements);
+    }
+
+    /**
+     * Calculate data bounding box of all drawn curves.
+     */
+    curves_bbox() {
         const bbox = new BBox();
         this.splines.forEach(spline => {
             bbox.expand_by_bbox(spline.bbox());
@@ -88,15 +118,79 @@ export class OldSplineDrawer {
     }
 
     /**
-     * Clear everything from SplineDrawer.
+     * Set vertical limits.
      */
-    clear() {
-        while (this.container.hasChildNodes()) {
-            this.container.removeChild(this.container.firstChild);
-        }
+    set_vertical_limits(ymin=-Infinity, ymax=Infinity) {
+        console.log("Drawer.set_vertical_limits()", ymin, ymax);
+        this.limits.ll[1] = ymin;
+        this.limits.ur[1] = ymax;
+        //this.viewport.ll[1] = Math.min(this.viewport.ll[1], ymin);
+        //this.viewport.ur[1] = Math.max(this.viewport.ur[1], ymax);
 
-        clear_array(this.splines);
-        clear_array(this.elements);
+        //this.update_transformation_matrices();
+        //this.draw();
+    }
+
+    /**
+     * Setup drag event handlers for moving horizontally and zooming vertically.
+     */
+    setup_svg_drag_navigation() {
+        let start = null;
+        let orig = null;
+        let mid = 0;
+
+        make_draggable(
+            this.svg,
+            evt => {
+                this.autoscaling = false;
+                start = [evt.clientX, evt.clientY];
+                orig = this.viewport.copy();
+                const pt = this.mouse_coordinates(evt);
+                const alpha = clip((pt[0] - orig.left) / orig.width, 0, 1);
+                mid = orig.left + alpha * orig.width;
+            },
+            evt => {
+                // Affine image transformation with `mid` as "focal point"
+                const end = [evt.clientX, evt.clientY];
+                const delta = subtract_arrays(end, start);
+                const shift = -delta[0] / this.canvas.width * orig.width;
+                const factor = Math.exp(-0.01 * delta[1]);
+                this.viewport.left = factor * (orig.left - mid + shift) + mid;
+                this.viewport.right = factor * (orig.right - mid + shift) + mid;
+                this.update_transformation_matrices();
+                this.draw();
+            },
+            () => {
+                start = null;
+                orig = null;
+                mid = 0;
+            },
+        );
+    }
+
+    /**
+     * Emit custom curvechanging event.
+     */
+    emit_curve_changing(position=null) {
+        const evt = new CustomEvent("curvechanging", {
+            detail: {
+                position: position,
+            }
+        });
+        this.dispatchEvent(evt)
+    }
+
+
+    /**
+     * Emit custom curvechanged event.
+     */
+    emit_curve_changed(newCurve) {
+        const evt = new CustomEvent("curvechanged", {
+            detail: {
+                newCurve: newCurve,
+            }
+        });
+        this.dispatchEvent(evt)
     }
 
     /**
@@ -106,7 +200,7 @@ export class OldSplineDrawer {
      * @param {String} location Label location identifier.
      */
     position_annotation(pos, location = "ur", offset=10) {
-        const pt = this.editor.transform_point(pos);
+        const pt = this.transform_point(pos);
         let [x, y] = pt;
         const bbox = this.annotation.getBoundingClientRect();
         if (location.endsWith("l")) {
@@ -140,41 +234,38 @@ export class OldSplineDrawer {
         /** Start position of drag motion. */
         let start = null;
         let yValues = [];
-        let limits = new BBox();
 
         make_draggable(
             ele,
             evt => {
-                start = this.editor.mouse_coordinates(evt);
+                start = this.mouse_coordinates(evt);
                 yValues = new Set(workingCopy.c.flat(COEFFICIENTS_DEPTH));
                 yValues.add(0.0);
-                this.editor.spline_changing();
-                limits = this.editor.limits();
+                this.emit_curve_changing()
             },
             evt => {
-                let end = this.editor.mouse_coordinates(evt);
-                end = clip_point(end, limits);
-                if (this.editor.snapping_to_grid & !evt.shiftKey) {
+                let end = this.mouse_coordinates(evt);
+                end = clip_point(end, this.limits);
+                if (this.snapping_to_grid & !evt.shiftKey) {
                     end[1] = snap_to_value(end[1], yValues, 0.001);
                 }
 
                 on_drag(end);
-                workingCopy.restrict_to_bbox(limits);
+                workingCopy.restrict_to_bbox(this.limits);
                 this.annotation.style.visibility = "visible";
                 this.position_annotation(end, labelLocation);
-                this.draw();
+                this.draw_curves();
             },
             evt => {
-                const end = this.editor.mouse_coordinates(evt);
+                const end = this.mouse_coordinates(evt);
                 if (arrays_equal(start, end)) {
                     return;
                 }
 
-                this.editor.spline_changed(workingCopy);
+                this.emit_curve_changed(workingCopy)
                 this.annotation.style.visibility = "hidden";
                 start = null;
                 clear_array(yValues);
-                limits.reset();
             }
         );
     }
@@ -183,7 +274,7 @@ export class OldSplineDrawer {
      * Initialize an SVG path element and adds it to the SVG parent element.
      * data_source callback needs to deliver the 2-4 Bézier control points.
      */
-    init_path(data_source, strokeWidth = 1, color = "black") {
+    add_svg_path(data_source, strokeWidth = 1, color = "black") {
         const path = create_element("path");
         setattr(path, "stroke", color);
         setattr(path, "stroke-width", strokeWidth);
@@ -191,7 +282,7 @@ export class OldSplineDrawer {
         this.container.appendChild(path);
         this.elements.push(path);
         path.draw = () => {
-            setattr(path, "d", path_d(this.editor.transform_points(data_source())));
+            setattr(path, "d", path_d(this.transform_points(data_source())));
         };
 
         return path;
@@ -201,14 +292,14 @@ export class OldSplineDrawer {
      * Initialize an SVG circle element and adds it to the SVG parent element.
      * data_source callback needs to deliver the center point of the circle.
      */
-    init_circle(data_source, radius = 1, color = "black") {
+    add_svg_circle(data_source, radius = 1, color = "black") {
         const circle = create_element("circle");
         setattr(circle, "r", radius);
         setattr(circle, "fill", color);
         this.container.appendChild(circle);
         this.elements.push(circle);
         circle.draw = () => {
-            const a = this.editor.transform_point(data_source());
+            const a = this.transform_point(data_source());
             setattr(circle, "cx", a[0]);
             setattr(circle, "cy", a[1]);
         };
@@ -227,7 +318,7 @@ export class OldSplineDrawer {
      * @param {String} color Color string.
      * @returns SVG line instance.
      */
-    init_line(data_source, strokeWidth = 1, color = "black") {
+    add_svg_line(data_source, strokeWidth = 1, color = "black") {
         const line = create_element("line");
         setattr(line, "stroke-width", strokeWidth);
         setattr(line, "stroke", color);
@@ -235,8 +326,8 @@ export class OldSplineDrawer {
         this.elements.push(line);
         line.draw = () => {
             const [start, end] = data_source();
-            const a = this.editor.transform_point(start);
-            const b = this.editor.transform_point(end);
+            const a = this.transform_point(start);
+            const b = this.transform_point(end);
             setattr(line, "x1", a[0]);
             setattr(line, "y1", a[1]);
             setattr(line, "x2", b[0]);
@@ -256,7 +347,7 @@ export class OldSplineDrawer {
     draw_curve(spline, lw = 1, dim = 0, color = "black") {
         const segments = arange(spline.n_segments);
         segments.forEach(seg => {
-            this.init_path(() => {
+            this.add_svg_path(() => {
                 return [
                     spline.point(seg, 0, dim),
                     spline.point(seg, 1, dim),
@@ -285,7 +376,7 @@ export class OldSplineDrawer {
             cps.forEach(cp => {
                 // 1st helper line
                 if (cp === FIRST_CP) {
-                    this.init_line(() => {
+                    this.add_svg_line(() => {
                         return [spline.point(seg, KNOT, dim), spline.point(seg, FIRST_CP, dim)];
                     });
                 }
@@ -293,19 +384,19 @@ export class OldSplineDrawer {
                 // 2nd helper line
                 if (spline.degree === Degree.QUADRATIC || cp === SECOND_CP) {
                     const rightKnot = KNOT + spline.degree;
-                    this.init_line(() => {
+                    this.add_svg_line(() => {
                         return [spline.point(seg, cp, dim), spline.point(seg, rightKnot, dim)];
                     });
                 }
 
                 // Control point
-                const circle = this.init_circle(() => {
+                const circle = this.add_svg_circle(() => {
                     return spline.point(seg, cp, dim);
                 }, 3 * lw, "red");
                 this.make_draggable(
                     circle,
                     pos => {
-                        spline.position_control_point(seg, cp, pos[1], this.editor.c1, dim);
+                        spline.position_control_point(seg, cp, pos[1], this.c1, dim);
                         let slope = 0;
                         if (cp === FIRST_CP) {
                             slope = spline.get_derivative_at_knot(seg, RIGHT, dim);
@@ -331,14 +422,14 @@ export class OldSplineDrawer {
     draw_knots(spline, lw = 1, dim = 0) {
         const knots = arange(spline.n_segments + 1);
         knots.forEach(knot => {
-            const circle = this.init_circle(() => {
+            const circle = this.add_svg_circle(() => {
                 return spline.point(knot, 0, dim);
             }, 3 * lw);
             this.make_draggable(
                 circle,
                 pos => {
-                    this.editor.spline_changing(pos);
-                    spline.position_knot(knot, pos, this.editor.c1, dim);
+                    this.emit_curve_changing(pos)
+                    spline.position_knot(knot, pos, this.c1, dim);
                     const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
                     this.annotation.innerHTML = txt;
                 },
@@ -348,9 +439,9 @@ export class OldSplineDrawer {
             circle.addEventListener("dblclick", evt => {
                 evt.stopPropagation();
                 if (spline.n_segments > 1) {
-                    this.editor.spline_changing();
+                    this.emit_curve_changing();
                     spline.remove_knot(knot);
-                    this.editor.spline_changed(spline);
+                    this.emit_curve_changed(spline);
                 }
             });
         });
@@ -361,6 +452,8 @@ export class OldSplineDrawer {
      * control points and helper lines and setup UI callbacks.
      */
     draw_spline(spline, interactive = true, channel = 0) {
+        console.log("draw_spline()");
+        console.log("spline.duration:", spline.duration);
         assert(spline.degree <= Degree.CUBIC, `Spline degree ${spline.degree} not supported!`);
         // Spline working copy
         const wc = spline.copy();
@@ -374,21 +467,30 @@ export class OldSplineDrawer {
                 this.draw_knots(wc, lw, dim);
             }
         });
-        this.draw();
+        //this.draw();
+    }
+
+    draw_curves() {
+        this.elements.forEach(ele => ele.draw());
     }
 
     /**
      * Draw the current state (update all SVG elements).
      */
     draw() {
-        this.elements.forEach(ele => ele.draw());
+        //console.log("Drawer.draw()")
+        //console.log("viewport:", this.viewport.ll, this.viewport.ur)
+        //const bbox = this.curves_bbox();
+        //console.log("curves bbox:", bbox.ll, bbox.ur);
+        //console.log('bbox:', bbox.ll, bbox.size)
+        //this.viewport = bbox;
+        //this.viewport.expand_by_bbox(bbox);
+        //console.log(this.viewport.ll, this.viewport.size);
+        // TODO
+        //this.update_transformation_matrices();
+        super.draw();
+        this.draw_curves();
     }
 }
-
-
-import { Plotter } from "/static/components/plotter.js";
-
-export class CurveDrawer extends Plotter {
-};
 
 customElements.define("being-curve-drawer", CurveDrawer);
