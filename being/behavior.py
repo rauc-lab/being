@@ -180,7 +180,7 @@ class Behavior(Block, PubSub):
         """Check with content and remove all non existing motion names from
         _params.
         """
-        existing = list(self.content._sorted_names())
+        existing = self.content.list_curve_names()
         for stateNr, names in enumerate(self._params['motions']):
             self._params['motions'][stateNr] = [
                 name
@@ -190,7 +190,7 @@ class Behavior(Block, PubSub):
 
     def motion_duration(self, name: str) -> float:
         """Get duration of motion."""
-        motion = self.content.load_motion(name)
+        motion = self.content.load_curve(name)
         return motion.x[-1]
 
     def play_random_motion_for_current_state(self):

@@ -143,7 +143,7 @@ class MotionPlayer(Block):
         """
         try:
             self.logger.info('Playing motion %r', mc.name)
-            spline = self.content.load_motion(mc.name)
+            spline = self.content.load_curve(mc.name)
         except FileNotFoundError:
             self.logger.error('Motion %r does not exist!', mc.name)
             currentVals = [out.value for out in self.positionOutputs]

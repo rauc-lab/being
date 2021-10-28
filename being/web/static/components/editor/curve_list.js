@@ -407,20 +407,18 @@ export class CurveList extends WidgetBase {
         names.pop(this.selected);
     }
 
-    populate(curves) {
-        console.log("CurveList.populate()", curves);
+    populate(namecurves) {
         this.clear();
-        if (is_empty_object(curves)) {
-            return;
-        }
 
-        for (const [name, obj] of Object.entries(curves)) {
-            const curve = BPoly.from_object(obj);
+        namecurves.forEach(namecurve => {
+            const [name, curve] = namecurve;
             this.add_entry(name, curve);
-        }
+        });
 
-        const firstName = this.curves.keys().next().value;
-        this.select(firstName);
+        if (namecurves.length > 0) {
+            const firstName = namecurves[0][0];
+            this.select(firstName);
+        }
     }
 
     associate_motion_player_with_current_curve(mp) {
@@ -442,9 +440,9 @@ export class CurveList extends WidgetBase {
     async connectedCallback() {
         const api = new Api();
         this.motionPlayers = await api.get_motion_player_infos();
-        const allMotions = await api.load_motions();
-        console.log("allMotions:", allMotions);
-        this.populate(allMotions.splines);
+        const curvesMsg = await api.get_curves();
+        this.populate(curvesMsg.curves);
+        return
         this.addEventListener("contextmenu", evt => {
             // Debug infos
             evt.preventDefault();

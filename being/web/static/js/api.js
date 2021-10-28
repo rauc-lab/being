@@ -39,10 +39,10 @@ export class Api {
      * @param {Array} trajectory Recorded trajectory. Array of timestamps and position values.
      * @returns Fitted smoothing spline instance.
      */
-         async fit_spline(trajectory) {
-            const obj = await post_json(API + "/fit_spline", trajectory);
-            return BPoly.from_object(obj);
-        }
+    async fit_spline(trajectory) {
+        const obj = await post_json(API + "/fit_spline", trajectory);
+        return BPoly.from_object(obj);
+    }
 
 
     /** Motor API */
@@ -121,53 +121,62 @@ export class Api {
 
     /** Content API */
 
+    /**
+     * Get all curves. Returned a motion message with curves as [name, curve]
+     * tuples (most recently modified order).
+     *
+     * {
+     *      type: "motions",
+     *      curves: [
+     *          ["some name", {"type": "BPoly", ...}],
+     *          ["other name", {"type": "BPoly", ...}],
+     *          ...
+     *      ]
+     * }
+     */
+    async get_curves() {
+        const url = encodeURI(API + "/curves");
+        const msg = await get_json(url);
+        msg.curves = msg.curves.map(entry => {
+            const [name, dct] = entry;
+            return [name, BPoly.from_object(dct)];
+        });
+        return msg;
+    }
 
-    async find_free_name(wishName=null) {
+    async get_curve(name) {
+        const url = encodeURI(API + "/curves/" + name);
+        const obj = await get_json(url);
+        return BPoly.from_object(obj);
+    }
+
+    async create_curve(name, spline) {
+        const url = encodeURI(API + "/curves/" + name);
+        return post_json(url, spline.to_dict());
+    }
+
+    async update_curve(name, spline) {
+        const url = encodeURI(API + "/curves/" + name);
+        return put_json(url, spline.to_dict());
+    }
+
+    async delete_curve(name) {
+        const url = encodeURI(API + "/curves/" + name);
+        return delete_fetch(url);
+    }
+
+    async find_free_name(wishName=undefined) {
         let uri = API + "/find-free-name";
-        if (wishName !== null) {
+        if (wishName !== undefined) {
             uri += "/" + wishName;
         }
 
         return get_json(encodeURI(uri));
     }
 
-    async get_spline(name) {
-        const url = encodeURI(API + "/motions/" + name);
-        const obj = await get_json(url);
-        return BPoly.from_object(obj);
-    }
-
-    async create_spline(name, spline) {
-        const url = encodeURI(API + "/motions/" + name);
-        return post_json(url, spline.to_dict());
-    }
-
-    async update_spline(name, spline) {
-        const url = encodeURI(API + "/motions/" + name);
-        return post_json(url, spline.to_dict());
-    }
-
-    async delete_spline(name) {
-        const url = encodeURI(API + "/motions/" + name);
-        return delete_fetch(url);
-    }
-
-    async download_all_motions_as_zip() {
-        const url = encodeURI(API + "/download-zipped-motions");
+    async download_all_curves_as_zip() {
+        const url = encodeURI(API + "/download-zipped-curves");
         return fetch(url);
-    }
-
-    /**
-     * Load entire content from backend / content.
-     *
-     * @returns Fetch promise
-     */
-    async fetch_splines() {
-        return get_json(API + "/motions");
-    }
-
-    async load_motions() {
-        return get_json(API + "/motions2");
     }
 
 

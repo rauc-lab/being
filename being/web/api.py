@@ -75,16 +75,61 @@ def content_controller(content: Content) -> web.RouteTableDef:
     """
     routes = web.RouteTableDef()
 
-    @routes.get('/motions')
-    async def get_all_motions(request):
-        return json_response(content.dict_motions())
+    @routes.get('/curves')
+    async def get_curves(request):
+        """Get all current curves."""
+        return json_response(content.forge_message())
 
-    @routes.get('/motions2')
-    async def get_all_motions_2(request):
-        return json_response(content.dict_motions_2())
+    @routes.get('/curves/{name}')
+    async def get_curve(request):
+        """Get single curve by name."""
+        name = request.match_info['name']
+        if not content.curve_exists(name):
+            return web.HTTPNotFound(text=f'Curve {name!r} does not exist!')
+
+        spline = content.load_curve(name)
+        return json_response(spline)
+
+    @routes.post('/curves/{name}')
+    async def create_curve(request):
+        """Create a new curve."""
+        name = request.match_info['name']
+        try:
+            spline = await request.json(loads=loads)
+        except json.JSONDecodeError:
+            return web.HTTPNotAcceptable(text='Failed deserializing JSON curve!')
+
+        content.save_curve(name, spline)
+        return json_response()
+
+    @routes.put('/curves/{name}')
+    async def update_curve(request):
+        """Update a existing curve."""
+        name = request.match_info['name']
+        if not content.curve_exists(name):
+            return web.HTTPNotFound(text=f'Motion {name!r} does not exist!')
+
+        try:
+            spline = await request.json(loads=loads)
+        except json.JSONDecodeError:
+            return web.HTTPNotAcceptable(text='Failed deserializing JSON curve!')
+
+        content.save_curve(name, spline)
+        return json_response()
+
+    @routes.delete('/curves/{name}')
+    async def delete_curve(request):
+        """Delete a curve."""
+        name = request.match_info['name']
+        if not content.curve_exists(name):
+            return web.HTTPNotFound(text=f'Curve {name!r} does not exist!')
+
+        content.delete_curve(name)
+        return json_response()
 
     @routes.get('/find-free-name')
     async def find_free_name(request):
+        """Find an available name."""
         return json_response(content.find_free_name())
 
     @routes.get('/find-free-name/{wishName}')
@@ -92,51 +137,8 @@ def content_controller(content: Content) -> web.RouteTableDef:
         wishName = request.match_info['wishName']
         return json_response(content.find_free_name(wishName=wishName))
 
-    @routes.get('/motions/{name}')
-    async def get_motion_by_name(request):
-        name = request.match_info['name']
-        if not content.motion_exists(name):
-            return web.HTTPNotFound(text=f'Motion {name!r} does not exist!')
-
-        spline = content.load_motion(name)
-        return json_response(spline)
-
-    @routes.post('/motions/{name}')
-    async def create_motion_by_name(request):
-        name = request.match_info['name']
-        try:
-            spline = await request.json(loads=loads)
-        except json.JSONDecodeError:
-            return web.HTTPNotAcceptable(text='Failed deserializing JSON spline!')
-
-        content.save_motion(name, spline)
-        return json_response()
-
-    @routes.put('/motions/{name}')
-    async def update_motion_by_name(request):
-        name = request.match_info['name']
-        if not content.motion_exists(name):
-            return web.HTTPNotFound(text=f'Motion {name!r} does not exist!')
-
-        try:
-            spline = await request.json(loads=loads)
-        except json.JSONDecodeError:
-            return web.HTTPNotAcceptable(text='Failed deserializing JSON spline!')
-
-        content.save_motion(name, spline)
-        return json_response()
-
-    @routes.delete('/motions/{name}')
-    async def delete_motion_by_name(request):
-        name = request.match_info['name']
-        if not content.motion_exists(name):
-            return web.HTTPNotFound(text=f'Motion {name!r} does not exist!')
-
-        content.delete_motion(name)
-        return json_response()
-
-    @routes.get('/download-zipped-motions')
-    async def download_zipped_motions(request):
+    @routes.get('/download-zipped-curves')
+    async def download_zipped_curves(request):
         stream = io.BytesIO()
         with zipfile.ZipFile(stream, 'w') as zf:
             for fp in glob.glob(content.directory + '/*.json'):
@@ -150,7 +152,8 @@ def content_controller(content: Content) -> web.RouteTableDef:
         )
 
     def pluck_files(dct: MultiDictProxy) -> tuple:
-        """Pluck JSON files (and data) from MultiDictProxy files dct. Also open up zip files if any.
+        """Pluck JSON files (and data) from MultiDictProxy files dct. Also open
+        up zip files if any.
 
         Args:
             dct: Multi dict proxy from file upload post request.
@@ -167,18 +170,18 @@ def content_controller(content: Content) -> web.RouteTableDef:
             else:
                 yield fn, filefield.file.read()
 
-    @routes.post('/upload-motions')
-    async def upload_motions(request):
+    @routes.post('/upload-curves')
+    async def upload_curves(request):
         data = await request.post()
 
         # Empty upload
         if isinstance(data, bytearray):
             return json_response([{'type': 'error', 'message': 'Nothing uploaded!'}])
 
-        notis = []
+        notificationMessages = []
         for fp, data in pluck_files(data):
             if not fp.lower().endswith('.json'):
-                notis.append({'type': 'error', 'message': '%r is not a JSON file!' % fp})
+                notificationMessages.append({'type': 'error', 'message': '%r is not a JSON file!' % fp})
                 continue
 
             try:
@@ -190,12 +193,12 @@ def content_controller(content: Content) -> web.RouteTableDef:
                 with open(os.path.join(content.directory, fn), 'wb') as f:
                     f.write(data)
 
-                notis.append({'type': 'success', 'message': 'Uploaded file %r' % fp})
+                notificationMessages.append({'type': 'success', 'message': 'Uploaded file %r' % fp})
             except Exception as err:
-                notis.append({'type': 'error', 'message': '%r %s' % (fp, err)})
+                notificationMessages.append({'type': 'error', 'message': '%r %s' % (fp, err)})
 
         content.publish(CONTENT_CHANGED)
-        return json_response(notis)
+        return json_response(notificationMessages)
 
     return routes
 

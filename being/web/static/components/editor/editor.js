@@ -502,7 +502,7 @@ export class Editor extends Widget {
 
         // Upload button. It is murky...
         const form = document.createElement("form");
-        form.setAttribute("action", "api/upload-motions");
+        form.setAttribute("action", "api/upload-curves");
         form.setAttribute("method", "post");
         form.setAttribute("enctype", "multipart/form-data");
         //form.setAttribute("accept-charset", "utf-8");
@@ -558,7 +558,7 @@ export class Editor extends Widget {
         const btn = this.add_button_to_toolbar("file_download", "Download all motions as a Zip archive");
         btn.addEventListener("click", async evt => {
             // https://stackoverflow.com/questions/3749231/download-file-using-javascript-jquery
-            const resp = await this.api.download_all_motions_as_zip();
+            const resp = await this.api.download_all_curves_as_zip();
             const blob = await resp.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
