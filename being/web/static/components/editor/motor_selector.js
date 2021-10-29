@@ -2,7 +2,7 @@
  * @module motor_selector Component around HTML select to keep track of the
  * currently selected motor (or motion player behind the scenes).
  */
-import {remove_all_children, add_option} from "/static/js/utils.js";
+import {remove_all_children, add_option } from "/static/js/utils.js";
 import {arange} from "/static/js/array.js";
 import {Api} from "/static/js/api.js";
 import {defaultdict} from "/static/js/utils.js";
@@ -18,7 +18,7 @@ export const NOTHING_SELECTED = -1;
  *
  * @param {HTMLElement} select HTML select element.
  */
-function dont_display_select_when_no_options(select) {
+export function dont_display_select_when_no_options(select) {
     select.style.display = select.length < 2 ? "none" : "inline";
 }
 

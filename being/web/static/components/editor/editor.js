@@ -10,11 +10,11 @@ import {make_draggable} from "/static/js/draggable.js";
 import {History} from "/static/js/history.js";
 import {clip} from "/static/js/math.js";
 import {COEFFICIENTS_DEPTH, zero_spline, BPoly} from "/static/js/spline.js";
-import {clear_array, insert_after} from "/static/js/utils.js";
+import {clear_array, insert_after, add_option, remove_all_children} from "/static/js/utils.js";
 import {CurverBase} from "/static/components/editor/curver.js";
 import {Line} from "/static/components/editor/line.js";
-import { OldMotionList, CurveList } from "/static/components/editor/curve_list.js";
-import {MotorSelector} from "/static/components/editor/motor_selector.js";
+import { CurveList } from "/static/components/editor/curve_list.js";
+import {MotorSelector, dont_display_select_when_no_options, NOTHING_SELECTED} from "/static/components/editor/motor_selector.js";
 import {CurveDrawer} from "/static/components/editor/drawer.js";
 import {PAUSED, PLAYING, RECORDING, Transport} from "/static/components/editor/transport.js";
 import { Widget, append_template_to } from "/static/js/widget.js";
@@ -29,6 +29,9 @@ const FOLDED = "folded";
 
 /** @const {Number} - Default spline knot shift offset amount...  */
 const DEFAULT_KNOT_SHIFT = 0.5;
+
+
+const OK = 200;
 
 
 /**
@@ -142,11 +145,14 @@ export class Editor extends Widget {
         this.interval = null;
         this.notificationCenter = null;
 
-        this.motionPlayerSelect = null;
-        this.channelSelect = null;
+        this.motionPlayerSelect = null;  // Will be created & assigned in setup_toolbar_elements();
+        this.channelSelect = null;  // Will be created & assigned in setup_toolbar_elements();
         this.setup_toolbar_elements();
 
-        this.motorSelector = new MotorSelector(this.motionPlayerSelect, this.channelSelect);
+        this.motionPlayers = [];
+        this.selectedMotionPlayer = undefined;
+        this.outputIndices = [];
+
         this.recordedTrajectory = [];
 
         this.update_ui();
@@ -156,27 +162,22 @@ export class Editor extends Widget {
         const config = await this.api.get_config();
         this.interval = config["Web"]["INTERVAL"];
 
-        // Motor selector
-        await this.motorSelector.init();
-        this.motorSelector.addEventListener("change", () => {
-            console.log("motorSelector changed");
-            this.update_default_bbox();
-            this.draw_current_spline();
-            const mp = this.motorSelector.selected_motion_player();
-            this.list.associate_motion_player_with_current_curve(mp);
-        })
+        // Motion player selection
+        this.motionPlayers = await this.api.get_motion_player_infos();
+        this.setup_motion_player_select();
 
         // Curve list
         this.list.newBtn.addEventListener("click", evt => {
-            console.log("New button clicked (not implemented at the moment)");
+            this.create_new_curve();
         });
         this.list.deleteBtn.addEventListener("click", evt => {
-            console.log("Delete button clicked (not implemented at the moment)");
+            this.delete_current_curve();
         });
         this.list.duplicateBtn.addEventListener("click", evt => {
-            console.log("Duplicate button clicked (not implemented at the moment)");
+            this.duplicate_current_curve();
         });
         this.list.addEventListener("change", () => {
+            /*
             console.log("MotionEditor: list changed");
             if (this.confirm_unsaved_changes()) {
                 const mp = this.list.associated_motion_player();
@@ -198,12 +199,8 @@ export class Editor extends Widget {
                 }
                 this.update_default_bbox()
                 this.drawer.draw_curves();
-                /*
-                const curve = this.list.curves.get(name);
-                this.draw_spline
-                console.log(name, curve);
-                */
             }
+            */
         });
 
         this.update_default_bbox();
@@ -245,6 +242,101 @@ export class Editor extends Widget {
     }
 
     /**
+     * Populate motionPlayerSelect and determine selectedMotionPlayer.
+     */
+    setup_motion_player_select() {
+        const actualValueIndices = [];
+        remove_all_children(this.motionPlayerSelect);
+        this.motionPlayers.forEach(mp => {
+            add_option(this.motionPlayerSelect, mp.name);
+
+            // Lookup indices of actual value outputs for each motion player
+            // and its motors
+            const idx = [];
+            mp.motors.forEach(async motor => {
+                const outs = await this.api.get_index_of_value_outputs(motor.id);
+                idx.push(...outs);
+            });
+            actualValueIndices.push(idx);
+        });
+        this.motionPlayerSelect.addEventListener("change", evt => {
+            const idx = this.motionPlayerSelect.selectedIndex;
+            this.selectedMotionPlayer = this.motionPlayers[idx];
+            this.outputIndices = actualValueIndices[idx];
+        });
+        dont_display_select_when_no_options(this.motionPlayerSelect);
+        if (this.has_motion_players()) {
+            const idx = this.motionPlayerSelect.selectedIndex;
+            this.selectedMotionPlayer = this.motionPlayers[idx];
+        }
+    }
+
+    select_motion_player(motionPlayer) {
+        const idx = this.motionPlayers.findIndex(mp => mp.id === motionPlayer.id);
+        this.motionPlayerSelect.selectedIndex = idx;
+        this.selectedMotionPlayer = this.motionPlayers[idx];
+    }
+
+    has_motion_players() {
+        return this.motionPlayers.length > 0;
+    }
+
+
+    /**
+     * Create a new curve.
+     */
+    async create_new_curve() {
+        console.log("Editor.create_new_curve()");
+        const freename = await this.api.find_free_name();
+        const newCurve = zero_spline(1);
+        const resp = await this.api.create_curve(freename, newCurve)
+        if (resp.status !== OK) {
+            console.log("Something went wrong creating new curve on server");
+            console.log("resp:", resp);
+        }
+    }
+
+    /**
+     * Delete current curve.
+     */
+    async delete_current_curve() {
+        console.log("Editor.delete_current_curve()");
+        const selected = this.list.selected;
+        if (!selected) {
+            return console.log("No curve selected!");
+        }
+
+        if (confirm(`Are you sure you want to delte ${selected}?`)) {
+            const resp = await this.api.delete_curve(selected);
+            if (resp.status !== OK) {
+                console.log(`Something went wrong deleting curve ${selected} new curve on server!`);
+                console.log("resp:", resp);
+            }
+        }
+    }
+
+    /**
+     * Duplicate current curve.
+     */
+    async duplicate_current_curve() {
+        console.log("Editor.duplicate_current_curve()");
+        const selected = this.list.selected;
+        if (!selected) {
+            return console.log("No ");
+        }
+
+        if (selected) {
+            const duplicateName = await this.api.find_free_name(`${selected} Copy`);
+            const curve = this.list.curves.get(selected);
+            const resp = await this.api.create_curve(duplicateName, curve)
+            if (resp.status !== OK) {
+                console.log("Something went wrong duplicating curve on server");
+                console.log("resp:", resp);
+            }
+        }
+    }
+
+    /**
      * Register notification center.
      */
     set_notification_center(notificationCenter) {
@@ -256,14 +348,12 @@ export class Editor extends Widget {
      */
     update_default_bbox() {
         this.defaultBbox = new BBox([0., 0.], [1., 0.]);
-        if (this.motorSelector.is_motion_player_selected()) {
-            const motionPlayer = this.motorSelector.selected_motion_player();
-            motionPlayer.motors.forEach(motor => {
+        if (this.has_motion_players()) {
+            this.selectedMotionPlayer.motors.forEach(motor => {
                 this.defaultBbox.expand_by_point([0., motor.length]);
             });
         }
     }
-
 
     /**
      * Toggle snapping to grid inside drawer.
@@ -285,23 +375,44 @@ export class Editor extends Widget {
         switch_button_to(this.c1Btn, !opposite);
     }
 
+    /**
+     * Activate drawing limits from selected motion player.
+     */
+    assure_limits() {
+        if (this.has_motion_players()) {
+            const limited = new BBox([0, 0], [Infinity, 0.001]);
+            this.selectedMotionPlayer.motors.forEach(motor => {
+                limited.expand_by_point([Infinity, motor.length]);
+            });
+            this.drawer.limits = limited;
+        } else {
+            this.no_limits();
+        }
+    }
+
+    /**
+     * Deactivate drawing limits.
+     */
+    no_limits() {
+        const noLimits = new BBox([0, -Infinity], [Infinity, Infinity]);
+        this.drawer.limits = noLimits;
+    }
 
     /**
      * Toggle limiting curve control points for the given motion player / motors.
      * TODO: This has to be changed if the motion player changes!
      */
     toggle_limits() {
+        if (!this.has_motion_players()) {
+            this.no_limits();
+            switch_button_to(this.limitBtn, false);
+        }
+
         const opposite = !is_checked(this.limitBtn);
         if (opposite) {
-            const limited = new BBox([0, 0], [Infinity, 0.001]);
-            const motionPlayer = this.motorSelector.selected_motion_player();
-            motionPlayer.motors.forEach(motor => {
-                limited.expand_by_point([Infinity, motor.length]);
-            });
-            this.drawer.limits = limited;
+            this.assure_limits();
         } else {
-            const noLimits = new BBox([0, -Infinity], [Infinity, Infinity]);
-            this.drawer.limits = noLimits;
+            this.no_limits()
         };
 
         switch_button_to(this.limitBtn, opposite);
@@ -374,7 +485,7 @@ export class Editor extends Widget {
         this.add_space_to_toolbar();
 
 
-        // Motor selection
+        // Motion player selection
         this.motionPlayerSelect = this.add_select_to_toolbar();
 
 
@@ -402,8 +513,16 @@ export class Editor extends Widget {
         this.add_space_to_toolbar();
 
 
-        // Tool adjustments
+        // Motor channel selection
         this.channelSelect = this.add_select_to_toolbar();
+        const removeCurveBtn = this.add_button_to_toolbar("remove_circle", "Remove current curve");
+        disable_button(removeCurveBtn);
+        const addNewCurveBtn = this.add_button_to_toolbar("add_circle", "Add new curve");
+        disable_button(addNewCurveBtn);
+        this.add_space_to_toolbar()
+
+
+        // Tool adjustments
         this.snapBtn = this.add_button_to_toolbar("grid_3x3", "Snap to grid");  // TODO: Or vertical_align_center?
         this.snapBtn.addEventListener("click", () => this.toggle_snap_to_grid());
 
@@ -494,8 +613,11 @@ export class Editor extends Widget {
             }
 
             this.spline_changing();
-            const motionPlayer = this.motorSelector.selected_motion_player();
-            this.spline_changed(zero_spline(motionPlayer.ndim));
+            if (this.has_motion_players()) {
+                const ndim = this.selectedMotionPlayer.ndim;
+                const curve = zero_spline(ndim);
+                this.spline_changed(curve);
+            }
         });
 
         this.add_space_to_toolbar()
@@ -645,7 +767,12 @@ export class Editor extends Widget {
         switch (this.transport.state) {
             case PAUSED:
                 this.playPauseBtn.innerHTML = "play_arrow";
-                enable_button(this.playPauseBtn);
+                if (this.has_motion_players()) {
+                    enable_button(this.playPauseBtn);
+                } else {
+                    disable_button(this.playPauseBtn);
+                }
+
                 switch_button_off(this.playPauseBtn);
 
                 this.recBtn.innerHTML = "fiber_manual_record";
@@ -654,7 +781,7 @@ export class Editor extends Widget {
 
                 enable_button(this.stopBtn);
 
-                this.motorSelector.disabled = false;
+                this.motionPlayerSelect.disabled = false;
                 break;
             case PLAYING:
                 this.playPauseBtn.innerHTML = "pause";
@@ -667,7 +794,7 @@ export class Editor extends Widget {
 
                 enable_button(this.stopBtn);
 
-                this.motorSelector.disabled = true;
+                this.motionPlayerSelect.disabled = true;
                 break;
             case RECORDING:
                 this.playPauseBtn.innerHTML = "play_arrow";
@@ -680,12 +807,13 @@ export class Editor extends Widget {
 
                 disable_button(this.stopBtn);
 
-                this.motorSelector.disabled = true;
+                this.motionPlayerSelect.disabled = true;
                 break;
             default:
                 throw "Ooops, something went wrong with the transport FSM!";
         }
 
+        this.limitBtn.disabled = !this.has_motion_players();
         switch_button_to(this.loopBtn, this.transport.looping);
         switch_button_to(this.snapBtn, this.drawer.snapping_to_grid);
         switch_button_to(this.c1Btn, !this.drawer.c1);
@@ -719,6 +847,7 @@ export class Editor extends Widget {
         this.drawer.maxlen = 0.9 * duration / this.interval;
         this.drawer.clear();
         {
+            return;  // TODO
             const interactive = true;
             const dim = this.motorSelector.selected_motor_channel();
             this.drawer.draw_spline(current, interactive, dim);
@@ -735,13 +864,23 @@ export class Editor extends Widget {
     spline_changing(position = null) {
         this.stop_spline_playback();
         this.drawer.clear_lines();
-        if ((position !== null) && is_checked(this.livePreviewBtn)) {
-            const motionPlayer = this.motorSelector.selected_motion_player();
-            const channel = this.motorSelector.selected_motor_channel();
+
+
+        if (position !== null) {
             const [x, y] = position;
             this.transport.position = x;
             this.transport.draw_cursor();
-            this.api.live_preview(y, motionPlayer.id, channel);
+
+            if (!this.has_motion_players()) {
+                return;
+            }
+
+            if (is_checked(this.livePreviewBtn)) {
+                return;  // TODO
+                const motionPlayer = this.motorSelector.selected_motion_player();
+                const channel = this.motorSelector.selected_motor_channel();
+                this.api.live_preview(y, motionPlayer.id, channel);
+            }
         }
     }
 
@@ -757,8 +896,12 @@ export class Editor extends Widget {
      * Start playback of current spline in back end.
      */
     async play_current_spline() {
+        if (!this.has_motion_players()) {
+            return;
+        }
+
         const spline = this.history.retrieve();
-        const motionPlayer = this.motorSelector.selected_motion_player();
+        const motionPlayer = this.selectedMotionPlayer;
         const loop = this.transport.looping;
         const offset = this.transport.position;
         const startTime = await this.api.play_spline(spline, motionPlayer.id, loop, offset);
@@ -861,8 +1004,12 @@ export class Editor extends Widget {
      */
     async create_new_spline() {
         if (this.confirm_unsaved_changes()) {
+            this.create_new_curve();
+            /*
             this.spline_changing();
-            const motionPlayer = this.motorSelector.selected_motion_player();
+
+            // TODO: MotionPlayer independent
+            const motionPlayer = this.selectedMotionPlayer;
             const name = await this.api.find_free_name();
             const spline = zero_spline(motionPlayer.ndim);
             console.log(spline);
@@ -871,6 +1018,7 @@ export class Editor extends Widget {
             this.update_ui();
             this.list.add_entry(name, spline);
             this.list.select(name);
+            */
         }
     }
 
@@ -911,17 +1059,17 @@ export class Editor extends Widget {
      * Process new data message from back-end.
      */
     new_data(msg) {
+        return;  // TODO
         const t = this.transport.move(msg.timestamp);
         if (this.transport.playing && t > this.transport.duration) {
             this.transport.stop();
             this.update_ui();
         }
 
-        const outputIndices = this.motorSelector.selected_value_output_indices();
         if (this.transport.paused) {
             this.drawer.forget();
         } else {
-            outputIndices.forEach(idx => {
+            this.outputIndices.forEach(idx => {
                 const actualValue = msg.values[idx];
                 this.drawer.plot_value(t, actualValue, idx);
             });
@@ -930,7 +1078,7 @@ export class Editor extends Widget {
 
         if (this.transport.recording) {
             const vals = [];
-            outputIndices.forEach(idx => {
+            this.outputIndices.forEach(idx => {
                 vals.push(msg.values[idx]);
             });
             this.recordedTrajectory.push([t].concat(vals));
@@ -943,6 +1091,11 @@ export class Editor extends Widget {
             this.transport.stop();
             this.update_ui();
         }
+    }
+
+    new_motions_message(msg) {
+        console.log("new_motions_message(msg)");
+        this.list.new_motions_message(msg);
     }
 }
 
