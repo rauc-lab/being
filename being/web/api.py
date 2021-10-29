@@ -127,6 +127,14 @@ def content_controller(content: Content) -> web.RouteTableDef:
         content.delete_curve(name)
         return json_response()
 
+    @routes.put('/rename_curve')
+    async def rename_curve(request):
+        instructions = await request.json()
+        oldName = instructions['oldName']
+        newName = instructions['newName']
+        content.rename_curve(oldName, newName)
+        return json_response()
+
     @routes.get('/find-free-name')
     async def find_free_name(request):
         """Find an available name."""

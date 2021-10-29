@@ -145,8 +145,12 @@ export class Editor extends Widget {
         this.interval = null;
         this.notificationCenter = null;
 
-        this.motionPlayerSelect = null;  // Will be created & assigned in setup_toolbar_elements();
-        this.channelSelect = null;  // Will be created & assigned in setup_toolbar_elements();
+        // The following undefined attributes will be created during
+        // setup_toolbar_elements()
+        this.motionPlayerSelect = undefined;
+        this.channelSelect = undefined;
+        this.addChannelBtn = undefined;
+        this.removeChannelBtn = undefined;
         this.setup_toolbar_elements();
 
         this.motionPlayers = [];
@@ -167,43 +171,11 @@ export class Editor extends Widget {
         this.setup_motion_player_select();
 
         // Curve list
-        this.list.newBtn.addEventListener("click", evt => {
-            this.create_new_curve();
-        });
-        this.list.deleteBtn.addEventListener("click", evt => {
-            this.delete_current_curve();
-        });
-        this.list.duplicateBtn.addEventListener("click", evt => {
-            this.duplicate_current_curve();
-        });
-        this.list.addEventListener("change", () => {
-            /*
-            console.log("MotionEditor: list changed");
-            if (this.confirm_unsaved_changes()) {
-                const mp = this.list.associated_motion_player();
-                this.motorSelector.select_motion_player(mp);
-
-                // Draw foreground and background curves
-                this.drawer.clear();
-                const selected = this.list.selected;
-                //console.log("MotionEditor: selected curve:", selected);
-                //console.log("Going through all curves");
-                for (const [name, curve] of this.list.curves.entries()) {
-                    if (name === selected) {
-                        //console.log(name, '-> load_spline()');
-                        //this.drawer.draw_spline(curve, true);
-                        this.load_spline(curve);
-                    } else if (this.list.is_armed(name)) {
-                        this.drawer.draw_spline(curve);
-                    }
-                }
-                this.update_default_bbox()
-                this.drawer.draw_curves();
-            }
-            */
-        });
+        this.setup_curve_list();
 
         this.update_default_bbox();
+
+        this.setup_channel_select();
 
         // Drawer stuff
         // SVG event listeners
@@ -233,18 +205,21 @@ export class Editor extends Widget {
             this.spline_changed(evt.detail.newCurve);
         });
 
-        if (this.list.selected !== null) {
-            const curve = this.list.selected_curve();
-            this.load_spline(curve);
+        const selectedCurve = this.list.selected_curve();
+        if (selectedCurve !== undefined) {
+            this.load_spline(selectedCurve);
         }
 
         this.toggle_limits();  // Enable by default
     }
 
+
     /**
-     * Populate motionPlayerSelect and determine selectedMotionPlayer.
+     * Populate motion player select and determine currently selected motion
+     * player.
      */
     setup_motion_player_select() {
+        console.log("Editor.setup_motion_player_select()");
         const actualValueIndices = [];
         remove_all_children(this.motionPlayerSelect);
         this.motionPlayers.forEach(mp => {
@@ -260,9 +235,13 @@ export class Editor extends Widget {
             actualValueIndices.push(idx);
         });
         this.motionPlayerSelect.addEventListener("change", evt => {
+            console.log("motionPlayerSelect.change")
             const idx = this.motionPlayerSelect.selectedIndex;
             this.selectedMotionPlayer = this.motionPlayers[idx];
             this.outputIndices = actualValueIndices[idx];
+            this.assign_channel_names();
+
+            this.list.associate_motion_player(this.list.selected, this.selectedMotionPlayer);
         });
         dont_display_select_when_no_options(this.motionPlayerSelect);
         if (this.has_motion_players()) {
@@ -271,16 +250,141 @@ export class Editor extends Widget {
         }
     }
 
+    /**
+     * Select (another) motion player.
+     */
     select_motion_player(motionPlayer) {
+        console.log("Editor.select_motion_player(motionPlayer)", motionPlayer);
         const idx = this.motionPlayers.findIndex(mp => mp.id === motionPlayer.id);
         this.motionPlayerSelect.selectedIndex = idx;
         this.selectedMotionPlayer = this.motionPlayers[idx];
     }
 
+    /**
+     * Do we have at least one motion player?
+     */
     has_motion_players() {
         return this.motionPlayers.length > 0;
     }
 
+    /**
+     * Setup curve list and wire it up.
+     */
+    setup_curve_list() {
+        this.list.newBtn.addEventListener("click", evt => {
+            this.create_new_curve();
+        });
+        this.list.deleteBtn.addEventListener("click", evt => {
+            this.delete_current_curve();
+        });
+        this.list.duplicateBtn.addEventListener("click", evt => {
+            this.duplicate_current_curve();
+        });
+        this.list.addEventListener("change", () => {
+            const mp = this.list.associated_motion_player(this.list.selected);
+            if (mp !== undefined) {
+                this.select_motion_player(mp);
+            }
+
+            /*
+            console.log("MotionEditor: list changed");
+            if (this.confirm_unsaved_changes()) {
+                const mp = this.list.associated_motion_player();
+                this.motorSelector.select_motion_player(mp);
+
+                // Draw foreground and background curves
+                this.drawer.clear();
+                const selected = this.list.selected;
+                //console.log("MotionEditor: selected curve:", selected);
+                //console.log("Going through all curves");
+                for (const [name, curve] of this.list.curves.entries()) {
+                    if (name === selected) {
+                        //console.log(name, '-> load_spline()');
+                        //this.drawer.draw_spline(curve, true);
+                        this.load_spline(curve);
+                    } else if (this.list.is_armed(name)) {
+                        this.drawer.draw_spline(curve);
+                    }
+                }
+                this.update_default_bbox()
+                this.drawer.draw_curves();
+            }
+            */
+        });
+    }
+
+    /**
+     * Setup curve channel select.
+     */
+    setup_channel_select() {
+        this.channelSelect.addEventListener("change", () => {
+            // TODO: Redraw current spline for selected channel
+        });
+        this.addChannelBtn.addEventListener("click", () => {
+            this.add_channel();
+        });
+        this.removeChannelBtn.addEventListener("click", () => {
+            this.remove_channel();
+        });
+        this.assign_channel_names();
+    }
+
+    /**
+     * Current number of curves.
+     */
+    number_of_channels() {
+        // TODO: Return current number of curves. Either from selected curve,
+        // motion player max channels, number of child elements in
+        // channelSelect?
+        return this.channelSelect.childElementCount;
+    }
+
+    /**
+     * Add a new curve to the current motion / curve set.
+     */
+    add_channel() {
+        // TODO: Makeme
+        add_option(this.channelSelect)
+        this.update_ui();
+    };
+
+    /**
+     * Remove the currently selected channel from curve.
+     */
+    remove_channel() {
+        // TODO: Makeme
+        const idx = this.channelSelect.selectedIndex;
+        if (idx === NOTHING_SELECTED) {
+            return;
+        }
+        const opt = this.channelSelect.children[idx];
+        this.channelSelect.removeChild(opt);
+        this.update_ui();
+    };
+
+    /**
+     * Assign channels names. Take motor names if possible. Excess channels
+     * will be labeld with "Curve X"...
+     */
+    assign_channel_names() {
+        const nChannels = this.channelSelect.childElementCount;
+        let mid = nChannels;
+        let mp = undefined;
+        if (this.has_motion_players()) {
+            mp = this.selectedMotionPlayer;
+            mid = Math.min(mid, mp.ndim);
+        }
+
+        for (let i=0; i<mid; i++) {
+            const opt = this.channelSelect.children[i];
+            opt.innerHTML = mp.motors[i].name;
+        }
+
+        for (let i=mid; i<nChannels; i++) {
+            const opt = this.channelSelect.children[i];
+            opt.innerHTML = `Curve ${i}`;
+        }
+    }
 
     /**
      * Create a new curve.
@@ -288,7 +392,9 @@ export class Editor extends Widget {
     async create_new_curve() {
         console.log("Editor.create_new_curve()");
         const freename = await this.api.find_free_name();
-        const newCurve = zero_spline(1);
+        //const nCurves = this.selectedMotionPlayer.ndim if this.has_motion_players()
+        const nCurves  = this.has_motion_players() ?  this.selectedMotionPlayer.ndim : 1;
+        const newCurve = zero_spline(nCurves);
         const resp = await this.api.create_curve(freename, newCurve)
         if (resp.status !== OK) {
             console.log("Something went wrong creating new curve on server");
@@ -515,10 +621,8 @@ export class Editor extends Widget {
 
         // Motor channel selection
         this.channelSelect = this.add_select_to_toolbar();
-        const removeCurveBtn = this.add_button_to_toolbar("remove_circle", "Remove current curve");
-        disable_button(removeCurveBtn);
-        const addNewCurveBtn = this.add_button_to_toolbar("add_circle", "Add new curve");
-        disable_button(addNewCurveBtn);
+        this.removeChannelBtn = this.add_button_to_toolbar("remove_circle", "Remove current curve");
+        this.addChannelBtn = this.add_button_to_toolbar("add_circle", "Add new curve");
         this.add_space_to_toolbar()
 
 
@@ -758,6 +862,9 @@ export class Editor extends Widget {
      * / redo buttons according to history.
      */
     update_ui() {
+        this.removeChannelBtn.disabled = (this.number_of_channels() === 0);
+        this.assign_channel_names();
+
         switch_button_to(this.listBtn, !this.list.hasAttribute(FOLDED));
 
         this.saveBtn.disabled = !(this.history.length > 1);

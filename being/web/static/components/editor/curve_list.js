@@ -4,39 +4,17 @@
 import { Api } from "/static/js/api.js";
 import { BPoly } from "/static/js/spline.js";
 import { WidgetBase } from "/static/js/widget.js";
-import { create_button } from "/static/js/button.js";
 import { make_editable } from "/static/js/editable_text.js";
-import { enable_button, disable_button, switch_button_to } from "/static/js/button.js";
-import { remove_all_children, is_valid_filename, assert, rename_map_key, find_map_key_for_value, emit_event} from "/static/js/utils.js";
-
-
-/**
- * Check if object is empty.
- */
-function is_empty_object(obj) {
-    // because Object.keys(new Date()).length === 0;
-    // we have to do some additional check
-    return obj // 👈 null and undefined check
-        && Object.keys(obj).length === 0
-        && Object.getPrototypeOf(obj) === Object.prototype;
-}
-
-
-/**
- * Python like setdefault for JS Maps.
- */
-function map_setdefault(map, key, defaultValue) {
-    if (!map.has(key)) {
-        map.set(key, defaultValue);
-    }
-    return map.get(key)
-}
+import {
+    assert, emit_event, find_map_key_for_value, is_valid_filename,
+    remove_all_children, rename_map_key,
+} from "/static/js/utils.js";
 
 
 /**
  * Get first map key (if any). undefined otherwise.
  */
-function map_first_key(map) {
+function first_map_key(map) {
     if (map.size > 0) {
         const [key, value] = map.entries().next().value;
         return key;
@@ -133,137 +111,160 @@ export class CurveList extends WidgetBase {
         super();
         this._append_link("static/css/material_icons.css");
         this.append_template(CURVE_LIST_TEMPLATE);
+        this.api = new Api();
+        this.motionPlayers = {};
+
+        // Relevant HTML elements
         this.curveList = this.shadowRoot.getElementById("curve-list");
         this.newBtn = this.shadowRoot.getElementById("new-button");
         this.deleteBtn = this.shadowRoot.getElementById("delete-button");
         this.duplicateBtn = this.shadowRoot.getElementById("duplicate-button");
-        this.motionPlayers = [];
 
-        // Mutable / changeable attributes
-        this.curves = new Map();  // Curve name: str -> Curve: BPoly
-        this.selected = null;  // Curve name: str
-        this.associatedMotionPlayers = new Map();  // Curve name: str -> Motion player
-        this.armed = new Map();  // Motion player -> Curve name: str
-    }
-
-    // Public
-
-    selected_curve() {
-        return this.curves.get(this.selected);
-    }
-
-    armed_curves() {
-        return this.armed.values();
-    }
-
-    background_curves() {
-        const names = Array.from(this.armed.values());
-        names.pop(this.selected);
-    }
-
-    populate(namecurves) {
-        console.log("CurveList.populate()");
-        this.clear();
-
-        namecurves.forEach(namecurve => {
-            let [name, curve] = namecurve;
-            curve = as_bpoly(curve);
-            this.add_entry(name, curve);
-        });
-
-        if (namecurves.length > 0) {
-            const firstName = namecurves[0][0];
-            this.select(firstName);
-        }
-
-        this.update_ui();
-    }
-
-    associate_motion_player_with_current_curve(mp) {
-        console.log("CurveList.associate_motion_player_with_current_curve()", mp);
-        //if (this.selected === null) { return; }
-        console.log("  selected:", this.selected);
-        this.associatedMotionPlayers.set(this.selected, mp);
-        if (this.is_armed(this.selected)) {
-            this.arm(this.selected);
-        }
-    }
-
-    associated_motion_player() {
-        return this.which_motion_player_for_curve(this.selected);
-    }
-
-
-    new_motions_message(msg) {
-        console.log("CurveList.new_motions_message()", msg);
-        console.log(this);
-        const wasSelected = this.selected;
-        this.populate(msg.curves);
-
-        if (this.curves.size === 0) {
-            console.log("Nothing to select anymore!")
-            return
-        }
-        const doesNotExistAnymore = !this.curves.has(wasSelected);
-        if (doesNotExistAnymore) {
-            const firstName = map_first_key(this.curves);
-            this.select(firstName);
-        } else {
-            this.select(wasSelected);
-        }
+        // Mutable / changeable states
+        this.selected = undefined;  // Currently selected curve name
+        this.curves = new Map();  // All curves. Curve name -> curve
+        this.associations = new Map();  // Motion player associations. Curve name -> Motion player ID
+        this.armed = new Map();  // Currently armed curves. Motion player id -> Curve name
     }
 
     // Private
 
     async connectedCallback() {
-        const api = new Api();
-        this.motionPlayers = await api.get_motion_player_infos();
-        const curvesMsg = await api.get_curves();
+        this.motionPlayers = {};
+        const motionPlayers = await this.api.get_motion_player_infos();
+        motionPlayers.forEach(mp => {
+            this.motionPlayers[mp.id] = mp;
+        })
+
+        const curvesMsg = await this.api.get_curves();
         this.populate(curvesMsg.curves);
-        return
-        this.addEventListener("contextmenu", evt => {
-            // Debug infos
-            evt.preventDefault();
-            console.log("CurveList current state:");
-            //console.log("  curves:", this.curves);
-            console.log("  selected:", this.selected);
-            //console.log("  associatedMotionPlayers:", this.associatedMotionPlayers);
-            console.log("  associatedMotionPlayers:");
-            for (const [name, mp] of this.associatedMotionPlayers) {
-                console.log("    ", name, "->", mp);
-            }
-            //console.log("  armed:", this.armed);
-        });
     }
 
-    clear() {
-        //this.motionPlayers = [];
-        remove_all_children(this.curveList);
-        this.selected = null;
-        this.curves.clear();
+    // Private data accessors
 
-        // We want to remember associations and armed
-        //this.associatedMotionPlayers.clear();
-        //this.armed.clear();
+    /**
+     * Select curve. This also arms the curve.
+     */
+    select(name, publish=true) {
+        assert(this.curves.has(name), `Unknown curve ${name}`);
+        if (name === this.selected) {
+            return console.log(name, "is allready selected");
+        }
+
+        if (this.selected) {
+            this.disarm(this.selected, false);
+        }
+
+        this.selected = name;
+        this.arm(name, false);
+
+        if (publish) {
+            this.update_ui();
+            emit_event(this, "change");
+        }
     }
 
+    /**
+     * Deselect curve. This also disarms the curve.
+     */
+    deselect(name, publish=true) {
+        assert(this.curves.has(name), `Unknown curve ${name}`);
+        this.disarm(this.selected, false);
+        this.selected = undefined;
+
+        if (publish) {
+            this.update_ui();
+            emit_event(this, "change");
+        }
+    }
+
+    /**
+     * Associate curve with motion player.
+     */
+    associate_motion_player(name, motionPlayer) {
+        assert(this.curves.has(name), `Unknown curve ${name}`);
+        this.associations.set(name, motionPlayer.id);
+    }
+
+    /**
+     * Disassociate curve from motion player.
+     */
+    disassociate_motion_player(name, motionPlayer) {
+        assert(this.curves.has(name), `Unknown curve ${name}`);
+        this.associations.delete(name);
+    }
+
+    /**
+     * Get associated motion player for curve (if any).
+     */
+    associated_motion_player(name) {
+        assert(this.curves.has(name), `Unknown curve ${name}`);
+        if (!this.associations.has(name)) {
+            return;
+        }
+        const id = this.associations.get(name);
+        return this.motionPlayers[id];
+    }
+
+    /**
+     * Get first best match for curve. Associated or the first known motion
+     * player.
+     */
+    first_best_motion_player(name) {
+        if (this.associations.has(name)) {
+            const id = this.associations.get(name);
+            return this.motionPlayers[id];
+        }
+
+        return Object.values(this.motionPlayers)[0]
+    }
+
+    /**
+     * Check if curve is armed.
+     */
     is_armed(name) {
+        assert(this.curves.has(name), `Unknown curve ${name}`);
         return Array.from(this.armed.values()).includes(name);
     }
 
-    which_motion_player_for_curve(name) {
-        if (!this.associatedMotionPlayers.has(name)) {
-            const curve = this.curves.get(name);
-            let candidate = this.motionPlayers.find(mp => mp.ndim === curve.ndim);
-            if (candidate !== undefined) {
-                candidate = this.motionPlayers[0];
-            }
-            this.associatedMotionPlayers.set(name, candidate);
+    /**
+     * Arm curve.
+     */
+    arm(name, publish=true) {
+        assert(this.curves.has(name), `Unknown curve ${name}`);
+        if (this.is_armed(name)) {
+            return console.log(name, "is allready armed");
         }
 
-        return this.associatedMotionPlayers.get(name);
+        const mp = this.first_best_motion_player(name);
+        this.armed.set(mp.id, name);
+
+        if (publish) {
+            this.update_ui();
+            emit_event(this, "change");
+        }
     }
 
+    /**
+     * Disarm curve.
+     */
+    disarm(name, publish=true) {
+        assert(this.curves.has(name), `Unknown curve ${name}`);
+        if (!this.is_armed(name)) {
+            return console.log(name, "is allready disarmed");
+        }
+
+        const mpId = find_map_key_for_value(this.armed, name);
+        this.armed.delete(mpId);
+        this.update_ui();
+    }
+
+    // Private misc
+
+    /**
+     * Filename validator. Trims white space and checks validity for filename
+     * usage. Throws error otherwise. Compatible with make_editable() function.
+     */
     validate_name(name) {
         name = name.trim();
         if (is_valid_filename(name) && !this.curves.has(name)) {
@@ -271,15 +272,6 @@ export class CurveList extends WidgetBase {
         }
 
         throw `"${name}" is an invalid name!`;
-    }
-
-    /**
-     * Add new curve entry to list.
-     */
-    add_entry(name, curve) {
-        const entry = this.create_entry(name, curve);
-        this.curveList.appendChild(entry);
-        this.curves.set(name, curve);
     }
 
     /**
@@ -306,6 +298,18 @@ export class CurveList extends WidgetBase {
     }
 
     /**
+     * Rename curve in curve list data.
+     */
+    async rename_curve(oldName, newName) {
+        const curve = await this.api.get_curve(oldName);
+        this.deselect(oldName, false);
+        rename_map_key(this.curves, oldName, newName);
+        rename_map_key(this.associations, oldName, newName);
+        this.select(newName, false);
+        await this.api.rename_curve(oldName, newName);
+    }
+
+    /**
      * Attache necessary event listeners to list entry.
      * - Clicking for select
      * - Toggle eye symbol for arming
@@ -316,25 +320,11 @@ export class CurveList extends WidgetBase {
 
         make_editable(
             entry.text,
-            newName => {
-                // Rename entry
+            async newName => {
                 const oldName = entry.name;
-
-                rename_map_key(this.curves, oldName, newName);
-
-                if (this.selected === oldName) {
-                    this.selected = newName;
-                }
-
-                rename_map_key(this.associatedMotionPlayers, oldName, newName);
-
-                if (this.is_armed(oldName)) {
-                    const mp = find_map_key_for_value(this.armed, oldName);
-                    this.armed.set(mp, newName);
-                }
-
-                entry.name = newName;
-                // TODO: Trigger curve renaming in backend
+                const freename = await this.api.find_free_name(newName);
+                await this.rename_curve(oldName, freename)
+                entry.name = freename;
             },
             newName => {
                 // Validate new name
@@ -356,42 +346,20 @@ export class CurveList extends WidgetBase {
         });
     }
 
-    select(name) {
-        console.log("CurveList.select()", name);
-        if (name === this.selected) {
-            console.log(name, "is allready selected");
-            return
-        }
-
-        if (this.selected !== null) {
-            this.disarm(this.selected);
-        }
-
-        this.selected = name;
-        this.arm(name);  // Triggers update_ui()
-        emit_event(this, "change");
+    /**
+     * Add new curve entry to list.
+     */
+    add_entry(name, curve) {
+        const entry = this.create_entry(name, curve);
+        this.curveList.appendChild(entry);
+        this.curves.set(name, curve);
     }
 
-    arm(name) {
-        console.log("CurveList.arm()", name);
-        const mp = this.which_motion_player_for_curve(name)
-        this.armed.set(mp, name);
-        this.update_ui();
-        emit_event(this, "change");
-    }
-
-    disarm(name) {
-        console.log("CurveList.disarm()", name);
-        if (this.is_armed(name)) {
-            const mp = find_map_key_for_value(this.armed, name);
-            this.armed.delete(mp);
-            this.update_ui();
-        }
-    }
-
+    /**
+     * Update UI from state.
+     */
     update_ui() {
-        console.log('CurveList.update_ui()');
-        const nothingSelected = (this.selected === null);
+        const nothingSelected = (this.selected === undefined);
         this.deleteBtn.disabled = nothingSelected;
         this.duplicateBtn.disabled = nothingSelected;
 
@@ -407,6 +375,61 @@ export class CurveList extends WidgetBase {
             } else {
                 entry.eye.classList.add('opaque');
             }
+        }
+    }
+
+    /**
+     * Populate curve list with entries.
+     */
+    populate(namecurves) {
+        remove_all_children(this.curveList);
+        this.curves.clear();
+        namecurves.forEach(namecurve => {
+            let [name, curve] = namecurve;
+            curve = as_bpoly(curve);
+            this.add_entry(name, curve);
+        });
+
+        if (!this.curves.has(this.selected)) {
+            this.selected = undefined;
+        }
+
+        if (this.selected === undefined && namecurves.length > 0) {
+            const firstName = namecurves[0][0];
+            this.select(firstName);
+        }
+
+        this.update_ui();
+    }
+
+    // Public
+
+    selected_curve() {
+        return this.curves.get(this.selected);
+    }
+
+    //armed_curves() {
+    //    return this.armed.values();
+    //}
+
+    //background_curves() {
+    //    const names = Array.from(this.armed.values());
+    //    names.pop(this.selected);
+    //}
+
+    new_motions_message(msg) {
+        const wasSelected = this.selected;
+        this.populate(msg.curves);
+
+        if (this.curves.size === 0) {
+            return
+        }
+        const doesNotExistAnymore = !this.curves.has(wasSelected);
+        if (doesNotExistAnymore) {
+            const firstName = first_map_key(this.curves);
+            this.select(firstName);
+        } else {
+            this.select(wasSelected);
         }
     }
 }

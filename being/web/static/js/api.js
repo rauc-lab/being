@@ -165,6 +165,14 @@ export class Api {
         return delete_fetch(url);
     }
 
+    async rename_curve(oldName, newName) {
+        const data = {
+            oldName: oldName,
+            newName: newName,
+        };
+        return put_json(API + "/rename_curve", data);
+    }
+
     async find_free_name(wishName=undefined) {
         let uri = API + "/find-free-name";
         if (wishName !== undefined) {
