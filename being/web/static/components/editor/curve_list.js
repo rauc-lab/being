@@ -7,7 +7,7 @@ import { WidgetBase } from "/static/js/widget.js";
 import { make_editable } from "/static/js/editable_text.js";
 import {
     assert, emit_event, find_map_key_for_value, is_valid_filename,
-    remove_all_children, rename_map_key,
+    remove_all_children, rename_map_key, emit_custom_event,
 } from "/static/js/utils.js";
 
 
@@ -160,7 +160,7 @@ export class CurveList extends WidgetBase {
 
         if (publish) {
             this.update_ui();
-            emit_event(this, "change");
+            this.emit_custom_event("selectedchanged");
         }
     }
 
@@ -174,7 +174,7 @@ export class CurveList extends WidgetBase {
 
         if (publish) {
             this.update_ui();
-            emit_event(this, "change");
+            this.emit_custom_event("selectedchanged");
         }
     }
 
@@ -189,7 +189,7 @@ export class CurveList extends WidgetBase {
     /**
      * Disassociate curve from motion player.
      */
-    disassociate_motion_player(name, motionPlayer) {
+    disassociate_motion_player(name) {
         assert(this.curves.has(name), `Unknown curve ${name}`);
         this.associations.delete(name);
     }
@@ -241,7 +241,7 @@ export class CurveList extends WidgetBase {
 
         if (publish) {
             this.update_ui();
-            emit_event(this, "change");
+            this.emit_custom_event("armedchanged");
         }
     }
 
@@ -256,7 +256,11 @@ export class CurveList extends WidgetBase {
 
         const mpId = find_map_key_for_value(this.armed, name);
         this.armed.delete(mpId);
-        this.update_ui();
+
+        if (publish) {
+            this.update_ui();
+            this.emit_custom_event("armedchanged");
+        }
     }
 
     // Private misc
@@ -356,29 +360,6 @@ export class CurveList extends WidgetBase {
     }
 
     /**
-     * Update UI from state.
-     */
-    update_ui() {
-        const nothingSelected = (this.selected === undefined);
-        this.deleteBtn.disabled = nothingSelected;
-        this.duplicateBtn.disabled = nothingSelected;
-
-        for (let entry of this.curveList.childNodes) {
-            if (entry.name === this.selected) {
-                entry.classList.add('in-focus');
-            } else {
-                entry.classList.remove('in-focus');
-            }
-
-            if (this.is_armed(entry.name) && entry.name !== this.selected) {
-                entry.eye.classList.remove('opaque');
-            } else {
-                entry.eye.classList.add('opaque');
-            }
-        }
-    }
-
-    /**
      * Populate curve list with entries.
      */
     populate(namecurves) {
@@ -402,21 +383,64 @@ export class CurveList extends WidgetBase {
         this.update_ui();
     }
 
+    emit_custom_event(typeArg) {
+        emit_custom_event(this, typeArg);
+    }
+
+    /**
+     * Update UI from state.
+     */
+    update_ui() {
+        const nothingSelected = (this.selected === undefined);
+        this.deleteBtn.disabled = nothingSelected;
+        this.duplicateBtn.disabled = nothingSelected;
+
+        for (let entry of this.curveList.childNodes) {
+            if (entry.name === this.selected) {
+                entry.classList.add('in-focus');
+            } else {
+                entry.classList.remove('in-focus');
+            }
+
+            if (this.is_armed(entry.name) && entry.name !== this.selected) {
+                entry.eye.classList.remove('opaque');
+            } else {
+                entry.eye.classList.add('opaque');
+            }
+        }
+    }
+
     // Public
 
+    /**
+     * Get the currently selected curve (if any). undefined otherwise.
+     */
     selected_curve() {
         return this.curves.get(this.selected);
     }
 
-    //armed_curves() {
-    //    return this.armed.values();
-    //}
+    /**
+     * Get an array with all "background" curves. These are curves which are
+     * armed but not the selected one.
+     */
+    background_curves() {
+        const names = Array.from(this.armed.values());
+        if (names.includes(this.selected)) {
+            names.pop(this.selected);
+        }
 
-    //background_curves() {
-    //    const names = Array.from(this.armed.values());
-    //    names.pop(this.selected);
-    //}
+        const background = [];
+        names.forEach(name => {
+            background.push(this.curves.get(name));
+        });
 
+        return background;
+    }
+
+    /**
+     * Process new content / motions message. Purge the currently displayed
+     * curves.
+     */
     new_motions_message(msg) {
         const wasSelected = this.selected;
         this.populate(msg.curves);
@@ -424,6 +448,7 @@ export class CurveList extends WidgetBase {
         if (this.curves.size === 0) {
             return
         }
+
         const doesNotExistAnymore = !this.curves.has(wasSelected);
         if (doesNotExistAnymore) {
             const firstName = first_map_key(this.curves);

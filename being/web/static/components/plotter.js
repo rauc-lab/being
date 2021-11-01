@@ -337,7 +337,21 @@ export class Plotter extends WidgetBase {
      * Change viewport and redraw.
      */
     change_viewport(bbox) {
-        this.viewport = bbox;
+        this.viewport = this.minViewport.copy();
+        this.viewport.expand_by_bbox(bbox);
+        this.update_transformation_matrices();
+        this.draw();
+    }
+
+    /**
+     * Expand viewport vertically and redraw.
+     *
+     * @param {Number} ymin Lower vertical bound.
+     * @param {Number} ymax Upper vertical bound.
+     */
+    expand_viewport_vertically(ymin, ymax) {
+        this.viewport.ll[1] = Math.min(this.viewport.ll[1], ymin);
+        this.viewport.ur[1] = Math.max(this.viewport.ur[1], ymax);
         this.update_transformation_matrices();
         this.draw();
     }

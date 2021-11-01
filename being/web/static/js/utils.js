@@ -238,16 +238,31 @@ export function insert_after(newNode, referenceNode) {
 /**
  * Emit event for HTML element.
  */
-export function emit_event(ele, type, bubbles=true, cancelable=true) {
-    if ("createEvent" in document) {
-        const evt = document.createEvent("HTMLEvents");
-        evt.initEvent(type, bubbles, cancelable);
-        evt.eventName = type;
+export function emit_event(ele, typeArg, bubbles=false, cancelable=false, composed=false) {
+    if ("Event" in window) {
+        const evt = new Event(typeArg, {
+            "bubbles": bubbles,
+            "cancelable": cancelable,
+            "compose": composed,
+        });
         ele.dispatchEvent(evt);
+
+    } else if ("createEvent" in document) {
+        const evt = document.createEvent("HTMLEvents");
+        evt.initEvent(typeArg, bubbles, cancelable);
+        evt.eventName = typeArg;
+        ele.dispatchEvent(evt);
+
     } else {
         const evt = document.createEventObject();
-        evt.eventName = type;
-        evt.eventType = type;
+        evt.eventName = typeArg;
+        evt.eventType = typeArg;
         ele.fireEvent("on" + evt.eventType, evt);
     }
+}
+
+
+export function emit_custom_event(ele, typeArg, detail=null) {
+    const evt = new CustomEvent(typeArg, {detail: detail});
+    ele.dispatchEvent(evt);
 }

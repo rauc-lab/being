@@ -7,7 +7,7 @@ import { arange, subtract_arrays } from "/static/js/array.js";
 import { clip } from "/static/js/math.js";
 import { COEFFICIENTS_DEPTH, KNOT, FIRST_CP, SECOND_CP, Degree, LEFT, RIGHT } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
-import { assert, arrays_equal, clear_array, remove_all_children } from "/static/js/utils.js";
+import { assert, arrays_equal, clear_array, remove_all_children, emit_custom_event } from "/static/js/utils.js";
 import { Plotter } from "/static/components/plotter.js";
 
 
@@ -79,16 +79,14 @@ const EXTRA_STYLE = `
 export class CurveDrawer extends Plotter {
     constructor() {
         super();
-        this.autoscaling = false;
-        this.splines = [];
-        this.elements = [];
-        this.container = this.svg.appendChild(create_element("g"));
-
         this.append_template(EXTRA_STYLE);
         this.annotation = document.createElement("span");
         this.annotation.classList.add("annotation");
         this.shadowRoot.appendChild(this.annotation);
+        this.autoscaling = false;
 
+        this.container = this.svg.appendChild(create_element("g"));
+        this.elements = [];
         this.c1 = true;
         this.snapping_to_grid = true;
         this.limits = new BBox([0, -Infinity], [Infinity, Infinity]);
@@ -97,42 +95,16 @@ export class CurveDrawer extends Plotter {
     }
 
     /**
-     * Clear everything from SplineDrawer.
+     * Clear everything.
      */
     clear() {
-        remove_all_children(this.container);
-        clear_array(this.splines);
         clear_array(this.elements);
+        remove_all_children(this.container);
     }
 
     /**
-     * Calculate data bounding box of all drawn curves.
-     */
-    curves_bbox() {
-        const bbox = new BBox();
-        this.splines.forEach(spline => {
-            bbox.expand_by_bbox(spline.bbox());
-        });
-
-        return bbox;
-    }
-
-    /**
-     * Set vertical limits.
-     */
-    set_vertical_limits(ymin=-Infinity, ymax=Infinity) {
-        console.log("Drawer.set_vertical_limits()", ymin, ymax);
-        this.limits.ll[1] = ymin;
-        this.limits.ur[1] = ymax;
-        //this.viewport.ll[1] = Math.min(this.viewport.ll[1], ymin);
-        //this.viewport.ur[1] = Math.max(this.viewport.ur[1], ymax);
-
-        //this.update_transformation_matrices();
-        //this.draw();
-    }
-
-    /**
-     * Setup drag event handlers for moving horizontally and zooming vertically.
+     * Setup drag event handlers for moving horizontally and zooming
+     * vertically.
      */
     setup_svg_drag_navigation() {
         let start = null;
@@ -172,44 +144,37 @@ export class CurveDrawer extends Plotter {
      * Emit custom curvechanging event.
      */
     emit_curve_changing(position=null) {
-        const evt = new CustomEvent("curvechanging", {
-            detail: {
-                position: position,
-            }
-        });
-        this.dispatchEvent(evt)
+        emit_custom_event(this, "curvechanging", {
+            position: position,
+        })
     }
-
 
     /**
      * Emit custom curvechanged event.
      */
     emit_curve_changed(newCurve) {
-        const evt = new CustomEvent("curvechanged", {
-            detail: {
-                newCurve: newCurve,
-            }
-        });
-        this.dispatchEvent(evt)
+        emit_custom_event(this, "curvechanged", {
+            newCurve: newCurve,
+        })
     }
 
     /**
      * Position annotation label around.
      *
      * @param {Array} pos Position to move to (data space).
-     * @param {String} location Label location identifier.
+     * @param {String} loc Location label identifier.
      */
-    position_annotation(pos, location = "ur", offset=10) {
+    position_annotation(pos, loc = "ur", offset = 10) {
         const pt = this.transform_point(pos);
         let [x, y] = pt;
         const bbox = this.annotation.getBoundingClientRect();
-        if (location.endsWith("l")) {
+        if (loc.endsWith("l")) {
             x -= bbox.width + offset;
         } else {
             x += offset;
         }
 
-        if (location.startsWith("u")) {
+        if (loc.startsWith("u")) {
             y -= bbox.height + offset;
         } else {
             y += offset;
@@ -254,7 +219,7 @@ export class CurveDrawer extends Plotter {
                 workingCopy.restrict_to_bbox(this.limits);
                 this.annotation.style.visibility = "visible";
                 this.position_annotation(end, labelLocation);
-                this.draw_curves();
+                this._draw_curves();
             },
             evt => {
                 const end = this.mouse_coordinates(evt);
@@ -448,29 +413,60 @@ export class CurveDrawer extends Plotter {
     }
 
     /**
-     * Draw spline. Initializes SVG elements. If interactive also paint knots,
-     * control points and helper lines and setup UI callbacks.
+     * Draw single curve channel.
      */
-    draw_spline(spline, interactive = true, channel = 0) {
-        console.log("draw_spline()");
-        console.log("spline.duration:", spline.duration);
-        assert(spline.degree <= Degree.CUBIC, `Spline degree ${spline.degree} not supported!`);
-        // Spline working copy
-        const wc = spline.copy();
-        this.splines.push(wc);
-        const lw = interactive ? 2 : 1;
-        arange(wc.ndim).forEach(dim => {
-            const color = (dim === channel) ? "black" : "silver";
-            this.draw_curve(wc, lw, dim, color);
-            if (interactive && dim === channel) {
-                this.draw_control_points(wc, lw, dim);
-                this.draw_knots(wc, lw, dim);
-            }
-        });
-        //this.draw();
+    _draw_curve_channel(curve, channel, color="black", linewidth=1, interactive=false) {
+        this.draw_curve(curve, linewidth, channel, color);
+        if (interactive) {
+            this.draw_control_points(curve, linewidth, channel);
+            this.draw_knots(curve, linewidth, channel);
+        }
     }
 
-    draw_curves() {
+    /**
+     * Draw background curve.
+     */
+    draw_background_curve(curve) {
+        assert(curve.degree <= Degree.CUBIC, `Curve degree ${curve.degree} not supported!`);
+        const wc = curve.copy();
+        const color = "Gray";
+        const linewidth = 1;
+        arange(wc.ndim).forEach(channel => {
+            this._draw_curve_channel(wc, channel, color, linewidth);
+        });
+
+        this._draw_curves();
+    }
+
+    /**
+     * Draw foreground curve. Selected channel will be interactive.
+     */
+    draw_foreground_curve(curve, channel) {
+        assert(curve.degree <= Degree.CUBIC, `Curve degree ${curve.degree} not supported!`);
+        const wc = curve.copy();
+
+        //const color = "silver";
+        //const color = "DimGray";
+        //const color = "Gray";
+        const color = "DarkGray";
+        const linewidth = 2;
+        const interactive = true;
+
+        // Draw non-interactive channels behind interactive one.
+        arange(wc.ndim).forEach(c => {
+            if (c !== channel) {
+                this._draw_curve_channel(wc, c, color, linewidth);
+            }
+        });
+        this._draw_curve_channel(wc, channel, "black", linewidth, true);
+        this.viewport.expand_by_bbox(curve.bbox());
+        this._draw_curves();
+    }
+
+    /**
+     * Draw / update all SVG elements.
+     */
+    _draw_curves() {
         this.elements.forEach(ele => ele.draw());
     }
 
@@ -478,18 +474,8 @@ export class CurveDrawer extends Plotter {
      * Draw the current state (update all SVG elements).
      */
     draw() {
-        //console.log("Drawer.draw()")
-        //console.log("viewport:", this.viewport.ll, this.viewport.ur)
-        //const bbox = this.curves_bbox();
-        //console.log("curves bbox:", bbox.ll, bbox.ur);
-        //console.log('bbox:', bbox.ll, bbox.size)
-        //this.viewport = bbox;
-        //this.viewport.expand_by_bbox(bbox);
-        //console.log(this.viewport.ll, this.viewport.size);
-        // TODO
-        //this.update_transformation_matrices();
         super.draw();
-        this.draw_curves();
+        this._draw_curves();
     }
 }
 
