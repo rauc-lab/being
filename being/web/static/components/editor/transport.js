@@ -68,7 +68,7 @@ export class Transport {
         const line = create_element("line");
         setattr(line, "stroke-width", 2);
         setattr(line, "stroke", "gray");
-        this.drawer.svg.appendChild(line);
+        this.drawer.svg.prepend(line);
         this.cursor = line;
     }
 
