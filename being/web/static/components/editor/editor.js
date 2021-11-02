@@ -92,7 +92,6 @@ function shift_spline(spline, offset) {
 }
 
 
-
 const EDITOR_TEMPLATE = `
 <style>
     :host {
@@ -146,9 +145,10 @@ export class Editor extends Widget {
         this.notificationCenter = null;
 
         this.motionPlayers = [];
+        this.actualValueIndices = [];
         this.outputIndices = [];
-        this.recordedTrajectory = [];
         this.selectedMotionPlayer = undefined;
+        this.recordedTrajectory = [];
 
         // The following undefined attributes will be created during
         // setup_toolbar_elements()
@@ -170,6 +170,13 @@ export class Editor extends Widget {
         // Motion player selection
         this.motionPlayers = await this.api.get_motion_player_infos();
         this.setup_motion_player_select();
+        this.motionPlayerSelect.addEventListener("change", () => {
+            if (this.list.selected) {
+                this.list.associate_motion_player(this.list.selected, this.selectedMotionPlayer);
+            }
+            this.assign_channel_names();
+        })
+        this.init_plotting_lines();
 
         this.toggle_limits();  // Enable by default. Can only happens once we have selected a motion player!
 
@@ -389,8 +396,6 @@ export class Editor extends Widget {
             const newSpline = shift_spline(this.history.retrieve(), DEFAULT_KNOT_SHIFT);
             this.curve_changed(newSpline);
         });
-        this.add_space_to_toolbar()
-
         this.add_button_to_toolbar("clear", "Reset current motion").addEventListener("click", () => {
             if (!this.history.length) {
                 return;
@@ -527,11 +532,23 @@ export class Editor extends Widget {
     }
 
     /**
+     * Initialize enough plotting lines for each motion player and its motors.
+     * For persistent coloring across sessions.
+     */
+    init_plotting_lines() {
+        this.actualValueIndices.forEach(indices => {
+            indices.forEach(idx => {
+                this.drawer.init_new_line(idx);
+            })
+        })
+    }
+
+    /**
      * Populate motion player select and determine currently selected motion
      * player.
      */
     setup_motion_player_select() {
-        const actualValueIndices = [];
+        this.actualValueIndices = [];
         remove_all_children(this.motionPlayerSelect);
         this.motionPlayers.forEach(mp => {
             add_option(this.motionPlayerSelect, mp.name);
@@ -543,21 +560,24 @@ export class Editor extends Widget {
                 const outs = await this.api.get_index_of_value_outputs(motor.id);
                 idx.push(...outs);
             });
-            actualValueIndices.push(idx);
+            this.actualValueIndices.push(idx);
         });
         this.motionPlayerSelect.addEventListener("change", evt => {
-            const idx = this.motionPlayerSelect.selectedIndex;
-            this.selectedMotionPlayer = this.motionPlayers[idx];
-            this.outputIndices = actualValueIndices[idx];
-            this.assign_channel_names();
-
-            this.list.associate_motion_player(this.list.selected, this.selectedMotionPlayer);
+            this.update_motion_player_selection();
         });
         dont_display_select_when_no_options(this.motionPlayerSelect);
         if (this.has_motion_players()) {
-            const idx = this.motionPlayerSelect.selectedIndex;
-            this.selectedMotionPlayer = this.motionPlayers[idx];
+            this.update_motion_player_selection();
         }
+    }
+
+    /**
+     * Update currently selected motion player, output indices.
+     */
+    update_motion_player_selection() {
+        const idx = this.motionPlayerSelect.selectedIndex;
+        this.selectedMotionPlayer = this.motionPlayers[idx];
+        this.outputIndices = this.actualValueIndices[idx];
     }
 
     /**
@@ -573,7 +593,7 @@ export class Editor extends Widget {
     select_motion_player(motionPlayer) {
         const idx = this.motionPlayers.findIndex(mp => mp.id === motionPlayer.id);
         this.motionPlayerSelect.selectedIndex = idx;
-        this.selectedMotionPlayer = this.motionPlayers[idx];
+        this.update_motion_player_selection();
     }
 
     /**
@@ -1137,7 +1157,6 @@ export class Editor extends Widget {
      * Process new data message from back-end.
      */
     new_data(msg) {
-        return;  // TODO
         const t = this.transport.move(msg.timestamp);
         if (this.transport.playing && t > this.transport.duration) {
             this.transport.stop();
