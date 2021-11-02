@@ -819,22 +819,24 @@ export class Editor extends Widget {
     /**
      * Undo latest editing step.
      */
-    undo() {
+    async undo() {
         if (this.history.undoable) {
             this.history.undo();
             this.stop_motion_playback();
             this.draw_current_curves();
+            await this.save_current_curve();
         }
     }
 
     /**
      * Redo latest editing step.
      */
-    redo() {
+    async redo() {
         if (this.history.redoable) {
             this.history.redo();
             this.stop_motion_playback();
             this.draw_current_curves();
+            await this.save_current_curve();
         }
     }
 
