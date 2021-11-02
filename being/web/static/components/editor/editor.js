@@ -636,7 +636,8 @@ export class Editor extends Widget {
      */
     add_channel() {
         // TODO: Makeme
-        add_option(this.channelSelect)
+        const idx = this.channelSelect.selectedIndex;
+        add_option(this.channelSelect, "Placeholder", idx);
         this.update_ui();
     }
 
