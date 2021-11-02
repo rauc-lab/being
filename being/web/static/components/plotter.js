@@ -357,6 +357,15 @@ export class Plotter extends WidgetBase {
     }
 
     /**
+     * Expand viewport by some other bounding box.
+     */
+    expand_viewport_by_bbox(bbox) {
+        this.viewport.expand_by_bbox(bbox);
+        this.update_transformation_matrices();
+        this.draw();
+    }
+
+    /**
      * Make lines forget one value.
      */
     forget() {

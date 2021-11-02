@@ -81,6 +81,9 @@ function stretch_spline(spline, factor) {
 }
 
 
+/**
+ * Shift all control points of spline by some offset.
+ */
 function shift_spline(spline, offset) {
     const start = spline.x[0];
     offset = Math.max(offset, -start);
@@ -89,6 +92,19 @@ function shift_spline(spline, offset) {
     });
 
     return new BPoly(spline.c, shiftedKnots);
+}
+
+
+/**
+ * Purge outdated keys from map.
+ */
+function purge_map(map, keys) {
+    keys = Array.from(keys)
+    for (const k of map.keys()) {
+        if (!keys.includes(k)) {
+            map.delete(k)
+        }
+    }
 }
 
 
@@ -137,7 +153,7 @@ export class Editor extends Widget {
         this.append_template(EDITOR_TEMPLATE)
 
         this.api = new Api();
-        this.history = new History();
+        this.histories = new Map();  // Curve name -> History instance
         this.list = this.shadowRoot.querySelector("being-curve-list");
         this.drawer = this.shadowRoot.querySelector("being-curve-drawer");
         this.transport = new Transport(this.drawer);
@@ -159,6 +175,19 @@ export class Editor extends Widget {
         this.setup_toolbar_elements();
 
         this.update_ui();
+    }
+
+    get history() {
+        const selected = this.list.selected;
+        if (!selected) {
+            throw "No curve selected yet";
+        }
+
+        if (!this.histories.has(selected)) {
+            throw "No history for curve " + selected;
+        }
+
+        return this.histories.get(selected);
     }
 
     // Setup and data accessors
@@ -213,10 +242,6 @@ export class Editor extends Widget {
             this.curve_changed(evt.detail.newCurve);
         });
 
-        if (this.list.selected) {
-            emit_event(this.list, "change");
-        }
-
         // TODO: Can / should this go to the constructor?
         this.setup_keyboard_shortcuts();
     }
@@ -233,19 +258,16 @@ export class Editor extends Widget {
             this.update_ui();
             this.drawer.resize();
         });
-        this.add_space_to_toolbar();
+        this.listBtn.style.display = "none";
+        //this.add_space_to_toolbar();
 
 
         // Editing history buttons
         this.newBtn = this.add_button_to_toolbar("add_box", "Create new spline");
-        //this.newBtn.style.display = "none";
         this.newBtn.addEventListener("click", () => {
             this.create_new_curve();
         });
-        this.saveBtn = this.add_button_to_toolbar("save", "Save motion");
-        this.saveBtn.addEventListener("click", async () => {
-            this.save_current_curve();
-        });
+        this.newBtn.style.display = "none";
         this.undoBtn = this.add_button_to_toolbar("undo", "Undo last action");
         this.undoBtn.addEventListener("click", () => {
             this.undo();
@@ -705,19 +727,22 @@ export class Editor extends Widget {
             this.duplicate_current_curve();
         });
         this.list.addEventListener("selectedchanged", evt => {
+            const selected = this.list.selected;
+            if (selected === undefined) {
+                throw "Nothing selected!";
+            }
+
             // Update motion player select
-            const mp = this.list.associated_motion_player(this.list.selected);
+            const mp = this.list.associated_motion_player(selected);
             if (mp !== undefined) {
                 this.select_motion_player(mp);
             }
 
             // Update channel select
-            const selCurve = this.list.selected_curve();
-            this.set_number_of_channels_to(selCurve.ndim);
+            const selectedCurve = this.list.selected_curve();
+            this.set_number_of_channels_to(selectedCurve.ndim);
 
-            //this.change_curve(selCurve);
-            const reset = true;
-            this.draw_curve(selCurve, reset);
+            this.draw_curve(selected, selectedCurve);
         });
         this.list.addEventListener("armedchanged", evt => {
             this.draw_current_curves();
@@ -846,8 +871,6 @@ export class Editor extends Widget {
 
         const curve = this.history.retrieve();
         await this.api.update_curve(name, curve);
-        this.history.clear();
-        this.history.capture(curve);
     }
 
     /**
@@ -986,6 +1009,7 @@ export class Editor extends Widget {
 
         const pos = this.drawer.mouse_coordinates(evt);
         this.curve_changing(pos);
+
         const currentSpline = this.history.retrieve();
         const newSpline = currentSpline.copy();
         newSpline.insert_knot(pos);
@@ -997,15 +1021,18 @@ export class Editor extends Widget {
 
     // Actions spline drawing
 
-    draw_curve(curve, reset=false) {
-        if (reset) {
-            this.history.clear();
-            this.drawer.change_viewport(curve.bbox())
+
+    draw_curve(name, curve) {
+        if (!this.histories.has(name)) {
+            const hist = new History();
+            hist.capture(curve)
+            this.histories.set(name, hist);
         }
 
-        this.history.capture(curve);
+        this.drawer.change_viewport(curve.bbox())
         this.draw_current_curves();
     }
+
 
     draw_current_curves() {
         const current = this.history.retrieve();
@@ -1018,7 +1045,8 @@ export class Editor extends Widget {
         this.drawer.maxlen = 0.9 * duration / this.interval;
 
         this.drawer.clear();
-        this.drawer.expand_viewport_vertically(current.min, current.max);
+        //this.drawer.expand_viewport_vertically(current.min, current.max);
+        this.drawer.expand_viewport_by_bbox(current.bbox());
         this.list.background_curves().forEach(curve => {
             this.drawer.draw_background_curve(curve);
         });
@@ -1058,9 +1086,11 @@ export class Editor extends Widget {
     /**
      * Notify spline editor that with the new current state of the spline.
      */
-    curve_changed(workingCopy) {
+    async curve_changed(workingCopy) {
         workingCopy.restrict_to_bbox(this.drawer.limits);
-        this.draw_curve(workingCopy);
+        this.history.capture(workingCopy);
+        this.draw_current_curves();
+        await this.save_current_curve();
     }
 
     // Misc
@@ -1086,9 +1116,13 @@ export class Editor extends Widget {
 
         switch_button_to(this.listBtn, !this.list.hasAttribute(FOLDED));
 
-        this.saveBtn.disabled = !(this.history.length > 1);
-        this.undoBtn.disabled = !this.history.undoable;
-        this.redoBtn.disabled = !this.history.redoable;
+        if (this.histories.has(this.list.selected)) {
+            this.undoBtn.disabled = !this.history.undoable;
+            this.redoBtn.disabled = !this.history.redoable;
+        } else {
+            this.undoBtn.disabled = true;
+            this.redoBtn.disabled = true;
+        }
 
         switch (this.transport.state) {
             case PAUSED:
@@ -1198,6 +1232,11 @@ export class Editor extends Widget {
      * Process new motions message (forward to curvelist).
      */
     new_motions_message(msg) {
+        const names = []
+        msg.curves.forEach(curvename => {
+            names.push(curvename[0]);
+        })
+        purge_map(this.histories, names);
         this.list.new_motions_message(msg);
     }
 }
