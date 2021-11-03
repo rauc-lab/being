@@ -1081,6 +1081,10 @@ export class Editor extends Widget {
      * Check if there are unsaved changes and get confirmation of the user to proceed.
      */
     confirm_unsaved_changes() {
+        if (!this.list.selected) {
+            return true;
+        }
+
         if (this.history.savable) {
             return confirm("Are you sure you want to leave without saving?");
         }
