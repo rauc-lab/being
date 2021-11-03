@@ -426,3 +426,8 @@ class WindupMotor(CanMotor):
         self.controller.set_target_position(pos)
         actual = np.interp(self.controller.get_actual_position(), self.angles, self.positions)
         self.output.value = actual
+
+    def to_dict(self):
+        dct = super().to_dict()
+        dct['length'] = self.length
+        return dct

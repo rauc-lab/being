@@ -138,6 +138,8 @@ class Controller(MotorInterface):
         self.switchJob = None
         self.init_homing(**homingKwargs)
 
+        self.node.reset_fault()
+
         # Configure node
         self.apply_motor_direction(direction)
         merged = merge_dicts(self.motor.defaultSettings, settings)
@@ -145,7 +147,6 @@ class Controller(MotorInterface):
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 
-        self.node.reset_fault()
         self.disable()
         self.node.set_operation_mode(operationMode)
 
