@@ -66,6 +66,14 @@ function clip_point(pt, bbox) {
 
 const EXTRA_STYLE = `
 <style>
+:host {
+    user-select: none; /* standard syntax */
+    -webkit-user-select: none; /* webkit (safari, chrome) browsers */
+    -moz-user-select: none; /* mozilla browsers */
+    -khtml-user-select: none; /* webkit (konqueror) browsers */
+    -ms-user-select: none; /* IE10+ */
+}
+
 .annotation {
     position: absolute;
     visibility: hidden;
@@ -90,8 +98,20 @@ export class CurveDrawer extends Plotter {
         this.c1 = true;
         this.snapping_to_grid = true;
         this.limits = new BBox([0, -Infinity], [Infinity, Infinity]);
+        this.foregroundCurve = undefined;
 
         this.setup_svg_drag_navigation();
+        this.svg.addEventListener("dblclick", evt => {
+            if (!this.foregroundCurve) {
+                return
+            }
+
+            const pos = this.mouse_coordinates(evt);
+            this.emit_curve_changing();
+            const newCurve = this.foregroundCurve.copy();
+            newCurve.insert_knot(pos);
+            this.emit_curve_changed(newCurve);
+        });
     }
 
     /**
@@ -100,6 +120,7 @@ export class CurveDrawer extends Plotter {
     clear() {
         clear_array(this.elements);
         remove_all_children(this.container);
+        this.foregroundCurve = undefined;
     }
 
     /**
@@ -444,6 +465,7 @@ export class CurveDrawer extends Plotter {
     draw_foreground_curve(curve, channel) {
         assert(curve.degree <= Degree.CUBIC, `Curve degree ${curve.degree} not supported!`);
         const wc = curve.copy();
+        this.foregroundCurve = wc;
 
         //const color = "silver";
         //const color = "DimGray";

@@ -96,9 +96,9 @@ function shift_spline(spline, offset) {
 
 
 /**
- * Purge outdated keys from map.
+ * Purge outdated keys from map (in-place).
  */
-function purge_map(map, keys) {
+function purge_outdated_map_keys(map, keys) {
     keys = Array.from(keys)
     for (const k of map.keys()) {
         if (!keys.includes(k)) {
@@ -177,6 +177,9 @@ export class Editor extends Widget {
         this.update_ui();
     }
 
+    /**
+     * Get editing history for currently selected curve.
+     */
     get history() {
         const selected = this.list.selected;
         if (!selected) {
@@ -225,14 +228,6 @@ export class Editor extends Widget {
             if (this.transport.playing) {
                 this.play_current_motions();
             }
-        });
-        // TODO: Move to CurveDrawer
-        this.drawer.svg.addEventListener("dblclick", evt => {
-            // TODO: How to prevent accidental text selection?
-            //evt.stopPropagation()
-            //evt.preventDefault();
-            this.stop_motion_playback();
-            this.insert_new_knot(evt);
         });
 
         this.drawer.addEventListener("curvechanging", evt => {
@@ -921,13 +916,13 @@ export class Editor extends Widget {
             return;
         }
 
+        this.transport.play();
         const spline = this.history.retrieve();
         const motionPlayer = this.selectedMotionPlayer;
         const loop = this.transport.looping;
         const offset = this.transport.position;
         const startTime = await this.api.play_spline(spline, motionPlayer.id, loop, offset);
         this.transport.startTime = startTime + INTERVAL;
-        this.transport.play();
         this.update_ui();
     }
 
@@ -936,8 +931,8 @@ export class Editor extends Widget {
      */
     async stop_motion_playback() {
         if (!this.transport.paused) {
-            await this.api.stop_spline_playback();
             this.transport.pause();
+            await this.api.stop_spline_playback();
             this.update_ui();
         }
     }
@@ -1001,29 +996,12 @@ export class Editor extends Widget {
         }
     }
 
-    /**
-     * Insert new knot into current spline.
-     */
-    insert_new_knot(evt) {
-        if (this.history.length === 0) {
-            return;
-        }
-
-        const pos = this.drawer.mouse_coordinates(evt);
-        this.curve_changing(pos);
-
-        const currentSpline = this.history.retrieve();
-        const newSpline = currentSpline.copy();
-        newSpline.insert_knot(pos);
-
-        // TODO: Do some coefficients cleanup. Wrap around and maybe take the
-        // direction of the previous knots as the new default coefficients...
-        this.curve_changed(newSpline);
-    }
-
     // Actions spline drawing
 
-
+    /**
+     * Draw a fresh curve. Name has to be provided for initialization of
+     * corresponding history.
+     */
     draw_curve(name, curve) {
         if (!this.histories.has(name)) {
             const hist = new History();
@@ -1035,7 +1013,9 @@ export class Editor extends Widget {
         this.draw_current_curves();
     }
 
-
+    /**
+     * (Re)-draw selected curve from history state.
+     */
     draw_current_curves() {
         const current = this.history.retrieve();
         if (!current) {
@@ -1238,7 +1218,7 @@ export class Editor extends Widget {
         msg.curves.forEach(curvename => {
             names.push(curvename[0]);
         })
-        purge_map(this.histories, names);
+        purge_outdated_map_keys(this.histories, names);
         this.list.new_motions_message(msg);
     }
 }
