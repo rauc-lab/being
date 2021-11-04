@@ -57,25 +57,30 @@ const CURVE_LIST_TEMPLATE = `
         display: flex;
     }
 
-    ul li sup {
-        margin-left: 0.25em;
-    }
-
     ul li.in-focus {
         background: black;
         color: white;
     }
 
-    ul span:first-child {
+    ul li span.eye {
         margin-right: 0.5em;
-    }
-
-    ul span:first-child.opaque {
         opacity: 0.0;
     }
 
-    ul span:first-child:hover {
+    ul li span.eye.visible {
         opacity: 1.0;
+    }
+
+    ul li span.eye:hover {
+        opacity: 1.0;
+    }
+
+    ul li.in-focus span.eye:hover {
+        opacity: 0.0;
+    }
+
+    ul li sup {
+        margin-left: 0.25em;
     }
 
     hr {
@@ -288,7 +293,7 @@ export class CurveList extends WidgetBase {
         entry.eye = entry.appendChild(document.createElement("span"));
         entry.eye.classList.add("material-icons");
         entry.eye.classList.add("mdc-icon-button");
-        entry.eye.classList.add("opaque");
+        entry.eye.classList.add("eye");
         entry.eye.innerText = "visibility";
 
         entry.text = entry.appendChild(document.createElement("span"));
@@ -342,6 +347,10 @@ export class CurveList extends WidgetBase {
         });
 
         entry.eye.addEventListener("click", evt => {
+            if (entry.name === this.selected) {
+                return
+            }
+
             if (this.is_armed(entry.name)) {
                 this.disarm(entry.name);
             } else {
@@ -399,14 +408,16 @@ export class CurveList extends WidgetBase {
         for (let entry of this.curveList.childNodes) {
             if (entry.name === this.selected) {
                 entry.classList.add('in-focus');
+                entry.eye.disabled = true;
+                entry.eye.classList.remove("visible");
             } else {
                 entry.classList.remove('in-focus');
-            }
-
-            if (this.is_armed(entry.name) && entry.name !== this.selected) {
-                entry.eye.classList.remove('opaque');
-            } else {
-                entry.eye.classList.add('opaque');
+                entry.eye.disabled = false;
+                if (this.is_armed(entry.name)) {
+                    entry.eye.classList.add('visible');
+                } else {
+                    entry.eye.classList.remove('visible');
+                }
             }
         }
     }
