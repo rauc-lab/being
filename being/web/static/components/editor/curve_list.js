@@ -329,6 +329,7 @@ export class CurveList extends WidgetBase {
                 const freename = await this.api.find_free_name(newName);
                 await this.rename_curve(oldName, freename)
                 entry.name = freename;
+                this.emit_custom_event("selectedchanged");
             },
             newName => {
                 // Validate new name

@@ -839,15 +839,14 @@ export class Editor extends Widget {
      * Create a new curve.
      */
     async create_new_curve() {
+        if (this.list.selected) {
+            this.list.deselect(this.list.selected, false);
+        }
+
         const freename = await this.api.find_free_name();
         const nCurves  = this.has_motion_players() ? this.selectedMotionPlayer.ndim : 1;
         const newCurve = zero_spline(nCurves);
         await this.api.create_curve(freename, newCurve)
-
-        // Update curve list and select newly created curve
-        const content = await this.api.get_curves();
-        this.list.populate(content.curves);
-        this.list.select(freename);
     }
 
     /**
@@ -858,20 +857,21 @@ export class Editor extends Widget {
             return console.log("Nothing to save!");
         }
 
-        const name = this.list.selected;
+        const selected = this.list.selected;
 
-        if (name === undefined) {
+        if (selected === undefined) {
             return console.log("No curve selected!");
         }
 
         const curve = this.history.retrieve();
-        await this.api.update_curve(name, curve);
+        await this.api.update_curve(selected, curve);
     }
 
     /**
      * Delete current curve.
      */
     async delete_current_curve() {
+        this.drawer.clear();
         const selected = this.list.selected;
         if (!selected) {
             return console.log("No curve selected!");
