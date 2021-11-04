@@ -117,8 +117,8 @@ export class Behavior extends Widget {
         const stateNames = await this.api.load_behavior_states();
         this.populate_states(stateNames);
 
-        const motions = await this.api.load_motions();
-        const names = Object.keys(motions.splines);
+        const content = await this.api.get_curves();
+        const names = content.curves.map(curvename => {return curvename[0]});
         this.populate_motions(names);
 
         const behavior = await this.api.load_behavior();
