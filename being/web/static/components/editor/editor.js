@@ -839,17 +839,15 @@ export class Editor extends Widget {
      * Create a new curve.
      */
     async create_new_curve() {
-        if (this.confirm_unsaved_changes()) {
-            const freename = await this.api.find_free_name();
-            //const nCurves = this.selectedMotionPlayer.ndim if this.has_motion_players()
-            const nCurves  = this.has_motion_players() ?  this.selectedMotionPlayer.ndim : 1;
-            const newCurve = zero_spline(nCurves);
-            const resp = await this.api.create_curve(freename, newCurve)
-            if (resp.status !== OK) {
-                console.log("Something went wrong creating new curve on server");
-                console.log("resp:", resp);
-            }
-        }
+        const freename = await this.api.find_free_name();
+        const nCurves  = this.has_motion_players() ? this.selectedMotionPlayer.ndim : 1;
+        const newCurve = zero_spline(nCurves);
+        await this.api.create_curve(freename, newCurve)
+
+        // Update curve list and select newly created curve
+        const content = await this.api.get_curves();
+        this.list.populate(content.curves);
+        this.list.select(freename);
     }
 
     /**
