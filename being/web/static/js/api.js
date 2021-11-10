@@ -88,13 +88,16 @@ export class Api {
 
     /** Motion player API */
 
-
     /**
-     * Play spline in backend.
+     * Play multiple curves in back-end.
      */
-    async play_spline(spline, id, loop = false, offset = 0) {
-        const res = await post_json(API + "/motionPlayers/" + id + "/play", {
-            "spline": spline.to_dict(),
+    async play_multiple_curves(armed, loop = false, offset = 0) {
+        const armSer = {};
+        for (const [mpId, curve] of Object.entries(armed)) {
+            armSer[mpId] = curve.to_dict();
+        }
+        const res = await post_json(API + "/motionPlayers/play", {
+            "armed": armSer,
             "loop": loop,
             "offset": offset,
         });

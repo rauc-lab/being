@@ -394,28 +394,32 @@ def motion_player_controllers(motionPlayers, behaviors) -> web.RouteTableDef:
         """Inform front end of available motion players / motors."""
         return json_response(motionPlayers)
 
-    @routes.post('/motionPlayers/{id}/play')
-    async def start_spline_playback(request):
-        """Start spline playback for a received spline from front end."""
-        id = int(request.match_info['id'])
+    @routes.post('/motionPlayers/play')
+    async def play_multiple_curves(request):
+        """Start multiple spline playbacks in parallel."""
         for behavior in behaviors:
             behavior.pause()
 
         try:
-            mp = mpLookup[id]
             dct = await request.json()
-            spline = spline_from_dict(dct['spline'])
-            startTime = mp.play_spline(spline, loop=dct['loop'], offset=dct['offset'])
-            return json_response({
-                'startTime': startTime,
-            })
+            startTimes = []
+            for idStr, obj in dct['armed'].items():
+                id = int(idStr)  # JSON object keys become strings
+                mp = mpLookup[id]
+                spline = spline_from_dict(obj)
+                t0 = mp.play_spline(spline, loop=dct['loop'], offset=dct['offset'])
+                startTimes.append(t0)
+
+            if not startTimes:
+                return web.HTTPBadRequest(text='Invalid request!')
+
+            return json_response({'startTime': min(startTimes)})
         except IndexError:
             return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
         except KeyError:
-            return web.HTTPBadRequest(text='Could not parse spline!')
+            return web.HTTPBadRequest(text='Invalid request!')
         except ValueError as err:
             LOGGER.error(err)
-            LOGGER.debug('id: %d', id)
             LOGGER.debug('dct: %s', dct)
             return web.HTTPBadRequest(text=f'Something went wrong with the spline. Raw data was: {dct}!')
 

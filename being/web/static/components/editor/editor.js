@@ -1,24 +1,23 @@
 /**
  * @module spline_editor Spline editor custom HTML element.
  */
-import {Api} from "/static/js/api.js";
-import {subtract_arrays, array_reshape, multiply_scalar, array_shape } from "/static/js/array.js";
-import {BBox} from "/static/js/bbox.js";
-import {toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button, switch_button_to} from "/static/js/button.js";
-import {INTERVAL} from "/static/js/config.js";
-import {make_draggable} from "/static/js/draggable.js";
-import {History} from "/static/js/history.js";
-import {clip} from "/static/js/math.js";
-import {COEFFICIENTS_DEPTH, zero_spline, BPoly} from "/static/js/spline.js";
-import {clear_array, insert_after, add_option, remove_all_children, emit_event} from "/static/js/utils.js";
-import {CurverBase} from "/static/components/editor/curver.js";
-import {Line} from "/static/components/editor/line.js";
-import { CurveList } from "/static/components/editor/curve_list.js";
-import {MotorSelector, dont_display_select_when_no_options, NOTHING_SELECTED} from "/static/components/editor/motor_selector.js";
-import {CurveDrawer} from "/static/components/editor/drawer.js";
-import {PAUSED, PLAYING, RECORDING, Transport} from "/static/components/editor/transport.js";
+import { Api } from "/static/js/api.js";
+import { subtract_arrays, array_reshape, multiply_scalar, array_shape  } from "/static/js/array.js";
+import { BBox } from "/static/js/bbox.js";
+import { toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button, switch_button_to } from "/static/js/button.js";
+import { INTERVAL } from "/static/js/config.js";
+import { make_draggable } from "/static/js/draggable.js";
+import { History } from "/static/js/history.js";
+import { clip } from "/static/js/math.js";
+import { COEFFICIENTS_DEPTH, zero_spline, BPoly } from "/static/js/spline.js";
+import { clear_array, insert_after, add_option, remove_all_children, emit_event } from "/static/js/utils.js";
+import { CurverBase } from "/static/components/editor/curver.js";
+import { Line } from "/static/components/editor/line.js";
+import { CurveList, as_bpoly } from "/static/components/editor/curve_list.js";
+import { MotorSelector, dont_display_select_when_no_options, NOTHING_SELECTED } from "/static/components/editor/motor_selector.js";
+import { CurveDrawer } from "/static/components/editor/drawer.js";
+import { PAUSED, PLAYING, RECORDING, Transport } from "/static/components/editor/transport.js";
 import { Widget, append_template_to } from "/static/js/widget.js";
-
 
 
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
@@ -161,9 +160,9 @@ export class Editor extends Widget {
         this.notificationCenter = null;
 
         this.motionPlayers = [];
-        this.actualValueIndices = [];
+        this.actualValueIndices = {};  // Motion player id -> actual value indices
         this.outputIndices = [];
-        this.selectedMotionPlayer = undefined;
+        this.selectedMotionPlayer = undefined;  // TODO: Deprecated
         this.recordedTrajectory = [];
 
         // The following undefined attributes will be created during
@@ -201,15 +200,16 @@ export class Editor extends Widget {
 
         // Motion player selection
         this.motionPlayers = await this.api.get_motion_player_infos();
-        this.setup_motion_player_select();
+        await this.setup_motion_player_select();
         this.motionPlayerSelect.addEventListener("change", () => {
             if (this.list.selected) {
                 this.list.associate_motion_player(this.list.selected, this.selectedMotionPlayer);
             }
+            this.update_plotted_lines();
             this.assign_channel_names();
-        })
-        this.init_plotting_lines();
+        });
 
+        this.init_plotting_lines();  // Can only happen after loading motion player data
         this.toggle_limits();  // Enable by default. Can only happens once we have selected a motion player!
 
         // Channel select
@@ -553,32 +553,34 @@ export class Editor extends Widget {
      * For persistent coloring across sessions.
      */
     init_plotting_lines() {
-        this.actualValueIndices.forEach(indices => {
-            indices.forEach(idx => {
-                this.drawer.init_new_line(idx);
-            })
-        })
+        const indices = Object.values(this.actualValueIndices);
+        const flatten = indices.flat();
+        flatten.sort();
+        flatten.forEach(nr => {
+            this.drawer.init_new_line(nr);
+        });
     }
 
     /**
      * Populate motion player select and determine currently selected motion
      * player.
      */
-    setup_motion_player_select() {
-        this.actualValueIndices = [];
+    async setup_motion_player_select() {
+        this.actualValueIndices = {};
         remove_all_children(this.motionPlayerSelect);
-        this.motionPlayers.forEach(mp => {
+        for (const mp of this.motionPlayers) {
             add_option(this.motionPlayerSelect, mp.name);
 
             // Lookup indices of actual value outputs for each motion player
             // and its motors
             const idx = [];
-            mp.motors.forEach(async motor => {
+            for (const motor of mp.motors) {
                 const outs = await this.api.get_index_of_value_outputs(motor.id);
                 idx.push(...outs);
-            });
-            this.actualValueIndices.push(idx);
-        });
+            }
+            this.actualValueIndices[mp.id] = idx;
+        }
+
         this.motionPlayerSelect.addEventListener("change", evt => {
             this.update_motion_player_selection();
         });
@@ -594,7 +596,6 @@ export class Editor extends Widget {
     update_motion_player_selection() {
         const idx = this.motionPlayerSelect.selectedIndex;
         this.selectedMotionPlayer = this.motionPlayers[idx];
-        this.outputIndices = this.actualValueIndices[idx];
     }
 
     /**
@@ -618,6 +619,7 @@ export class Editor extends Widget {
      */
     setup_channel_select() {
         this.channelSelect.addEventListener("change", () => {
+            this.update_plotted_lines();
             this.draw_current_curves();
         });
         this.addChannelBtn.addEventListener("click", () => {
@@ -708,6 +710,22 @@ export class Editor extends Widget {
         }
     }
 
+
+    /**
+     * Update the currently plotted lines by adjusting the output indices.
+     */
+    update_plotted_lines() {
+        const mpId = this.selectedMotionPlayer.id;
+        const unique = new Set(this.actualValueIndices[mpId]);
+        for (const id of this.list.armed.keys()) {
+            this.actualValueIndices[id].forEach(i => unique.add(i));
+        }
+
+        const indices = Array.from(unique);
+        indices.sort();
+        this.outputIndices = indices;
+    }
+
     /**
      * Setup curve list and wire it up.
      */
@@ -729,7 +747,9 @@ export class Editor extends Widget {
 
             // Update motion player select
             const mp = this.list.associated_motion_player(selected);
-            if (mp !== undefined) {
+            if (mp === undefined) {
+                this.list.associate_motion_player(selected, this.selectedMotionPlayer);
+            } else {
                 this.select_motion_player(mp);
             }
 
@@ -737,14 +757,22 @@ export class Editor extends Widget {
             const selectedCurve = this.list.selected_curve();
             this.set_number_of_channels_to(selectedCurve.ndim);
 
+            this.update_plotted_lines();
             this.draw_curve(selected, selectedCurve);
         });
         this.list.addEventListener("armedchanged", evt => {
+            this.update_plotted_lines();
             this.draw_current_curves();
         });
 
         if (this.list.selected) {
             this.list.emit_custom_event("selectedchanged");
+        }
+
+        for (const [name, curve] of this.list.curves) {
+            const hist = new History();
+            hist.capture(curve);
+            this.histories.set(name, hist);
         }
     }
 
@@ -911,16 +939,20 @@ export class Editor extends Widget {
      */
     async play_current_motions() {
         if (!this.has_motion_players()) {
-            return;
+            return console.log("Mo motion players registered!");
         }
 
         this.transport.play();
-        const spline = this.history.retrieve();
-        const motionPlayer = this.selectedMotionPlayer;
+        const armed = {};
+        for (const [mpId, name] of this.list.armed) {
+            const curve = this.histories.get(name).retrieve();
+            armed[mpId] = curve;
+        }
+
         const loop = this.transport.looping;
         const offset = this.transport.position;
-        const startTime = await this.api.play_spline(spline, motionPlayer.id, loop, offset);
-        this.transport.startTime = startTime + INTERVAL;
+        const startTime = await this.api.play_multiple_curves(armed, loop, offset)
+        this.transport.startTime = startTime;
         this.update_ui();
     }
 
@@ -1007,6 +1039,7 @@ export class Editor extends Widget {
             this.histories.set(name, hist);
         }
 
+        this.drawer.clear_lines();
         this.drawer.change_viewport(curve.bbox())
         this.draw_current_curves();
     }
@@ -1025,9 +1058,8 @@ export class Editor extends Widget {
         this.drawer.maxlen = 0.9 * duration / this.interval;
 
         this.drawer.clear();
-        //this.drawer.expand_viewport_vertically(current.min, current.max);
         this.drawer.expand_viewport_by_bbox(current.bbox());
-        this.list.background_curves().forEach(curve => {
+        this.background_curves().forEach(curve => {
             this.drawer.draw_background_curve(curve);
         });
 
@@ -1163,6 +1195,22 @@ export class Editor extends Widget {
         switch_button_to(this.c1Btn, !this.drawer.c1);
     }
 
+    populate(curvenames) {
+        const names = [];
+        curvenames.forEach(curvename => {
+            const [name, dct] = curvename;
+            names.push(name);
+            const curve = as_bpoly(dct);
+            if (!this.histories.has(name)) {
+                const hist = new History();
+                hist.capture(curve);
+                this.histories.set(name, hist);
+            }
+        });
+
+        purge_outdated_map_keys(this.histories, names);
+    }
+
     // Public
 
     /**
@@ -1216,11 +1264,7 @@ export class Editor extends Widget {
      * Process new motions message (forward to curvelist).
      */
     new_motions_message(msg) {
-        const names = []
-        msg.curves.forEach(curvename => {
-            names.push(curvename[0]);
-        })
-        purge_outdated_map_keys(this.histories, names);
+        this.populate(msg.curves);
         this.list.new_motions_message(msg);
     }
 }

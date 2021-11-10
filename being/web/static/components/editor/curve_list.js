@@ -25,7 +25,7 @@ function first_map_key(map) {
 /**
  * Assure bpoly object.
  */
-function as_bpoly(obj) {
+export function as_bpoly(obj) {
     if (obj instanceof BPoly) {
         return obj;
     }
@@ -143,6 +143,18 @@ export class CurveList extends WidgetBase {
 
         const curvesMsg = await this.api.get_curves();
         this.populate(curvesMsg.curves);
+
+        const debug = false;
+        if (debug) {
+            this.addEventListener("contextmenu", evt => {
+                console.log("DEBUG");
+                console.log("selected", this.selected);
+                console.log("curves", this.curves);
+                console.log("associations", this.associations);
+                console.log("armed", this.armed);
+                evt.preventDefault();
+            });
+        }
     }
 
     // Private data accessors
@@ -189,6 +201,10 @@ export class CurveList extends WidgetBase {
     associate_motion_player(name, motionPlayer) {
         assert(this.curves.has(name), `Unknown curve ${name}`);
         this.associations.set(name, motionPlayer.id);
+        if (this.is_armed(name)) {
+            const oldId = find_map_key_for_value(this.armed, name);
+            rename_map_key(this.armed, oldId, motionPlayer.id);
+        }
     }
 
     /**
@@ -207,6 +223,7 @@ export class CurveList extends WidgetBase {
         if (!this.associations.has(name)) {
             return;
         }
+
         const id = this.associations.get(name);
         return this.motionPlayers[id];
     }
@@ -237,10 +254,6 @@ export class CurveList extends WidgetBase {
      */
     arm(name, publish=true) {
         assert(this.curves.has(name), `Unknown curve ${name}`);
-        if (this.is_armed(name)) {
-            return console.log(name, "is allready armed");
-        }
-
         const mp = this.first_best_motion_player(name);
         this.armed.set(mp.id, name);
 
@@ -256,7 +269,7 @@ export class CurveList extends WidgetBase {
     disarm(name, publish=true) {
         assert(this.curves.has(name), `Unknown curve ${name}`);
         if (!this.is_armed(name)) {
-            return console.log(name, "is allready disarmed");
+            return console.log(name, "is not armed");
         }
 
         const mpId = find_map_key_for_value(this.armed, name);
@@ -429,24 +442,6 @@ export class CurveList extends WidgetBase {
      */
     selected_curve() {
         return this.curves.get(this.selected);
-    }
-
-    /**
-     * Get an array with all "background" curves. These are curves which are
-     * armed but not the selected one.
-     */
-    background_curves() {
-        const names = Array.from(this.armed.values());
-        if (names.includes(this.selected)) {
-            names.pop(this.selected);
-        }
-
-        const background = [];
-        names.forEach(name => {
-            background.push(this.curves.get(name));
-        });
-
-        return background;
     }
 
     /**
