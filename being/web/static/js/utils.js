@@ -207,13 +207,13 @@ export function sleep(duration) {
 
 
 /**
- * Rename map entry to a new key.
+ * Rename map entry to a new key. No error checking whatsoever, overwrites
+ * existing entries.
  */
 export function rename_map_key(map, oldKey, newKey) {
-    if (map.has(oldKey)) {
-        map.set(newKey, map.get(oldKey));
-        map.delete(oldKey);
-    }
+    const value = map.get(oldKey);
+    map.delete(oldKey);
+    map.set(newKey, value);
 }
 
 
