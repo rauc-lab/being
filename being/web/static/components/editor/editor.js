@@ -702,11 +702,18 @@ export class Editor extends Widget {
      * TODO
      */
     set_number_of_channels_to(nChannels) {
+        const idx = this.channelSelect.selectedIndex;
         while (this.number_of_channels() > nChannels) {
             this.remove_channel();
         }
         while (this.number_of_channels() < nChannels ) {
             this.add_channel();
+        }
+
+        if (this.number_of_channels() === 0) {
+            this.channelSelect.selectedIndex = NOTHING_SELECTED;
+        } else {
+            this.channelSelect.selectedIndex = clip(idx, 0, this.number_of_channels() - 1);
         }
     }
 
@@ -1042,6 +1049,24 @@ export class Editor extends Widget {
         this.drawer.clear_lines();
         this.drawer.change_viewport(curve.bbox())
         this.draw_current_curves();
+    }
+
+    /**
+     * Get an array with all "background" curves. These are curves which are
+     * armed but not the selected one.
+     */
+    background_curves() {
+        const names = Array.from(this.list.armed.values());
+        if (names.includes(this.list.selected)) {
+            names.pop(this.list.selected);
+        }
+
+        const background = [];
+        names.forEach(name => {
+            background.push(this.list.curves.get(name));
+        });
+
+        return background;
     }
 
     /**
