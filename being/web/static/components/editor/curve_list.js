@@ -388,16 +388,29 @@ export class CurveList extends WidgetBase {
     populate(namecurves) {
         remove_all_children(this.curveList);
         this.curves.clear();
+        const names = [];
+
+        // Create entries
         namecurves.forEach(namecurve => {
             let [name, curve] = namecurve;
+            names.push(name);
             curve = as_bpoly(curve);
             this.add_entry(name, curve);
         });
 
+        // Reset selected if necessary
         if (!this.curves.has(this.selected)) {
             this.selected = undefined;
         }
 
+        // Remove outdated curves from armed
+        for (const [key, value] of this.armed) {
+            if (!names.includes(value)) {
+                this.armed.delete(key);
+            }
+        }
+
+        // Select next first best if any
         if (this.selected === undefined && namecurves.length > 0) {
             const firstName = namecurves[0][0];
             this.select(firstName);

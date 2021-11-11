@@ -949,13 +949,13 @@ export class Editor extends Widget {
             return console.log("Mo motion players registered!");
         }
 
-        this.transport.play();
         const armed = {};
         for (const [mpId, name] of this.list.armed) {
             const curve = this.histories.get(name).retrieve();
             armed[mpId] = curve;
         }
 
+        this.transport.play();
         const loop = this.transport.looping;
         const offset = this.transport.position;
         const startTime = await this.api.play_multiple_curves(armed, loop, offset)
@@ -1062,7 +1062,7 @@ export class Editor extends Widget {
         }
 
         const background = [];
-        names.forEach(name => {
+        names.forEach((name) => {
             background.push(this.list.curves.get(name));
         });
 
@@ -1221,6 +1221,7 @@ export class Editor extends Widget {
     }
 
     populate(curvenames) {
+        // Update histories. Add new histories, remove outdated
         const names = [];
         curvenames.forEach(curvename => {
             const [name, dct] = curvename;
