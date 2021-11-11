@@ -44,8 +44,10 @@ class Curve:
         return len(self.splines)
 
     @property
-    def n_curves(self) -> int:
-        """Number of curves."""
+    def n_channels(self) -> int:
+        """Number of channels. Sum of all spline dimensions. Not the same as
+        number of splines.
+        """
         return sum(
             spline_dimensions(s)
             for s in self.splines
@@ -55,4 +57,4 @@ class Curve:
         return np.concatenate([s(t, nu) for s in self.splines])
 
     def __str__(self):
-        return f'{type(self).__name__}({self.n_curves} curves)'
+        return f'{type(self).__name__}({self.n_channels} curves)'

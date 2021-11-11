@@ -6,10 +6,11 @@ from collections import OrderedDict
 from typing import Generator
 
 from being.configuration import CONFIG
+from being.curve import Curve
 from being.logging import get_logger
 from being.pubsub import PubSub
 from being.serialization import loads, dumps
-from being.spline import BPoly
+from being.spline import BPoly, split_spline
 from being.utils import SingleInstanceCache, read_file, rootname, write_file
 
 
@@ -29,6 +30,28 @@ def stripext(p):
     """
     root, _ = os.path.splitext(p)
     return root
+
+
+def upgrade_splines_to_curves(directory, logger=None):
+    """Go through each JSON file inside directory and upgrade every serialized
+    spline to a curve.
+
+    Args:
+        directory: Folder to check.
+    """
+    if logger is None:
+        logger = get_logger('upgrade_splines_to_curves()')
+
+    for fp in glob.iglob(directory + '/*.json'):
+        obj = loads(read_file(fp))
+        if isinstance(obj, Curve):
+            pass
+        elif isinstance(obj, BPoly):
+            curve = Curve(split_spline(obj))
+            logger.info('Upgrading spline to curve %r', fp)
+            write_file(fp, dumps(curve))
+        else:
+            logger.warning('Do not know what to do with obj', obj)
 
 
 class Files(collections.MutableMapping):
@@ -119,6 +142,8 @@ class Content(PubSub, SingleInstanceCache):
         self.data = data
         self.ext = ext
         self.logger = get_logger(str(self))
+
+        upgrade_splines_to_curves(self.directory, self.logger)
 
     def curve_exists(self, name: str) -> bool:
         """Check if motion curve exists.
