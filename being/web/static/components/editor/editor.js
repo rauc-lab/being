@@ -949,16 +949,17 @@ export class Editor extends Widget {
             return console.log("Mo motion players registered!");
         }
 
-        const armed = {};
+        // Get current version of armed curves
+        const current = {};
         for (const [mpId, name] of this.list.armed) {
             const curve = this.histories.get(name).retrieve();
-            armed[mpId] = curve;
+            current[mpId] = curve;
         }
 
         this.transport.play();
         const loop = this.transport.looping;
         const offset = this.transport.position;
-        const startTime = await this.api.play_multiple_curves(armed, loop, offset)
+        const startTime = await this.api.play_multiple_curves(current, loop, offset)
         this.transport.startTime = startTime;
         this.update_ui();
     }
