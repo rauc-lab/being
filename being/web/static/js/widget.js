@@ -39,6 +39,25 @@ export function append_link_to(href, target) {
     target.appendChild(link);
 }
 
+export function create_select(options = [], name = "") {
+    //const container = document.createElement("div");
+    if (name !== "") {
+        const label = document.createElement("label");
+        label.innerHTML = name;
+        label.setAttribute("for", name);
+        //container.appendChild(label);
+    }
+
+    const select = document.createElement("select");
+    select.setAttribute("name", name);
+    options.forEach(opt => {
+        add_option(select, opt);
+    });
+    //container.appendChild(select);
+    //this.toolbar.appendChild(container);
+    return select;
+}
+
 
 export class WidgetBase extends HTMLElement {
     constructor() {
@@ -107,21 +126,7 @@ export class Widget extends WidgetBase {
      * @param {String} name Select name and label.
      */
     add_select_to_toolbar(options = [], name = "") {
-        //const container = document.createElement("div");
-        if (name !== "") {
-            const label = document.createElement("label");
-            label.innerHTML = name;
-            label.setAttribute("for", name);
-            //container.appendChild(label);
-        }
-
-        const select = document.createElement("select");
-        select.setAttribute("name", name);
-        options.forEach(opt => {
-            add_option(select, opt);
-        });
-        //container.appendChild(select);
-        //this.toolbar.appendChild(container);
+        const select = create_select(options, name);
         this.toolbar.appendChild(select);
         return select;
     }

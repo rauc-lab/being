@@ -17,7 +17,9 @@ import { CurveList, as_curve } from "/static/components/editor/curve_list.js";
 import { MotorSelector, dont_display_select_when_no_options, NOTHING_SELECTED } from "/static/components/editor/motor_selector.js";
 import { CurveDrawer } from "/static/components/editor/drawer.js";
 import { PAUSED, PLAYING, RECORDING, Transport } from "/static/components/editor/transport.js";
-import { Widget, append_template_to } from "/static/js/widget.js";
+import { Widget, append_template_to, create_select } from "/static/js/widget.js";
+import { create_button } from "/static/js/button.js";
+import { Curve } from "/static/js/curve.js";
 
 
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
@@ -107,6 +109,16 @@ function purge_outdated_map_keys(map, keys) {
 }
 
 
+function zero_curve(nChannels) {
+    const splines = [];
+    for(let i=0; i<nChannels; i++) {
+        splines.push(zero_spline(1))
+    }
+
+    return new Curve(splines);
+}
+
+
 const EDITOR_TEMPLATE = `
 <style>
     :host {
@@ -165,14 +177,11 @@ export class Editor extends Widget {
         this.selectedMotionPlayer = undefined;  // TODO: Deprecated
         this.recordedTrajectory = [];
 
-        // The following undefined attributes will be created during
-        // setup_toolbar_elements()
-        this.motionPlayerSelect = undefined;
-        this.channelSelect = undefined;
-        this.addChannelBtn = undefined;
-        this.removeChannelBtn = undefined;
-        this.setup_toolbar_elements();
+        this.motionPlayerSelect = create_select();
+        this.channelSelect = create_select();
+        this.removeChannelBtn = create_button("remove_circle", "Remove current curve");
 
+        this.setup_toolbar_elements();
         this.update_ui();
     }
 
@@ -205,7 +214,7 @@ export class Editor extends Widget {
             if (this.list.selected) {
                 this.list.associate_motion_player(this.list.selected, this.selectedMotionPlayer);
             }
-            this.update_plotted_lines();
+            this.update_plotting_lines();
             this.assign_channel_names();
         });
 
@@ -313,7 +322,7 @@ export class Editor extends Widget {
 
 
         // Motion player selection
-        this.motionPlayerSelect = this.add_select_to_toolbar();
+        this.toolbar.appendChild(this.motionPlayerSelect);
 
 
         // Transport buttons
@@ -341,9 +350,39 @@ export class Editor extends Widget {
 
 
         // Motor channel selection
-        this.channelSelect = this.add_select_to_toolbar();
-        this.removeChannelBtn = this.add_button_to_toolbar("remove_circle", "Remove current curve");
-        this.addChannelBtn = this.add_button_to_toolbar("add_circle", "Add new curve");
+        this.toolbar.appendChild(this.channelSelect);
+        this.toolbar.appendChild(this.removeChannelBtn);
+        this.removeChannelBtn.addEventListener("click", () => {
+            if (!this.list.selected) {
+                return;
+            }
+
+            const channel = this.selected_channel();
+            const wc = this.history.retrieve().copy();
+            this.curve_changing();
+            wc.splines.splice(channel, 1);
+            this.curve_changed(wc);
+        });
+        this.add_button_to_toolbar("add_circle", "Add new curve").addEventListener("click", () => {
+            console.log("Add new curve");
+            if (!this.list.selected) {
+                return;
+            }
+
+            const channel = this.selected_channel();
+            const wc = this.history.retrieve().copy();
+            this.curve_changing();
+            wc.splines.splice(channel + 1, 0, zero_spline(1));
+
+            // Increment channel select
+            this.update_channel_select(wc.n_channels);
+            this.channelSelect.selectedIndex++;
+            if (this.channelSelect.selectedIndex === NOTHING_SELECTED) {
+                this.channelSelect.selectedIndex = 0;
+            }
+
+            this.curve_changed(wc);
+        });
         this.add_space_to_toolbar()
 
 
@@ -374,7 +413,6 @@ export class Editor extends Widget {
             this.curve_changing();
             const newSpline = scale_spline(this.history.retrieve(), 0.5);
             this.curve_changed(newSpline);
-
         });
         this.add_button_to_toolbar("expand", "Scale up position (2x)").addEventListener("click", () => {
             if (!this.history.length) {
@@ -436,11 +474,9 @@ export class Editor extends Widget {
             }
 
             this.curve_changing();
-            if (this.has_motion_players()) {
-                const ndim = this.selectedMotionPlayer.ndim;
-                const curve = zero_spline(ndim);
-                this.curve_changed(curve);
-            }
+            const nChannels = this.number_of_channels();
+            const newCurve = zero_curve(nChannels);
+            this.curve_changed(newCurve);
         });
 
         this.add_space_to_toolbar()
@@ -515,7 +551,6 @@ export class Editor extends Widget {
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
         });
-
     }
 
     /**
@@ -636,14 +671,8 @@ export class Editor extends Widget {
      */
     setup_channel_select() {
         this.channelSelect.addEventListener("change", () => {
-            this.update_plotted_lines();
+            this.update_plotting_lines();
             this.draw_current_curves();
-        });
-        this.addChannelBtn.addEventListener("click", () => {
-            this.add_channel();
-        });
-        this.removeChannelBtn.addEventListener("click", () => {
-            this.remove_channel();
         });
         this.assign_channel_names();
     }
@@ -661,34 +690,11 @@ export class Editor extends Widget {
      * Current number of curves.
      */
     number_of_channels() {
-        // TODO: Return current number of curves. Either from selected curve,
-        // motion player max channels, number of child elements in
-        // channelSelect?
-        return this.channelSelect.childElementCount;
-    }
-
-    /**
-     * Add a new curve to the current motion / curve set.
-     */
-    add_channel() {
-        // TODO: Makeme
-        const idx = this.channelSelect.selectedIndex;
-        add_option(this.channelSelect, "Placeholder", idx);
-        this.update_ui();
-    }
-
-    /**
-     * Remove the currently selected channel from curve.
-     */
-    remove_channel() {
-        // TODO: Makeme
-        const idx = this.channelSelect.selectedIndex;
-        if (idx === NOTHING_SELECTED) {
-            return;
+        if (!this.list.selected) {
+            return 0;
         }
-        const opt = this.channelSelect.children[idx];
-        this.channelSelect.removeChild(opt);
-        this.update_ui();
+
+        return this.history.retrieve().n_channels;
     }
 
     /**
@@ -718,27 +724,25 @@ export class Editor extends Widget {
     /**
      * TODO
      */
-    set_number_of_channels_to(nChannels) {
-        const idx = this.channelSelect.selectedIndex;
-        while (this.number_of_channels() > nChannels) {
-            this.remove_channel();
-        }
-        while (this.number_of_channels() < nChannels ) {
-            this.add_channel();
+    update_channel_select(nChannels) {
+        console.log("Editor.update_channel_select()");
+        const select = this.channelSelect;
+        while (select.childElementCount > nChannels) {
+            select.removeChild(select.lastChild);
         }
 
-        if (this.number_of_channels() === 0) {
-            this.channelSelect.selectedIndex = NOTHING_SELECTED;
-        } else {
-            this.channelSelect.selectedIndex = clip(idx, 0, this.number_of_channels() - 1);
+        while (select.childElementCount < nChannels ) {
+            add_option(select, "Placeholder");
         }
+
+        this.assign_channel_names();
     }
 
 
     /**
      * Update the currently plotted lines by adjusting the output indices.
      */
-    update_plotted_lines() {
+    update_plotting_lines() {
         const mpId = this.selectedMotionPlayer.id;
         const unique = new Set(this.actualValueIndices[mpId]);
         for (const id of this.list.armed.keys()) {
@@ -777,15 +781,12 @@ export class Editor extends Widget {
                 this.select_motion_player(mp);
             }
 
-            // Update channel select
             const selectedCurve = this.list.selected_curve();
-            this.set_number_of_channels_to(selectedCurve.n_channels);
-
-            this.update_plotted_lines();
             this.draw_curve(selected, selectedCurve);
+
         });
         this.list.addEventListener("armedchanged", evt => {
-            this.update_plotted_lines();
+            this.update_plotting_lines();
             this.draw_current_curves();
         });
 
@@ -896,8 +897,8 @@ export class Editor extends Widget {
         }
 
         const freename = await this.api.find_free_name();
-        const nCurves  = this.has_motion_players() ? this.selectedMotionPlayer.ndim : 1;
-        const newCurve = zero_spline(nCurves);
+        const nChannels = this.number_of_channels();
+        const newCurve = zero_curve(nChannels);
         await this.api.create_curve(freename, newCurve)
     }
 
@@ -1065,6 +1066,8 @@ export class Editor extends Widget {
             this.histories.set(name, hist);
         }
 
+        this.update_channel_select(curve.n_channels);
+        this.update_plotting_lines();
         this.drawer.clear_lines();
         this.drawer.change_viewport(curve.bbox())
         this.draw_current_curves();
@@ -1142,9 +1145,11 @@ export class Editor extends Widget {
     /**
      * Notify spline editor that with the new current state of the spline.
      */
-    async curve_changed(workingCopy) {
-        workingCopy.restrict_to_bbox(this.drawer.limits);
-        this.history.capture(workingCopy);
+    async curve_changed(newCurve) {
+        newCurve.restrict_to_bbox(this.drawer.limits);
+        this.history.capture(newCurve);
+        this.update_channel_select(newCurve.n_channels);
+        //this.drawer.change_viewport(newCurve.bbox())
         this.draw_current_curves();
         await this.save_current_curve();
     }
@@ -1298,7 +1303,6 @@ export class Editor extends Widget {
      * Process new behavior message from back-end.
      */
     new_behavior_message(behavior) {
-        return
         if (behavior.active) {
             this.transport.stop();
             this.update_ui();

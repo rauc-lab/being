@@ -118,4 +118,12 @@ export class BBox {
     copy() {
         return new BBox([...this.ll], [...this.ur]);
     }
+
+    /**
+     * Check if finite bounding box.
+     */
+    is_finite() {
+        const numbers = [this.ll, this.ur].flat();
+        return numbers.every(Number.isFinite);
+    }
 }

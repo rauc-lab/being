@@ -328,6 +328,7 @@ export class Plotter extends WidgetBase {
         if (this.autoscaling) {
             this.auto_scale();
         }
+
         this.clear_canvas();
         this.draw_axis_and_tick_labels();
         this.draw_lines();
@@ -337,6 +338,10 @@ export class Plotter extends WidgetBase {
      * Change viewport and redraw.
      */
     change_viewport(bbox) {
+        if (!bbox.is_finite()) {
+            return;
+        }
+
         this.viewport = this.minViewport.copy();
         this.viewport.expand_by_bbox(bbox);
         this.update_transformation_matrices();
@@ -360,6 +365,10 @@ export class Plotter extends WidgetBase {
      * Expand viewport by some other bounding box.
      */
     expand_viewport_by_bbox(bbox) {
+        if (!bbox.is_finite()) {
+            return;
+        }
+
         this.viewport.expand_by_bbox(bbox);
         this.update_transformation_matrices();
         this.draw();

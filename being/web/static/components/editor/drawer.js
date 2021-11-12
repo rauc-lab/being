@@ -440,6 +440,10 @@ export class CurveDrawer extends Plotter {
      * Draw background curve.
      */
     draw_background_curve(curve) {
+        if (curve.n_splines === 0) {
+            return;
+        }
+
         const wc = curve.copy();
         const color = "Gray";
         const linewidth = 1;
@@ -453,6 +457,10 @@ export class CurveDrawer extends Plotter {
      * Draw foreground curve. Selected channel will be interactive.
      */
     draw_foreground_curve(curve, channel=-1) {
+        if (curve.n_splines === 0) {
+            return;
+        }
+
         const wc = curve.copy();
         const color = "DarkGray";  // Or silver, DimGray, Gray, ...
         const linewidth = 2;
@@ -465,7 +473,7 @@ export class CurveDrawer extends Plotter {
         });
 
         // Draw interactive channel over all previous channels
-        if (channel > -1) {
+        if (0 <= channel && channel < curve.n_splines) {
             const spline = wc.splines[channel];
             this._draw_curve_channel(wc, spline, "black", linewidth, true);
         }

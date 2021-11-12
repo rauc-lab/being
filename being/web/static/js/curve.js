@@ -12,12 +12,20 @@ export class Curve {
     }
 
     get start() {
+        if (this.n_splines === 0) {
+            return 0.0;
+        }
+
         return array_min(this.splines.map(s => {
             return s.start;
         }));
     }
 
     get end() {
+        if (this.n_splines === 0) {
+            return 0.0;
+        }
+
         return array_max(this.splines.map(s => {
             return s.end;
         }));

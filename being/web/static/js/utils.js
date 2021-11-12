@@ -132,7 +132,7 @@ export function add_option(select, name, after=undefined) {
     const option = document.createElement("option");
     option.setAttribute("value", name);
     option.innerHTML = name;
-    if (after > -1) {
+    if (after !== undefined) {
         const ref = select.children[after];
         insert_after(option, ref);
     } else {
