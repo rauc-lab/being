@@ -143,7 +143,8 @@ class Content(PubSub, SingleInstanceCache):
         self.ext = ext
         self.logger = get_logger(str(self))
 
-        upgrade_splines_to_curves(self.directory, self.logger)
+        if self.directory is not None:
+            upgrade_splines_to_curves(self.directory, self.logger)
 
     def curve_exists(self, name: str) -> bool:
         """Check if motion curve exists.
