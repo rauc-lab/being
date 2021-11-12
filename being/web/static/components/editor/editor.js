@@ -13,7 +13,7 @@ import { COEFFICIENTS_DEPTH, zero_spline, BPoly } from "/static/js/spline.js";
 import { clear_array, insert_after, add_option, remove_all_children, emit_event } from "/static/js/utils.js";
 import { CurverBase } from "/static/components/editor/curver.js";
 import { Line } from "/static/components/editor/line.js";
-import { CurveList, as_bpoly } from "/static/components/editor/curve_list.js";
+import { CurveList, as_curve } from "/static/components/editor/curve_list.js";
 import { MotorSelector, dont_display_select_when_no_options, NOTHING_SELECTED } from "/static/components/editor/motor_selector.js";
 import { CurveDrawer } from "/static/components/editor/drawer.js";
 import { PAUSED, PLAYING, RECORDING, Transport } from "/static/components/editor/transport.js";
@@ -762,7 +762,7 @@ export class Editor extends Widget {
 
             // Update channel select
             const selectedCurve = this.list.selected_curve();
-            this.set_number_of_channels_to(selectedCurve.ndim);
+            this.set_number_of_channels_to(selectedCurve.n_channels);
 
             this.update_plotted_lines();
             this.draw_curve(selected, selectedCurve);
@@ -1091,7 +1091,7 @@ export class Editor extends Widget {
 
         const channel = this.selected_channel();
         this.drawer.draw_foreground_curve(current, channel);
-        this.drawer._draw_curves();
+        this.drawer._draw_curve_elements();
         this.update_ui();
     }
 
@@ -1227,7 +1227,7 @@ export class Editor extends Widget {
         curvenames.forEach(curvename => {
             const [name, dct] = curvename;
             names.push(name);
-            const curve = as_bpoly(dct);
+            const curve = as_curve(dct);
             if (!this.histories.has(name)) {
                 const hist = new History();
                 hist.capture(curve);

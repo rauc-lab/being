@@ -137,7 +137,7 @@ export class BPoly {
     /**
      * Construct from BPoly object.
      */
-    static from_object(dct) {
+    static from_dict(dct) {
         return new BPoly(dct.coefficients, dct.knots, dct.extrapolate, dct.axis);
     }
 

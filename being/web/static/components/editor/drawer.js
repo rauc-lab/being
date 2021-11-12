@@ -212,11 +212,13 @@ export class CurveDrawer extends Plotter {
      * to drag SVG elements around.
      *
      * @param ele Element to make draggable.
+     * @param curve working copy.
+     * @param spline of curve to draw.
      * @param on_drag On drag motion callback. Will be called with a relative
      * delta array.
      * @param labelLocation {String} Label location identifier.
      */
-    make_draggable(ele, on_drag, workingCopy, labelLocation = "ur") {
+    make_draggable(ele, curve, spline, on_drag, labelLocation = "ur") {
         /** Start position of drag motion. */
         let start = null;
         let yValues = [];
@@ -225,7 +227,7 @@ export class CurveDrawer extends Plotter {
             ele,
             evt => {
                 start = this.mouse_coordinates(evt);
-                yValues = new Set(workingCopy.c.flat(COEFFICIENTS_DEPTH));
+                yValues = new Set(spline.c.flat(COEFFICIENTS_DEPTH));
                 yValues.add(0.0);
                 this.emit_curve_changing()
             },
@@ -237,10 +239,10 @@ export class CurveDrawer extends Plotter {
                 }
 
                 on_drag(end);
-                workingCopy.restrict_to_bbox(this.limits);
+                spline.restrict_to_bbox(this.limits);
                 this.annotation.style.visibility = "visible";
                 this.position_annotation(end, labelLocation);
-                this._draw_curves();
+                this._draw_curve_elements();
             },
             evt => {
                 const end = this.mouse_coordinates(evt);
@@ -248,7 +250,7 @@ export class CurveDrawer extends Plotter {
                     return;
                 }
 
-                this.emit_curve_changed(workingCopy)
+                this.emit_curve_changed(curve)
                 this.annotation.style.visibility = "hidden";
                 start = null;
                 clear_array(yValues);
@@ -331,6 +333,7 @@ export class CurveDrawer extends Plotter {
      * @param {Number} dim Which dimension to draw.
      */
     draw_curve(spline, lw = 1, dim = 0, color = "black") {
+        assert(spline.degree <= Degree.CUBIC, `Spline degree ${spline.degree} not supported!`);
         const segments = arange(spline.n_segments);
         segments.forEach(seg => {
             this.add_svg_path(() => {
@@ -351,7 +354,8 @@ export class CurveDrawer extends Plotter {
      * @param {Number} lw Line width in pixel.
      * @param {Number} dim Which dimension to draw.
      */
-    draw_control_points(spline, lw = 2, dim = 0) {
+    draw_control_points(curve, spline, lw = 2, dim = 0) {
+        assert(spline.degree <= Degree.CUBIC, `Spline degree ${spline.degree} not supported!`);
         const segments = arange(spline.n_segments);
         const cps = [];
         for (let cp=1; cp<spline.degree; cp++) {
@@ -381,6 +385,8 @@ export class CurveDrawer extends Plotter {
                 }, 3 * lw, "red");
                 this.make_draggable(
                     circle,
+                    curve,
+                    spline,
                     pos => {
                         spline.position_control_point(seg, cp, pos[1], this.c1, dim);
                         let slope = 0;
@@ -392,7 +398,6 @@ export class CurveDrawer extends Plotter {
 
                         this.annotation.innerHTML = "Slope: " + format_number(slope);
                     },
-                    spline,
                 );
             });
         });
@@ -405,7 +410,7 @@ export class CurveDrawer extends Plotter {
      * @param {Number} lw Line width in pixel.
      * @param {dim} dim Which dimension to draw.
      */
-    draw_knots(spline, lw = 1, dim = 0) {
+    draw_knots(curve, spline, lw = 1, dim = 0) {
         const knots = arange(spline.n_segments + 1);
         knots.forEach(knot => {
             const circle = this.add_svg_circle(() => {
@@ -413,13 +418,13 @@ export class CurveDrawer extends Plotter {
             }, 3 * lw);
             this.make_draggable(
                 circle,
+                curve, spline,
                 pos => {
                     this.emit_curve_changing(pos)
                     spline.position_knot(knot, pos, this.c1, dim);
                     const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
                     this.annotation.innerHTML = txt;
                 },
-                spline,
                 knot < spline.n_segments ? "ur" : "ul",
             );
             circle.addEventListener("dblclick", evt => {
@@ -436,11 +441,11 @@ export class CurveDrawer extends Plotter {
     /**
      * Draw single curve channel.
      */
-    _draw_curve_channel(curve, channel, color="black", linewidth=1, interactive=false) {
-        this.draw_curve(curve, linewidth, channel, color);
+    _draw_curve_channel(curve, spline, color="black", linewidth=1, interactive=false) {
+        this.draw_curve(spline, linewidth, 0, color);
         if (interactive) {
-            this.draw_control_points(curve, linewidth, channel);
-            this.draw_knots(curve, linewidth, channel);
+            this.draw_control_points(curve, spline, linewidth, 0);
+            this.draw_knots(curve, spline, linewidth, 0);
         }
     }
 
@@ -448,47 +453,47 @@ export class CurveDrawer extends Plotter {
      * Draw background curve.
      */
     draw_background_curve(curve) {
-        assert(curve.degree <= Degree.CUBIC, `Curve degree ${curve.degree} not supported!`);
+        console.log("Drawer.draw_background_curve(curve)");
         const wc = curve.copy();
         const color = "Gray";
         const linewidth = 1;
-        arange(wc.ndim).forEach(channel => {
-            this._draw_curve_channel(wc, channel, color, linewidth);
+        wc.splines.forEach(spline => {
+            this._draw_curve_channel(wc, spline, color, linewidth);
         });
-
-        this._draw_curves();
+        this._draw_curve_elements();
     }
 
     /**
      * Draw foreground curve. Selected channel will be interactive.
      */
-    draw_foreground_curve(curve, channel) {
-        assert(curve.degree <= Degree.CUBIC, `Curve degree ${curve.degree} not supported!`);
+    draw_foreground_curve(curve, channel=-1) {
+        console.log("Drawer.draw_foreground_curve(curve, channel)", curve, channel);
         const wc = curve.copy();
         this.foregroundCurve = wc;
-
-        //const color = "silver";
-        //const color = "DimGray";
-        //const color = "Gray";
-        const color = "DarkGray";
+        const color = "DarkGray";  // Or silver, DimGray, Gray, ...
         const linewidth = 2;
-        const interactive = true;
 
-        // Draw non-interactive channels behind interactive one.
-        arange(wc.ndim).forEach(c => {
+        // Draw non-interactive channels
+        wc.splines.forEach((spline, c) => {
             if (c !== channel) {
-                this._draw_curve_channel(wc, c, color, linewidth);
+                this._draw_curve_channel(wc, spline, color, linewidth);
             }
         });
-        this._draw_curve_channel(wc, channel, "black", linewidth, true);
-        this.viewport.expand_by_bbox(curve.bbox());
-        this._draw_curves();
+
+        // Draw interactive channel over all previous channels
+        if (channel > -1) {
+            const spline = wc.splines[channel];
+            this._draw_curve_channel(wc, spline, "black", linewidth, true);
+        }
+
+        this.viewport.expand_by_bbox(wc.bbox());
+        this._draw_curve_elements();
     }
 
     /**
      * Draw / update all SVG elements.
      */
-    _draw_curves() {
+    _draw_curve_elements() {
         this.elements.forEach(ele => ele.draw());
     }
 
@@ -497,7 +502,7 @@ export class CurveDrawer extends Plotter {
      */
     draw() {
         super.draw();
-        this._draw_curves();
+        this._draw_curve_elements();
     }
 }
 

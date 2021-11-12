@@ -10,10 +10,6 @@
     <!-- Include being web components -->
     <script type="module">
         import {ControlPanel, Behavior, Editor, ParamsPanel} from "/static/components.js";
-        customElements.define("being-control-panel", ControlPanel);
-        customElements.define("being-params-panel", ParamsPanel);
-        customElements.define("being-behavior", Behavior);
-        customElements.define("being-editor", Editor);
     </script>
 
     <link rel="stylesheet" type="text/css" href="static/css/open_sans.css">
@@ -31,6 +27,7 @@
     </nav>
     <hr>
 
+    <!--
     <a class="anchor" id="control-panel-anchor"></a>
     <h1>Control Panel</h1>
     <being-control-panel></being-control-panel>
@@ -48,6 +45,7 @@
             <being-behavior behaviorId={{behavior.id}}></being-behavior>
         {% endfor %}
     {% endif %}
+    -->
 
     {% if motionPlayers %}
         <a class="anchor" id="editor-anchor"></a>
@@ -103,6 +101,7 @@
             editor.set_notification_center(notificationCenter);
             ws.subscribe_to_message("being-state", msg => editor.new_data(msg));
             ws.subscribe_to_message("behavior-update", msg => editor.new_behavior_message(msg));
+            ws.subscribe_to_message("motions", msg => editor.new_motions_message(msg));
         }
 
         ws.connect();

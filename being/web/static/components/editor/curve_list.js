@@ -9,6 +9,8 @@ import {
     assert, emit_event, find_map_key_for_value, is_valid_filename,
     remove_all_children, rename_map_key, emit_custom_event,
 } from "/static/js/utils.js";
+import { objectify } from "/static/js/serialization.js";
+import { Curve } from "/static/js/curve.js";
 
 
 /**
@@ -25,13 +27,13 @@ function first_map_key(map) {
 /**
  * Assure bpoly object.
  */
-export function as_bpoly(obj) {
-    if (obj instanceof BPoly) {
+export function as_curve(obj) {
+    if (obj instanceof Curve) {
         return obj;
     }
 
     if (obj instanceof Object) {
-        return BPoly.from_object(obj);
+        return Curve.from_dict(obj);
     }
 
     throw `Do not know what to do with ${obj}!`;
@@ -139,7 +141,7 @@ export class CurveList extends WidgetBase {
         const motionPlayers = await this.api.get_motion_player_infos();
         motionPlayers.forEach(mp => {
             this.motionPlayers[mp.id] = mp;
-        })
+        });
 
         const curvesMsg = await this.api.get_curves();
         this.populate(curvesMsg.curves);
@@ -313,7 +315,7 @@ export class CurveList extends WidgetBase {
         entry.text.innerText = name;
 
         const sup = entry.appendChild(document.createElement("sup"));
-        sup.innerText = curve.ndim;
+        sup.innerText = curve.n_channels;
 
         this.attache_event_listeners_to_entry(entry);
         return entry;
@@ -394,7 +396,7 @@ export class CurveList extends WidgetBase {
         namecurves.forEach(namecurve => {
             let [name, curve] = namecurve;
             names.push(name);
-            curve = as_bpoly(curve);
+            curve = as_curve(curve);
             this.add_entry(name, curve);
         });
 

@@ -395,19 +395,18 @@ def motion_player_controllers(motionPlayers, behaviors) -> web.RouteTableDef:
         return json_response(motionPlayers)
 
     @routes.post('/motionPlayers/play')
-    async def play_multiple_curves(request):
-        """Start multiple spline playbacks in parallel."""
+    async def play_curves(request):
+        """Play multiple curves on multiple motion players in parallel."""
         for behavior in behaviors:
             behavior.pause()
 
         try:
-            dct = await request.json()
+            dct = await request.json(loads=loads)
             startTimes = []
-            for idStr, obj in dct['armed'].items():
+            for idStr, curve in dct['armed'].items():
                 id = int(idStr)  # JSON object keys become strings
                 mp = mpLookup[id]
-                spline = spline_from_dict(obj)
-                t0 = mp.play_spline(spline, loop=dct['loop'], offset=dct['offset'])
+                t0 = mp.play_curve(curve, loop=dct['loop'], offset=dct['offset'])
                 startTimes.append(t0)
 
             if not startTimes:

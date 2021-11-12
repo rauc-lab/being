@@ -1,7 +1,7 @@
 /**
  *  @module api Back end API definitions.
  */
-import {BPoly} from "/static/js/spline.js";
+import {objectify, anthropomorphify} from "/static/js/serialization.js";
 import {API} from "/static/js/config.js";
 import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js/fetching.js";
 
@@ -40,8 +40,8 @@ export class Api {
      * @returns Fitted smoothing spline instance.
      */
     async fit_spline(trajectory) {
-        const obj = await post_json(API + "/fit_spline", trajectory);
-        return BPoly.from_object(obj);
+        const dct = await post_json(API + "/fit_spline", trajectory);
+        return objectify(dct);
     }
 
 
@@ -131,8 +131,8 @@ export class Api {
      * {
      *      type: "motions",
      *      curves: [
-     *          ["some name", {"type": "BPoly", ...}],
-     *          ["other name", {"type": "BPoly", ...}],
+     *          ["some name", {"type": "Curve", ...}],
+     *          ["other name", {"type": "Curve", ...}],
      *          ...
      *      ]
      * }
@@ -142,25 +142,25 @@ export class Api {
         const msg = await get_json(url);
         msg.curves = msg.curves.map(entry => {
             const [name, dct] = entry;
-            return [name, BPoly.from_object(dct)];
+            return [name, objectify(dct)];
         });
         return msg;
     }
 
     async get_curve(name) {
         const url = encodeURI(API + "/curves/" + name);
-        const obj = await get_json(url);
-        return BPoly.from_object(obj);
+        const dct = await get_json(url);
+        return objectify(dct)
     }
 
-    async create_curve(name, spline) {
+    async create_curve(name, curve) {
         const url = encodeURI(API + "/curves/" + name);
-        return post_json(url, spline.to_dict());
+        return post_json(url, anthropomorphify(curve));
     }
 
-    async update_curve(name, spline) {
+    async update_curve(name, curve) {
         const url = encodeURI(API + "/curves/" + name);
-        return put_json(url, spline.to_dict());
+        return post_json(url, anthropomorphify(curve));
     }
 
     async delete_curve(name) {

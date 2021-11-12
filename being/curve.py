@@ -2,11 +2,10 @@
 
 Curve is a spline-like which can contain multiple curves / splines.
 """
-import collections
-import warnings
-
 import numpy as np
 
+from being.constants import INF
+from being.math import clip
 from being.spline import spline_dimensions
 
 
@@ -26,11 +25,6 @@ class Curve:
     def end(self) -> float:
         """End time."""
         return max(s.x[-1] for s in self.splines)
-
-    @property
-    def x(self):
-        """Placeholder knot vector, similar to _PPolyBase."""
-        return np.unique([s.x for s in self.splines])
 
     @property
     def duration(self) -> float:
@@ -53,8 +47,36 @@ class Curve:
             for s in self.splines
         )
 
+    def sample(self, timestamp, loop=False):
+        """Sample curve. Returns n_channels samples. Subsequent child splines
+        get clamped.
+
+        Args:
+            timestamp: Time value.
+
+        Kwargs:
+            loop: If to loop time.
+
+        Returns:
+            Samples
+        """
+        if loop:
+            period = self.duration
+        else:
+            period = INF
+
+        samples = []
+        for spline in self.splines:
+            samples.extend(spline(clip(timestamp % period, spline.x[0], spline.x[-1] - 1e-15)))
+
+        #return np.array(samples)
+        return samples
+
     def __call__(self, t, nu=0):
-        return np.concatenate([s(t, nu) for s in self.splines])
+        return np.array([
+            spline(t, nu)
+            for spline in self.splines
+        ]).ravel()
 
     def __str__(self):
         return f'{type(self).__name__}({self.n_channels} curves)'
