@@ -229,6 +229,23 @@ export class Editor extends Widget {
                 this.play_current_motions();
             }
         });
+        this.drawer.svg.addEventListener("dblclick", evt => {
+            console.log("dblclick")
+            if (!this.list.selected) {
+                return;
+            }
+
+            const wc = this.history.retrieve().copy();
+            const channel = this.selected_channel();
+            const spline = wc.splines[channel];
+
+            this.curve_changing();
+
+            const pos = this.drawer.mouse_coordinates(evt);
+            spline.insert_knot(pos);
+
+            this.curve_changed(wc);
+        });
 
         this.drawer.addEventListener("curvechanging", evt => {
             this.curve_changing(evt.detail.position);

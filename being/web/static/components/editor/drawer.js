@@ -98,20 +98,8 @@ export class CurveDrawer extends Plotter {
         this.c1 = true;
         this.snapping_to_grid = true;
         this.limits = new BBox([0, -Infinity], [Infinity, Infinity]);
-        this.foregroundCurve = undefined;
 
         this.setup_svg_drag_navigation();
-        this.svg.addEventListener("dblclick", evt => {
-            if (!this.foregroundCurve) {
-                return
-            }
-
-            const pos = this.mouse_coordinates(evt);
-            this.emit_curve_changing();
-            const newCurve = this.foregroundCurve.copy();
-            newCurve.insert_knot(pos);
-            this.emit_curve_changed(newCurve);
-        });
     }
 
     /**
@@ -120,7 +108,6 @@ export class CurveDrawer extends Plotter {
     clear() {
         clear_array(this.elements);
         remove_all_children(this.container);
-        this.foregroundCurve = undefined;
     }
 
     /**
@@ -432,7 +419,7 @@ export class CurveDrawer extends Plotter {
                 if (spline.n_segments > 1) {
                     this.emit_curve_changing();
                     spline.remove_knot(knot);
-                    this.emit_curve_changed(spline);
+                    this.emit_curve_changed(curve);
                 }
             });
         });
@@ -453,7 +440,6 @@ export class CurveDrawer extends Plotter {
      * Draw background curve.
      */
     draw_background_curve(curve) {
-        console.log("Drawer.draw_background_curve(curve)");
         const wc = curve.copy();
         const color = "Gray";
         const linewidth = 1;
@@ -467,9 +453,7 @@ export class CurveDrawer extends Plotter {
      * Draw foreground curve. Selected channel will be interactive.
      */
     draw_foreground_curve(curve, channel=-1) {
-        console.log("Drawer.draw_foreground_curve(curve, channel)", curve, channel);
         const wc = curve.copy();
-        this.foregroundCurve = wc;
         const color = "DarkGray";  // Or silver, DimGray, Gray, ...
         const linewidth = 2;
 
