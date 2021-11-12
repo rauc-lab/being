@@ -19,7 +19,7 @@ import { CurveDrawer } from "/static/components/editor/drawer.js";
 import { PAUSED, PLAYING, RECORDING, Transport } from "/static/components/editor/transport.js";
 import { Widget, append_template_to, create_select } from "/static/js/widget.js";
 import { create_button } from "/static/js/button.js";
-import { Curve } from "/static/js/curve.js";
+import { Curve, ALL_CHANNELS } from "/static/js/curve.js";
 
 
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
@@ -60,39 +60,6 @@ function zoom_bbox_in_place(bbox, factor) {
     const mid = .5 * (bbox.left + bbox.right);
     bbox.left = 1 / factor * (bbox.left - mid) + mid;
     bbox.right = 1 / factor * (bbox.right - mid) + mid;
-}
-
-
-/**
- * Scale spline by factor (scale coefficients).
- */
-function scale_spline(spline, factor) {
-    const shape = array_shape(spline.c);
-    const scaledCoeffs = array_reshape(multiply_scalar(factor, spline.c.flat(COEFFICIENTS_DEPTH)), shape);
-    return new BPoly(scaledCoeffs, spline.x);
-}
-
-
-/**
- * Stretch spline by factor (stretch knots).
- */
-function stretch_spline(spline, factor) {
-    const stretchedKnots = multiply_scalar(factor, spline.x);
-    return new BPoly(spline.c, stretchedKnots);
-}
-
-
-/**
- * Shift all control points of spline by some offset.
- */
-function shift_spline(spline, offset) {
-    const start = spline.x[0];
-    offset = Math.max(offset, -start);
-    const shiftedKnots = spline.x.map(pos => {
-        return pos + offset;
-    });
-
-    return new BPoly(spline.c, shiftedKnots);
 }
 
 
@@ -239,7 +206,6 @@ export class Editor extends Widget {
             }
         });
         this.drawer.svg.addEventListener("dblclick", evt => {
-            console.log("dblclick")
             if (!this.list.selected) {
                 return;
             }
@@ -265,6 +231,22 @@ export class Editor extends Widget {
 
         // TODO: Can / should this go to the constructor?
         this.setup_keyboard_shortcuts();
+    }
+
+    /**
+     * Curve action decorator. Decorates methods that accept an event an return
+     * a new modified curve.
+     */
+    curve_action(func) {
+        return evt => {
+            if (!this.list.selected) {
+                return;
+            }
+
+            editor.curve_changing();
+            const newCurve = func(evt);
+            editor.curve_changed(newCurve);
+        }
     }
 
     /**
@@ -352,37 +334,30 @@ export class Editor extends Widget {
         // Motor channel selection
         this.toolbar.appendChild(this.channelSelect);
         this.toolbar.appendChild(this.removeChannelBtn);
-        this.removeChannelBtn.addEventListener("click", () => {
-            if (!this.list.selected) {
-                return;
-            }
 
-            const channel = this.selected_channel();
-            const wc = this.history.retrieve().copy();
-            this.curve_changing();
-            wc.splines.splice(channel, 1);
-            this.curve_changed(wc);
-        });
-        this.add_button_to_toolbar("add_circle", "Add new curve").addEventListener("click", () => {
-            console.log("Add new curve");
-            if (!this.list.selected) {
-                return;
-            }
 
+        this.removeChannelBtn.addEventListener("click", this.curve_action(evt => {
             const channel = this.selected_channel();
-            const wc = this.history.retrieve().copy();
-            this.curve_changing();
-            wc.splines.splice(channel + 1, 0, zero_spline(1));
+            const newCurve = this.history.retrieve().copy();
+            newCurve.splines.splice(channel, 1);
+            return newCurve;
+        }));
+
+        this.add_button_to_toolbar("add_circle", "Add new curve")
+        .addEventListener("click", this.curve_action(evt => {
+            const channel = this.selected_channel();
+            const newCurve = this.history.retrieve().copy();
+            newCurve.splines.splice(channel + 1, 0, zero_spline(1));
 
             // Increment channel select
-            this.update_channel_select(wc.n_channels);
+            this.update_channel_select(newCurve.n_channels);
             this.channelSelect.selectedIndex++;
             if (this.channelSelect.selectedIndex === NOTHING_SELECTED) {
                 this.channelSelect.selectedIndex = 0;
             }
 
-            this.curve_changed(wc);
-        });
+            return newCurve;
+        }));
         this.add_space_to_toolbar()
 
 
@@ -404,80 +379,64 @@ export class Editor extends Widget {
         this.add_space_to_toolbar();
 
 
-        // Spline manipulation
-        this.add_button_to_toolbar("compress", "Scale down position (1/2x)").addEventListener("click", () => {
-            if (!this.history.length) {
-                return;
-            }
-
-            this.curve_changing();
-            const newSpline = scale_spline(this.history.retrieve(), 0.5);
-            this.curve_changed(newSpline);
-        });
-        this.add_button_to_toolbar("expand", "Scale up position (2x)").addEventListener("click", () => {
-            if (!this.history.length) {
-                return;
-            }
-
-            this.curve_changing();
-            const newSpline = scale_spline(this.history.retrieve(), 2.0);
-            this.curve_changed(newSpline);
-        });
-        this.add_button_to_toolbar("directions_run", "Speed up motion").addEventListener("click", () => {
-            if (!this.history.length) {
-                return;
-            }
-
-            this.curve_changing();
-            const newSpline = stretch_spline(this.history.retrieve(), 0.5);
-            this.curve_changed(newSpline);
-        });
-        this.add_button_to_toolbar("hiking", "Slow down motion").addEventListener("click", () => {
-            if (!this.history.length) {
-                return;
-            }
-
-            this.curve_changing();
-            const newSpline = stretch_spline(this.history.retrieve(), 2.0);
-            this.curve_changed(newSpline);
-        });
-        this.add_button_to_toolbar("first_page", "Move to the left. Remove delay at the beginning.").addEventListener("click", () => {
-            if (!this.history.length) {
-                return;
-            }
-
-            this.curve_changing();
-            const newSpline = shift_spline(this.history.retrieve(), -Infinity);
-            this.curve_changed(newSpline);
-        });
-        this.add_button_to_toolbar("chevron_left", "Shift knots to the left").addEventListener("click", () => {
-            if (!this.history.length) {
-                return;
-            }
-
-            this.curve_changing();
-            const newSpline = shift_spline(this.history.retrieve(), -DEFAULT_KNOT_SHIFT);
-            this.curve_changed(newSpline);
-        });
-        this.add_button_to_toolbar("chevron_right", "Shift knots to the right").addEventListener("click", () => {
-            if (!this.history.length) {
-                return;
-            }
-
-            this.curve_changing();
-            const newSpline = shift_spline(this.history.retrieve(), DEFAULT_KNOT_SHIFT);
-            this.curve_changed(newSpline);
-        });
-        this.add_button_to_toolbar("clear", "Reset current motion").addEventListener("click", () => {
-            if (!this.history.length) {
-                return;
-            }
-
-            this.curve_changing();
-            const nChannels = this.number_of_channels();
-            const newCurve = zero_curve(nChannels);
-            this.curve_changed(newCurve);
-        });
+        // Curve manipulation / actions
+        this.add_button_to_toolbar("compress", "Scale down position (1/2x)")
+        .addEventListener("click", this.curve_action(evt => {
+            const newCurve = this.history.retrieve().copy();
+            const channel = evt.shiftKey ? ALL_CHANNELS : this.selected_channel();
+            newCurve.scale(0.5, channel);
+            return newCurve;
+        }));
+        this.add_button_to_toolbar("expand", "Scale up position (2x)")
+        .addEventListener("click", this.curve_action(evt => {
+            const newCurve = this.history.retrieve().copy();
+            const channel = evt.shiftKey ? ALL_CHANNELS : this.selected_channel();
+            newCurve.scale(2.0, channel);
+            return newCurve;
+        }));
+        this.add_button_to_toolbar("directions_run", "Speed up motion")
+        .addEventListener("click", this.curve_action(evt => {
+            const newCurve = this.history.retrieve().copy();
+            const channel = evt.shiftKey ? ALL_CHANNELS : this.selected_channel();
+            newCurve.stretch(0.5, channel);
+            return newCurve;
+        }));
+        this.add_button_to_toolbar("hiking", "Slow down motion")
+        .addEventListener("click", this.curve_action(evt => {
+            const newCurve = this.history.retrieve().copy();
+            const channel = evt.shiftKey ? ALL_CHANNELS : this.selected_channel();
+            newCurve.stretch(2.0, channel);
+            return newCurve;
+        }));
+        this.add_button_to_toolbar("first_page", "Move to the left. Remove delay at the beginning.")
+        .addEventListener("click", this.curve_action(evt => {
+            const newCurve = this.history.retrieve().copy();
+            const channel = evt.shiftKey ? ALL_CHANNELS : this.selected_channel();
+            newCurve.shift(-Infinity, channel);
+            return newCurve;
+        }));
+        this.add_button_to_toolbar("chevron_left", "Shift knots to the left")
+        .addEventListener("click", this.curve_action(evt => {
+            const newCurve = this.history.retrieve().copy();
+            const channel = evt.shiftKey ? ALL_CHANNELS : this.selected_channel();
+            newCurve.shift(-DEFAULT_KNOT_SHIFT, channel);
+            return newCurve;
+        }));
+        this.add_button_to_toolbar("chevron_right", "Shift knots to the right")
+        .addEventListener("click", this.curve_action(evt => {
+            const newCurve = this.history.retrieve().copy();
+            const channel = evt.shiftKey ? ALL_CHANNELS : this.selected_channel();
+            newCurve.shift(DEFAULT_KNOT_SHIFT, channel);
+            return newCurve;
+        }));
+        this.add_button_to_toolbar("clear", "Reset current motion")
+        .addEventListener("click", this.curve_action(evt => {
+            const newCurve = this.history.retrieve().copy();
+            newCurve.splines = newCurve.splines.map(() => {
+                return zero_spline(1);
+            });
+            return newCurve;
+        }));
 
         this.add_space_to_toolbar()
 
@@ -725,7 +684,6 @@ export class Editor extends Widget {
      * TODO
      */
     update_channel_select(nChannels) {
-        console.log("Editor.update_channel_select()");
         const select = this.channelSelect;
         while (select.childElementCount > nChannels) {
             select.removeChild(select.lastChild);
@@ -1066,7 +1024,6 @@ export class Editor extends Widget {
             this.histories.set(name, hist);
         }
 
-        this.update_channel_select(curve.n_channels);
         this.update_plotting_lines();
         this.drawer.clear_lines();
         this.drawer.change_viewport(curve.bbox())
@@ -1099,6 +1056,8 @@ export class Editor extends Widget {
         if (!current) {
             return console.log("No current curve!", current);
         }
+
+        this.update_channel_select(current.n_channels);
 
         const duration = current.end;
         this.transport.duration = duration;

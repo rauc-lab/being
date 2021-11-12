@@ -1,7 +1,10 @@
 /**
  * @module spline Spline stuff. Some constants and BPoly wrapper. Spline data container.
  */
-import {array_shape, array_min, array_max, array_ndims, arange, zeros, array_full} from "/static/js/array.js";
+import {
+    array_shape, array_min, array_max, array_ndims, arange, zeros, array_full,
+    array_reshape, multiply_scalar,
+} from "/static/js/array.js";
 import {deep_copy, last_element} from "/static/js/utils.js";
 import {BBox} from "/static/js/bbox.js";
 import {assert, searchsorted, insert_in_array, remove_from_array} from "/static/js/utils.js";
@@ -468,6 +471,22 @@ export class BPoly {
                     this.c[row][col][nr] = clip(val, ymin, ymax);
                 });
             });
+        });
+    }
+
+    scale(factor) {
+        const shape = array_shape(this.c);
+        this.c = array_reshape(multiply_scalar(factor, this.c.flat(COEFFICIENTS_DEPTH)), shape);
+    }
+
+    stretch(factor) {
+        this.x = multiply_scalar(factor, this.x);
+    }
+
+    shift(offset) {
+        offset = Math.max(offset, -this.start);
+        this.x = this.x.map(pos => {
+            return pos + offset;
         });
     }
 }

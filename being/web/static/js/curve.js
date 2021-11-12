@@ -3,6 +3,9 @@ import { BBox } from "/static/js/bbox.js";
 import { BPoly } from "/static/js/spline.js";
 
 
+export const ALL_CHANNELS = new Object()
+
+
 /**
  * Curve set container.
  */
@@ -74,6 +77,30 @@ export class Curve {
         return {
             "type": "Curve",
             "splines": this.splines.map(s => {return s.to_dict();}),
+        }
+    }
+
+    scale(factor, channel=ALL_CHANNELS) {
+        if (channel === ALL_CHANNELS) {
+            this.splines.forEach(s => s.scale(factor));
+        } else {
+            this.splines[channel].scale(factor);
+        }
+    }
+
+    stretch(factor, channel=ALL_CHANNELS) {
+        if (channel === ALL_CHANNELS) {
+            this.splines.forEach(s => s.stretch(factor));
+        } else {
+            this.splines[channel].stretch(factor);
+        }
+    }
+
+    shift(offset, channel=ALL_CHANNELS) {
+        if (channel === ALL_CHANNELS) {
+            this.splines.forEach(s => s.shift(offset));
+        } else {
+            this.splines[channel].shift(offset);
         }
     }
 };
