@@ -40,6 +40,19 @@ export function as_curve(obj) {
 }
 
 
+/**
+ * Remove element from array.
+ */
+function remove_from_array(array, element) {
+    const index = array.indexOf(element);
+    if (index === -1) {
+        throw `ValueError: remove_from_array(array, element): element not in array!`;
+    }
+
+    array.splice(index, 1);
+}
+
+
 const CURVE_LIST_TEMPLATE = `
 <style>
     :host {
@@ -478,6 +491,24 @@ export class CurveList extends WidgetBase {
         } else {
             this.select(wasSelected);
         }
+    }
+
+    /**
+     * Get an array with all "background" curves. These are curves which are
+     * armed but not the selected one.
+     */
+    background_curves() {
+        const names = Array.from(this.armed.values());
+        if (names.includes(this.selected)) {
+            remove_from_array(names, this.selected);
+        }
+
+        const bgCurves = [];
+        names.forEach((name) => {
+            bgCurves.push(this.curves.get(name));
+        });
+
+        return bgCurves;
     }
 }
 

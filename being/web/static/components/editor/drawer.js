@@ -444,11 +444,10 @@ export class CurveDrawer extends Plotter {
             return;
         }
 
-        const wc = curve.copy();
         const color = "Gray";
         const linewidth = 1;
-        wc.splines.forEach(spline => {
-            this._draw_curve_channel(wc, spline, color, linewidth);
+        curve.splines.forEach(spline => {
+            this._draw_curve_channel(curve, spline, color, linewidth);
         });
         this._draw_curve_elements();
     }

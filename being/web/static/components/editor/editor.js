@@ -437,7 +437,6 @@ export class Editor extends Widget {
             });
             return newCurve;
         }));
-
         this.add_space_to_toolbar()
 
         // Upload button. It is murky...
@@ -550,7 +549,7 @@ export class Editor extends Widget {
                         this.transport.toggle_looping();
                         break;
                     case "c":
-                        toggle_button(this.c1Btn);
+                        this.toggle_c1();
                         break;
                 }
             }
@@ -695,7 +694,6 @@ export class Editor extends Widget {
 
         this.assign_channel_names();
     }
-
 
     /**
      * Update the currently plotted lines by adjusting the output indices.
@@ -932,12 +930,12 @@ export class Editor extends Widget {
             current[mpId] = curve;
         }
 
-        this.transport.play();
         this.drawer.clear_lines();
         const loop = this.transport.looping;
         const offset = this.transport.position;
         const startTime = await this.api.play_multiple_curves(current, loop, offset)
         this.transport.startTime = startTime;
+        this.transport.play();
         this.update_ui();
     }
 
@@ -1031,24 +1029,6 @@ export class Editor extends Widget {
     }
 
     /**
-     * Get an array with all "background" curves. These are curves which are
-     * armed but not the selected one.
-     */
-    background_curves() {
-        const names = Array.from(this.list.armed.values());
-        if (names.includes(this.list.selected)) {
-            names.pop(this.list.selected);
-        }
-
-        const background = [];
-        names.forEach((name) => {
-            background.push(this.list.curves.get(name));
-        });
-
-        return background;
-    }
-
-    /**
      * (Re)-draw selected curve from history state.
      */
     draw_current_curves() {
@@ -1065,7 +1045,7 @@ export class Editor extends Widget {
 
         this.drawer.clear();
         this.drawer.expand_viewport_by_bbox(current.bbox());
-        this.background_curves().forEach(curve => {
+        this.list.background_curves().forEach(curve => {
             this.drawer.draw_background_curve(curve);
         });
 
