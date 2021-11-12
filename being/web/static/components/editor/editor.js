@@ -957,6 +957,7 @@ export class Editor extends Widget {
         }
 
         this.transport.play();
+        this.drawer.clear_lines();
         const loop = this.transport.looping;
         const offset = this.transport.position;
         const startTime = await this.api.play_multiple_curves(current, loop, offset)
