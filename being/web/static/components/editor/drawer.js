@@ -80,6 +80,14 @@ const EXTRA_STYLE = `
     box-shadow: 0 0 10px 10px rgba(255, 255, 255, .666);
     background-color: rgba(255, 255, 255, .666);
 }
+
+.pointed {
+    cursor: pointer;
+}
+
+svg g circle {
+    cursor: pointer;
+}
 </style>
 `
 
@@ -164,6 +172,16 @@ export class CurveDrawer extends Plotter {
         emit_custom_event(this, "curvechanged", {
             newCurve: newCurve,
         })
+    }
+
+    /**
+     * Emit custom channelchanged event. When user clicks on another channel of
+     * the foreground curve.
+     */
+    emit_channel_changed(channel) {
+        emit_custom_event(this, "channelchanged", {
+            channel: channel,
+        });
     }
 
     /**
@@ -319,11 +337,11 @@ export class CurveDrawer extends Plotter {
      * @param {Number} lw Line width.
      * @param {Number} dim Which dimension to draw.
      */
-    draw_curve(spline, lw = 1, dim = 0, color = "black") {
+    draw_curve(spline, lw = 1, dim = 0, color = "black", clickable = false, channel = 0) {
         assert(spline.degree <= Degree.CUBIC, `Spline degree ${spline.degree} not supported!`);
         const segments = arange(spline.n_segments);
         segments.forEach(seg => {
-            this.add_svg_path(() => {
+            const path = this.add_svg_path(() => {
                 return [
                     spline.point(seg, 0, dim),
                     spline.point(seg, 1, dim),
@@ -331,6 +349,13 @@ export class CurveDrawer extends Plotter {
                     spline.point(seg + 1, 0, dim),
                 ];
             }, lw, color);
+            if (clickable) {
+                path.classList.add("pointed");
+                path.addEventListener("click", evt => {
+                    evt.stopPropagation();  // Prevents transport cursor to jump
+                    this.emit_channel_changed(channel);
+                });
+            }
         });
     }
 
@@ -428,9 +453,10 @@ export class CurveDrawer extends Plotter {
     /**
      * Draw single curve channel.
      */
-    _draw_curve_channel(curve, spline, color="black", linewidth=1, interactive=false) {
-        this.draw_curve(spline, linewidth, 0, color);
-        if (interactive) {
+    _draw_curve_channel(curve, channel, color="black", linewidth=1, movable=false, clickable=false) {
+        const spline = curve.splines[channel];
+        this.draw_curve(spline, linewidth, 0, color, clickable, channel);
+        if (movable) {
             this.draw_control_points(curve, spline, linewidth, 0);
             this.draw_knots(curve, spline, linewidth, 0);
         }
@@ -446,8 +472,8 @@ export class CurveDrawer extends Plotter {
 
         const color = "Gray";
         const linewidth = 1;
-        curve.splines.forEach(spline => {
-            this._draw_curve_channel(curve, spline, color, linewidth);
+        curve.splines.forEach((spline, c) => {
+            this._draw_curve_channel(curve, c, color, linewidth);
         });
         this._draw_curve_elements();
     }
@@ -467,14 +493,17 @@ export class CurveDrawer extends Plotter {
         // Draw non-interactive channels
         wc.splines.forEach((spline, c) => {
             if (c !== channel) {
-                this._draw_curve_channel(wc, spline, color, linewidth);
+                const movable = false;
+                const clickable = true;
+                this._draw_curve_channel(wc, c, color, linewidth, movable, clickable);
             }
         });
 
         // Draw interactive channel over all previous channels
         if (0 <= channel && channel < curve.n_splines) {
-            const spline = wc.splines[channel];
-            this._draw_curve_channel(wc, spline, "black", linewidth, true);
+            const movable = true;
+            const clickable = false;
+            this._draw_curve_channel(wc, channel, "black", linewidth, movable, clickable);
         }
 
         this.viewport.expand_by_bbox(wc.bbox());

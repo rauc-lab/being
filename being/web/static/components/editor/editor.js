@@ -13,6 +13,7 @@ import {
 } from "/static/js/button.js";
 import { Curve, ALL_CHANNELS } from "/static/js/curve.js";
 import { History } from "/static/js/history.js";
+import { clip } from "/static/js/math.js";
 import { zero_spline } from "/static/js/spline.js";
 import { clear_array, add_option, remove_all_children, } from "/static/js/utils.js";
 import { Widget, append_template_to, create_select, } from "/static/js/widget.js";
@@ -239,6 +240,11 @@ export class Editor extends Widget {
         });
         this.drawer.addEventListener("curvechanged", evt => {
             this.curve_changed(evt.detail.newCurve);
+        });
+        this.drawer.addEventListener("channelchanged", evt => {
+            const channel = evt.detail.channel;
+            this.select_channel(channel);
+            this.draw_current_curves();
         });
 
         // TODO: Can / should this go to the constructor?
@@ -654,6 +660,14 @@ export class Editor extends Widget {
      */
     selected_channel() {
         return this.channelSelect.selectedIndex;
+    }
+
+    /**
+     * Select another channel.
+     */
+    select_channel(channel) {
+        const idx = clip(channel, 0, this.number_of_channels() - 1);
+        this.channelSelect.selectedIndex = idx;
     }
 
     /**
