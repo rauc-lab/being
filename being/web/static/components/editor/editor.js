@@ -1,25 +1,21 @@
 /**
  * @module spline_editor Spline editor custom HTML element.
  */
+import { as_curve } from "/static/components/editor/curve_list.js";
+import { CurveDrawer } from "/static/components/editor/drawer.js";  // Needs to be importet. Otherwise component does not load in time and SVG is not ready!
+import { PAUSED, PLAYING, RECORDING, Transport, } from "/static/components/editor/transport.js";
 import { Api } from "/static/js/api.js";
-import { subtract_arrays, array_reshape, multiply_scalar, array_shape  } from "/static/js/array.js";
 import { BBox } from "/static/js/bbox.js";
-import { toggle_button, switch_button_on, switch_button_off, is_checked, enable_button, disable_button, switch_button_to } from "/static/js/button.js";
-import { INTERVAL } from "/static/js/config.js";
-import { make_draggable } from "/static/js/draggable.js";
-import { History } from "/static/js/history.js";
-import { clip } from "/static/js/math.js";
-import { COEFFICIENTS_DEPTH, zero_spline, BPoly } from "/static/js/spline.js";
-import { clear_array, insert_after, add_option, remove_all_children, emit_event } from "/static/js/utils.js";
-import { CurverBase } from "/static/components/editor/curver.js";
-import { Line } from "/static/components/editor/line.js";
-import { CurveList, as_curve } from "/static/components/editor/curve_list.js";
-import { MotorSelector, dont_display_select_when_no_options, NOTHING_SELECTED } from "/static/components/editor/motor_selector.js";
-import { CurveDrawer } from "/static/components/editor/drawer.js";
-import { PAUSED, PLAYING, RECORDING, Transport } from "/static/components/editor/transport.js";
-import { Widget, append_template_to, create_select } from "/static/js/widget.js";
 import { create_button } from "/static/js/button.js";
+import { 
+    disable_button, enable_button, is_checked, switch_button_off,
+    switch_button_on, switch_button_to, toggle_button,
+} from "/static/js/button.js";
 import { Curve, ALL_CHANNELS } from "/static/js/curve.js";
+import { History } from "/static/js/history.js";
+import { zero_spline } from "/static/js/spline.js";
+import { clear_array, add_option, remove_all_children, } from "/static/js/utils.js";
+import { Widget, append_template_to, create_select, } from "/static/js/widget.js";
 
 
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
@@ -33,6 +29,9 @@ const DEFAULT_KNOT_SHIFT = 0.5;
 
 /** @const {Number} - HTTP OK.*/
 const OK = 200;
+
+/** @const {number} - Nothing selected in HTML select yet */
+const NOTHING_SELECTED = -1;
 
 
 /**
@@ -76,6 +75,9 @@ function purge_outdated_map_keys(map, keys) {
 }
 
 
+/**
+ * Create a curve with zero splines.
+ */
 function zero_curve(nChannels) {
     const splines = [];
     for(let i=0; i<nChannels; i++) {
@@ -83,6 +85,16 @@ function zero_curve(nChannels) {
     }
 
     return new Curve(splines);
+}
+
+
+/**
+ * Do not show select when there is only 1x option.
+ *
+ * @param {HTMLElement} select HTML select element.
+ */
+export function dont_display_select_when_no_options(select) {
+    select.style.display = select.length < 2 ? "none" : "inline";
 }
 
 

@@ -2,15 +2,13 @@
  * @module Spline / motion list for editor.
  */
 import { Api } from "/static/js/api.js";
-import { BPoly } from "/static/js/spline.js";
-import { WidgetBase } from "/static/js/widget.js";
+import { Curve } from "/static/js/curve.js";
 import { make_editable } from "/static/js/editable_text.js";
 import {
-    assert, emit_event, find_map_key_for_value, is_valid_filename,
-    remove_all_children, rename_map_key, emit_custom_event,
+    assert, emit_custom_event, find_map_key_for_value, is_valid_filename,
+    remove_all_children, rename_map_key,
 } from "/static/js/utils.js";
-import { objectify } from "/static/js/serialization.js";
-import { Curve } from "/static/js/curve.js";
+import { WidgetBase } from "/static/js/widget.js";
 
 
 /**

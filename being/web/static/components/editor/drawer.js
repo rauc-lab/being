@@ -1,14 +1,14 @@
 /**
  * @module splien_drawer Component for drawing the actual splines inside the spline editor.
  */
+import { arange, subtract_arrays } from "/static/js/array.js";
 import { BBox } from "/static/js/bbox.js";
 import { make_draggable } from "/static/js/draggable.js";
-import { arange, subtract_arrays } from "/static/js/array.js";
 import { clip } from "/static/js/math.js";
+import { Plotter } from "/static/components/plotter.js";
 import { COEFFICIENTS_DEPTH, KNOT, FIRST_CP, SECOND_CP, Degree, LEFT, RIGHT } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
 import { assert, arrays_equal, clear_array, remove_all_children, emit_custom_event } from "/static/js/utils.js";
-import { Plotter } from "/static/components/plotter.js";
 
 
 /**
