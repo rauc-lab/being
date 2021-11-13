@@ -51,7 +51,7 @@ function remove_from_array(array, element) {
 }
 
 
-const CURVE_LIST_TEMPLATE = `
+const LIST_TEMPLATE = `
 <style>
     :host {
         border-right: 2px solid black;
@@ -124,11 +124,11 @@ const CURVE_LIST_TEMPLATE = `
 `;
 
 
-export class CurveList extends WidgetBase {
+export class List extends WidgetBase {
     constructor() {
         super();
         this._append_link("static/css/material_icons.css");
-        this.append_template(CURVE_LIST_TEMPLATE);
+        this.append_template(LIST_TEMPLATE);
         this.api = new Api();
         this.motionPlayers = {};
 
@@ -510,4 +510,4 @@ export class CurveList extends WidgetBase {
     }
 }
 
-customElements.define("being-curve-list", CurveList);
+customElements.define("being-list", List);

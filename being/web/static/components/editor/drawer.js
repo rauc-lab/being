@@ -92,7 +92,7 @@ svg g circle {
 `
 
 
-export class CurveDrawer extends Plotter {
+export class Drawer extends Plotter {
     constructor() {
         super();
         this.append_template(EXTRA_STYLE);
@@ -526,4 +526,5 @@ export class CurveDrawer extends Plotter {
     }
 }
 
-customElements.define("being-curve-drawer", CurveDrawer);
+
+customElements.define("being-drawer", Drawer);

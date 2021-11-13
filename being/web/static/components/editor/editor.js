@@ -1,8 +1,8 @@
 /**
  * @module spline_editor Spline editor custom HTML element.
  */
-import { as_curve } from "/static/components/editor/curve_list.js";
-import { CurveDrawer } from "/static/components/editor/drawer.js";  // Needs to be importet. Otherwise component does not load in time and SVG is not ready!
+import { as_curve } from "/static/components/editor/list.js";
+import { Drawer } from "/static/components/editor/drawer.js";  // Needs to be imported. Otherwise component does not load in time and SVG is not ready!
 import { PAUSED, PLAYING, RECORDING, Transport, } from "/static/components/editor/transport.js";
 import { Api } from "/static/js/api.js";
 import { BBox } from "/static/js/bbox.js";
@@ -112,11 +112,11 @@ const EDITOR_TEMPLATE = `
         align-items: strech;
         flex-grow: 1;
     }
-    being-curve-list {
+    being-list {
         flex-grow: 0;
     }
 
-    being-curve-drawer {
+    being-drawer {
         flex-grow: 1;
         border: none;
     }
@@ -126,8 +126,8 @@ const EDITOR_TEMPLATE = `
     }
 </style>
 <div class="container">
-    <being-curve-list id="curve-list"></being-curve-list>
-    <being-curve-drawer id="plotter"></being-curve-drawer>
+    <being-list></being-list>
+    <being-drawer></being-drawer>
 </div>
 `;
 
@@ -145,8 +145,8 @@ export class Editor extends Widget {
 
         this.api = new Api();
         this.histories = new Map();  // Curve name -> History instance
-        this.list = this.shadowRoot.querySelector("being-curve-list");
-        this.drawer = this.shadowRoot.querySelector("being-curve-drawer");
+        this.list = this.shadowRoot.querySelector("being-list");
+        this.drawer = this.shadowRoot.querySelector("being-drawer");
         this.transport = new Transport(this.drawer);
         this.interval = null;
         this.notificationCenter = null;
@@ -1282,5 +1282,6 @@ export class Editor extends Widget {
         this.list.new_motions_message(msg);
     }
 }
+
 
 customElements.define("being-editor", Editor);
