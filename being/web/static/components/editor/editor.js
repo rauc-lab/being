@@ -201,6 +201,7 @@ export class Editor extends Widget {
         this.init_plotting_lines();  // Can only happen after loading motion player data
         this.toggle_limits();  // Enable by default. Can only happens once we have selected a motion player!
 
+
         // Channel select
         this.setup_channel_select();
 
@@ -687,21 +688,21 @@ export class Editor extends Widget {
      */
     assign_channel_names() {
         const nChannels = this.channelSelect.childElementCount;
-        let mid = nChannels;
-        let mp = undefined;
-        if (this.has_motion_players()) {
-            mp = this.selectedMotionPlayer;
-            mid = Math.min(mid, mp.ndim);
-        }
-
-        for (let i=0; i<mid; i++) {
-            const opt = this.channelSelect.children[i];
-            opt.innerHTML = mp.motors[i].name;
-        }
-
-        for (let i=mid; i<nChannels; i++) {
+        // Assign default Curve 1, Curve 2, etc.
+        for (let i=0; i<nChannels; i++) {
             const opt = this.channelSelect.children[i];
             opt.innerHTML = `Curve ${i + 1}`;
+        }
+
+        // Assign motor names if present
+        if (this.has_motion_players()) {
+            const mp = this.selectedMotionPlayer;
+            const nMotors = mp.motors.length;
+            const stop = Math.min(nMotors, this.channelSelect.childElementCount);
+            for (let i=0; i<stop; i++) {
+                const opt = this.channelSelect.children[i];
+                opt.innerHTML = mp.motors[i].name;
+            }
         }
     }
 
