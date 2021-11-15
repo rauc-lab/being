@@ -27,7 +27,6 @@
     </nav>
     <hr>
 
-    <!--
     <a class="anchor" id="control-panel-anchor"></a>
     <h1>Control Panel</h1>
     <being-control-panel></being-control-panel>
@@ -45,13 +44,10 @@
             <being-behavior behaviorId={{behavior.id}}></being-behavior>
         {% endfor %}
     {% endif %}
-    -->
 
-    {% if motionPlayers %}
-        <a class="anchor" id="editor-anchor"></a>
-        <h1>Motion Editor</h1>
-        <being-editor id="editor"></being-editor>
-    {% endif %}
+    <a class="anchor" id="editor-anchor"></a>
+    <h1>Motion Editor</h1>
+    <being-editor id="editor"></being-editor>
 
     <script type="module">
         import { WS_ADDRESS } from "/static/js/config.js";

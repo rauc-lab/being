@@ -251,7 +251,12 @@ export class List extends WidgetBase {
             return this.motionPlayers[id];
         }
 
-        return Object.values(this.motionPlayers)[0]
+        const motionPlayers = Object.values(this.motionPlayers);
+        if (motionPlayers.length === 0) {
+            return undefined;
+        }
+
+        return motionPlayers[0];
     }
 
     /**
@@ -268,7 +273,9 @@ export class List extends WidgetBase {
     arm(name, publish=true) {
         assert(this.curves.has(name), `Unknown curve ${name}`);
         const mp = this.first_best_motion_player(name);
-        this.armed.set(mp.id, name);
+        if (mp !== undefined) {
+            this.armed.set(mp.id, name);
+        }
 
         if (publish) {
             this.update_ui();
@@ -432,6 +439,9 @@ export class List extends WidgetBase {
         this.update_ui();
     }
 
+    /**
+     * Emit a custom event for given event type from this element.
+     */
     emit_custom_event(typeArg) {
         emit_custom_event(this, typeArg);
     }
@@ -507,6 +517,13 @@ export class List extends WidgetBase {
         });
 
         return bgCurves;
+    }
+
+    /**
+     * Do we have an motion player association for a given curve?
+     */
+    has_association(name) {
+        return this.associations.has(name);
     }
 }
 

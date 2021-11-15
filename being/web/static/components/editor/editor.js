@@ -726,6 +726,10 @@ export class Editor extends Widget {
      * Update the currently plotted lines by adjusting the output indices.
      */
     update_plotting_lines() {
+        if (!this.has_motion_players()) {
+            return;
+        }
+
         const mpId = this.selectedMotionPlayer.id;
         const unique = new Set(this.actualValueIndices[mpId]);
         for (const id of this.list.armed.keys()) {
@@ -756,12 +760,12 @@ export class Editor extends Widget {
                 throw "Nothing selected!";
             }
 
-            // Update motion player select
-            const mp = this.list.associated_motion_player(selected);
-            if (mp === undefined) {
-                this.list.associate_motion_player(selected, this.selectedMotionPlayer);
-            } else {
+            // Motion player selection / association
+            if (this.list.has_association(selected)) {
+                const mp = this.list.associated_motion_player(selected);
                 this.select_motion_player(mp);
+            } else if (this.selectedMotionPlayer) {
+                this.list.associate_motion_player(selected, this.selectedMotionPlayer);
             }
 
             const selectedCurve = this.list.selected_curve();
@@ -1167,7 +1171,12 @@ export class Editor extends Widget {
                 switch_button_off(this.playPauseBtn);
 
                 this.recBtn.innerHTML = "fiber_manual_record";
-                enable_button(this.recBtn);
+                if (this.has_motion_players()) {
+                    enable_button(this.recBtn);
+                } else {
+                    disable_button(this.recBtn);
+                }
+
                 switch_button_off(this.recBtn);
 
                 enable_button(this.stopBtn);
