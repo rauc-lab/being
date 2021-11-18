@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.3.0] - 2021-11-18
+
+### Changed
+- Splines became curves
+- Web socket broker via aiohttp on startup
+- Behavior.associate() method deprecated
+- Content methods
+- EC 45 default settings
+- API changes for curves
+- Signal handling via aiohttp application
+- Motion editor rework with curves and support for simultaneous playback on
+  multiple motion players
+
+### Added
+- Content with Files instance handling file system access
+
+### Fixed
+- Missing position profile support for WindupMotor block
+- Web socket connection reset error
+- JS safari compatibility issues
+
+### Removed
+- Old JS curver widget
+
 ## [0.2.5] - 2021-10-07
 
 ### Changed
