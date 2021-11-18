@@ -55,10 +55,8 @@ class Param extends HTMLElement {
     }
 }
 
+
 export class Slider extends Param {
-
-    N_TICKS = 1000;
-
     constructor() {
         super();
         this.minValue = 0.0;
@@ -67,6 +65,7 @@ export class Slider extends Param {
         this.slider = document.createElement("input");
         this.slider.type = "range";
         this.slider.min = 0;
+        this.N_TICKS = 1000;
         this.slider.max = this.N_TICKS;
         this.shadowRoot.appendChild(this.slider);
 
@@ -118,6 +117,9 @@ export class Slider extends Param {
         return clip(num, this.minValue, this.maxValue);
     }
 }
+
+
+customElements.define("being-slider", Slider);
 
 
 class Selection extends Param {
@@ -182,6 +184,9 @@ export class SingleSelection extends Selection {
 }
 
 
+customElements.define("being-single-selection", SingleSelection);
+
+
 export class MultiSelection extends Selection {
     add_entry(possibility, index) {
         const id = "multi" + index;
@@ -222,4 +227,11 @@ export class MultiSelection extends Selection {
 
 }
 
+
+customElements.define("being-multi-selection", MultiSelection);
+
+
 export class MotionSelection extends MultiSelection {}
+
+
+customElements.define("being-motion-selection", MotionSelection);
