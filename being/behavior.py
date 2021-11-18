@@ -191,7 +191,7 @@ class Behavior(Block, PubSub):
     def motion_duration(self, name: str) -> float:
         """Get duration of motion."""
         motion = self.content.load_curve(name)
-        return motion.x[-1]
+        return motion.end
 
     def play_random_motion_for_current_state(self):
         """Pick a random motion name from `motions` and fire a non-looping
