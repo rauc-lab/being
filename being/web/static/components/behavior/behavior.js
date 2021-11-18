@@ -327,10 +327,11 @@ export class Behavior extends Widget {
      * @param {Object} msg ?
      */
     async content_message(msg) {
-        const names = Object.keys(msg.splines);
+        const names = msg.curves.map(curvename => curvename[0]);
         this.populate_motions(names);
         const behavior = await this.api.load_behavior();
         this.update(behavior);
     }
 }
+
 customElements.define("being-behavior", Behavior);
