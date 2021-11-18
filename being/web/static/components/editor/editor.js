@@ -719,6 +719,7 @@ export class Editor extends Widget {
             add_option(select, "Placeholder");
         }
 
+        dont_display_select_when_no_options(select);
         this.assign_channel_names();
     }
 
@@ -884,7 +885,7 @@ export class Editor extends Widget {
         }
 
         const freename = await this.api.find_free_name();
-        const nChannels = this.number_of_channels();
+        const nChannels = Math.max(this.number_of_channels(), 1);
         const newCurve = zero_curve(nChannels);
         await this.api.create_curve(freename, newCurve)
     }
