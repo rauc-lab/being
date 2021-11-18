@@ -9,7 +9,7 @@ class PubSub:
         """Args:
             events: Supported events.
         """
-        # TODO: Final args? defaultdict?
+        # Todo: Final args? defaultdict?
         self.subscribers = {evt: set() for evt in events}
 
     def subscribe(self, event, callback):

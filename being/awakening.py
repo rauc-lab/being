@@ -129,8 +129,6 @@ def awake(
 
     Args:
         blocks: Some blocks of the network.
-
-    Kwargs:
         web: Run with web server.
         enableMotors: Enable motors on startup.
         homeMotors: Home motors on startup.
@@ -167,6 +165,6 @@ def awake(
 
     except Exception as err:
         LOGGER.fatal(err, exc_info=True)
-        # TODO(atheler): Log and throw anti pattern. Want to see error in stderr
+        # Todo(atheler): Log and throw anti pattern. Want to see error in stderr
         # as well.
         raise

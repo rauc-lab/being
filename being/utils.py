@@ -69,8 +69,6 @@ def update_dict_recursively(dct: dict, other: dict, default_factory: type = None
     Args:
         dct: Dictionary to update.
         other: Other dict to go through.
-
-    Kwargs:
         default_factory: Default factory for intermediate dicts.
     """
     if default_factory is None:
@@ -109,7 +107,7 @@ class SingleInstanceCache:
     Resources:
         https://softwareengineering.stackexchange.com/questions/40373/so-singletons-are-bad-then-what
 
-    Usage:
+    Example:
         >>> class Foo(SingleInstanceCache):
         ...     pass
         ... print('Instance of Foo exists?', Foo.single_instance_initialized())
@@ -185,7 +183,7 @@ class NestedDict(collections.abc.MutableMapping):
     # errors? Also then setdefault works as expected.
 
     def __init__(self, data=None, default_factory=dict):
-        """Kwargs:
+        """Args:
             iterable: Initial data.
             default_factory: Default factory for intermediate dicts.
         """

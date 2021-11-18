@@ -24,8 +24,6 @@ class SensorGpio(Sensor):
 
         Args:
             channel: Raspberry PI GPIO number.
-
-        Kwargs:
             edge: Rising or falling edge.
             pull_up_down: Pull up termination or not.
             bouncetime: Edge detection bounce time in seconds.

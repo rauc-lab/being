@@ -45,9 +45,6 @@ class HomingState(enum.Enum):
 register_enum(HomingState)
 
 
-# TODO(atheler): Move CiA 402 homing functions -> CiA402Node as methods
-
-
 def default_homing_method(
         homingMethod: Optional[int] = None,
         homingDirection: int = UNDEFINED,
@@ -197,7 +194,7 @@ class DummyHoming(HomingBase):
             successProbability: float = 0.9,
             time_func: Callable = time.perf_counter,
         ):
-        """Kwargs:
+        """Args:
             minDuration: Minimum duration of dummy homing.
             maxDuration: Maximum duration of dummy homing.
             successProbability: Success probability of dummy homing.
@@ -309,7 +306,7 @@ class CiA402Homing(HomingBase):
 class CrudeHoming(CiA402Homing):
     """Crude hard stop homing for Faulhaber linear motors.
 
-    Kwargs:
+    Args:
         speed: Speed for homing in device units.
     """
 
@@ -351,7 +348,7 @@ class CrudeHoming(CiA402Homing):
     def on_the_wall(self) -> bool:
         """Check if motor is on the wall."""
         current = self.node.sdo['Current Actual Value'].raw
-        return current > self.currentLimit  # TODO: Add percentage threshold?
+        return current > self.currentLimit  # Todo: Add percentage threshold?
 
     def teardown(self):
         yield from self.halt_drive()

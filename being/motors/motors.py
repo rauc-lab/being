@@ -158,13 +158,13 @@ MOTORS = {
     'EC45': Motor(
         'Maxon',
         'EC 45',
-        units=DeviceUnits(position=TAU / 4 / 2048),  # TODO: velocity and acceleration?
+        units=DeviceUnits(position=TAU / 4 / 2048),  # Todo: velocity and acceleration?
         defaultSettings=MAXON_EC_45_DEFAULT_SETTINGS,
     ),
     'DC22': Motor(
         'Maxon',
         'DC 22',
-        units=DeviceUnits(position=TAU / 4 / 1024),  # TODO: velocity and acceleration?
+        units=DeviceUnits(position=TAU / 4 / 1024),  # Todo: velocity and acceleration?
         gear=Fraction(69, 13),
         defaultSettings=MAXON_DC_22_DEFAULT_SETTINGS,
     ),

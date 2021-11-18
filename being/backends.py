@@ -1,7 +1,8 @@
 """Backend resources.
 
-TODO: Finish Audio Backend.
-TODO: VideoBackend.
+Todo:
+    - Finish Audio Backend.
+    - Video backend?
 """
 import contextlib
 import sys

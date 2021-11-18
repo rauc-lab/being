@@ -52,8 +52,6 @@ class Being:
             blocks: Blocks to execute.
             clock: Being clock instance.
             pacemaker: Pacemaker thread (will not be started, used as dummy).
-
-        Kwargs:
             network: CanBackend instance (if any).
             usePacemaker: If to use a pacemaker thread (if CanBackend network).
         """

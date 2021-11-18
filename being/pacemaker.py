@@ -37,8 +37,6 @@ class Pacemaker(contextlib.AbstractContextManager):
         """Args:
             network: CanBackend network instance to trigger PDO transmits / SYNC
                 messages.
-
-        Kwargs:
             maxWait: Maximum wait duration before stepping in.
         """
         self.network = network

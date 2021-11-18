@@ -31,7 +31,7 @@ def split_name(name: str) -> Tuple[str, str]:
     Returns:
         head and tail tuple
 
-    Usage:
+    Example:
         >>> split_name('this/is/it')
         ('this/is', 'it')
     """
@@ -60,7 +60,7 @@ class _ConfigImpl(NestedDict):
         default_factory: Associated default_factory for creating intermediate
             elements
 
-    Usage:
+    Example:
         >>> c = _ConfigImpl()
         ... c.store('this/is/it', 'Hello, world!')
         ... c.storedefault('this/is/it', 42)
@@ -225,7 +225,7 @@ class Config(_ConfigImpl, collections.abc.MutableMapping):
     """Configuration object. Proxy for _ConfigImpl (depending on config format)."""
 
     def __init__(self, data: Optional[dict] = None, configFormat: Optional[str] = None):
-        """Kwargs:
+        """Args:
             data: Initial / internal data.
             configFormat: Config format (if any).
         """

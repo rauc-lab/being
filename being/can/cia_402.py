@@ -303,7 +303,7 @@ HOMING_METHODS: Dict[HomingParam, int] = {
     HomingParam(homeSwitch=NEGATIVE, homeSwitchEdge=FALLING, endSwitch=NEGATIVE, ): 30,
     HomingParam(indexPulse=True, direction=NEGATIVE,): 33,
     HomingParam(indexPulse=True, direction=POSITIVE,): 34,
-    HomingParam(): 35,  # TODO(atheler): Got replaced with 37 in newer versions
+    HomingParam(): 35,  # Todo(atheler): Got replaced with 37 in newer versions
 }
 """CiA 402 homing method lookup."""
 
@@ -381,7 +381,7 @@ def maybe_int(string: str) -> Union[int, str]:
     Returns:
         Maybe an int. Pass on input string otherwise.
 
-    Usage:
+    Example:
         >>> maybe_int('123')
         123
 
@@ -469,8 +469,6 @@ class CiA402Node(RemoteNode):
             nr: TxPDO number (1-4).
             *variables: CanOpen variables to register to receive from remote
                 node via TxPDO.
-
-        Kwargs:
             enabled: Enable or disable TxPDO.
             overwrite: Overwrite TxPDO.
             trans_type: Event based or synchronized transmission
@@ -505,8 +503,6 @@ class CiA402Node(RemoteNode):
             nr: RxPDO number (1-4).
             *variables: CanOpen variables to register to send to remote node via
                 RxPDO.
-
-        Kwargs:
             enabled: Enable or disable RxPDO.
             overwrite: Overwrite RxPDO.
             trans_type: Event based or synchronized transmission
@@ -525,7 +521,7 @@ class CiA402Node(RemoteNode):
     def get_state(self, how: str = 'sdo') -> State:
         """Get current node state.
 
-        Kwargs:
+        Args:
             how: Either via 'sdo' or 'pdo'.
 
         Returns:
@@ -545,8 +541,6 @@ class CiA402Node(RemoteNode):
 
         Args:
             target: Target state to switch to.
-
-        Kwargs:
             how: Either via 'sdo' or 'pdo'.
 
         Yields:
@@ -589,8 +583,6 @@ class CiA402Node(RemoteNode):
 
         Args:
             target: Target state to switch to.
-
-        Kwargs:
             how: Either via 'sdo' or 'pdo'.
 
         Yields:
@@ -619,8 +611,6 @@ class CiA402Node(RemoteNode):
         Args:
             generator: Generator to execute.
             timeout: Timeout duration in seconds.
-
-        Kwargs:
             interval: Internal sleep duration.
         """
         endTime = time.perf_counter() + timeout
@@ -645,8 +635,6 @@ class CiA402Node(RemoteNode):
 
         Args:
             target: Target state to switch to.
-
-        Kwargs:
             how: Either via 'sdo' or 'pdo'.
             timeout: Optional timeout.
             retGenerator: If True return switching job generator.
@@ -673,8 +661,6 @@ class CiA402Node(RemoteNode):
 
         Args:
             target: Target state to switch to.
-
-        Kwargs:
             how: Either via 'sdo' or 'pdo'.
             timeout: Optional timeout.
             retGenerator: If True return switching job generator.
@@ -721,10 +707,10 @@ class CiA402Node(RemoteNode):
         """Restore NMT state, CiA 402 state and operation mode. Implemented as
         context manager.
 
-        Kwargs:
+        Args:
             timeout: Optional timeout.
 
-        Usage:
+        Example:
             >>> with node.restore_states_and_operation_mode():
             ...     # Do something fancy with the states
             ...     pass
@@ -746,7 +732,7 @@ class CiA402Node(RemoteNode):
     def switch_off(self, timeout: Optional[float] = None):
         """Switch off drive. Same state as on power-up.
 
-        Kwargs:
+        Args:
             timeout: Optional timeout.
         """
         self.change_state(State.SWITCH_ON_DISABLED, timeout=timeout)
@@ -754,7 +740,7 @@ class CiA402Node(RemoteNode):
     def disable(self, timeout: Optional[float] = None):
         """Disable drive (no power).
 
-        Kwargs:
+        Args:
             timeout: Optional timeout.
         """
         self.change_state(State.READY_TO_SWITCH_ON, timeout=timeout)
@@ -762,7 +748,7 @@ class CiA402Node(RemoteNode):
     def enable(self, timeout: Optional[float] = None):
         """Enable drive.
 
-        Kwargs:
+        Args:
             timeout: Optional timeout.
         """
         self.change_state(State.OPERATION_ENABLED, timeout=timeout)
@@ -793,8 +779,6 @@ class CiA402Node(RemoteNode):
 
         Args:
             position: Target position.
-
-        Kwargs:
             velocity: Profile velocity (if any).
             acceleration: Profile acceleration / deceleration (if any).
             immediately: If True overwrite ongoing command.
@@ -823,8 +807,6 @@ class CiA402Node(RemoteNode):
 
         Args:
             velocity: Target velocity.
-
-        Kwargs:
             acceleration: Profile acceleration / deceleration (if any).
             immediately: If True overwrite ongoing command.
         """

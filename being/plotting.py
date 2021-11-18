@@ -47,8 +47,6 @@ def sample_trajectory(spline: PPoly, nSamples: int = 100, rett: bool = False):
 
     Args:
         spline: Spline to sample.
-
-    Kwargs:
         nSamples: Number of samples
         rett: If to return sample times as well.
 
@@ -72,8 +70,6 @@ def plot_spline(spline: PPoly, nSamples: int = 100, **kwargs):
 
     Args:
         spline: Spline to plot.
-
-    Kwargs:
         nSamples: Number of samples
         **kwargs -> plot_trajectory()
     """

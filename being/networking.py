@@ -31,8 +31,6 @@ class NetworkBlock(Block):
     def __init__(self, address: Address, sock: Optional[Socket] = None, **kwargs):
         """Args:
             address: Network address.
-
-        Kwargs:
             sock: Socket instance.
         """
         super().__init__(**kwargs)

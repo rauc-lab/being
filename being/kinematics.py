@@ -29,15 +29,13 @@ def optimal_trajectory(initial: State, target: State, maxSpeed: float = 1., maxA
     Args:
         initial: Initial state.
         target: Target state.
-
-    Kwargs:
         maxSpeed: Maximum speed.
         maxAcc: Maximum acceleration (and deceleration).
 
     Returns:
         List of bang speed profiles.
 
-    Usage:
+    Example:
         >>> optimal_trajectory(,
         [(0.5, 1.0), (1.5, 0.0), (0.5, -1.0)]
 
@@ -133,8 +131,6 @@ def kinematic_filter(
     Args:
         targetPosition: Target position value.
         dt: Time interval.
-
-    Kwargs:
         state: Initial / current state.
         targetVelocity: Target velocity value. Use with care! Steady sate with
             non-zero targetVelocity leads to oscillation.

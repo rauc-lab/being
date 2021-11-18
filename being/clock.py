@@ -15,7 +15,7 @@ class Clock(SingleInstanceCache):
     """
 
     def __init__(self, interval: float = INTERVAL):
-        """Kwargs:
+        """Args:
             interval: Interval time.
         """
         self.interval = interval

@@ -62,7 +62,7 @@ class MotorBlock(Block, MotorInterface):
     FREE_NUMBERS = itertools.count(1)
 
     def __init__(self, name: Optional[str] = None):
-        """Kwargs:
+        """Args:
             name: Block name.
         """
         if name is None:
@@ -90,7 +90,7 @@ class DummyMotor(MotorBlock):
     """Dummy motor for testing and standalone usage."""
 
     def __init__(self, length: float = 0.040, name: Optional[str] = None):
-        """Kwargs:
+        """Args:
             length: Length of dummy motor in meters.
             name: Motor name.
         """
@@ -205,8 +205,6 @@ class CanMotor(MotorBlock):
         """Args:
             nodeId: CANopen node id.
             motor: Motor object or motor name.
-
-        Kwargs:
             profiled: Use profiled position mode instead of cyclic position
                 mode.
             name: Block name
@@ -316,8 +314,6 @@ class LinearMotor(CanMotor):
     def __init__(self, nodeId, motor='LM 1247', **kwargs):
         """Args:
             nodeId: CANopen node id.
-
-        Kwargs:
             motor: Motor object or motor name.
             **kwargs: Further kwargs for CanMotor.
         """
@@ -331,8 +327,6 @@ class RotaryMotor(CanMotor):
     def __init__(self, nodeId, motor='DC 22', length=TAU, **kwargs):
         """Args:
             nodeId: CANopen node id.
-
-        Kwargs:
             motor: Motor object or motor name.
             length: Length of rotary motor in radian.
             **kwargs: Further kwargs for CanMotor.
@@ -351,8 +345,6 @@ class BeltDriveMotor(CanMotor):
             nodeId: CANopen node id.
             length: Length of belt in meter
             diameter: Diameter of pinion belt wheel.
-
-        Kwargs:
             motor: Motor object or motor name.
             **kwargs: Further kwargs for CanMotor.
         """
@@ -370,8 +362,6 @@ class LeadScrewMotor(CanMotor):
             nodeId: CANopen node id.
             length: Total length of the lead screw in meter.
             threadPitch: Pitch on lead screw thread ("heigth" per revolution) in meter.
-
-        Kwargs:
             motor: Motor object or motor name.
             **kwargs: Further kwargs for CanMotor.
         """
@@ -396,8 +386,6 @@ class WindupMotor(CanMotor):
             diameter: Inner diameter of the spool / coil. Filament is completely
                 unwind. In meters.
             length: Length of the filament. Corresponds to the arc length on the coil.
-
-        Kwargs:
             motor: Motor object or motor name.
             outerDiameter: Outer diameter of the spool / coil. This is the
                 diameter when the filament is completely windup. Can be used to

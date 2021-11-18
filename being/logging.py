@@ -29,8 +29,6 @@ def get_logger(name: Optional[str] = None, parent: Optional[Logger] = BEING_LOGG
 
     Args:
         name: Logger name. None for root logger if not parent logger.
-
-    Kwargs:
         parent: Parent logger. BEING_LOGGER by default.
     """
     if parent:

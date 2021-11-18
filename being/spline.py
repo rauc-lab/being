@@ -98,8 +98,6 @@ def sample_spline(spline: Spline, t, loop: bool = False):
     Args:
         spline: Some spline to sample (must be callable).
         t: Time value(s)
-
-    Kwargs:
         loop: Loop spline motion.
 
     Returns:
@@ -144,17 +142,15 @@ def build_ppoly(
     Args:
         accelerations: Acceleration values.
         knots: Increasing time values.
-
-    Kwargs:
         x0: Initial position.
         v0: Initial velocity.
-        extrapolate: TODO.
-        axis: TODO
+        extrapolate (optional): Extrapolate spline. Default is False.
+        axis (optional): Spline axis. Default is 0.
 
     Returns:
         Position spline.
 
-    Usage:
+    Example:
         >>> x0 = 1.234
         ... spline = build_ppoly([1, 0, -1], [0, 1, 2, 3], x0=x0)
         ... print(spline(0.) == x0)
@@ -292,7 +288,7 @@ def smoothing_spline(
     if periodic:
         extrapolate = 'periodic'
 
-    # TODO: Should we directly go with BPoly instead of PPoly?
+    # Todo: Should we directly go with BPoly instead of PPoly?
     if ndim == ONE_D:
         tck = splrep(x, y, k=degree, s=s, per=periodic)
         ppoly = PPoly.from_spline(tck, extrapolate)
@@ -307,7 +303,7 @@ def smoothing_spline(
         coeffs = np.stack([spline.c for spline in splines], axis=-1)
         ppoly = PPoly.construct_fast(coeffs, t, extrapolate)
 
-    # TODO: Cutting off excess knots / duplicates in ppoly.x (ppoly.x[:degree]
+    # Todo: Cutting off excess knots / duplicates in ppoly.x (ppoly.x[:degree]
     # and ppoly.x[-degree:])? Is this necessary?
     return ppoly
 
@@ -389,8 +385,6 @@ def optimal_trajectory_spline(
     Args:
         initial: Start state.
         target: Final end state.
-
-    Kwargs:
         maxSpeed: Maximum speed.
         maxAcc: Maximum acceleration (and deceleration).
         extrapolate: Extrapolate splines over borders.

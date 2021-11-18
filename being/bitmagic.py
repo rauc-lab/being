@@ -24,7 +24,7 @@ def toggle_bit(value: int, bit: int) -> int:
 def check_bit_mask(value: int, mask: int) -> bool:
     """Check if all bits of mask are set in value.
 
-    Usage:
+    Example:
         >>> check_bit_mask(0b1101, mask=0b1001)
         True
 
@@ -37,7 +37,7 @@ def check_bit_mask(value: int, mask: int) -> bool:
 def bit_mask(width: int) -> int:
     """All ones bit mask for a given width.
 
-    Usage:
+    Example:
         >>> bin(bit_mask(width=4))
         '0b1111'
     """

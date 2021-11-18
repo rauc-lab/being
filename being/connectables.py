@@ -152,7 +152,7 @@ class OutputBase:
     """
 
     def __init__(self, owner: Optional[Block] = None):
-        """Kwargs:
+        """Args:
             owner: Parent block owning this output.
         """
         self.owner: Optional[Block] = owner
@@ -184,7 +184,7 @@ class InputBase:
     """
 
     def __init__(self, owner: Optional[Block] = None):
-        """Kwargs:
+        """Args:
             owner: Parent block owning this output.
         """
         self.owner: Optional[Block] = owner
@@ -255,10 +255,14 @@ class _ValueContainer:
 
     Attributes:
         _value: Stored Python value.
+
+    Todo:
+        Kill ``get_value()`` / ``set_value()``? Property getter / setter access
+        `could` be a little bit faster.
     """
 
     def __init__(self, value: Any = 0.):
-        """Kwargs:
+        """Args:
             value: Initial value.
         """
         self._value = value
@@ -273,8 +277,6 @@ class _ValueContainer:
         """Set value."""
         self._value = value
 
-    # TODO: Kill get_value() / set_value()? property access would be a little
-    # bit faster.
     def get_value(self):
         """Get value."""
         return self._value

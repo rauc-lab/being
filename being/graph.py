@@ -93,7 +93,7 @@ class Graph(collections.namedtuple('Graph', ['vertices', 'edges', 'successors', 
 
     def __new__(cls, vertices: Optional[Iterable] = None,
             edges: Sequence[Edge] = None):
-        """Kwargs:
+        """Args:
             vertices: Initial vertices. Final vertices will be auto updated from
                 the ones present in the edges.
             edges: Source -> destination edge tuples.

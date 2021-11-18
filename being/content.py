@@ -23,12 +23,14 @@ DEFAULT_DIRECTORY = CONFIG['General']['CONTENT_DIRECTORY']
 
 class Content(PubSub, SingleInstanceCache):
 
-    """Content manager. For now only motions / splines."""
+    """Content manager. For now only motions / splines.
 
-    # TODO: Hoist IO!
-    # TODO: Inversion of control (IoC)
-    # TODO: Extend for all kind of files, subfolders.
-    # TODO: NestedDict?
+    Todo:
+        - Hoist IO!
+        - Inversion of control (IoC)
+        - Extend for all kind of files, subfolders.
+        - NestedDict?
+    """
 
     def __init__(self, directory: str = DEFAULT_DIRECTORY):
         super().__init__(events=[CONTENT_CHANGED])
@@ -126,8 +128,11 @@ class Content(PubSub, SingleInstanceCache):
         ]
 
     def dict_motions(self) -> List[dict]:
-        """Get list with dict representation of all motions."""
-        # TODO: Misleading name. Method is not returning a dict
+        """Get list with dict representation of all motions.
+
+        Todo:
+            Misleading name. Method is not returning a dict
+        """
         return [
             {
                 'filename': name,

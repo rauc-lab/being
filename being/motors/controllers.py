@@ -80,7 +80,7 @@ class Controller(MotorInterface):
       - Relaying EMCY errors.
 
     Attributes:
-        EMERGENCY_ERROR_CODES: TODO.
+        EMERGENCY_ERROR_CODES: Todo.
         SUPPORTED_HOMING_METHODS: Supported homing methods.
         node: Connected CiA 402 CANopen node.
         motor: Associated hardware motor.
@@ -109,8 +109,6 @@ class Controller(MotorInterface):
             node: Connected CanOpen node.
             motor: Motor definitions / settings.
             length: Clipping length in SI units.
-
-        Kwargs:
             direction: Movement direction.
             settings: Motor settings.
             operationMode: Operation mode for node.
@@ -177,7 +175,7 @@ class Controller(MotorInterface):
         """Setup homing. Done here and not directly in __init__ so that child
         class can overwrite this behavior.
 
-        Kwargs:
+        Args:
             **homingKwargs: Homing parameters.
         """
         method = default_homing_method(**homingKwargs)
@@ -344,6 +342,10 @@ class Epos4(Controller):
 
     Also a simple, alternative position controller which sends velocity
     commands.
+
+    Todo:
+        Testing if ``firmwareVersion < 0x170h``?
+
     """
 
     EMERGENCY_DESCRIPTIONS = MAXON_EMERGENCY_DESCRIPTIONS
@@ -357,7 +359,7 @@ class Epos4(Controller):
             operationMode: OperationMode = OperationMode.CYCLIC_SYNCHRONOUS_POSITION,
             **kwargs,
         ):
-        """Kwargs:
+        """Args:
             usePositionController: If True use position controller on EPOS4 with
                 operation mode CYCLIC_SYNCHRONOUS_POSITION. Otherwise simple
                 custom application side position controller working with the
@@ -379,7 +381,6 @@ class Epos4(Controller):
         self.recoverRpdoTimeoutError = recoverRpdoTimeoutError
         self.rpdoTimeoutOccurred = False
 
-        # TODO: Test if firmwareVersion < 0x170h?
         self.logger.info('Firmware version 0x%04x', self.firmware_version())
 
     def init_homing(self, **homingKwargs):

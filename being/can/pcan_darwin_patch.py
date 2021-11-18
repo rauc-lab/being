@@ -21,7 +21,7 @@ def patch_pcan_on_darwin():
     libPCBUSB version 0.9 (32/64 bit data type issue). Patches PCAN message
     structures in python-can (can.interfaces.pcan).
 
-    Usage:
+    Example:
         >>> import can
         ... import canopen
         ... # Import can & canopen before patching

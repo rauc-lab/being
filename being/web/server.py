@@ -62,7 +62,7 @@ def patch_sensor_to_web_socket(sensor, ws: WebSocket):
     # MessageOutput can only connect to an instance of MessageInput. No
     # subclassing possible. Let us monkey patch the push method of a dummy
     # instance of MessageInput instead.
-    # TODO(atheler): For the future, and more sensors, probably best to
+    # Todo(atheler): For the future, and more sensors, probably best to
     # introduce some kind of phantom block with multiple message inputs. Or
     # adding this functionality to the being instance itself.
     dummy = MessageInput()

@@ -36,8 +36,6 @@ class Parameter(Block):
     def __init__(self, fullname: str, configFile: Optional[ConfigFile] = None):
         """Args:
             fullname: Full name of config entry.
-
-        Kwargs:
             configFile: Configuration file instance (DI). Default is
                 ParamsConfigFile instance.
         """

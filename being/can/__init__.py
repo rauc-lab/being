@@ -15,7 +15,6 @@ from being.can.cia_301 import DEVICE_TYPE
 SUPPORTED_DEVICE_TYPES = {
     b'\x92\x01\x42\x00': 'eds_files/MCLM3002P-CO.eds',
     b'\x92\x01\x02\x00': 'eds_files/maxon_EPOS4_50-5.eds',
-    # TODO: Add more EDS files
 }
 """Device type: bytes -> local EDS file."""
 
@@ -32,7 +31,7 @@ def sdo_client(network: Network, nodeId: int, od=None):
     Yields:
         SdoClient instance.
 
-    Usage:
+    Example:
         >>> with sdo_client(network, nodeId=8) as client:
         ...     deviceType = client.upload(0x1000, subindex=0)
         ...     print('deviceType:', deviceType)

@@ -1,6 +1,11 @@
 """Block base class.
 
-Some block related helpers."""
+Some block related helpers.
+
+Todo:
+    Should ``input_connections()``, ``output_connections()``,
+    ``input_neighbors()`` and ``output_neighbors()`` become ``Block`` methods?
+"""
 import collections
 import functools
 import itertools
@@ -23,8 +28,6 @@ Outputable = Union[Block, OutputBase]
 Connections = Generator[Connection, None, None]
 
 
-# TODO: Move input_connections(), output_connections(), input_neighbors() and
-# output_neighbors() to Block methods?
 def input_connections(block: Block) -> Connections:
     """Iterate over all incoming connections.
 
@@ -160,7 +163,7 @@ class Block:
     """Counter used for id assignment."""
 
     def __init__(self, name: Optional[str] = None):
-        """Kwargs:
+        """Args:
             name: Optional block name for UI. Block type name by default.
         """
         if name is None:
@@ -200,7 +203,7 @@ class Block:
     def add_value_input(self, name: Optional[str] = None):
         """Add new value input to block.
 
-        Kwargs:
+        Args:
             name: Attribute name.
         """
         input_ = ValueInput(owner=self)
@@ -213,7 +216,7 @@ class Block:
     def add_message_input(self, name: Optional[str] = None):
         """Add new message input to block.
 
-        Kwargs:
+        Args:
             name: Attribute name.
         """
         input_ = MessageInput(owner=self)
@@ -226,7 +229,7 @@ class Block:
     def add_value_output(self, name: Optional[str] = None):
         """Add new value output to block.
 
-        Kwargs:
+        Args:
             name: Attribute name.
         """
         output = ValueOutput(owner=self)
@@ -239,7 +242,7 @@ class Block:
     def add_message_output(self, name: Optional[str] = None):
         """Add new message output to block.
 
-        Kwargs:
+        Args:
             name: Attribute name.
         """
         output = MessageOutput(owner=self)

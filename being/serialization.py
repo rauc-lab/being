@@ -65,7 +65,7 @@ def _enum_type_qualname(enumType: EnumMeta) -> str:
     """Quasi qualname for enum types. So to distinguish different enum types
     with the same name in different modules.
 
-    Usage:
+    Example:
         >>> import enum
         ...
         ... class Foo(enum.Enum):
@@ -258,7 +258,7 @@ class FlyByDecoder:
 
     """Continuously decode objects from partial messages.
 
-    Usage:
+    Example:
         >>> snippets = ['"Hello, World!"\x041.23', '4\x04[1, 2, 3, 4]\x04{"a":', ' 1, "b": 2}\x04']
         ... dec = FlyByDecoder()
         ... for snippet in snippets:
@@ -271,7 +271,7 @@ class FlyByDecoder:
     """
 
     def __init__(self, term: str = EOT):
-        """Kwargs:
+        """Args:
             term: Termination character.
         """
         self.term = term

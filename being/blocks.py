@@ -1,5 +1,4 @@
 """Miscellaneous blocks."""
-# TODO: Renaming this module? Almost name conflict with block.py?
 import math
 import sys
 import time
@@ -22,7 +21,7 @@ class Sine(Block):
     """Sine generator. Outputs sine wave for a given frequency."""
 
     def __init__(self, frequency: float = 1., startPhase: float = 0., **kwargs):
-        """Kwargs:
+        """Args:
             frequency: Initial frequency value.
             startPhase: Inital phase.
         """
@@ -46,7 +45,7 @@ class Trafo(Block):
     """Transforms input signal (by some fixed scale and offset)."""
 
     def __init__(self, scale: float = 1., offset: float = 0., **kwargs):
-        """Kwargs:
+        """Args:
             scale: Scaling factor.
             offset: Offset factor.
         """
@@ -70,7 +69,7 @@ class Trafo(Block):
 
 class Mic(Block):
 
-    # TODO: Make me!
+    # Todo: Make me!
 
     def __init__(self, audioBackend=None, **kwargs):
         if audioBackend is None:
@@ -85,7 +84,7 @@ class Printer(Block):
     """Print input values to stdout."""
 
     def __init__(self, prefix: str = '', carriageReturn: bool = False, **kwargs):
-        """Kwargs:
+        """Args:
             prefix: Prefix string to prepend.
         """
         super().__init__(**kwargs)

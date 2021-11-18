@@ -1,7 +1,7 @@
 """Spline motion player block.
 
 
-TODO:
+Todo:
   - Changing playback speed on the fly. As separate input? Need some internal
     clock. Or a phasor?
   - Slow and fast crossover between splines?
@@ -21,7 +21,7 @@ from being.utils import filter_by_type
 
 
 """
-# TODO: Urgency. Do we need that? Should we use it for slow and fast crossovers?
+# Todo: Urgency. Do we need that? Should we use it for slow and fast crossovers?
 
 from enum import Enum, auto
 
@@ -36,9 +36,9 @@ def constant_spline(position=0, duration=1.) -> BPoly:
     """Create a constant spline for a given position which extrapolates
     indefinitely.
 
-    Kwargs:
+    Args:
         position: Target position value.
-        duration: TODO.
+        duration: Todo.
 
     Returns:
         Constant spline.
@@ -118,8 +118,6 @@ class MotionPlayer(Block):
 
         Args:
             spline: Spline to play.
-
-        Kwargs:
             loop: Loop spline playback.
             offset: Start offset inside spline.
 

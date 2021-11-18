@@ -19,8 +19,6 @@ def register_resource(resource: ContextManager, duplicates=False):
 
     Args:
         resource: Resource to enter into global exit stack.
-
-    Kwargs:
         duplicates: Skip duplicate entries.
     """
     addr = id(resource)

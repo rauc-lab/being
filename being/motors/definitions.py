@@ -64,7 +64,7 @@ class MotorInterface(PubSub, abc.ABC):
     def disable(self, publish: bool = True):
         """Disable motor (no power).
 
-        Kwargs:
+        Args:
             publish: If to publish motor changes.
         """
         if publish:
@@ -74,7 +74,7 @@ class MotorInterface(PubSub, abc.ABC):
     def enable(self, publish: bool = True):
         """Enable motor (power on).
 
-        Kwargs:
+        Args:
             publish: If to publish motor changes.
         """
         if publish:

@@ -22,8 +22,11 @@ ENCODER_DATA = 0x2351
 
 class FunctionCode(enum.IntEnum):
 
-    """Canopen function operation codes."""
-    # TODO: Is 'FunctionCode' the right name for this?
+    """Canopen function operation codes.
+
+    Todo:
+        Is ``FunctionCode`` the right name for this?
+    """
 
     NMT = (0b0000 << 7)  # 0x0 + node id
     SYNC = (0b0001 << 7)  # 0x80 + node id
