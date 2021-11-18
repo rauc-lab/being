@@ -10,6 +10,7 @@ import os
 import zipfile
 from typing import Dict
 
+import numpy as np
 from aiohttp import web
 from aiohttp.typedefs import MultiDictProxy
 
@@ -19,6 +20,7 @@ from being.configs import SEP, Config
 from being.configuration import CONFIG
 from being.connectables import ValueOutput, _ValueContainer
 from being.content import CONTENT_CHANGED, Content
+from being.curve import Curve
 from being.logging import get_logger
 from being.motors.blocks import MotorBlock
 from being.params import Parameter
@@ -519,13 +521,19 @@ def misc_controller() -> web.RouteTableDef:
     """
     routes = web.RouteTableDef()
 
-    @routes.post('/fit_spline')
+    @routes.post('/fit_curve')
     async def convert_trajectory(request):
         """Convert a trajectory array to a spline."""
         try:
             trajectory = await request.json()
-            spline = fit_spline(trajectory, smoothing=1e-9)
-            return json_response(spline)
+            data = np.array(trajectory)
+            t, *positionValues = data.T
+            splines = [
+                fit_spline(np.array([t, pos]).T, smoothing=1e-7)
+                for pos in positionValues
+            ]
+            curve = Curve(splines)
+            return json_response(curve)
         except ValueError:
             return web.HTTPBadRequest(text='Wrong trajectory data format. Has to be 2d!')
 

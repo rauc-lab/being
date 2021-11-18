@@ -34,13 +34,13 @@ export class Api {
     }
 
     /**
-     * Fit spline from trajectory data.
+     * Fit curve from trajectory data.
      *
      * @param {Array} trajectory Recorded trajectory. Array of timestamps and position values.
-     * @returns Fitted smoothing spline instance.
+     * @returns Fitted curve with smoothing splines.
      */
-    async fit_spline(trajectory) {
-        const dct = await post_json(API + "/fit_spline", trajectory);
+    async fit_curve(trajectory) {
+        const dct = await post_json(API + "/fit_curve", trajectory);
         return objectify(dct);
     }
 

@@ -156,6 +156,7 @@ export class Editor extends Widget {
         this.motionPlayers = [];
         this.actualValueIndices = {};  // Motion player id -> actual value indices
         this.outputIndices = [];
+        this.recordingIndices = [];
         this.selectedMotionPlayer = undefined;  // TODO: Deprecated
         this.recordedTrajectory = [];
 
@@ -1011,6 +1012,13 @@ export class Editor extends Widget {
      * Start recording trajectory. Disables motors in back end.
      */
     async start_recording() {
+        if (!this.has_motion_players()) {
+            return;
+        }
+
+        const motionPlayer = this.selectedMotionPlayer;
+        this.recordingIndices = this.actualValueIndices[motionPlayer.id];
+
         this.transport.record();
         this.drawer.lines.forEach(line => {
             line.data.clear();
@@ -1026,6 +1034,10 @@ export class Editor extends Widget {
      * through trajectory via back end.
      */
     async stop_recording() {
+        if (!this.has_motion_players()) {
+            return;
+        }
+
         this.transport.stop();
         await this.api.enable_motors();
         if (!this.recordedTrajectory.length) {
@@ -1033,10 +1045,10 @@ export class Editor extends Widget {
         }
 
         try {
-            const spline = await this.api.fit_spline(this.recordedTrajectory);
+            const newCurve = await this.api.fit_curve(this.recordedTrajectory);
             clear_array(this.recordedTrajectory);
-            this.history.capture(spline);
-            this.draw_current_spline();
+            this.curve_changing();
+            this.curve_changed(newCurve);
         } catch(err) {
             console.log(err);
         }
@@ -1118,10 +1130,9 @@ export class Editor extends Widget {
                 return;
             }
 
-            if (is_checked(this.livePreviewBtn)) {
-                return;  // TODO
-                const motionPlayer = this.motorSelector.selected_motion_player();
-                const channel = this.motorSelector.selected_motor_channel();
+            if (is_checked(this.livePreviewBtn) && this.has_motion_players()) {
+                const motionPlayer = this.selectedMotionPlayer;
+                const channel = this.selected_channel();
                 this.api.live_preview(y, motionPlayer.id, channel);
             }
         }
@@ -1278,15 +1289,17 @@ export class Editor extends Widget {
                 this.drawer.plot_value(t, actualValue, idx);
             });
         }
-        this.drawer.draw();
 
         if (this.transport.recording) {
             const vals = [];
-            this.outputIndices.forEach(idx => {
+            this.recordingIndices.forEach(idx => {
                 vals.push(msg.values[idx]);
             });
             this.recordedTrajectory.push([t].concat(vals));
+            this.drawer.auto_scale();
         }
+
+        this.drawer.draw();
     }
 
     /**
