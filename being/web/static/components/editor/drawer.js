@@ -81,6 +81,10 @@ const EXTRA_STYLE = `
     background-color: rgba(255, 255, 255, .666);
 }
 
+svg {
+    cursor: move;
+}
+
 .pointed {
     cursor: pointer;
 }
