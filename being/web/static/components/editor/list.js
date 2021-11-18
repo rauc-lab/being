@@ -75,6 +75,8 @@ const LIST_TEMPLATE = `
         color: white;
     }
 
+    /* visibility eye */
+
     ul li span.eye {
         margin-right: 0.5em;
         opacity: 0.0;
@@ -84,13 +86,11 @@ const LIST_TEMPLATE = `
         opacity: 1.0;
     }
 
-    ul li span.eye:hover {
+    ul li span.eye.hoverable:hover {
         opacity: 1.0;
     }
 
-    ul li.in-focus span.eye:hover {
-        opacity: 0.0;
-    }
+    /* other */
 
     ul li sup {
         margin-left: 0.25em;
@@ -381,7 +381,15 @@ export class List extends WidgetBase {
 
         entry.eye.addEventListener("click", evt => {
             if (entry.name === this.selected) {
-                return
+                return;
+            }
+
+            if (entry.eye.disabled) {
+                return;
+            }
+
+            if (!this.associations.has(entry.name)) {
+                return;
             }
 
             if (this.is_armed(entry.name)) {
@@ -389,6 +397,7 @@ export class List extends WidgetBase {
             } else {
                 this.arm(entry.name);
             }
+
             evt.stopPropagation();
         });
     }
@@ -453,20 +462,29 @@ export class List extends WidgetBase {
         const nothingSelected = (this.selected === undefined);
         this.deleteBtn.disabled = nothingSelected;
         this.duplicateBtn.disabled = nothingSelected;
+        const hasMultipleMotionPlayers = Object.keys(this.motionPlayers).length > 1;
 
         for (let entry of this.curveList.childNodes) {
             if (entry.name === this.selected) {
                 entry.classList.add('in-focus');
                 entry.eye.disabled = true;
                 entry.eye.classList.remove("visible");
-            } else {
+                entry.eye.classList.remove("hoverable");
+            } else if (this.is_armed(entry.name)) {
+                entry.classList.remove('in-focus');
+                entry.eye.disabled = true;
+                entry.eye.classList.add("visible");
+                entry.eye.classList.remove("hoverable");
+            } else if (hasMultipleMotionPlayers) {
                 entry.classList.remove('in-focus');
                 entry.eye.disabled = false;
-                if (this.is_armed(entry.name)) {
-                    entry.eye.classList.add('visible');
-                } else {
-                    entry.eye.classList.remove('visible');
-                }
+                entry.eye.classList.remove("visible");
+                entry.eye.classList.add("hoverable");
+            } else {
+                entry.classList.remove('in-focus');
+                entry.eye.disabled = true;
+                entry.eye.classList.remove("visible");
+                entry.eye.classList.remove("hoverable");
             }
         }
     }
