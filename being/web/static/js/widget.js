@@ -39,17 +39,30 @@ export function append_link_to(href, target) {
     target.appendChild(link);
 }
 
+export function create_select(options = [], name = "") {
+    //const container = document.createElement("div");
+    if (name !== "") {
+        const label = document.createElement("label");
+        label.innerHTML = name;
+        label.setAttribute("for", name);
+        //container.appendChild(label);
+    }
 
-export class Widget extends HTMLElement {
+    const select = document.createElement("select");
+    select.setAttribute("name", name);
+    options.forEach(opt => {
+        add_option(select, opt);
+    });
+    //container.appendChild(select);
+    //this.toolbar.appendChild(container);
+    return select;
+}
+
+
+export class WidgetBase extends HTMLElement {
     constructor() {
         super();
-        const root = this.attachShadow({ mode: "open" });
-        this._append_link("static/css/material_icons.css");
-        this._append_link("static/css/widget.css");
-        this._append_link("static/css/toolbar.css");
-        const toolbar = document.createElement("div");
-        toolbar.classList.add("toolbar");
-        this.toolbar = root.appendChild(toolbar);
+        this.attachShadow({ mode: "open" });
     }
 
     /**
@@ -57,7 +70,7 @@ export class Widget extends HTMLElement {
      *
      * @param {HTMLElement} template to add.
      */
-     append_template(template) {
+    append_template(template) {
         append_template_to(template, this.shadowRoot);
     }
 
@@ -66,8 +79,21 @@ export class Widget extends HTMLElement {
      *
      * @param {String} href Path to CSS stylesheet.
      */
-    _append_link(href) {
+    append_link(href) {
         append_link_to(href, this.shadowRoot);
+    }
+};
+
+
+export class Widget extends WidgetBase {
+    constructor() {
+        super();
+        this.append_link("static/css/material_icons.css");
+        this.append_link("static/css/widget.css");
+        this.append_link("static/css/toolbar.css");
+        const toolbar = document.createElement("div");
+        toolbar.classList.add("toolbar");
+        this.toolbar = this.shadowRoot.appendChild(toolbar);
     }
 
     /**
@@ -100,21 +126,7 @@ export class Widget extends HTMLElement {
      * @param {String} name Select name and label.
      */
     add_select_to_toolbar(options = [], name = "") {
-        //const container = document.createElement("div");
-        if (name !== "") {
-            const label = document.createElement("label");
-            label.innerHTML = name;
-            label.setAttribute("for", name);
-            //container.appendChild(label);
-        }
-
-        const select = document.createElement("select");
-        select.setAttribute("name", name);
-        options.forEach(opt => {
-            add_option(select, opt);
-        });
-        //container.appendChild(select);
-        //this.toolbar.appendChild(container);
+        const select = create_select(options, name);
         this.toolbar.appendChild(select);
         return select;
     }

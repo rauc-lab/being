@@ -35,6 +35,8 @@ class WebSocket:
             data: Data to send as JSON.
         """
         for ws in self.sockets.copy():
+            if ws.closed:
+                continue
             try:
                 await ws.send_json(data, dumps=dumps)
             except ConnectionResetError as err:

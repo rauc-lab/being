@@ -14,7 +14,7 @@ EXCITED_MOTION = 'Excited Motion'
 
 
 class DummyContent:
-    def load_motion(self, name):
+    def load_curve(self, name):
         return CubicSpline([0., 1.], [[0.], [0.]])
 
 

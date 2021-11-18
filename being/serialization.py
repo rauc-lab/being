@@ -23,6 +23,7 @@ from scipy.interpolate import PPoly, BPoly, CubicSpline
 
 from being.block import Block
 from being.constants import EOT
+from being.curve import Curve
 from being.typing import Spline
 
 
@@ -196,6 +197,9 @@ def being_object_hook(dct):
     if msgType == set.__name__:
         return set(dct['values'])
 
+    if msgType == Curve.__name__:
+        return Curve(splines=dct['splines'])
+
     return dct
 
 
@@ -240,6 +244,12 @@ class BeingEncoder(json.JSONEncoder):
                 'levelname': o.levelname,
                 'levelno': o.levelno,
             }
+
+        if isinstance(o, Curve):
+            return OrderedDict([
+                ('type', type(o).__name__),
+                ('splines', o.splines),
+            ])
 
         return json.JSONEncoder.default(self, o)
 

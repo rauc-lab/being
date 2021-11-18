@@ -42,7 +42,7 @@ export class ControlPanel extends Widget {
     }
 
     init_html_elements() {
-        this._append_link("static/components/control_panel/control_panel.css");
+        this.append_link("static/components/control_panel/control_panel.css");
         this.append_template(CONTROL_PANEL_TEMPLATE);
         this.svg = this.shadowRoot.getElementById("svg");
         this.parametersContainer = this.shadowRoot.getElementById("parameters");
@@ -212,3 +212,4 @@ export class ControlPanel extends Widget {
         });
     }
 }
+customElements.define("being-control-panel", ControlPanel);

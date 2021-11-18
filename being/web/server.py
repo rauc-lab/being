@@ -122,7 +122,7 @@ def init_api(being, ws: WebSocket) -> web.Application:
 
     # Content
     api.add_routes(content_controller(content))
-    content.subscribe(CONTENT_CHANGED, lambda: ws.send_json_buffered(content.dict_motions_2()))
+    content.subscribe(CONTENT_CHANGED, lambda: ws.send_json_buffered(content.forge_message()))
     for motionSelection in filter_by_type(being.params, MotionSelection):
         content.subscribe(CONTENT_CHANGED, motionSelection.on_content_changed)
 
