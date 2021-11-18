@@ -88,7 +88,7 @@ export function arrays_equal(a, b) {
 
         return true;
     } else {
-        return a == b;
+        return a === b;
     }
 }
 
