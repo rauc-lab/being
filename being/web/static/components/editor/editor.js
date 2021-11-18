@@ -106,12 +106,14 @@ const EDITOR_TEMPLATE = `
         display: flex;
         flex-flow: column;
     }
+
     .container {
         display: flex;
         flex-flow: row;
         align-items: strech;
         flex-grow: 1;
     }
+
     being-list {
         flex-grow: 0;
     }
@@ -535,8 +537,20 @@ export class Editor extends Widget {
      */
     setup_keyboard_shortcuts() {
         addEventListener("keydown", evt => {
-            if (document.activeElement !== document.body) {
-                return;
+            // Check if anything is focus. This would get triggered by pressing
+            // space bar. If, and only if, activeElement is a toolbar button
+            // blur it.
+            const somethingFocused = document.activeElement !== document.body;
+            if (somethingFocused) {
+                if (document.activeElement !== this) {
+                    return;
+                }
+
+                if (this.shadowRoot.activeElement.parentNode !== this.toolbar) {
+                    return
+                }
+
+                this.blur();
             }
 
             const ctrlOrMeta = evt.ctrlKey || evt.metaKey;
