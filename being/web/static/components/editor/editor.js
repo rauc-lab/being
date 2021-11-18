@@ -140,7 +140,7 @@ const EDITOR_TEMPLATE = `
 export class Editor extends Widget {
     constructor() {
         super();
-        //this._append_link("static/components/editor/motion_editor.css");
+        //this.append_link("static/components/editor/motion_editor.css");
         this.append_template(EDITOR_TEMPLATE)
 
         this.api = new Api();

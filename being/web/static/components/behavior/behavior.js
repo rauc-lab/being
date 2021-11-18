@@ -86,7 +86,7 @@ export class Behavior extends Widget {
      */
     init_html_elements() {
         this.playPauseBtn = this.add_button_to_toolbar("play_arrow");
-        this._append_link("static/components/behavior/behavior.css");
+        this.append_link("static/components/behavior/behavior.css");
         this.append_template(BEHAVIOR_TEMPLATE);
 
         this.statesDiv = this.shadowRoot.getElementById("statesDiv");

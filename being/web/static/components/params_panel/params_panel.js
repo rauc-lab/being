@@ -57,7 +57,7 @@ function init_parameters_elements(container, params) {
 export class ParamsPanel extends Widget {
     constructor() {
         super();
-        this._append_link("static/components/params_panel/params_panel.css");
+        this.append_link("static/components/params_panel/params_panel.css");
     }
 
     async connectedCallback() {

@@ -127,7 +127,7 @@ const LIST_TEMPLATE = `
 export class List extends WidgetBase {
     constructor() {
         super();
-        this._append_link("static/css/material_icons.css");
+        this.append_link("static/css/material_icons.css");
         this.append_template(LIST_TEMPLATE);
         this.api = new Api();
         this.motionPlayers = {};

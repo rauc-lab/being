@@ -79,7 +79,7 @@ export class WidgetBase extends HTMLElement {
      *
      * @param {String} href Path to CSS stylesheet.
      */
-    _append_link(href) {
+    append_link(href) {
         append_link_to(href, this.shadowRoot);
     }
 };
@@ -88,9 +88,9 @@ export class WidgetBase extends HTMLElement {
 export class Widget extends WidgetBase {
     constructor() {
         super();
-        this._append_link("static/css/material_icons.css");
-        this._append_link("static/css/widget.css");
-        this._append_link("static/css/toolbar.css");
+        this.append_link("static/css/material_icons.css");
+        this.append_link("static/css/widget.css");
+        this.append_link("static/css/toolbar.css");
         const toolbar = document.createElement("div");
         toolbar.classList.add("toolbar");
         this.toolbar = this.shadowRoot.appendChild(toolbar);
