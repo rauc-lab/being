@@ -5,6 +5,7 @@ from scipy.interpolate import CubicSpline
 from being.behavior import STATE_I, STATE_II, STATE_III, Behavior, create_params
 from being.clock import Clock
 from being.connectables import MessageInput
+from being.curve import Curve
 from being.motion_player import MotionPlayer
 
 
@@ -15,7 +16,8 @@ EXCITED_MOTION = 'Excited Motion'
 
 class DummyContent:
     def load_curve(self, name):
-        return CubicSpline([0., 1.], [[0.], [0.]])
+        spline = CubicSpline([0., 1.], [[0.], [0.]])
+        return Curve(splines=[spline])
 
 
 class CallCounter:
