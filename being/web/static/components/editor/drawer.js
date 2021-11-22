@@ -422,11 +422,13 @@ export class Drawer extends Plotter {
     /**
      * Draw interactive spline knots.
      *
-     * @param {BPoly} spline Spline to draw knots from.
+     * @param {Curve} curve Curve to draw knots from.
+     * @param {Number} channel Active channel number.
      * @param {Number} lw Line width in pixel.
      * @param {dim} dim Which dimension to draw.
      */
-    draw_knots(curve, spline, lw = 1, dim = 0) {
+    draw_knots(curve, channel, lw = 1, dim = 0) {
+        const spline = curve.splines[channel];
         const knots = arange(spline.n_segments + 1);
         knots.forEach(knot => {
             const circle = this.add_svg_circle(() => {
@@ -447,8 +449,9 @@ export class Drawer extends Plotter {
                 evt.stopPropagation();
                 if (spline.n_segments > 1) {
                     this.emit_curve_changing();
-                    spline.remove_knot(knot);
-                    this.emit_curve_changed(curve);
+                    const wc = curve.copy();
+                    wc.splines[channel].remove_knot(knot);
+                    this.emit_curve_changed(wc);
                 }
             });
         });
@@ -462,7 +465,7 @@ export class Drawer extends Plotter {
         this.draw_curve(spline, linewidth, 0, color, clickable, channel);
         if (movable) {
             this.draw_control_points(curve, spline, linewidth, 0);
-            this.draw_knots(curve, spline, linewidth, 0);
+            this.draw_knots(curve, channel, linewidth, 0);
         }
     }
 
