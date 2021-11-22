@@ -773,6 +773,7 @@ export class Editor extends Widget {
             }
 
             const selectedCurve = this.list.selected_curve();
+            this.drawer.change_viewport(selectedCurve.bbox());
             this.draw_curve(selected, selectedCurve);
 
         });
@@ -1070,7 +1071,6 @@ export class Editor extends Widget {
 
         this.update_plotting_lines();
         this.drawer.clear_lines();
-        this.drawer.change_viewport(curve.bbox())
         this.draw_current_curves();
     }
 
@@ -1090,7 +1090,6 @@ export class Editor extends Widget {
         this.drawer.maxlen = 0.9 * duration / this.interval;
 
         this.drawer.clear();
-        this.drawer.expand_viewport_by_bbox(current.bbox());
         this.list.background_curves().forEach(curve => {
             this.drawer.draw_background_curve(curve);
         });
@@ -1133,7 +1132,13 @@ export class Editor extends Widget {
         newCurve.restrict_to_bbox(this.drawer.limits);
         this.history.capture(newCurve);
         this.update_channel_select(newCurve.n_channels);
-        //this.drawer.change_viewport(newCurve.bbox())
+
+        // Expand vertically
+        const bbox = newCurve.bbox();
+        const ymin = bbox.ll[1];
+        const ymax = bbox.ur[1];
+        this.drawer.expand_viewport_vertically(ymin, ymax);
+
         this.draw_current_curves();
         await this.save_current_curve();
     }

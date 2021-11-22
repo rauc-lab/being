@@ -220,7 +220,6 @@ export class Plotter extends WidgetBase {
      * matrices.
      */
     resize() {
-        //console.log("Plotter.resize()", [this.clientWidth, this.clientHeight]);
         this.canvas.width = this.clientWidth;
         this.canvas.height = this.clientHeight;
         this.update_transformation_matrices();
@@ -285,7 +284,6 @@ export class Plotter extends WidgetBase {
         if (!this.lines.has(lineNr)) {
             this.init_new_line(lineNr);
         }
-        //console.log('line', lineNr, 'length:', this.lines.get(lineNr).data.length);
 
         this.lines.get(lineNr).append_data([timestamp, value]);
     }

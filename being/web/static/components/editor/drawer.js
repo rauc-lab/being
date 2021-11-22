@@ -510,7 +510,6 @@ export class Drawer extends Plotter {
             this._draw_curve_channel(wc, channel, "black", linewidth, movable, clickable);
         }
 
-        this.viewport.expand_by_bbox(wc.bbox());
         this._draw_curve_elements();
     }
 
