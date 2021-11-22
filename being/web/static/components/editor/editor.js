@@ -197,11 +197,11 @@ export class Editor extends Widget {
             if (this.list.selected) {
                 this.list.associate_motion_player(this.list.selected, this.selectedMotionPlayer);
             }
+
             this.update_plotting_lines();
             this.assign_channel_names();
         });
 
-        this.init_plotting_lines();  // Can only happen after loading motion player data
         this.toggle_limits();  // Enable by default. Can only happens once we have selected a motion player!
 
 
@@ -593,19 +593,6 @@ export class Editor extends Widget {
     }
 
     /**
-     * Initialize enough plotting lines for each motion player and its motors.
-     * For persistent coloring across sessions.
-     */
-    init_plotting_lines() {
-        const indices = Object.values(this.actualValueIndices);
-        const flatten = indices.flat();
-        flatten.sort();
-        flatten.forEach(nr => {
-            this.drawer.init_new_line(nr);
-        });
-    }
-
-    /**
      * Populate motion player select and determine currently selected motion
      * player.
      */
@@ -620,6 +607,7 @@ export class Editor extends Widget {
             const idx = [];
             for (const motor of mp.motors) {
                 const outs = await this.api.get_index_of_value_outputs(motor.id);
+                outs.forEach(nr => this.drawer.init_new_line(nr));
                 idx.push(...outs);
             }
             this.actualValueIndices[mp.id] = idx;
