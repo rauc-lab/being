@@ -6,6 +6,7 @@ TODO: VideoBackend.
 import contextlib
 import sys
 import threading
+import time
 import warnings
 from typing import List
 
@@ -104,6 +105,12 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
                 is_remote_frame=False,
             )
             self.bus.send(msg)
+
+    def scan_for_node_ids(self) -> List[int]:
+        """Scan for node ids which are online."""
+        self.scanner.search()
+        time.sleep(0.1)
+        return sorted(self.scanner.nodes)
 
     def __enter__(self):
         self.connect(bitrate=self.bitrate, bustype=self.bustype, channel=self.channel)
