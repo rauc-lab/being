@@ -2,7 +2,7 @@
 """Being for ECAL workshop May 2021."""
 from being.behavior import Behavior
 from being.awakening import awake
-from being.logging import setup_logging
+from being.logging import setup_logging, suppress_other_loggers
 from being.motion_player import MotionPlayer
 from being.motors import LinearMotor, RotaryMotor
 from being.resources import manage_resources
@@ -23,6 +23,8 @@ def look_for_motors():
 
 
 #setup_logging()
+#suppress_other_loggers()
+#logging.basicConfig(level=0)
 
 
 with manage_resources():
@@ -33,13 +35,12 @@ with manage_resources():
 
     sensor = SensorGpio(channel=6)
     behavior = Behavior.from_config('behavior.json')
-    mp = MotionPlayer(ndim=len(motors))
+    motionPlayer = MotionPlayer(ndim=len(motors))
 
     # Make block connections
-    sensor.output.connect(behavior.input)
-    behavior.associate(mp)
+    sensor | behavior | motionPlayer
 
-    for output, motor in zip(mp.positionOutputs, motors):
+    for output, motor in zip(motionPlayer.positionOutputs, motors):
         output.connect(motor.input)
 
     awake(behavior)
