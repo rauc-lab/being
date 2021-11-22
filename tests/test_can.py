@@ -3,7 +3,7 @@ import logging
 
 from being.can.cia_402 import (
     Command, State, find_shortest_state_path, CiA402Node, STATUSWORD_2_STATE,
-    STATUSWORD, CONTROLWORD, TRANSITIONS
+    STATUSWORD, CONTROLWORD, TRANSITION_COMMANDS
 )
 
 
@@ -53,7 +53,7 @@ class DummyNode(CiA402Node):
 
     def write_callback(self, who, value):
         if who is self._controlword:
-            for (src, dst), command in TRANSITIONS.items():
+            for (src, dst), command in TRANSITION_COMMANDS.items():
                 if src == self.state and command == value:
                     break
             else:
@@ -139,28 +139,33 @@ class TestCiA402Node(unittest.TestCase):
         node = DummyNode(State.SWITCH_ON_DISABLED)
 
         with self.assertRaises(RuntimeError):
-            next(node._set_state(State.OPERATION_ENABLED))
+            node.set_state(State.OPERATION_ENABLED)
 
-    def test_current_is_target_yields_once(self):
+    def test_current_is_target_yields_only_once(self):
         node = DummyNode(State.SWITCH_ON_DISABLED, cyclesNeeded=3)
 
-        self.assertEqual(list(node._set_state(State.SWITCH_ON_DISABLED)), [State.SWITCH_ON_DISABLED])
-        self.assertEqual(list(node._change_state(State.SWITCH_ON_DISABLED)), [State.SWITCH_ON_DISABLED])
+        alreadyThere = node.change_state(State.SWITCH_ON_DISABLED)
+
+        self.assertEqual(alreadyThere, State.SWITCH_ON_DISABLED)
+
+        job = node.state_switching_job(State.SWITCH_ON_DISABLED)
+
+        self.assertEqual(list(job), [State.SWITCH_ON_DISABLED])
 
     def test_transitioning_to_neighboring_state(self):
         node = DummyNode(State.SWITCH_ON_DISABLED, cyclesNeeded=3)
-        job = node._set_state(State.READY_TO_SWITCH_ON)
+        job = node.state_switching_job(State.READY_TO_SWITCH_ON)
 
         self.assertEqual(list(job), 3*[State.SWITCH_ON_DISABLED] + [State.READY_TO_SWITCH_ON])
 
     def test_longer_path(self):
         node = DummyNode(State.SWITCH_ON_DISABLED, cyclesNeeded=3)
-        job = node._change_state(State.OPERATION_ENABLED)
+        job = node.state_switching_job(State.OPERATION_ENABLED)
 
         self.assertEqual(list(job),
             3 * [State.SWITCH_ON_DISABLED]
-            + 4 * [State.READY_TO_SWITCH_ON]
-            + 4 * [State.SWITCHED_ON]
+            + 3 * [State.READY_TO_SWITCH_ON]
+            + 3 * [State.SWITCHED_ON]
             + [State.OPERATION_ENABLED]
         )
 

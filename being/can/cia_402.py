@@ -21,7 +21,6 @@ from typing import (
     Union,
 )
 
-
 from canopen import RemoteNode
 
 from being.bitmagic import check_bit
@@ -157,7 +156,7 @@ class OperationMode(enum.IntEnum):
     OPEN_LOOP_VECTOR_MODE = -2
 
 
-TRANSITIONS: Dict[Edge, Command] = {
+TRANSITION_COMMANDS: Dict[Edge, Command] = {
     # Shut down: 2, 6, 8
     (State.SWITCH_ON_DISABLED, State.READY_TO_SWITCH_ON):     Command.SHUT_DOWN,
     (State.SWITCHED_ON, State.READY_TO_SWITCH_ON):            Command.SHUT_DOWN,
@@ -190,9 +189,12 @@ edge -> command.
 """
 
 POSSIBLE_TRANSITIONS: Dict[State, Set[State]] = collections.defaultdict(set)
-for _src, _dst in TRANSITIONS.keys():
-    POSSIBLE_TRANSITIONS[_src].add(_dst)
 """Reachable states from a given state."""
+
+for _edge in TRANSITION_COMMANDS:
+    _src, _dst = _edge
+    POSSIBLE_TRANSITIONS[_src].add(_dst)
+
 
 VALID_OP_MODE_CHANGE_STATES: Set[State] = {
     State.SWITCH_ON_DISABLED,
@@ -212,6 +214,7 @@ STATUSWORD_2_STATE = [
     (0b1001111, 0b0001000, State.FAULT),
 ]
 """Statusword bit masks for state loopkup."""
+
 
 def which_state(statusword: int) -> State:
     """Extract state from statusword."""
@@ -401,18 +404,22 @@ def maybe_int(string: str) -> Union[int, str]:
     return string
 
 
+WHERE_TO_GO_NEXT: Dict[Edge, State] = {}
+"""Lookup for the next intermediate state for a given state transition."""
+
+for _src in State:
+    for _dst in State:
+        _shortest = find_shortest_state_path(_src, _dst)
+        if _shortest:
+            WHERE_TO_GO_NEXT[(_src, _dst)] = _shortest[1]
+
+
 class CiA402Node(RemoteNode):
 
     """Alternative / simplified implementation of canopen.BaseNode402.
 
-    Since we want to configure the CanOpen node during init we make a connected
-    CAN network mandatory.
-
-    Attributes:
-        units (Units): Manufacturer dependent device units.
-        softwarePositionWidth (int): Current software position width from
-            homing. Used for flipped operation.
-        flipped (bool): Flipped operation (position and velocity).
+    Since CanOpen node should be configured during initialization connected CAN
+    network instance is mandatory.
     """
 
     def __init__(self, nodeId, objectDictionary, network):
@@ -525,8 +532,9 @@ class CiA402Node(RemoteNode):
     def get_state(self, how: str = 'sdo') -> State:
         """Get current node state.
 
-        Kwargs:
-            how: Either via 'sdo' or 'pdo'.
+        Args:
+            how (optional): Which communication channel to use. Either via 'sdo'
+                or 'pdo'.  'sdo' by default.
 
         Returns:
             Current CiA 402 state.
@@ -538,35 +546,24 @@ class CiA402Node(RemoteNode):
         else:
             raise ValueError(f'Unknown how {how!r}')
 
-    def _set_state(self, target: State, how: str = 'sdo') -> StateSwitching:
-        """Set node to a reachable target state. Implemented as generator for
-        asynchronous usage and to dodge timeouts. This method can only switch to
-        neighbouring states and will raise a RuntimeError error otherwise.
+    def set_state(self, target: State, how: str = 'sdo'):
+        """Set node to a new target state. Target state has to be reachable from
+        node's current state. RuntimeError otherwise.
 
         Args:
             target: Target state to switch to.
-
-        Kwargs:
-            how: Either via 'sdo' or 'pdo'.
-
-        Yields:
-            Current states.
-
-        Raises:
-            RuntimeError: If target state not reachable from current state.
+            how (optional): Communication channel. 'sdo' (default) or 'pdo'.
         """
-        self.logger.debug('Switching to %s (%s)', target, how)
+        self.logger.debug('Setting state to %s (%s)', target, how)
         current = self.get_state(how)
         if current is target:
-            self.logger.debug('Already in %s', target)
-            yield target
             return
 
-        if target not in POSSIBLE_TRANSITIONS[current]:
+        edge = (current, target)
+        if edge not in TRANSITION_COMMANDS:
             raise RuntimeError(f'Invalid state transition from {current!r} to {target!r}!')
 
-        edge = (current, target)
-        cw = TRANSITIONS[edge]
+        cw = TRANSITION_COMMANDS[edge]
         if how == 'pdo':
             self.pdo[CONTROLWORD].raw = cw
         elif how == 'sdo':
@@ -574,121 +571,70 @@ class CiA402Node(RemoteNode):
         else:
             raise ValueError(f'Unknown how {how!r}')
 
-        while current is not target:
-            self.logger.debug('Still in %s, not yet in %s', current, target)
-            yield current
-            current = self.get_state(how)
-
-        self.logger.debug('Reached %s', target)
-        yield target
-
-    def _change_state(self, target: State, how: str = 'sdo') -> StateSwitching:
-        """Change node state to a target state. Implemented as generator for
-        asynchronous usage and to dodge timeouts. This method can switch to an
-        arbitrary state and will traverse the state machine accordingly.
+    def state_switching_job(self,
+            target: State,
+            how: str = 'sdo',
+            timeout: float = 1.0,
+        ) -> StateSwitching:
+        """Create a state switching job generator. The generator will check the
+        current state during each cycle and steer the state machine towards the
+        desired target state (traversing necessary intermediate accordingly).
+        Implemented as generator so that multiple nodes can be switched in
+        parallel.
 
         Args:
             target: Target state to switch to.
-
-        Kwargs:
-            how: Either via 'sdo' or 'pdo'.
+            how (optional): Communication channel. 'sdo' (default) or 'pdo'.
+            timeout (optional): Optional timeout value in seconds. 1.0 second by default.
 
         Yields:
             Current states.
         """
-        self.logger.debug('Changing to %s (%s)', target, how)
-        current = self.get_state(how)
-        if current is target:
-            self.logger.debug('Already in %s', target)
-            yield target
-            return
-
-        path = find_shortest_state_path(current, target)
-        for state in path[1:]:
-            yield from self._set_state(state, how)
-
-    @staticmethod
-    def _run_with_timeout(
-            generator: Generator,
-            timeout: float,
-            message: str,
-            interval: float = 0.050,
-        ) -> State:
-        """Run state switching generator blocking with a timeout.
-
-        Args:
-            generator: Generator to execute.
-            timeout: Timeout duration in seconds.
-
-        Kwargs:
-            interval: Internal sleep duration.
-        """
+        self.logger.debug('state_switching_job(%s, %s, %s)', target, how, timeout)
         endTime = time.perf_counter() + timeout
-        state = None
-        for state in generator:
+        initial = current = self.get_state(how)
+        lastPlanned = None
+        while True:
+            yield current
+
+            if current is target:
+                return
+
+            #self.logger.debug('Still in %s (not in %s)', current.name, target.name)
+
             if time.perf_counter() > endTime:
-                raise TimeoutError(message)
+                raise TimeoutError(f'Could not transition from {initial.name} to {target.name} in {timeout:.3f} sec!')
 
-            time.sleep(interval)
+            if current is not lastPlanned:
+                lastPlanned = current
+                intermediate = WHERE_TO_GO_NEXT[(current, target)]
+                self.set_state(intermediate, how)
 
-        return state
-
-    def set_state(self,
-            target: State,
-            how: str = 'sdo',
-            timeout: Optional[float] = None,
-            retGenerator: bool = False,
-        ) -> Union[State, StateSwitching]:
-        """Set node state. This method only works for possible transitions from
-        current state (single step). For arbitrary transitions use
-        CiA402Node.change_state.
-
-        Args:
-            target: Target state to switch to.
-
-        Kwargs:
-            how: Either via 'sdo' or 'pdo'.
-            timeout: Optional timeout.
-            retGenerator: If True return switching job generator.
-        """
-        current = self.get_state(how)
-        job = self._set_state(target, how)
-        if retGenerator:
-            return job
-
-        if timeout is None:
-            return next(job)
-
-        msg = f'Could not transition from {current!r} to {target!r} in {timeout:.3f} sec'
-        return self._run_with_timeout(job, timeout, msg)
+            current = self.get_state(how)
 
     def change_state(self,
             target: State,
             how: str = 'sdo',
-            timeout: Optional[float] = None,
-            retGenerator: bool = False,
+            timeout: float = 1.0,
         ) -> Union[State, StateSwitching]:
-        """Change to a specific state. Will traverse all necessary states in
-        between to get there.
+        """Change to a specific target state and traverse necessary intermediate
+        states. Blocking.
 
         Args:
             target: Target state to switch to.
+            how (optional): Communication channel. 'sdo' (default) or 'pdo'.
+            timeout (optional): Optional timeout value in seconds. 1.0 second by default.
 
-        Kwargs:
-            how: Either via 'sdo' or 'pdo'.
-            timeout: Optional timeout.
-            retGenerator: If True return switching job generator.
+        Returns:
+            Final state.
         """
-        current = self.get_state(how)
-        job = self._change_state(target, how)
-        if retGenerator:
-            return job
+        self.logger.debug('change_state(%s, %s, %s)', target, how, timeout)
+        job = self.state_switching_job(target, how, timeout)
+        state = None
+        for state in job:
+            time.sleep(0.050)
 
-        if timeout is None:
-            return next(job)
-
-        msg = f'Could not transition from {current!r} to {target!r} in {timeout:.3f} sec'
-        return self._run_with_timeout(job, timeout, msg)
+        return state
 
     def get_operation_mode(self) -> OperationMode:
         """Get current operation mode."""
@@ -717,12 +663,14 @@ class CiA402Node(RemoteNode):
         self.sdo[MODES_OF_OPERATION].raw = op
 
     @contextlib.contextmanager
-    def restore_states_and_operation_mode(self, how='sdo', timeout: Optional[float] = None):
+    def restore_states_and_operation_mode(self, how='sdo', timeout: float = 2.0):
         """Restore NMT state, CiA 402 state and operation mode. Implemented as
         context manager.
 
-        Kwargs:
-            timeout: Optional timeout.
+        Args:
+            how (optional): Which communication channel to use. Either via 'sdo'
+                or 'pdo'.  'sdo' by default.
+            timeout (optional): Timeout duration.
 
         Usage:
             >>> with node.restore_states_and_operation_mode():
@@ -743,27 +691,27 @@ class CiA402Node(RemoteNode):
         self.sdo[CONTROLWORD].raw = 0
         self.sdo[CONTROLWORD].raw = CW.FAULT_RESET
 
-    def switch_off(self, timeout: Optional[float] = None):
+    def switch_off(self, timeout: float = 1.0):
         """Switch off drive. Same state as on power-up.
 
         Kwargs:
-            timeout: Optional timeout.
+            timeout (optional): Timeout duration.
         """
         self.change_state(State.SWITCH_ON_DISABLED, timeout=timeout)
 
-    def disable(self, timeout: Optional[float] = None):
+    def disable(self, timeout: float = 1.0):
         """Disable drive (no power).
 
         Kwargs:
-            timeout: Optional timeout.
+            timeout (optional): Timeout duration.
         """
         self.change_state(State.READY_TO_SWITCH_ON, timeout=timeout)
 
-    def enable(self, timeout: Optional[float] = None):
+    def enable(self, timeout: float = 1.0):
         """Enable drive.
 
         Kwargs:
-            timeout: Optional timeout.
+            timeout (optional): Timeout duration.
         """
         self.change_state(State.OPERATION_ENABLED, timeout=timeout)
 
@@ -851,7 +799,6 @@ class CiA402Node(RemoteNode):
     def manufacturer_device_name(self):
         """Get manufacturer device name."""
         return self.sdo[MANUFACTURER_DEVICE_NAME].raw
-
 
     def apply_settings(self, settings: Dict[str, Any]):
         """Apply settings to CANopen node.
