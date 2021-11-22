@@ -86,7 +86,16 @@ def update_dict_recursively(dct: dict, other: dict, default_factory: type = None
 
 
 def merge_dicts(first: dict, *others) -> dict:
-    """Merge dict together. Pre Python 3.5 compatible."""
+    """Merge dict together. Pre Python 3.5 compatible. Type of first dict is
+    used for the returned one.
+
+    Arguments:
+        first: First dict to copy and update.
+        *others: All the other dicts.
+
+    Returns:
+        Updated dict.
+    """
     merged = first.copy()
     for dct in others:
         merged.update(dct)

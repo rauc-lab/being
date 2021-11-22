@@ -381,7 +381,10 @@ class LeadScrewMotor(CanMotor):
 
 class WindupMotor(CanMotor):
 
-    """Default windup motor with Maxon controller."""
+    """Default windup motor with Maxon controller.
+
+    Archimedean spiral is used to map angle onto the arc length of the winch.
+    """
 
     def __init__(self,
             nodeId,
