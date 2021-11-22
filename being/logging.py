@@ -33,6 +33,9 @@ def get_logger(name: Optional[str] = None, parent: Optional[Logger] = BEING_LOGG
     Kwargs:
         parent: Parent logger. BEING_LOGGER by default.
     """
+    if name is None:
+        return BEING_LOGGER
+
     if parent:
         return parent.getChild(name)
 
