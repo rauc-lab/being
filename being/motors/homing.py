@@ -175,13 +175,14 @@ class HomingBase(abc.ABC):
 
     def update(self):
         """Tick homing one step further."""
-        if not self.job:
-            return
-
-        try:
-            next(self.job)
-        except StopIteration:
-            self.job = None
+        if self.job:
+            try:
+                next(self.job)
+            except StopIteration:
+                self.job = None
+            except TimeoutError as err:
+                self.job = None
+                self.logger.exception(err)
 
     def __str__(self):
         return f'{type(self).__name__}({self.state})'
@@ -244,7 +245,7 @@ class CiA402Homing(HomingBase):
 
     def change_state(self, target) -> Generator:
         """Change to node's state job."""
-        return self.node.change_state(target, how='pdo', retGenerator=True)
+        return self.node.state_switching_job(target, how='pdo')
 
     def capture(self):
         """Capture current node's state and operation mode."""
@@ -386,7 +387,7 @@ class CrudeHoming(CiA402Homing):
             yield from self.halt_drive()
 
             # Turn off voltage to reset current current value
-            node.change_state(CiA402State.READY_TO_SWITCH_ON)
+            yield from self.change_state(CiA402State.READY_TO_SWITCH_ON)
 
         yield from self.teardown()
 
