@@ -1113,14 +1113,13 @@ export class Editor extends Widget {
             this.transport.position = x;
             this.transport.draw_cursor();
 
-            if (!this.has_motion_players()) {
-                return;
-            }
-
+            // Live preview
             if (is_checked(this.livePreviewBtn) && this.has_motion_players()) {
-                const motionPlayer = this.selectedMotionPlayer;
                 const channel = this.selected_channel();
-                this.api.live_preview(y, motionPlayer.id, channel);
+                const motionPlayer = this.selectedMotionPlayer;
+                if (0 <= channel && channel < motionPlayer.ndim) {
+                    this.api.live_preview(y, motionPlayer.id, channel);
+                }
             }
         }
     }
