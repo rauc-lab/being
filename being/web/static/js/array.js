@@ -89,8 +89,17 @@ export function zeros(shape) {
 /**
  * Ascending integer array for given length. 
  */
-export function arange(length) {
-    return [...Array(length).keys()];
+export function arange(start, stop=undefined, step=1) {
+    if (stop === undefined) {
+        [start, stop] = [0, start];
+    }
+
+    const ret = [];
+    for (let i=start; i<stop; i+=step) {
+        ret.push(i);
+    }
+
+    return ret;
 }
 
 

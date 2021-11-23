@@ -112,6 +112,7 @@ const EDITOR_TEMPLATE = `
         flex-flow: row;
         align-items: strech;
         flex-grow: 1;
+        border-top: 2px solid black;
     }
 
     being-list {

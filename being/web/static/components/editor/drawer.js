@@ -89,8 +89,59 @@ svg {
     cursor: pointer;
 }
 
-svg g circle {
+circle {
     cursor: pointer;
+}
+
+path {
+    fill: transparent;
+}
+
+path.background {
+    stroke: Silver;
+    stroke-width: 1;
+}
+
+path.middleground {
+    stroke: DarkGray;
+    stroke-width: 2;
+}
+
+path.foreground {
+    stroke: black;
+    stroke-width: 2;
+}
+
+.knot {
+    fill: black;
+}
+
+.control-point line {
+    stroke: black;
+}
+
+.control-point circle {
+    fill: red;
+}
+
+.fade-in {
+    opacity: 1.0 !important;
+    transition: none;
+}
+
+.control-point {
+    opacity: 0.1;
+    transition: opacity 1.0s ease-out 0.5s;
+}
+
+.control-point:hover {
+    opacity: 1.0;
+    transition: none;
+}
+
+.knot:hover + .control-point {
+    opacity: 1.0;
+    transition: none;
 }
 </style>
 `
@@ -162,6 +213,8 @@ export class Drawer extends Plotter {
 
     /**
      * Emit custom curvechanging event.
+     *
+     * @param {Array} position Optional position value to trigger live preview.
      */
     emit_curve_changing(position=null) {
         emit_custom_event(this, "curvechanging", {
@@ -171,6 +224,8 @@ export class Drawer extends Plotter {
 
     /**
      * Emit custom curvechanged event.
+     *
+     * @param {Curve} newCurve New final curve.
      */
     emit_curve_changed(newCurve) {
         emit_custom_event(this, "curvechanged", {
@@ -181,6 +236,8 @@ export class Drawer extends Plotter {
     /**
      * Emit custom channelchanged event. When user clicks on another channel of
      * the foreground curve.
+     *
+     * @param {Number} channel Channel number.
      */
     emit_channel_changed(channel) {
         emit_custom_event(this, "channelchanged", {
@@ -193,6 +250,7 @@ export class Drawer extends Plotter {
      *
      * @param {Array} pos Position to move to (data space).
      * @param {String} loc Location label identifier.
+     * @param {Number} offset Offset value.
      */
     position_annotation(pos, loc = "ur", offset = 10) {
         const pt = this.transform_point(pos);
@@ -220,15 +278,16 @@ export class Drawer extends Plotter {
      * transformation, calculates delta offset, triggers redraws. Mostly used
      * to drag SVG elements around.
      *
-     * @param ele Element to make draggable.
-     * @param curve working copy.
-     * @param spline of curve to draw.
-     * @param on_drag On drag motion callback. Will be called with a relative
+     * @param {Element} ele Element to make draggable.
+     * @param {Curve} curve working copy of the curve.
+     * @param {Number} channel Active curve channel number.
+     * @param {Function} on_drag On drag motion callback. Will be called with a relative
      * delta array.
-     * @param labelLocation {String} Label location identifier.
+     * @param {String} labelLocation Label location identifier.
      */
-    make_draggable(ele, curve, spline, on_drag, labelLocation = "ur") {
+    make_draggable(ele, curve, channel, on_drag, labelLocation = "ur") {
         /** Start position of drag motion. */
+        const spline = curve.splines[channel];
         let start = null;
         let yValues = [];
 
@@ -239,6 +298,9 @@ export class Drawer extends Plotter {
                 yValues = new Set(spline.c.flat(COEFFICIENTS_DEPTH));
                 yValues.add(0.0);
                 this.emit_curve_changing()
+                if (ele.parentNode) {
+                    ele.parentNode.classList.add("fade-in");
+                }
             },
             evt => {
                 let end = this.mouse_coordinates(evt);
@@ -263,6 +325,9 @@ export class Drawer extends Plotter {
                 this.annotation.style.visibility = "hidden";
                 start = null;
                 clear_array(yValues);
+                if (ele.parentNode) {
+                    ele.parentNode.classList.remove("fade-in");
+                }
             }
         );
     }
@@ -270,13 +335,12 @@ export class Drawer extends Plotter {
     /**
      * Initialize an SVG path element and adds it to the SVG parent element.
      * data_source callback needs to deliver the 2-4 Bézier control points.
+     *
+     * @param {Function} data_source Callable data source returning the control points.
+     * @returns {SVGPathElement} SVG path element.
      */
-    add_svg_path(data_source, strokeWidth = 1, color = "black") {
+    add_svg_path(data_source) {
         const path = create_element("path");
-        setattr(path, "stroke", color);
-        setattr(path, "stroke-width", strokeWidth);
-        setattr(path, "fill", "transparent");
-        this.container.appendChild(path);
         this.elements.push(path);
         path.draw = () => {
             setattr(path, "d", path_d(this.transform_points(data_source())));
@@ -288,17 +352,19 @@ export class Drawer extends Plotter {
     /**
      * Initialize an SVG circle element and adds it to the SVG parent element.
      * data_source callback needs to deliver the center point of the circle.
+     *
+     * @param {Function} data_source Callable data source returning the center point.
+     * @param {Number} radius Circle radius.
+     * @returns {SVGCircleElement} SVG circle element.
      */
-    add_svg_circle(data_source, radius = 1, color = "black") {
+    add_svg_circle(data_source, radius) {
         const circle = create_element("circle");
         setattr(circle, "r", radius);
-        setattr(circle, "fill", color);
-        this.container.appendChild(circle);
         this.elements.push(circle);
         circle.draw = () => {
-            const a = this.transform_point(data_source());
-            setattr(circle, "cx", a[0]);
-            setattr(circle, "cy", a[1]);
+            const center = this.transform_point(data_source());
+            setattr(circle, "cx", center[0]);
+            setattr(circle, "cy", center[1]);
         };
 
         return circle;
@@ -311,49 +377,43 @@ export class Drawer extends Plotter {
      *
      * @param {function} data_source Callable data source which spits out the
      * current start and end point of the line.
-     * @param {Number} strokeWidth Stroke width of line.
-     * @param {String} color Color string.
-     * @returns SVG line instance.
+     * @returns {SVGLineElement} SVG line instance.
      */
-    add_svg_line(data_source, strokeWidth = 1, color = "black") {
+    add_svg_line(data_source) {
         const line = create_element("line");
-        setattr(line, "stroke-width", strokeWidth);
-        setattr(line, "stroke", color);
-        this.container.appendChild(line);
         this.elements.push(line);
         line.draw = () => {
-            const [start, end] = data_source();
-            const a = this.transform_point(start);
-            const b = this.transform_point(end);
-            setattr(line, "x1", a[0]);
-            setattr(line, "y1", a[1]);
-            setattr(line, "x2", b[0]);
-            setattr(line, "y2", b[1]);
+            const [start, end] = this.transform_points(data_source());
+            setattr(line, "x1", start[0]);
+            setattr(line, "y1", start[1]);
+            setattr(line, "x2", end[0]);
+            setattr(line, "y2", end[1]);
         };
 
         return line;
     }
 
     /**
-     * Draw spline path / curve. This is non-interactive.
+     * Plot spline path of curve. This is non-interactive.
      *
-     * @param {BPoly} spline Spline to draw curve / path.
-     * @param {Number} lw Line width.
-     * @param {Number} dim Which dimension to draw.
+     * @param {Curve} curve Curve to draw path for.
+     * @param {Number} channel Active curve channel number.
+     * @param {String} className CSS class name to assigne to path.
      */
-    draw_curve(spline, lw = 1, dim = 0, color = "black", clickable = false, channel = 0) {
-        assert(spline.degree <= Degree.CUBIC, `Spline degree ${spline.degree} not supported!`);
+    plot_curve_path(curve, channel, className) {
+        const spline = curve.splines[channel];
         const segments = arange(spline.n_segments);
         segments.forEach(seg => {
-            const path = this.add_svg_path(() => {
-                return [
-                    spline.point(seg, 0, dim),
-                    spline.point(seg, 1, dim),
-                    spline.point(seg, 2, dim),
-                    spline.point(seg + 1, 0, dim),
-                ];
-            }, lw, color);
-            if (clickable) {
+            const path = this.add_svg_path(() => [
+                spline.point(seg, 0),
+                spline.point(seg, 1),
+                spline.point(seg, 2),
+                spline.point(seg + 1, 0),
+            ]);
+            this.container.appendChild(path);
+            path.classList.add(className);
+
+            if (className === "middleground") {
                 path.classList.add("pointed");
                 path.addEventListener("click", evt => {
                     evt.stopPropagation();  // Prevents transport cursor to jump
@@ -364,129 +424,148 @@ export class Drawer extends Plotter {
     }
 
     /**
-     * Draw interactive control points of spline.
-     *
-     * @param {BPoly} spline Spline to draw control points from.
-     * @param {Number} lw Line width in pixel.
-     * @param {Number} dim Which dimension to draw.
-     */
-    draw_control_points(curve, spline, lw = 2, dim = 0) {
-        assert(spline.degree <= Degree.CUBIC, `Spline degree ${spline.degree} not supported!`);
-        const segments = arange(spline.n_segments);
-        const cps = [];
-        for (let cp=1; cp<spline.degree; cp++) {
-            cps.push(cp);
-        }
-
-        segments.forEach(seg => {
-            cps.forEach(cp => {
-                // 1st helper line
-                if (cp === FIRST_CP) {
-                    this.add_svg_line(() => {
-                        return [spline.point(seg, KNOT, dim), spline.point(seg, FIRST_CP, dim)];
-                    });
-                }
-
-                // 2nd helper line
-                if (spline.degree === Degree.QUADRATIC || cp === SECOND_CP) {
-                    const rightKnot = KNOT + spline.degree;
-                    this.add_svg_line(() => {
-                        return [spline.point(seg, cp, dim), spline.point(seg, rightKnot, dim)];
-                    });
-                }
-
-                // Control point
-                const circle = this.add_svg_circle(() => {
-                    return spline.point(seg, cp, dim);
-                }, 3 * lw, "red");
-                this.make_draggable(
-                    circle,
-                    curve,
-                    spline,
-                    pos => {
-                        spline.position_control_point(seg, cp, pos[1], this.c1, dim);
-                        let slope = 0;
-                        if (cp === FIRST_CP) {
-                            slope = spline.get_derivative_at_knot(seg, RIGHT, dim);
-                        } else if (cp === SECOND_CP) {
-                            slope = spline.get_derivative_at_knot(seg + 1, LEFT, dim);
-                        }
-
-                        this.annotation.innerHTML = "Slope: " + format_number(slope);
-                    },
-                );
-            });
-        });
-    }
-
-    /**
-     * Draw interactive spline knots.
+     * Plot interactive spline knots.
      *
      * @param {Curve} curve Curve to draw knots from.
-     * @param {Number} channel Active channel number.
-     * @param {Number} lw Line width in pixel.
-     * @param {dim} dim Which dimension to draw.
+     * @param {Number} channel Active curve channel number.
+     * @param {Number} knotNr Knot number.
+     * @param {Number} radius Radius of knot circle.
+     * @returns {SVGCircleElement} Circle knot.
      */
-    draw_knots(curve, channel, lw = 1, dim = 0) {
+    plot_knot(curve, channel, knotNr, radius) {
         const spline = curve.splines[channel];
-        const knots = arange(spline.n_segments + 1);
-        knots.forEach(knot => {
-            const circle = this.add_svg_circle(() => {
-                return spline.point(knot, 0, dim);
-            }, 3 * lw);
-            this.make_draggable(
-                circle,
-                curve, spline,
-                pos => {
-                    this.emit_curve_changing(pos)
-                    spline.position_knot(knot, pos, this.c1, dim);
-                    const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
-                    this.annotation.innerHTML = txt;
-                },
-                knot < spline.n_segments ? "ur" : "ul",
-            );
-            circle.addEventListener("dblclick", evt => {
-                evt.stopPropagation();
-                if (spline.n_segments > 1) {
-                    this.emit_curve_changing();
-                    const wc = curve.copy();
-                    wc.splines[channel].remove_knot(knot);
-                    this.emit_curve_changed(wc);
-                }
-            });
+        const knotCircle = this.add_svg_circle(() => spline.point(knotNr, 0), radius);
+        knotCircle.classList.add("knot");
+        this.make_draggable(
+            knotCircle,
+            curve,
+            channel,
+            pos => {
+                this.emit_curve_changing(pos)
+                spline.position_knot(knotNr, pos, this.c1);
+                const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
+                this.annotation.innerHTML = txt;
+            },
+            knotNr < spline.n_segments ? "ur" : "ul",
+        );
+        knotCircle.addEventListener("dblclick", evt => {
+            evt.stopPropagation();
+            if (spline.n_segments > 1) {
+                this.emit_curve_changing();
+                const wc = curve.copy();
+                wc.splines[channel].remove_knot(knotNr);
+                this.emit_curve_changed(wc);
+            }
         });
+        return knotCircle;
     }
 
     /**
-     * Draw single curve channel.
+     * Plot interactive control points with helper lines of spline.
+     *
+     * @param {Curve} curve Curve to draw control points / helper lines for.
+     * @param {Number} channel Active curve channel number.
+     * @returns {SVGGroupElement} Group containing all control point elements.
      */
-    _draw_curve_channel(curve, channel, color="black", linewidth=1, movable=false, clickable=false) {
+    plot_control_point(curve, channel, knotNr, radius) {
         const spline = curve.splines[channel];
-        this.draw_curve(spline, linewidth, 0, color, clickable, channel);
-        if (movable) {
-            this.draw_control_points(curve, spline, linewidth, 0);
-            this.draw_knots(curve, channel, linewidth, 0);
+        const group = create_element("g");
+        if (knotNr < spline.n_segments) {
+            // Right helper line
+            const helperLine = this.add_svg_line(() => [
+                spline.point(knotNr, KNOT),
+                spline.point(knotNr, FIRST_CP),
+            ]);
+            group.appendChild(helperLine);
+
+            // Right control point
+            const controlPoint = this.add_svg_circle(() => spline.point(knotNr, FIRST_CP), radius);
+            group.appendChild(controlPoint);
+            this.make_draggable(
+                controlPoint,
+                curve,
+                channel,
+                pos => {
+                    spline.position_control_point(knotNr, FIRST_CP, pos[1], this.c1);
+                    const slope = spline.get_derivative_at_knot(knotNr, RIGHT);
+                    this.annotation.innerHTML = "Slope: " + format_number(slope);
+                },
+            );
+        }
+
+        if (knotNr > 0) {
+            // Left helper line
+            const helperLine = this.add_svg_line(() => [
+                spline.point(knotNr, KNOT),
+                spline.point(knotNr - 1, SECOND_CP),
+            ]);
+            group.appendChild(helperLine);
+
+            // Left control point
+            const controlPoint = this.add_svg_circle(() => spline.point(knotNr - 1, SECOND_CP), radius);
+            group.appendChild(controlPoint);
+            this.make_draggable(
+                controlPoint,
+                curve,
+                channel,
+                pos => {
+                    spline.position_control_point(knotNr - 1, SECOND_CP, pos[1], this.c1);
+                    const slope = spline.get_derivative_at_knot(knotNr, LEFT);
+                    this.annotation.innerHTML = "Slope: " + format_number(slope);
+                },
+            );
+        }
+
+        return group;
+    }
+
+    /**
+     * Plot single curve channel.
+     * @param {Curve} curve Curve to plot.
+     * @param {Number} channel Active curve channel number.
+     * @param {String} className CSS class name to assigne to path.
+     * @param {Number} radius Circle radius.
+     */
+    plot_curve_channel(curve, channel, className, radius=6) {
+        const spline = curve.splines[channel];
+        assert(spline.degree <= Degree.CUBIC, `Spline degree ${spline.degree} not supported!`);
+        this.plot_curve_path(curve, channel, className);
+        if (className === "foreground") {
+            window.spline = spline;
+            const knots = arange(spline.n_segments + 1);
+            knots.forEach(knotNr => {
+                // Plot knots
+                const knotCircle = this.plot_knot(curve, channel, knotNr, radius);
+                this.container.appendChild(knotCircle)
+
+
+                // Plot control points and helper lines
+                const group = this.plot_control_point(curve, channel, knotNr, radius)
+                group.classList.add("control-point");
+                this.container.appendChild(group);
+            });
         }
     }
 
     /**
      * Draw background curve.
+     *
+     * @param {Curve} curve Background curve to draw.
      */
     draw_background_curve(curve) {
         if (curve.n_splines === 0) {
             return;
         }
-
-        const color = "Gray";
-        const linewidth = 1;
         curve.splines.forEach((spline, c) => {
-            this._draw_curve_channel(curve, c, color, linewidth);
+            this.plot_curve_channel(curve, c, "background");
         });
         this._draw_curve_elements();
     }
 
     /**
      * Draw foreground curve. Selected channel will be interactive.
+     *
+     * @param {Curve} curve Foreground curve to draw.
      */
     draw_foreground_curve(curve, channel=-1) {
         if (curve.n_splines === 0) {
@@ -494,23 +573,14 @@ export class Drawer extends Plotter {
         }
 
         const wc = curve.copy();
-        const color = "DarkGray";  // Or silver, DimGray, Gray, ...
-        const linewidth = 2;
-
-        // Draw non-interactive channels
         wc.splines.forEach((spline, c) => {
             if (c !== channel) {
-                const movable = false;
-                const clickable = true;
-                this._draw_curve_channel(wc, c, color, linewidth, movable, clickable);
+                this.plot_curve_channel(wc, c, "middleground");
             }
         });
 
-        // Draw interactive channel over all previous channels
         if (0 <= channel && channel < curve.n_splines) {
-            const movable = true;
-            const clickable = false;
-            this._draw_curve_channel(wc, channel, "black", linewidth, movable, clickable);
+            this.plot_curve_channel(wc, channel, "foreground");
         }
 
         this._draw_curve_elements();
