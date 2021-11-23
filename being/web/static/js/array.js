@@ -1,7 +1,6 @@
 /**
  * @module array Numpy style array helpers.
  */
-
 import {assert, arrays_equal} from "/static/js/utils.js";
 
 
@@ -164,3 +163,13 @@ export function array_full(shape, fillValue) {
 
 assert(arrays_equal( array_full([3], 1), [1, 1, 1]));
 assert(arrays_equal( array_full([1, 3], 1), [[1, 1, 1]]));
+
+
+export function diff_array(arr) {
+    const delta = [];
+    for (let i=1; i<arr.length; i++) {
+        delta.push(arr[i] - arr[i - 1]);
+    }
+
+    return delta;
+}

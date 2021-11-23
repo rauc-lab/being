@@ -452,6 +452,22 @@ export class Editor extends Widget {
             newCurve.shift(DEFAULT_KNOT_SHIFT, channel);
             return newCurve;
         }));
+        this.add_button_to_toolbar("flip", "Flip curve horiztonally")
+        .addEventListener("click", this.curve_action(evt => {
+            const newCurve = this.history.retrieve().copy();
+            const channel = evt.shiftKey ? ALL_CHANNELS : this.selected_channel();
+            newCurve.flip_horizontally(channel);
+            return newCurve;
+        }));
+        const flipVertical = this.add_button_to_toolbar("flip", "Flip curve vertically");
+        flipVertical.i.style = "transform: rotate(-90deg)";
+        flipVertical.addEventListener("click", this.curve_action(evt => {
+            const newCurve = this.history.retrieve().copy();
+            const channel = evt.shiftKey ? ALL_CHANNELS : this.selected_channel();
+            newCurve.flip_vertically(channel);
+            return newCurve;
+        }));
+
         this.add_button_to_toolbar("clear", "Reset current motion")
         .addEventListener("click", this.curve_action(evt => {
             const newCurve = this.history.retrieve().copy();

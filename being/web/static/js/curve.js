@@ -103,4 +103,20 @@ export class Curve {
             this.splines[channel].shift(offset);
         }
     }
+
+    flip_horizontally(channel=ALL_CHANNELS) {
+        if (channel === ALL_CHANNELS) {
+            this.splines.forEach(s => s.flip_horizontally());
+        } else {
+            this.splines[channel].flip_horizontally();
+        }
+    }
+
+    flip_vertically(channel=ALL_CHANNELS) {
+        if (channel === ALL_CHANNELS) {
+            this.splines.forEach(s => s.flip_vertically());
+        } else {
+            this.splines[channel].flip_vertically();
+        }
+    }
 };
