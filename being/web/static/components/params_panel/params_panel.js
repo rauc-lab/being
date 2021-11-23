@@ -1,8 +1,6 @@
-import { Slider, SingleSelection, MultiSelection, MotionSelection } from "/static/components/params_panel/components.js";
+import { Slider, SingleSelection, MultiSelection, MotionSelection } from "/static/components/params_panel/components.js";  // Needs to be imported in order to register custom elements
 import { API } from "/static/js/config.js";
-import { put, post, delete_fetch, get_json, post_json, put_json } from "/static/js/fetching.js";
-import { clip } from "/static/js/math.js";
-import { remove_all_children, clear_array } from "/static/js/utils.js";
+import { get_json } from "/static/js/fetching.js";
 import { Widget } from "/static/js/widget.js";
 
 
@@ -36,7 +34,6 @@ function populate(container, obj, level=1) {
                     widget = document.createElement("being-motion-selection");
                     widget.populate(param);
                     break
-
             }
 
             container.appendChild(widget);
@@ -74,3 +71,6 @@ export class ParamsPanel extends Widget {
         }
     }
 }
+
+
+customElements.define("being-params-panel", ParamsPanel);
