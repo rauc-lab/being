@@ -11,15 +11,31 @@ const CHECKED = "checked";
 /**
  * Create new HTML button (material-icons class).
  *
- * @param {string} innerHTML Inner HTML of button.
- * @param {string} title Tooltip for button
+ * @param {String} iconName Icon name string identifier.
+ * @param {String} title Tooltip for button
  * @returns HTMLButton
  */
-export function create_button(innerHTML, title = "") {
+export function create_button(iconName, title="") {
     const btn = document.createElement("button");
-    btn.classList.add("material-icons");
-    btn.innerHTML = innerHTML;
-    btn.title = title;
+    btn.classList.add("mdc-icon-button");
+
+    const div = document.createElement("div");
+    div.classList.add("mdc-icon-button__ripple")
+    btn.div = div;
+    btn.appendChild(div);
+
+    const i = document.createElement("i");
+    i.classList.add("material-icons");
+    i.classList.add("mdc-icon-button__icon");
+    i.innerHTML = iconName;
+    btn.i = i;
+    btn.appendChild(i);
+
+    if (title) {
+        btn.setAttribute("title", title);
+    }
+
+    btn.change_icon = newIconName => i.innerHTML = newIconName;
     return btn;
 }
 

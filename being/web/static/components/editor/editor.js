@@ -470,9 +470,10 @@ export class Editor extends Widget {
         //form.setAttribute("accept-charset", "utf-8");
         const templateStr = `
         <label for="file-upload" class="mdl-button mdl-js-button mdl-button--icon mdl-button--file">
-            <i id="file-upload-button" class="material-icons"
-                title="Upload some motions. Multiple .json or .zip files."
-            >file_upload</i>
+            <button id="file-upload-button" class="mdc-icon-button" title="Upload some motions. Multiple .json or .zip files.">
+                <div class="mdc-icon-button__ripple"></div>
+                <i class="material-icons mdc-icon-button__icon">file_upload</i>
+            </button>
             <input
                 type="file"
                 id="file-upload"
@@ -487,9 +488,9 @@ export class Editor extends Widget {
         append_template_to(templateStr, form);
         const fileinput = form.querySelector("input[type='file']")
         fileinput.addEventListener("change", async evt => {
-            console.log('this change:');
+            console.log("this change:");
             //evt.target.form.submit();
-            form.dispatchEvent(new Event('submit'));
+            form.dispatchEvent(new Event("submit"));
         });
         form.addEventListener("submit", async evt => {
             console.log("this submit");
@@ -1180,7 +1181,7 @@ export class Editor extends Widget {
 
         switch (this.transport.state) {
             case PAUSED:
-                this.playPauseBtn.innerHTML = "play_arrow";
+                this.playPauseBtn.change_icon("play_arrow");
                 if (this.has_motion_players()) {
                     enable_button(this.playPauseBtn);
                 } else {
@@ -1189,7 +1190,7 @@ export class Editor extends Widget {
 
                 switch_button_off(this.playPauseBtn);
 
-                this.recBtn.innerHTML = "fiber_manual_record";
+                this.recBtn.change_icon("fiber_manual_record");
                 if (this.has_motion_players()) {
                     enable_button(this.recBtn);
                 } else {
@@ -1203,11 +1204,11 @@ export class Editor extends Widget {
                 this.motionPlayerSelect.disabled = false;
                 break;
             case PLAYING:
-                this.playPauseBtn.innerHTML = "pause";
+                this.playPauseBtn.change_icon("pause");
                 enable_button(this.playPauseBtn);
                 switch_button_on(this.playPauseBtn);
 
-                this.recBtn.innerHTML = "fiber_manual_record";
+                this.recBtn.change_icon("fiber_manual_record");
                 disable_button(this.recBtn);
                 switch_button_off(this.recBtn);
 
@@ -1216,11 +1217,11 @@ export class Editor extends Widget {
                 this.motionPlayerSelect.disabled = true;
                 break;
             case RECORDING:
-                this.playPauseBtn.innerHTML = "play_arrow";
+                this.playPauseBtn.change_icon("play_arrow");
                 disable_button(this.playPauseBtn);
                 switch_button_off(this.playPauseBtn);
 
-                this.recBtn.innerHTML = "pause";
+                this.recBtn.change_icon("pause");
                 enable_button(this.recBtn);
                 switch_button_on(this.recBtn);
 

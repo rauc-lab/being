@@ -273,7 +273,7 @@ export class Behavior extends Widget {
             return;
         }
 
-        this.playPauseBtn.innerHTML = behavior.active ? "pause" : "play_arrow";
+        this.playPauseBtn.change_icon(behavior.active ? "pause" : "play_arrow");
         this.nowPlayingSpan.innerHTML = behavior.lastPlayed;
         this.update_attention_span_slider(behavior.params.attentionSpan);
         this.update_attention_span_label(behavior.params.attentionSpan);
