@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.3.1] - 2021-11-24
+
+### Changed
+- CiA402Node state switching. The state switching job now continuously tries to
+  replan the state trajectory if anything changes.
+- Default motor settings as ordered dictionaries
+- Drawer refactor: Control points inside group with fading out effect.
+- UI buttons now hold an <i> element holding the icon (so that we can rotate
+  it independently from button). change_icon(newIcon) button "method" for
+  changing the icon later on.
+- Viewport not resizing when making a change and already zoomed in
+- JS arange array function with start, stop, step arguments
+
+### Added
+- Scan for node ids network helper method
+- Timeout is now mandatory for state switching job. Controller / Homing both
+  catch TimeoutErrors
+- Editor flip curve horizontally / vertically buttons.
+- New pathos_being.py program which scans for available nodes and initializes
+  a LinearMotor for each one.
+
+### Fixed
+- Hanging state transition during crude homing. Single SDO based state
+  transition seemed to clash with PDO based ones. To be tested...
+- get_logger() not returning being root logger for some arguments
+- Plotting lines order did not correspond with motor id order
+
 ## [0.3.0] - 2021-11-18
 
 ### Changed
