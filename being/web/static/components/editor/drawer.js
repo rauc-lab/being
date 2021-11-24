@@ -126,7 +126,7 @@ path.foreground {
 
 .fade-in {
     opacity: 1.0 !important;
-    transition: none;
+    transition: none !important;
 }
 
 .control-point {
@@ -135,11 +135,6 @@ path.foreground {
 }
 
 .control-point:hover {
-    opacity: 1.0;
-    transition: none;
-}
-
-.knot:hover + .control-point {
     opacity: 1.0;
     transition: none;
 }
@@ -424,6 +419,65 @@ export class Drawer extends Plotter {
     }
 
     /**
+     * Plot interactive control points with helper lines of spline.
+     *
+     * @param {Curve} curve Curve to draw control points / helper lines for.
+     * @param {Number} channel Active curve channel number.
+     * @returns {SVGGroupElement} Group containing all control point elements.
+     */
+    plot_control_point(curve, channel, knotNr, radius) {
+        const spline = curve.splines[channel];
+        const cpGroup = create_element("g");
+        if (knotNr < spline.n_segments) {
+            // Right helper line
+            const helperLine = this.add_svg_line(() => [
+                spline.point(knotNr, KNOT),
+                spline.point(knotNr, FIRST_CP),
+            ]);
+            cpGroup.appendChild(helperLine);
+
+            // Right control point
+            const controlPoint = this.add_svg_circle(() => spline.point(knotNr, FIRST_CP), radius);
+            cpGroup.appendChild(controlPoint);
+            this.make_draggable(
+                controlPoint,
+                curve,
+                channel,
+                pos => {
+                    spline.position_control_point(knotNr, FIRST_CP, pos[1], this.c1);
+                    const slope = spline.get_derivative_at_knot(knotNr, RIGHT);
+                    this.annotation.innerHTML = "Slope: " + format_number(slope);
+                },
+            );
+        }
+
+        if (knotNr > 0) {
+            // Left helper line
+            const helperLine = this.add_svg_line(() => [
+                spline.point(knotNr, KNOT),
+                spline.point(knotNr - 1, SECOND_CP),
+            ]);
+            cpGroup.appendChild(helperLine);
+
+            // Left control point
+            const controlPoint = this.add_svg_circle(() => spline.point(knotNr - 1, SECOND_CP), radius);
+            cpGroup.appendChild(controlPoint);
+            this.make_draggable(
+                controlPoint,
+                curve,
+                channel,
+                pos => {
+                    spline.position_control_point(knotNr - 1, SECOND_CP, pos[1], this.c1);
+                    const slope = spline.get_derivative_at_knot(knotNr, LEFT);
+                    this.annotation.innerHTML = "Slope: " + format_number(slope);
+                },
+            );
+        }
+
+        return cpGroup;
+    }
+
+    /**
      * Plot interactive spline knots.
      *
      * @param {Curve} curve Curve to draw knots from.
@@ -461,65 +515,6 @@ export class Drawer extends Plotter {
     }
 
     /**
-     * Plot interactive control points with helper lines of spline.
-     *
-     * @param {Curve} curve Curve to draw control points / helper lines for.
-     * @param {Number} channel Active curve channel number.
-     * @returns {SVGGroupElement} Group containing all control point elements.
-     */
-    plot_control_point(curve, channel, knotNr, radius) {
-        const spline = curve.splines[channel];
-        const group = create_element("g");
-        if (knotNr < spline.n_segments) {
-            // Right helper line
-            const helperLine = this.add_svg_line(() => [
-                spline.point(knotNr, KNOT),
-                spline.point(knotNr, FIRST_CP),
-            ]);
-            group.appendChild(helperLine);
-
-            // Right control point
-            const controlPoint = this.add_svg_circle(() => spline.point(knotNr, FIRST_CP), radius);
-            group.appendChild(controlPoint);
-            this.make_draggable(
-                controlPoint,
-                curve,
-                channel,
-                pos => {
-                    spline.position_control_point(knotNr, FIRST_CP, pos[1], this.c1);
-                    const slope = spline.get_derivative_at_knot(knotNr, RIGHT);
-                    this.annotation.innerHTML = "Slope: " + format_number(slope);
-                },
-            );
-        }
-
-        if (knotNr > 0) {
-            // Left helper line
-            const helperLine = this.add_svg_line(() => [
-                spline.point(knotNr, KNOT),
-                spline.point(knotNr - 1, SECOND_CP),
-            ]);
-            group.appendChild(helperLine);
-
-            // Left control point
-            const controlPoint = this.add_svg_circle(() => spline.point(knotNr - 1, SECOND_CP), radius);
-            group.appendChild(controlPoint);
-            this.make_draggable(
-                controlPoint,
-                curve,
-                channel,
-                pos => {
-                    spline.position_control_point(knotNr - 1, SECOND_CP, pos[1], this.c1);
-                    const slope = spline.get_derivative_at_knot(knotNr, LEFT);
-                    this.annotation.innerHTML = "Slope: " + format_number(slope);
-                },
-            );
-        }
-
-        return group;
-    }
-
-    /**
      * Plot single curve channel.
      * @param {Curve} curve Curve to plot.
      * @param {Number} channel Active curve channel number.
@@ -534,15 +529,26 @@ export class Drawer extends Plotter {
             window.spline = spline;
             const knots = arange(spline.n_segments + 1);
             knots.forEach(knotNr => {
+                // Plot control points and helper lines
+                const cpGroup = this.plot_control_point(curve, channel, knotNr, radius)
+                cpGroup.classList.add("control-point");
+                this.container.appendChild(cpGroup);
+
                 // Plot knots
+                // Note: Knots after control points. SVG order dictates
+                // layering. Knots have to stay in front of control points.
+                // This is important when knots and control points are
+                // collapsing onto each other. Because of this the CSS
+                // ".knot:hover + .control-point" selector can not be used.
+                // This is why we fallback on the JS + "fade-in" class instead.
                 const knotCircle = this.plot_knot(curve, channel, knotNr, radius);
                 this.container.appendChild(knotCircle)
-
-
-                // Plot control points and helper lines
-                const group = this.plot_control_point(curve, channel, knotNr, radius)
-                group.classList.add("control-point");
-                this.container.appendChild(group);
+                knotCircle.addEventListener("mouseenter", evt => {
+                    cpGroup.classList.add("fade-in");
+                });
+                knotCircle.addEventListener("mouseleave", evt => {
+                    cpGroup.classList.remove("fade-in");
+                });
             });
         }
     }
