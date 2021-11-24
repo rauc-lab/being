@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.2] - 2021-11-24
+
+### Fixed
+- Wrong maximum current value during crude homing lead to motors getting stuck
+- Expand software position limits by default
+
 ## [0.3.1] - 2021-11-24
 
 ### Changed

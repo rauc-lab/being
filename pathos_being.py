@@ -13,8 +13,8 @@ from being.sensors import SensorGpio
 
 
 #setup_logging()
-#suppress_other_loggers()
-#logging.basicConfig(level=0)
+suppress_other_loggers()
+logging.basicConfig(level=0)
 
 
 with manage_resources():
