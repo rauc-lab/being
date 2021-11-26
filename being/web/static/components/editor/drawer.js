@@ -364,12 +364,19 @@ export class Drawer extends Plotter {
     }
 
     /**
+     * Forget everything selected.
+     */
+    forget_selection() {
+        this.selection.deselect_all();
+        this.update_selected_elements();
+    }
+
+    /**
      * Same as clear() but also forget selection.
      */
     clear_and_forget() {
         this.clear();
-        this.selection.deselect_all();
-        this.update_selected_elements();
+        this.forget_selection();
     }
 
     /**
@@ -765,6 +772,7 @@ export class Drawer extends Plotter {
             if (className === "middleground") {
                 path.addEventListener("click", evt => {
                     evt.stopPropagation();  // Prevents transport cursor to jump
+                    this.forget_selection();
                     this.emit_channel_changed(channel);
                 });
             } else if (className === "foreground") {

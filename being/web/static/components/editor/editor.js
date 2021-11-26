@@ -346,6 +346,7 @@ export class Editor extends Widget {
             const channel = this.selected_channel();
             const newCurve = this.history.retrieve().copy();
             newCurve.splines.splice(channel, 1);
+            this.drawer.forget_selection();
             return newCurve;
         }));
 
@@ -362,6 +363,7 @@ export class Editor extends Widget {
                 this.channelSelect.selectedIndex = 0;
             }
 
+            this.drawer.forget_selection();
             return newCurve;
         }));
         this.add_space_to_toolbar()
@@ -653,6 +655,7 @@ export class Editor extends Widget {
     setup_channel_select() {
         this.channelSelect.addEventListener("change", () => {
             this.update_plotting_lines();
+            this.drawer.forget_selection();
             this.draw_current_curves();
         });
         this.assign_channel_names();
