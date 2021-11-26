@@ -113,6 +113,21 @@ function searchsorted_right(arr, value) {
 
 
 /**
+ * Round array componentwise.
+ *
+ * @param {Array} arr Array to round.
+ * @param {Number} ndigits Number of digits to round.
+ * @returns Rounded array.
+ */
+function round_array(arr, ndigits=0) {
+    const shift = Math.pow(10, ndigits);
+    const a = multiply_scalar(shift, arr);
+    const b = a.map(Math.round);
+    return multiply_scalar(1 / shift, b);
+}
+
+
+/**
  * Data container for selected indices.
  */
 class Selection {
@@ -771,13 +786,18 @@ export class Drawer extends Plotter {
         /** Start position of drag motion. */
         const spline = curve.splines[channel];
         let startPos = null;
-        let yValues = [];
+        let grid = [];
 
         const callbacks = {
             "start_drag": evt => {
                 startPos = this.mouse_coordinates(evt);
-                yValues = new Set(spline.c.flat(COEFFICIENTS_DEPTH));
-                yValues.add(0.0);
+
+                // Rounded y values for snapping_to_grid
+                const yVals = spline.c.flat(COEFFICIENTS_DEPTH);
+                const rounded = round_array(yVals, 3);
+                grid = new Set(rounded);
+                grid.add(0.0);
+
                 this.emit_curve_changing()
                 if (ele.parentNode) {
                     ele.parentNode.classList.add("fade-in");
@@ -789,7 +809,7 @@ export class Drawer extends Plotter {
                 let pos = this.mouse_coordinates(evt);
                 pos = clip_point(pos, this.limits);
                 if (this.snapping_to_grid & !evt.shiftKey) {
-                    pos[1] = snap_to_value(pos[1], yValues, 0.001);
+                    pos[1] = snap_to_value(pos[1], grid, 0.001);
                 }
 
                 on_drag(pos);
@@ -805,7 +825,7 @@ export class Drawer extends Plotter {
                 const somethingChanged = !arrays_equal(startPos, endPos);
 
                 startPos = null;
-                clear_array(yValues);
+                clear_array(grid);
                 this.annotation.hide();
                 if (ele.parentNode) {
                     ele.parentNode.classList.remove("fade-in");
