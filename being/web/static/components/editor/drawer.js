@@ -582,27 +582,16 @@ export class Drawer extends Plotter {
      * Position annotation label around.
      *
      * @param {Array} pos Position to move to (data space).
-     * @param {String} loc Location label identifier.
      * @param {Number} offset Offset value.
      */
-    position_annotation(pos, loc = "ur", offset = 10) {
+    position_annotation(pos, offset = 10) {
         const pt = this.transform_point(pos);
         let [x, y] = pt;
         const bbox = this.annotation.getBoundingClientRect();
-        if (loc.endsWith("l")) {
-            x -= bbox.width + offset;
-        } else {
-            x += offset;
-        }
-
-        if (loc.startsWith("u")) {
-            y -= bbox.height + offset;
-        } else {
-            y += offset;
-        }
-
-        this.annotation.style.left = x + "px";
-        this.annotation.style.top = y + "px";
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        this.annotation.style.left = Math.min(x + offset, width - bbox.width) + "px";
+        this.annotation.style.top = Math.max(y - offset - bbox.height, 0) + "px";
     }
 
     /**
@@ -616,9 +605,8 @@ export class Drawer extends Plotter {
      * @param {Number} channel Active curve channel number.
      * @param {Function} on_drag On drag motion callback. Will be called with a relative
      * delta array.
-     * @param {String} labelLocation Label location identifier.
      */
-    make_draggable(ele, curve, channel, on_drag, labelLocation = "ur", start_drag=(evt, pos) => {}) {
+    make_draggable(ele, curve, channel, on_drag, start_drag=(evt, pos) => {}) {
         /** Start position of drag motion. */
         const spline = curve.splines[channel];
         let startPos = null;
@@ -647,7 +635,7 @@ export class Drawer extends Plotter {
                 on_drag(pos);
                 spline.restrict_to_bbox(this.limits);
                 this.annotation.style.visibility = "visible";
-                this.position_annotation(pos, labelLocation);
+                this.position_annotation(pos);
                 this._draw_curve_elements();
             },
             evt => {
@@ -898,7 +886,6 @@ export class Drawer extends Plotter {
                 const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
                 this.annotation.innerHTML = txt;
             },
-            knotNr < spline.n_segments ? "ur" : "ul",
             (evt, startPos) => {
                 start = startPos;
                 clear_array(initialPositions);
