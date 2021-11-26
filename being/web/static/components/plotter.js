@@ -169,7 +169,9 @@ const PLOTTER_TEMPLATE = `
 <canvas id="canvas">
     Your browser doesn't support the HTML5 canvas tag.
 </canvas>
-<svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+<svg id="svg" xmlns="http://www.w3.org/2000/svg">
+    Your browser doesn't support inline SVG.
+</svg>
 `;
 
 
