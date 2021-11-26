@@ -1,14 +1,17 @@
 /**
  * @module splien_drawer Component for drawing the actual splines inside the spline editor.
  */
-import { arange, subtract_arrays } from "/static/js/array.js";
+import { arange, subtract_arrays, add_arrays } from "/static/js/array.js";
 import { BBox } from "/static/js/bbox.js";
+import { LEFT_MOUSE_BUTTON } from "/static/js/constants.js";
 import { make_draggable } from "/static/js/draggable.js";
 import { clip } from "/static/js/math.js";
 import { Plotter } from "/static/components/plotter.js";
 import { COEFFICIENTS_DEPTH, KNOT, FIRST_CP, SECOND_CP, Degree, LEFT, RIGHT } from "/static/js/spline.js";
-import { create_element, path_d, setattr } from "/static/js/svg.js";
-import { assert, arrays_equal, clear_array, remove_all_children, emit_custom_event } from "/static/js/utils.js";
+import { create_element, path_d, setattr, getattr } from "/static/js/svg.js";
+import {
+    assert, arrays_equal, clear_array, remove_all_children, emit_custom_event,
+} from "/static/js/utils.js";
 
 
 /**
@@ -82,15 +85,7 @@ const EXTRA_STYLE = `
 }
 
 svg {
-    cursor: move;
-}
-
-.pointed {
-    cursor: pointer;
-}
-
-circle {
-    cursor: pointer;
+    cursor: crosshair;
 }
 
 path {
@@ -114,6 +109,7 @@ path.foreground {
 
 .knot {
     fill: black;
+    cursor: move;
 }
 
 .control-point line {
@@ -122,11 +118,7 @@ path.foreground {
 
 .control-point circle {
     fill: red;
-}
-
-.fade-in {
-    opacity: 1.0 !important;
-    transition: none !important;
+    cursor: ns-resize;
 }
 
 .control-point {
@@ -138,8 +130,248 @@ path.foreground {
     opacity: 1.0;
     transition: none;
 }
+
+.selection-rectangle {
+    fill: rgba(0, 0, 255, 0.1);
+}
+
+.pointed {
+    cursor: pointer;
+}
+
+.fade-in {
+    opacity: 1.0 !important;
+    transition: none !important;
+}
+
+.selected {
+    fill: blue;
+    filter: drop-shadow(0 0 4px blue);
+}
+
+.no-pointer-events {
+    /*pointer-events: none;*/
+}
+
 </style>
 `
+
+
+function binary_search(arr, value) {
+    if (arr.length === 0) {
+        return -1;
+    }
+
+    let left = 0;
+    let right = arr.length - 1;
+
+    while (left <= right) {
+        const mid = Math.floor(0.5 * (left + right));
+        if (arr[mid] < value) {
+            left = mid + 1;
+        } else if (arr[mid] > value) {
+            right = mid - 1;
+        } else {
+            return mid;
+        }
+    }
+
+    return -1
+}
+
+
+function searchsorted_left(arr, value) {
+    let left = 0;
+    let right = arr.length;
+    while (left < right) {
+        const mid = Math.floor(0.5 * (left + right));
+        if (arr[mid] < value) {
+            left = mid + 1;
+        } else {
+            right = mid
+        }
+    }
+
+    return left;
+}
+
+
+function searchsorted_right(arr, value) {
+    let left = 0;
+    let right = arr.length;
+    while (left < right) {
+        const mid = Math.floor(0.5 * (left + right));
+        if (arr[mid] <= value) {
+            left = mid + 1;
+        } else {
+            right = mid;
+        }
+    }
+
+    return right;
+}
+
+
+
+/**
+ * Drag selection.
+ */
+class Selector {
+    constructor(drawer) {
+        this.drawer = drawer;
+        this.svg = drawer.svg;
+        this.selection = new Set();
+        this.spline = null
+        this.knotCircles = [];
+        this.rect = create_element("rect");
+        this.rect.classList.add("selection-rectangle");
+        this.rect.style.display = "none";
+        this.svg.appendChild(this.rect);
+        this.pt = this.svg.createSVGPoint();
+
+        this.setup_drag_selection();
+    }
+
+    clear() {
+        this.selection.clear();
+        this.spline = null;
+        clear_array(this.knotCircles);
+        this.hide();
+    }
+
+    show() {
+        this.rect.style.display = "";
+    }
+
+    hide() {
+        this.rect.style.display = "none";
+    }
+
+    mouse_event_position_inside_svg(evt) {
+        this.pt.x = evt.clientX;
+        this.pt.y = evt.clientY;
+        return this.pt.matrixTransform(this.svg.getScreenCTM().inverse());
+    }
+
+    move_selection_rect(left, right) {
+        setattr(this.rect, "x", left);
+        setattr(this.rect, "y", 0);
+        setattr(this.rect, "width", right - left);
+        setattr(this.rect, "height", this.drawer.clientHeight);
+    }
+
+    setup_drag_selection() {
+        let start = null;
+        let xs = [];
+        make_draggable(
+            this.svg,
+            evt => {
+                start = this.mouse_event_position_inside_svg(evt);
+                this.knotCircles.forEach(kc => {
+                    xs.push(parseInt(getattr(kc, "cx")))
+                });
+            },
+            evt => {
+                // Selected region
+                const end = this.mouse_event_position_inside_svg(evt);
+                const left = Math.min(start.x, end.x);
+                const right = Math.max(start.x, end.x);
+
+                this.move_selection_rect(left, right);
+                this.show();
+
+                // Find selected knots
+                const lo = searchsorted_left(xs, left);
+                const hi = searchsorted_right(xs, right);
+                this.knotCircles.forEach((kc, i) => {
+                    if (lo <= i && i < hi) {
+                        kc.classList.add("selected");
+                        this.selection.add(i)
+                    } else {
+                        kc.classList.remove("selected");
+                        this.selection.delete(i);
+                    }
+                });
+            },
+            evt => {
+                start = null;
+                xs = [];
+                this.hide();
+            },
+        );
+    }
+
+    set_spline(spline) {
+        this.spline = spline;
+    }
+
+    set_knot_circles(knotCircles) {
+        this.knotCircles = knotCircles;
+        this.knotCircles.forEach((circle, nr) => {
+            if (this.is_selected(nr)) {
+                circle.classList.add("selected");
+            } else {
+                circle.classList.remove("selected");
+            }
+        });
+    }
+
+    is_selected(knotNr) {
+        return this.selection.has(knotNr);
+    }
+
+    something_is_selected() {
+        return this.selection.size > 0;
+    }
+
+    select(knotNr) {
+        this.selection.add(knotNr);
+        this.knotCircles[knotNr].classList.add("selected");
+    }
+
+    deselect(knotNr) {
+        this.selection.delete(knotNr);
+        this.knotCircles[knotNr].classList.remove("selected");
+    }
+
+    deselect_all() {
+        this.selection.forEach(nr => this.deselect(nr));
+    }
+
+    selected_knot_array() {
+        const knotNumbers = Array.from(this.selector.selection);
+        return knotNumbers.sort();
+    }
+}
+
+
+
+class Selection extends Set {
+    select(nr) {
+        console.log("select()", nr);
+        return this.add(nr);
+    }
+
+    deselect(nr) {
+        console.log("deselect()", nr);
+        return this.delete(nr);
+    }
+
+    deselect_all() {
+        console.log("deselect_all()", nr);
+        return this.sort().map(this.deselect).some();
+    }
+
+    sort() {
+        return Array.from(this).sort()
+    }
+
+}
+
+selection = new Selection();
+selection.add(1)
+selection.add(3)
+selection.add(2)
 
 
 export class Drawer extends Plotter {
@@ -151,13 +383,38 @@ export class Drawer extends Plotter {
         this.shadowRoot.appendChild(this.annotation);
         this.autoscaling = false;
 
-        this.container = this.svg.appendChild(create_element("g"));
+        this.elementGroup = this.svg.appendChild(create_element("g"));
         this.elements = [];
         this.c1 = true;
         this.snapping_to_grid = true;
         this.limits = new BBox([0, -Infinity], [Infinity, Infinity]);
 
         this.setup_svg_drag_navigation();
+        this.setup_keyboard_shortcuts();
+
+        this.selector = new Selector(this);
+
+        this.foregroundCurve = null;
+        this.foregroundChannel = null;
+        this.foregroundSpline = null;
+
+        this.svg.addEventListener("click", evt => {
+            this.selector.deselect_all();
+        });
+
+        this.svg.addEventListener("dblclick", evt => {
+            evt.stopPropagation();
+            if (!this.foregroundCurve) {
+                return;
+            }
+
+            const wc = this.foregroundCurve.copy();
+            const spline = wc.splines[this.foregroundChannel];
+            this.emit_curve_changing();
+            const pos = this.mouse_coordinates(evt);
+            spline.insert_knot(pos);
+            this.emit_curve_changed(wc);
+        });
     }
 
     /**
@@ -165,7 +422,7 @@ export class Drawer extends Plotter {
      */
     clear() {
         clear_array(this.elements);
-        remove_all_children(this.container);
+        remove_all_children(this.elementGroup);
     }
 
     /**
@@ -177,6 +434,8 @@ export class Drawer extends Plotter {
         let orig = null;
         let mid = 0;
 
+        const mouseButton = LEFT_MOUSE_BUTTON;
+        const onShift = true;  // Only react when shift key is pressed
         make_draggable(
             this.svg,
             evt => {
@@ -203,7 +462,46 @@ export class Drawer extends Plotter {
                 orig = null;
                 mid = 0;
             },
+            mouseButton,
+            onShift,
         );
+    }
+
+    /**
+     * Setup global key event listeners.
+     */
+    setup_keyboard_shortcuts() {
+        addEventListener("keydown", evt => {
+            switch(evt.key) {
+                case "Backspace":
+                    if (this.selector.something_is_selected()) {
+                        const numbers = this.selector.selected_knot_array();
+                        this.selector.deselect_all();
+                        this.remove_knots(this.foregroundCurve, this.foregroundChannel, numbers);
+                    }
+                    break;
+                case "ArrowLeft":
+                    break;
+                case "ArrowRight":
+                    break;
+                case "ArrowUp":
+                    evt.preventDefault();
+                    break;
+                case "ArrowDown":
+                    evt.preventDefault();
+                    break;
+                case "Shift":
+                    this.svg.style.cursor = "move";
+                    break;
+            }
+        });
+
+        addEventListener("keyup", evt => {
+            if (evt.key === "Shift") {
+                this.svg.style.cursor = "";
+            }
+        });
+        
     }
 
     /**
@@ -280,45 +578,47 @@ export class Drawer extends Plotter {
      * delta array.
      * @param {String} labelLocation Label location identifier.
      */
-    make_draggable(ele, curve, channel, on_drag, labelLocation = "ur") {
+    make_draggable(ele, curve, channel, on_drag, labelLocation = "ur", start_drag=(evt, pos) => {}) {
         /** Start position of drag motion. */
         const spline = curve.splines[channel];
-        let start = null;
+        let startPos = null;
         let yValues = [];
 
         make_draggable(
             ele,
             evt => {
-                start = this.mouse_coordinates(evt);
+                startPos = this.mouse_coordinates(evt);
                 yValues = new Set(spline.c.flat(COEFFICIENTS_DEPTH));
                 yValues.add(0.0);
                 this.emit_curve_changing()
                 if (ele.parentNode) {
                     ele.parentNode.classList.add("fade-in");
                 }
+
+                start_drag(evt, startPos);
             },
             evt => {
-                let end = this.mouse_coordinates(evt);
-                end = clip_point(end, this.limits);
+                let pos = this.mouse_coordinates(evt);
+                pos = clip_point(pos, this.limits);
                 if (this.snapping_to_grid & !evt.shiftKey) {
-                    end[1] = snap_to_value(end[1], yValues, 0.001);
+                    pos[1] = snap_to_value(pos[1], yValues, 0.001);
                 }
 
-                on_drag(end);
+                on_drag(pos);
                 spline.restrict_to_bbox(this.limits);
                 this.annotation.style.visibility = "visible";
-                this.position_annotation(end, labelLocation);
+                this.position_annotation(pos, labelLocation);
                 this._draw_curve_elements();
             },
             evt => {
-                const end = this.mouse_coordinates(evt);
-                if (arrays_equal(start, end)) {
+                const endPos = this.mouse_coordinates(evt);
+                if (arrays_equal(startPos, endPos)) {
                     return;
                 }
 
                 this.emit_curve_changed(curve)
                 this.annotation.style.visibility = "hidden";
-                start = null;
+                startPos = null;
                 clear_array(yValues);
                 if (ele.parentNode) {
                     ele.parentNode.classList.remove("fade-in");
@@ -405,7 +705,7 @@ export class Drawer extends Plotter {
                 spline.point(seg, 2),
                 spline.point(seg + 1, 0),
             ]);
-            this.container.appendChild(path);
+            this.elementGroup.appendChild(path);
             path.classList.add(className);
 
             if (className === "middleground") {
@@ -477,6 +777,22 @@ export class Drawer extends Plotter {
         return cpGroup;
     }
 
+    remove_knots(curve, channel, numbers) {
+        const wc = curve.copy()
+        const spline = wc.splines[channel];
+        if (spline.n_segments <= 1) {
+            return;
+        }
+
+        this.emit_curve_changing();
+        numbers.sort().forEach((nr, i) => {
+            if (spline.n_segments > 1) {
+                spline.remove_knot(nr - i);
+            }
+        });
+        this.emit_curve_changed(wc);
+    }
+
     /**
      * Plot interactive spline knots.
      *
@@ -488,28 +804,64 @@ export class Drawer extends Plotter {
      */
     plot_knot(curve, channel, knotNr, radius) {
         const spline = curve.splines[channel];
-        const knotCircle = this.add_svg_circle(() => spline.point(knotNr, 0), radius);
+        const knotCircle = this.add_svg_circle(() => spline.point(knotNr, KNOT), radius);
         knotCircle.classList.add("knot");
+
+        let start = null;
+        let initialPositions = [];
+        let selectedKnotNumbers = [];
+
+        /**
+         * Select this knot. If shift is pressed add it to selection in any
+         * case. If not deselect all before adding.
+         */
+        const click_select_this_knot = (evt) => {
+            if (
+                this.selector.something_is_selected()
+                && !this.selector.is_selected(knotNr)
+                && !evt.shiftKey
+            ) {
+                this.selector.deselect_all();
+            }
+            this.selector.select(knotNr);
+        }
+
         this.make_draggable(
             knotCircle,
             curve,
             channel,
             pos => {
                 this.emit_curve_changing(pos)
-                spline.position_knot(knotNr, pos, this.c1);
+                const offset = subtract_arrays(pos, start);
+                selectedKnotNumbers.forEach((knotNr, i) => {
+                    const target = add_arrays(initialPositions[i], offset);
+                    spline.position_knot(knotNr, target, this.c1);
+                });
+                 
                 const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
                 this.annotation.innerHTML = txt;
             },
             knotNr < spline.n_segments ? "ur" : "ul",
+            (evt, startPos) => {
+                start = startPos;
+                clear_array(initialPositions);
+
+                click_select_this_knot(evt);
+
+                selectedKnotNumbers = Array.from(this.selector.selection).sort();
+                selectedKnotNumbers.forEach(kn => {
+                    initialPositions.push(spline.point(kn, KNOT))
+                });
+            },
         );
-        knotCircle.addEventListener("dblclick", evt => {
+        knotCircle.addEventListener("click", evt => {
+            click_select_this_knot(evt);
             evt.stopPropagation();
-            if (spline.n_segments > 1) {
-                this.emit_curve_changing();
-                const wc = curve.copy();
-                wc.splines[channel].remove_knot(knotNr);
-                this.emit_curve_changed(wc);
-            }
+        });
+        knotCircle.addEventListener("dblclick", evt => {
+            this.selector.deselect_all();
+            evt.stopPropagation();
+            this.remove_knots(curve, channel, [knotNr]);
         });
         return knotCircle;
     }
@@ -526,13 +878,13 @@ export class Drawer extends Plotter {
         assert(spline.degree <= Degree.CUBIC, `Spline degree ${spline.degree} not supported!`);
         this.plot_curve_path(curve, channel, className);
         if (className === "foreground") {
-            window.spline = spline;
-            const knots = arange(spline.n_segments + 1);
-            knots.forEach(knotNr => {
+            const knotCircles = [];
+            const knotNumbers = arange(spline.n_segments + 1);
+            knotNumbers.forEach(knotNr => {
                 // Plot control points and helper lines
                 const cpGroup = this.plot_control_point(curve, channel, knotNr, radius)
                 cpGroup.classList.add("control-point");
-                this.container.appendChild(cpGroup);
+                this.elementGroup.appendChild(cpGroup);
 
                 // Plot knots
                 // Note: Knots after control points. SVG order dictates
@@ -542,14 +894,21 @@ export class Drawer extends Plotter {
                 // ".knot:hover + .control-point" selector can not be used.
                 // This is why we fallback on the JS + "fade-in" class instead.
                 const knotCircle = this.plot_knot(curve, channel, knotNr, radius);
-                this.container.appendChild(knotCircle)
+                this.elementGroup.appendChild(knotCircle)
                 knotCircle.addEventListener("mouseenter", evt => {
                     cpGroup.classList.add("fade-in");
                 });
                 knotCircle.addEventListener("mouseleave", evt => {
                     cpGroup.classList.remove("fade-in");
                 });
+                knotCircles.push(knotCircle)
             });
+
+            this.foregroundCurve = curve;
+            this.foregroundChannel = channel;
+            this.foregroundSpline = spline;
+            this.selector.set_spline(spline);
+            this.selector.set_knot_circles(knotCircles);
         }
     }
 
@@ -575,6 +934,7 @@ export class Drawer extends Plotter {
      */
     draw_foreground_curve(curve, channel=-1) {
         if (curve.n_splines === 0) {
+            this.selector.clear();
             return;
         }
 
