@@ -267,15 +267,14 @@ class Selector {
     setup_drag_selection() {
         let start = null;
         let xs = [];
-        make_draggable(
-            this.svg,
-            evt => {
+        const callbacks = {
+            "start_drag": evt => {
                 start = this.mouse_event_position_inside_svg(evt);
                 this.knotCircles.forEach(kc => {
                     xs.push(parseInt(getattr(kc, "cx")))
                 });
             },
-            evt => {
+            "drag": evt => {
                 // Selected region
                 const end = this.mouse_event_position_inside_svg(evt);
                 const left = Math.min(start.x, end.x);
@@ -297,12 +296,14 @@ class Selector {
                     }
                 });
             },
-            evt => {
+            "end_drag": evt => {
                 start = null;
                 xs = [];
                 this.hide();
             },
-        );
+        };
+
+        make_draggable(this.svg, callbacks);
     }
 
     set_spline(spline) {
@@ -452,7 +453,7 @@ export class Drawer extends Plotter {
         this.snapping_to_grid = true;
         this.limits = new BBox([0, -Infinity], [Infinity, Infinity]);
 
-        //this.setup_svg_drag_navigation();
+        this.setup_svg_drag_navigation();
         this.setup_keyboard_shortcuts();
 
         this.foregroundCurve = null;
@@ -480,6 +481,9 @@ export class Drawer extends Plotter {
         });
     }
 
+    /**
+     * Update selection styling for foreground elements.
+     */
     update_selected_elements() {
         this.foregroundKnotElements.forEach((circle, nr) => {
             if (this.selection.is_selected(nr)) {
@@ -521,9 +525,8 @@ export class Drawer extends Plotter {
 
         const mouseButton = LEFT_MOUSE_BUTTON;
         const onShift = true;  // Only react when shift key is pressed
-        make_draggable(
-            this.svg,
-            evt => {
+        const callbacks = {
+            "start_drag": evt => {
                 this.autoscaling = false;
                 start = [evt.clientX, evt.clientY];
                 orig = this.viewport.copy();
@@ -531,7 +534,7 @@ export class Drawer extends Plotter {
                 const alpha = clip((pt[0] - orig.left) / orig.width, 0, 1);
                 mid = orig.left + alpha * orig.width;
             },
-            evt => {
+            "drag": evt => {
                 // Affine image transformation with `mid` as "focal point"
                 const end = [evt.clientX, evt.clientY];
                 const delta = subtract_arrays(end, start);
@@ -542,14 +545,14 @@ export class Drawer extends Plotter {
                 this.update_transformation_matrices();
                 this.draw();
             },
-            () => {
+            "end_drag": evt => {
                 start = null;
                 orig = null;
                 mid = 0;
             },
-            mouseButton,
-            onShift,
-        );
+        };
+        const options = { "onShift": true };
+        make_draggable(this.svg, callbacks, options);
     }
 
     /**
@@ -642,9 +645,8 @@ export class Drawer extends Plotter {
         let startPos = null;
         let yValues = [];
 
-        make_draggable(
-            ele,
-            evt => {
+        const callbacks = {
+            "start_drag": evt => {
                 startPos = this.mouse_coordinates(evt);
                 yValues = new Set(spline.c.flat(COEFFICIENTS_DEPTH));
                 yValues.add(0.0);
@@ -655,7 +657,7 @@ export class Drawer extends Plotter {
 
                 start_drag(evt, startPos);
             },
-            evt => {
+            "drag": evt => {
                 let pos = this.mouse_coordinates(evt);
                 pos = clip_point(pos, this.limits);
                 if (this.snapping_to_grid & !evt.shiftKey) {
@@ -667,8 +669,9 @@ export class Drawer extends Plotter {
                 this.annotation.move(pos);
                 this.annotation.show();
                 this._draw_curve_elements();
+
             },
-            evt => {
+            "end_drag": evt => {
                 const endPos = this.mouse_coordinates(evt);
                 if (arrays_equal(startPos, endPos)) {
                     return;
@@ -681,8 +684,10 @@ export class Drawer extends Plotter {
                 if (ele.parentNode) {
                     ele.parentNode.classList.remove("fade-in");
                 }
-            }
-        );
+            },
+        };
+
+        make_draggable(ele, callbacks);
     }
 
     /**
