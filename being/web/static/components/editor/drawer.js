@@ -100,11 +100,13 @@ path.background {
 path.middleground {
     stroke: DarkGray;
     stroke-width: 2;
+    cursor: pointer;
 }
 
 path.foreground {
     stroke: black;
     stroke-width: 2;
+    cursor: move;
 }
 
 .knot {
@@ -133,10 +135,6 @@ path.foreground {
 
 .selection-rectangle {
     fill: rgba(0, 0, 255, 0.1);
-}
-
-.pointed {
-    cursor: pointer;
 }
 
 .fade-in {
@@ -650,7 +648,7 @@ export class Drawer extends Plotter {
     emit_curve_changing(position=null) {
         emit_custom_event(this, "curvechanging", {
             position: position,
-        })
+        });
     }
 
     /**
@@ -765,11 +763,42 @@ export class Drawer extends Plotter {
             path.classList.add(className);
 
             if (className === "middleground") {
-                path.classList.add("pointed");
                 path.addEventListener("click", evt => {
                     evt.stopPropagation();  // Prevents transport cursor to jump
                     this.emit_channel_changed(channel);
                 });
+            } else if (className === "foreground") {
+                let startPos = null;
+                this.make_draggable(
+                    path,
+                    curve,
+                    channel,
+                    pos => {
+                        this.emit_curve_changing(pos)
+                        const offset = subtract_arrays(pos, startPos);
+                        this.move_selected_knots(offset);
+                        const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
+                        this.annotation.annotate(txt);
+                    },
+                    (evt, pos) => {
+                        startPos = pos;
+                        const leftKnot = seg;
+                        const rightKnot = seg + 1
+
+                        // click select for 2x knots
+                        const nothingSelected = !this.selection.is_empty();
+                        const knotUnselected = !this.selection.is_selected(leftKnot) || !this.selection.is_selected(rightKnot);
+                        if (nothingSelected && knotUnselected && !evt.shiftKey) {
+                            this.selection.deselect_all();
+                        }
+
+                        this.selection.select(leftKnot);
+                        this.selection.select(rightKnot);
+                        this.update_selected_elements();
+
+                        this.remember_selected_knot_positions();
+                    },
+                );
             }
         });
     }
@@ -852,7 +881,7 @@ export class Drawer extends Plotter {
         this.foregroundKnotElements.push(knotCircle);
         knotCircle.classList.add("knot");
 
-        let start = null;
+        let startPos = null;
 
         this.make_draggable(
             knotCircle,
@@ -860,13 +889,13 @@ export class Drawer extends Plotter {
             channel,
             pos => {
                 this.emit_curve_changing(pos)
-                const offset = subtract_arrays(pos, start);
+                const offset = subtract_arrays(pos, startPos);
                 this.move_selected_knots(offset);
                 const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
                 this.annotation.annotate(txt);
             },
-            (evt, startPos) => {
-                start = startPos;
+            (evt, pos) => {
+                startPos = pos;
                 this.click_select_knot(knotNr, evt.shiftKey);
                 this.remember_selected_knot_positions();
             },
