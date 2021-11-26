@@ -547,17 +547,20 @@ export class Drawer extends Plotter {
     }
 
     /**
-     * Click / select knot. Without shift the clicked knot erases the previous
-     * selection. With shift add knot to current selection.
+     * Process click on selected element.
+     *   - If already selected continue
+     *   - If not selected:
+     *       - Without shift key: Overwrite selection
+     *       - With shift key: Add to selection.
      */
-    click_select_knot(knotNr, shiftKey) {
-        const nothingSelected = !this.selection.is_empty();
-        const knotUnselected = !this.selection.is_selected(knotNr);
-        if (nothingSelected && knotUnselected && !shiftKey) {
+    click_select_knots(knotNumbers, shiftKey) {
+        const somethingSelected = !this.selection.is_empty();
+        const adjacent = !knotNumbers.some(nr => this.selection.is_selected(nr));
+        if (somethingSelected && adjacent && !shiftKey) {
             this.selection.deselect_all();
         }
 
-        this.selection.select(knotNr);
+        knotNumbers.forEach(nr => this.selection.select(nr));
         this.update_selected_elements();
     }
 
@@ -741,6 +744,7 @@ export class Drawer extends Plotter {
             },
         };
 
+        ele.addEventListener("click", evt => evt.stopPropagation());
         make_draggable(ele, callbacks);
     }
 
@@ -792,21 +796,14 @@ export class Drawer extends Plotter {
                         startPos = pos;
                         const leftKnot = seg;
                         const rightKnot = seg + 1
-
-                        // click select for 2x knots
-                        const nothingSelected = !this.selection.is_empty();
-                        const knotUnselected = !this.selection.is_selected(leftKnot) || !this.selection.is_selected(rightKnot);
-                        if (nothingSelected && knotUnselected && !evt.shiftKey) {
-                            this.selection.deselect_all();
-                        }
-
-                        this.selection.select(leftKnot);
-                        this.selection.select(rightKnot);
-                        this.update_selected_elements();
-
+                        this.click_select_knots([leftKnot, rightKnot], evt.shiftKey);
                         this.remember_selected_knot_positions();
                     },
                 );
+                path.addEventListener("click", evt => {
+                    // Stop bubbling
+                    evt.stopPropagation();
+                });
             }
         });
     }
@@ -904,17 +901,17 @@ export class Drawer extends Plotter {
             },
             (evt, pos) => {
                 startPos = pos;
-                this.click_select_knot(knotNr, evt.shiftKey);
+                this.click_select_knots([knotNr], evt.shiftKey);
                 this.remember_selected_knot_positions();
             },
         );
         knotCircle.addEventListener("click", evt => {
-            this.click_select_knot(knotNr, evt.shiftKey);
+            // Stop bubbling
             evt.stopPropagation();
         });
         knotCircle.addEventListener("dblclick", evt => {
-            this.selection.deselect_all();
             evt.stopPropagation();
+            this.selection.deselect_all();
             this.remove_knots(curve, channel, [knotNr]);
         });
         return knotCircle;
