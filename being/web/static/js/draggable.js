@@ -29,7 +29,6 @@ function stop_propagation(evt) {
  *     mouseButton {Number}: Which mouse button to react to (default is left mouse button).
  *     escapable {Boolean}: End drag by pressing ESC key (default is true).
  *     suppressClicks {Boolean}: End drag by pressing ESC key (default is true).
- *     onShift {Boolean}: Only start drag if shift key is pressed (default is false).
  */
 export function make_draggable(ele, callbacks={}, options={}) {
     callbacks = Object.assign({
@@ -41,7 +40,6 @@ export function make_draggable(ele, callbacks={}, options={}) {
         "mouseButton": LEFT_MOUSE_BUTTON,
         "escapable": true,
         "suppressClicks": true,
-        "onShift": false,
     }, options);
     let startPos = null;
 
@@ -52,10 +50,6 @@ export function make_draggable(ele, callbacks={}, options={}) {
      */
     function start_drag_internal(evt) {
         if (evt.which !== options.mouseButton) {
-            return;
-        }
-
-        if (evt.shiftKey !== options.onShift) {
             return;
         }
 

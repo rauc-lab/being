@@ -162,29 +162,6 @@ path.selected {
 `
 
 
-function binary_search(arr, value) {
-    if (arr.length === 0) {
-        return -1;
-    }
-
-    let left = 0;
-    let right = arr.length - 1;
-
-    while (left <= right) {
-        const mid = Math.floor(0.5 * (left + right));
-        if (arr[mid] < value) {
-            left = mid + 1;
-        } else if (arr[mid] > value) {
-            right = mid - 1;
-        } else {
-            return mid;
-        }
-    }
-
-    return -1
-}
-
-
 function searchsorted_left(arr, value) {
     let left = 0;
     let right = arr.length;
@@ -215,140 +192,6 @@ function searchsorted_right(arr, value) {
 
     return right;
 }
-
-
-/**
- * Drag selection.
- */
-class Selector {
-    constructor(drawer) {
-        this.drawer = drawer;
-        this.svg = drawer.svg;
-        this.selection = new Set();
-        this.spline = null
-        this.knotCircles = [];
-        this.rect = create_element("rect");
-        this.rect.classList.add("selection-rectangle");
-        this.rect.style.display = "none";
-        this.svg.appendChild(this.rect);
-        this.pt = this.svg.createSVGPoint();
-
-        this.setup_drag_selection();
-    }
-
-    clear() {
-        this.selection.clear();
-        this.spline = null;
-        clear_array(this.knotCircles);
-        this.hide();
-    }
-
-    show() {
-        this.rect.style.display = "";
-    }
-
-    hide() {
-        this.rect.style.display = "none";
-    }
-
-    mouse_event_position_inside_svg(evt) {
-        this.pt.x = evt.clientX;
-        this.pt.y = evt.clientY;
-        return this.pt.matrixTransform(this.svg.getScreenCTM().inverse());
-    }
-
-    move_selection_rect(left, right) {
-        setattr(this.rect, "x", left);
-        setattr(this.rect, "y", 0);
-        setattr(this.rect, "width", right - left);
-        setattr(this.rect, "height", this.drawer.clientHeight);
-    }
-
-    setup_drag_selection() {
-        let start = null;
-        let xs = [];
-        const callbacks = {
-            "start_drag": evt => {
-                start = this.mouse_event_position_inside_svg(evt);
-                this.knotCircles.forEach(kc => {
-                    xs.push(parseInt(getattr(kc, "cx")))
-                });
-            },
-            "drag": evt => {
-                // Selected region
-                const end = this.mouse_event_position_inside_svg(evt);
-                const left = Math.min(start.x, end.x);
-                const right = Math.max(start.x, end.x);
-
-                this.move_selection_rect(left, right);
-                this.show();
-
-                // Find selected knots
-                const lo = searchsorted_left(xs, left);
-                const hi = searchsorted_right(xs, right);
-                this.knotCircles.forEach((kc, i) => {
-                    if (lo <= i && i < hi) {
-                        kc.classList.add("selected");
-                        this.selection.add(i)
-                    } else {
-                        kc.classList.remove("selected");
-                        this.selection.delete(i);
-                    }
-                });
-            },
-            "end_drag": evt => {
-                start = null;
-                xs = [];
-                this.hide();
-            },
-        };
-
-        make_draggable(this.svg, callbacks);
-    }
-
-    set_spline(spline) {
-        this.spline = spline;
-    }
-
-    set_knot_circles(knotCircles) {
-        this.knotCircles = knotCircles;
-        this.knotCircles.forEach((circle, nr) => {
-            if (this.is_selected(nr)) {
-                circle.classList.add("selected");
-            } else {
-                circle.classList.remove("selected");
-            }
-        });
-    }
-
-    is_selected(knotNr) {
-        return this.selection.has(knotNr);
-    }
-
-    something_is_selected() {
-        return this.selection.size > 0;
-    }
-
-    select(knotNr) {
-        this.selection.add(knotNr);
-        this.knotCircles[knotNr].classList.add("selected");
-    }
-
-    deselect(knotNr) {
-        this.selection.delete(knotNr);
-        this.knotCircles[knotNr].classList.remove("selected");
-    }
-
-    deselect_all() {
-        this.selection.forEach(nr => this.deselect(nr));
-    }
-
-    selected_knot_array() {
-        const knotNumbers = Array.from(this.selector.selection);
-        return knotNumbers.sort();
-    }
-}
-
 
 
 class Selection {
@@ -383,6 +226,34 @@ class Selection {
 
     sort() {
         return Array.from(this.set).sort()
+    }
+}
+
+
+class SelectionRectangle {
+    constructor(drawer) {
+        this.drawer = drawer;
+        this.rect = create_element("rect");
+        this.rect.classList.add("selection-rectangle");
+        this.drawer.svg.appendChild(this.rect);
+        this.hide();
+    }
+
+    move(left, right) {
+        const [a, _] = this.drawer.transform_point([left, 0]);
+        const [b, __] = this.drawer.transform_point([right, 0]);
+        setattr(this.rect, "x", a);
+        setattr(this.rect, "y", 0);
+        setattr(this.rect, "width", b - a);
+        setattr(this.rect, "height", this.drawer.clientHeight);
+    }
+
+    show() {
+        this.rect.style.display = "";
+    }
+
+    hide() {
+        this.rect.style.display = "none";
     }
 }
 
@@ -439,33 +310,34 @@ export class Drawer extends Plotter {
     constructor() {
         super();
         this.append_template(EXTRA_STYLE);
-
-        this.annotation = new Annotation(this);
         this.autoscaling = false;
+        this.foregroundCurve = null;
+        this.foregroundChannel = null;
 
-        this.elementGroup = this.svg.appendChild(create_element("g"));
-
-        this.foregroundKnotElements = [];
-        this.foregroundPathElements = [];
-        this.otherElements = [];
-
+        // Attributes which will be overwritten by editor
         this.c1 = true;
         this.snapping_to_grid = true;
         this.limits = new BBox([0, -Infinity], [Infinity, Infinity]);
 
-        this.setup_svg_drag_navigation();
-        this.setup_keyboard_shortcuts();
 
-        this.foregroundCurve = null;
-        this.foregroundChannel = null;
+        // SVG drawing elements
+        this.elementGroup = this.svg.appendChild(create_element("g"));
+        this.foregroundKnotElements = [];
+        this.foregroundPathElements = [];
+        this.otherElements = [];
 
+        this.annotation = new Annotation(this);
+
+        // Knot selection
         this.selection = new Selection();
+        this.selectionRect = new SelectionRectangle(this);
 
+        this.setup_global_svg_drag_listeners();
+        this.setup_keyboard_shortcuts();
         this.svg.addEventListener("click", evt => {
             this.selection.deselect_all();
             this.update_selected_elements();
         });
-
         this.svg.addEventListener("dblclick", evt => {
             //evt.stopPropagation();
             if (!this.foregroundCurve) {
@@ -482,32 +354,11 @@ export class Drawer extends Plotter {
     }
 
     /**
-     * Update selection styling for foreground elements.
-     */
-    update_selected_elements() {
-        this.foregroundKnotElements.forEach((circle, nr) => {
-            if (this.selection.is_selected(nr)) {
-                circle.classList.add("selected");
-            } else {
-                circle.classList.remove("selected");
-            }
-        });
-        this.foregroundPathElements.forEach((path, nr) => {
-            const left = this.selection.is_selected(nr);
-            const right = this.selection.is_selected(nr + 1);
-            if (left || right) {
-                path.classList.add("selected");
-            } else {
-                path.classList.remove("selected");
-            }
-        });
-    }
-
-
-    /**
      * Clear everything.
      */
     clear() {
+        this.foregroundCurve = null;
+        this.foregroundChannel = null;
         clear_array(this.foregroundKnotElements);
         clear_array(this.foregroundPathElements);
         clear_array(this.otherElements);
@@ -518,41 +369,79 @@ export class Drawer extends Plotter {
      * Setup drag event handlers for moving horizontally and zooming
      * vertically.
      */
-    setup_svg_drag_navigation() {
-        let start = null;
-        let orig = null;
-        let mid = 0;
+    setup_global_svg_drag_listeners() {
+        let shiftPressed = false;  // Remember on mouse down if shift key was pressed
 
-        const mouseButton = LEFT_MOUSE_BUTTON;
-        const onShift = true;  // Only react when shift key is pressed
+        // Drag navigation
+        let clientStartPos = null;  // Initial start position in client space coordinates
+        let original = null;  // Original viewport copy
+        let focal = 0;  // Horizontal x coordinate of "focal point"
+
+        // Selection rectangle
+        let startPos = null;  // Initial start position in data space coordinates
+        let xs = [];  // Knot values
+
         const callbacks = {
             "start_drag": evt => {
-                this.autoscaling = false;
-                start = [evt.clientX, evt.clientY];
-                orig = this.viewport.copy();
-                const pt = this.mouse_coordinates(evt);
-                const alpha = clip((pt[0] - orig.left) / orig.width, 0, 1);
-                mid = orig.left + alpha * orig.width;
+                if (evt.shiftKey) {
+                    shiftPressed = true;
+
+                    this.autoscaling = false;
+                    clientStartPos = [evt.clientX, evt.clientY];
+                    original = this.viewport.copy();
+                    const pt = this.mouse_coordinates(evt);
+                    const alpha = clip((pt[0] - original.left) / original.width, 0, 1);
+                    focal = original.left + alpha * original.width;
+                } else {
+                    shiftPressed = false;
+
+                    startPos = this.mouse_coordinates(evt);
+                    xs = this.foregroundCurve.splines[this.foregroundChannel].x;
+                }
             },
             "drag": evt => {
-                // Affine image transformation with `mid` as "focal point"
-                const end = [evt.clientX, evt.clientY];
-                const delta = subtract_arrays(end, start);
-                const shift = -delta[0] / this.canvas.width * orig.width;
-                const factor = Math.exp(-0.01 * delta[1]);
-                this.viewport.left = factor * (orig.left - mid + shift) + mid;
-                this.viewport.right = factor * (orig.right - mid + shift) + mid;
-                this.update_transformation_matrices();
-                this.draw();
+                if (shiftPressed) {
+                    // Affine image transformation around focal point
+                    const clientPos = [evt.clientX, evt.clientY];
+                    const delta = subtract_arrays(clientPos, clientStartPos);
+                    const shift = -delta[0] / this.canvas.width * original.width;
+                    const factor = Math.exp(-0.01 * delta[1]);
+                    this.viewport.left = factor * (original.left - focal + shift) + focal;
+                    this.viewport.right = factor * (original.right - focal + shift) + focal;
+                    this.update_transformation_matrices();
+                    this.draw();
+                } else {
+                    // Selection rectangle region
+                    const pos = this.mouse_coordinates(evt);
+                    const left = Math.min(startPos[0], pos[0]);
+                    const right = Math.max(startPos[0], pos[0]);
+                    this.selectionRect.move(left, right);
+                    this.selectionRect.show();
+
+                    // Find selected knots
+                    const lo = searchsorted_left(xs, left);
+                    const hi = searchsorted_right(xs, right);
+                    xs.forEach((_, i) => {
+                        if (lo <= i && i < hi) {
+                            this.selection.select(i);
+                        } else {
+                            this.selection.deselect(i);
+                        }
+                    });
+                    this.update_selected_elements();
+                }
             },
             "end_drag": evt => {
-                start = null;
-                orig = null;
-                mid = 0;
+                clientStartPos = null;
+                original = null;
+                focal = 0;
+                let startPos = null;
+                let xs = [];
+                let shiftPressed = false;
+                this.selectionRect.hide();
             },
         };
-        const options = { "onShift": true };
-        make_draggable(this.svg, callbacks, options);
+        make_draggable(this.svg, callbacks);
     }
 
     /**
@@ -602,103 +491,26 @@ export class Drawer extends Plotter {
     }
 
     /**
-     * Emit custom curvechanging event.
-     *
-     * @param {Array} position Optional position value to trigger live preview.
+     * Update selection styling for foreground elements.
      */
-    emit_curve_changing(position=null) {
-        emit_custom_event(this, "curvechanging", {
-            position: position,
-        })
-    }
-
-    /**
-     * Emit custom curvechanged event.
-     *
-     * @param {Curve} newCurve New final curve.
-     */
-    emit_curve_changed(newCurve) {
-        emit_custom_event(this, "curvechanged", {
-            newCurve: newCurve,
-        })
-    }
-
-    /**
-     * Emit custom channelchanged event. When user clicks on another channel of
-     * the foreground curve.
-     *
-     * @param {Number} channel Channel number.
-     */
-    emit_channel_changed(channel) {
-        emit_custom_event(this, "channelchanged", {
-            channel: channel,
+    update_selected_elements() {
+        this.foregroundKnotElements.forEach((circle, nr) => {
+            if (this.selection.is_selected(nr)) {
+                circle.classList.add("selected");
+            } else {
+                circle.classList.remove("selected");
+            }
+        });
+        this.foregroundPathElements.forEach((path, nr) => {
+            const left = this.selection.is_selected(nr);
+            const right = this.selection.is_selected(nr + 1);
+            if (left || right) {
+                path.classList.add("selected");
+            } else {
+                path.classList.remove("selected");
+            }
         });
     }
-
-
-    /**
-     * Make something draggable inside data space. Wraps default
-     * make_draggable. Handles mouse -> image space -> data space
-     * transformation, calculates delta offset, triggers redraws. Mostly used
-     * to drag SVG elements around.
-     *
-     * @param {Element} ele Element to make draggable.
-     * @param {Curve} curve working copy of the curve.
-     * @param {Number} channel Active curve channel number.
-     * @param {Function} on_drag On drag motion callback. Will be called with a relative
-     * delta array.
-     */
-    make_draggable(ele, curve, channel, on_drag, start_drag=(evt, pos) => {}) {
-        /** Start position of drag motion. */
-        const spline = curve.splines[channel];
-        let startPos = null;
-        let yValues = [];
-
-        const callbacks = {
-            "start_drag": evt => {
-                startPos = this.mouse_coordinates(evt);
-                yValues = new Set(spline.c.flat(COEFFICIENTS_DEPTH));
-                yValues.add(0.0);
-                this.emit_curve_changing()
-                if (ele.parentNode) {
-                    ele.parentNode.classList.add("fade-in");
-                }
-
-                start_drag(evt, startPos);
-            },
-            "drag": evt => {
-                let pos = this.mouse_coordinates(evt);
-                pos = clip_point(pos, this.limits);
-                if (this.snapping_to_grid & !evt.shiftKey) {
-                    pos[1] = snap_to_value(pos[1], yValues, 0.001);
-                }
-
-                on_drag(pos);
-                spline.restrict_to_bbox(this.limits);
-                this.annotation.move(pos);
-                this.annotation.show();
-                this._draw_curve_elements();
-
-            },
-            "end_drag": evt => {
-                const endPos = this.mouse_coordinates(evt);
-                if (arrays_equal(startPos, endPos)) {
-                    return;
-                }
-
-                this.emit_curve_changed(curve)
-                this.annotation.hide();
-                startPos = null;
-                clear_array(yValues);
-                if (ele.parentNode) {
-                    ele.parentNode.classList.remove("fade-in");
-                }
-            },
-        };
-
-        make_draggable(ele, callbacks);
-    }
-
     /**
      * Remove knots from curve channel spline.
      *
@@ -819,6 +631,103 @@ export class Drawer extends Plotter {
         };
 
         return line;
+    }
+
+    /**
+     * Emit custom curvechanging event.
+     *
+     * @param {Array} position Optional position value to trigger live preview.
+     */
+    emit_curve_changing(position=null) {
+        emit_custom_event(this, "curvechanging", {
+            position: position,
+        })
+    }
+
+    /**
+     * Emit custom curvechanged event.
+     *
+     * @param {Curve} newCurve New final curve.
+     */
+    emit_curve_changed(newCurve) {
+        emit_custom_event(this, "curvechanged", {
+            newCurve: newCurve,
+        })
+    }
+
+    /**
+     * Emit custom channelchanged event. When user clicks on another channel of
+     * the foreground curve.
+     *
+     * @param {Number} channel Channel number.
+     */
+    emit_channel_changed(channel) {
+        emit_custom_event(this, "channelchanged", {
+            channel: channel,
+        });
+    }
+
+    /**
+     * Make something draggable inside data space. Wraps default
+     * make_draggable. Handles mouse -> image space -> data space
+     * transformation, calculates delta offset, triggers redraws. Mostly used
+     * to drag SVG elements around.
+     *
+     * @param {Element} ele Element to make draggable.
+     * @param {Curve} curve working copy of the curve.
+     * @param {Number} channel Active curve channel number.
+     * @param {Function} on_drag On drag motion callback. Will be called with a relative
+     * delta array.
+     */
+    make_draggable(ele, curve, channel, on_drag, start_drag=(evt, pos) => {}) {
+        /** Start position of drag motion. */
+        const spline = curve.splines[channel];
+        let startPos = null;
+        let yValues = [];
+
+        const callbacks = {
+            "start_drag": evt => {
+                startPos = this.mouse_coordinates(evt);
+                yValues = new Set(spline.c.flat(COEFFICIENTS_DEPTH));
+                yValues.add(0.0);
+                this.emit_curve_changing()
+                if (ele.parentNode) {
+                    ele.parentNode.classList.add("fade-in");
+                }
+
+                start_drag(evt, startPos);
+            },
+            "drag": evt => {
+                let pos = this.mouse_coordinates(evt);
+                pos = clip_point(pos, this.limits);
+                if (this.snapping_to_grid & !evt.shiftKey) {
+                    pos[1] = snap_to_value(pos[1], yValues, 0.001);
+                }
+
+                on_drag(pos);
+                spline.restrict_to_bbox(this.limits);
+                this.annotation.move(pos);
+                this.annotation.show();
+                this._draw_curve_elements();
+
+            },
+            "end_drag": evt => {
+                const endPos = this.mouse_coordinates(evt);
+                if (arrays_equal(startPos, endPos)) {
+                    return;
+                }
+
+                this.emit_curve_changed(curve)
+                this.annotation.hide();
+                startPos = null;
+                clear_array(yValues);
+                if (ele.parentNode) {
+                    ele.parentNode.classList.remove("fade-in");
+                }
+            },
+        };
+
+        make_draggable(ele, callbacks);
     }
 
     /**
