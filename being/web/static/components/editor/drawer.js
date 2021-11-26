@@ -212,7 +212,6 @@ function searchsorted_right(arr, value) {
 }
 
 
-
 /**
  * Drag selection.
  */
@@ -355,7 +354,11 @@ export class Drawer extends Plotter {
         this.autoscaling = false;
 
         this.elementGroup = this.svg.appendChild(create_element("g"));
-        this.elements = [];
+
+        this.foregroundKnotElements = [];
+        this.foregroundPathElements = [];
+        this.otherElements = [];
+
         this.c1 = true;
         this.snapping_to_grid = true;
         this.limits = new BBox([0, -Infinity], [Infinity, Infinity]);
@@ -392,7 +395,9 @@ export class Drawer extends Plotter {
      * Clear everything.
      */
     clear() {
-        clear_array(this.elements);
+        clear_array(this.foregroundKnotElements);
+        clear_array(this.foregroundPathElements);
+        clear_array(this.otherElements);
         remove_all_children(this.elementGroup);
     }
 
@@ -605,9 +610,8 @@ export class Drawer extends Plotter {
      * @param {Function} data_source Callable data source returning the control points.
      * @returns {SVGPathElement} SVG path element.
      */
-    add_svg_path(data_source) {
+    create_svg_path(data_source) {
         const path = create_element("path");
-        this.elements.push(path);
         path.draw = () => {
             setattr(path, "d", path_d(this.transform_points(data_source())));
         };
@@ -623,10 +627,9 @@ export class Drawer extends Plotter {
      * @param {Number} radius Circle radius.
      * @returns {SVGCircleElement} SVG circle element.
      */
-    add_svg_circle(data_source, radius) {
+    create_svg_circle(data_source, radius) {
         const circle = create_element("circle");
         setattr(circle, "r", radius);
-        this.elements.push(circle);
         circle.draw = () => {
             const center = this.transform_point(data_source());
             setattr(circle, "cx", center[0]);
@@ -645,9 +648,8 @@ export class Drawer extends Plotter {
      * current start and end point of the line.
      * @returns {SVGLineElement} SVG line instance.
      */
-    add_svg_line(data_source) {
+    create_svg_line(data_source) {
         const line = create_element("line");
-        this.elements.push(line);
         line.draw = () => {
             const [start, end] = this.transform_points(data_source());
             setattr(line, "x1", start[0]);
@@ -670,12 +672,17 @@ export class Drawer extends Plotter {
         const spline = curve.splines[channel];
         const segments = arange(spline.n_segments);
         segments.forEach(seg => {
-            const path = this.add_svg_path(() => [
+            const path = this.create_svg_path(() => [
                 spline.point(seg, 0),
                 spline.point(seg, 1),
                 spline.point(seg, 2),
                 spline.point(seg + 1, 0),
             ]);
+            if (className === "foreground") {
+                this.foregroundPathElements.push(path);
+            } else {
+                this.otherElements.push(path);
+            }
             this.elementGroup.appendChild(path);
             path.classList.add(className);
 
@@ -701,14 +708,16 @@ export class Drawer extends Plotter {
         const cpGroup = create_element("g");
         if (knotNr < spline.n_segments) {
             // Right helper line
-            const helperLine = this.add_svg_line(() => [
+            const helperLine = this.create_svg_line(() => [
                 spline.point(knotNr, KNOT),
                 spline.point(knotNr, FIRST_CP),
             ]);
+            this.otherElements.push(helperLine);
             cpGroup.appendChild(helperLine);
 
             // Right control point
-            const controlPoint = this.add_svg_circle(() => spline.point(knotNr, FIRST_CP), radius);
+            const controlPoint = this.create_svg_circle(() => spline.point(knotNr, FIRST_CP), radius);
+            this.otherElements.push(controlPoint);
             cpGroup.appendChild(controlPoint);
             this.make_draggable(
                 controlPoint,
@@ -724,14 +733,16 @@ export class Drawer extends Plotter {
 
         if (knotNr > 0) {
             // Left helper line
-            const helperLine = this.add_svg_line(() => [
+            const helperLine = this.create_svg_line(() => [
                 spline.point(knotNr, KNOT),
                 spline.point(knotNr - 1, SECOND_CP),
             ]);
+            this.otherElements.push(helperLine);
             cpGroup.appendChild(helperLine);
 
             // Left control point
-            const controlPoint = this.add_svg_circle(() => spline.point(knotNr - 1, SECOND_CP), radius);
+            const controlPoint = this.create_svg_circle(() => spline.point(knotNr - 1, SECOND_CP), radius);
+            this.otherElements.push(controlPoint);
             cpGroup.appendChild(controlPoint);
             this.make_draggable(
                 controlPoint,
@@ -775,7 +786,8 @@ export class Drawer extends Plotter {
      */
     plot_knot(curve, channel, knotNr, radius) {
         const spline = curve.splines[channel];
-        const knotCircle = this.add_svg_circle(() => spline.point(knotNr, KNOT), radius);
+        const knotCircle = this.create_svg_circle(() => spline.point(knotNr, KNOT), radius);
+        this.foregroundKnotElements.push(knotCircle);
         knotCircle.classList.add("knot");
 
         let start = null;
@@ -927,7 +939,9 @@ export class Drawer extends Plotter {
      * Draw / update all SVG elements.
      */
     _draw_curve_elements() {
-        this.elements.forEach(ele => ele.draw());
+        this.otherElements.forEach(ele => ele.draw());
+        this.foregroundPathElements.forEach(ele => ele.draw());
+        this.foregroundKnotElements.forEach(ele => ele.draw());
     }
 
     /**
