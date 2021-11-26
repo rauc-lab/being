@@ -386,13 +386,60 @@ class Selection {
 }
 
 
+class Annotation {
+    constructor(drawer) {
+        this.drawer = drawer;
+        this.span = document.createElement("span");
+        this.span.classList.add("annotation");
+        drawer.shadowRoot.appendChild(this.span);
+    }
+
+    /**
+     * Move annotate label around.
+     *
+     * @param {Array} pos Position to move to (data space).
+     * @param {Number} offset Offset value.
+     */
+    move(pos, offset = 10) {
+        const [x, y] = this.drawer.transform_point(pos);
+        const bbox = this.span.getBoundingClientRect();
+        const width = this.drawer.canvas.width;
+        const height = this.drawer.canvas.height;
+        this.span.style.left = Math.min(x + offset, width - bbox.width) + "px";
+        this.span.style.top = Math.max(y - offset - bbox.height, 0) + "px";
+    }
+
+    /**
+     * Set inner HTML of annotation label.
+     *
+     * @param {String} text Annotation text.
+     */
+    annotate(text) {
+        this.span.innerHTML = text;
+    }
+
+    /**
+     * Show annotation.
+     */
+    show() {
+        this.span.style.visibility = "visible";
+    }
+
+    /**
+     * Hide annotation.
+     */
+    hide() {
+        this.span.style.visibility = "hidden";
+    }
+}
+
+
 export class Drawer extends Plotter {
     constructor() {
         super();
         this.append_template(EXTRA_STYLE);
-        this.annotation = document.createElement("span");
-        this.annotation.classList.add("annotation");
-        this.shadowRoot.appendChild(this.annotation);
+
+        this.annotation = new Annotation(this);
         this.autoscaling = false;
 
         this.elementGroup = this.svg.appendChild(create_element("g"));
@@ -432,8 +479,6 @@ export class Drawer extends Plotter {
             this.emit_curve_changed(wc);
         });
     }
-
-
 
     update_selected_elements() {
         this.foregroundKnotElements.forEach((circle, nr) => {
@@ -578,21 +623,6 @@ export class Drawer extends Plotter {
         });
     }
 
-    /**
-     * Position annotation label around.
-     *
-     * @param {Array} pos Position to move to (data space).
-     * @param {Number} offset Offset value.
-     */
-    position_annotation(pos, offset = 10) {
-        const pt = this.transform_point(pos);
-        let [x, y] = pt;
-        const bbox = this.annotation.getBoundingClientRect();
-        const width = this.canvas.width;
-        const height = this.canvas.height;
-        this.annotation.style.left = Math.min(x + offset, width - bbox.width) + "px";
-        this.annotation.style.top = Math.max(y - offset - bbox.height, 0) + "px";
-    }
 
     /**
      * Make something draggable inside data space. Wraps default
@@ -634,8 +664,8 @@ export class Drawer extends Plotter {
 
                 on_drag(pos);
                 spline.restrict_to_bbox(this.limits);
-                this.annotation.style.visibility = "visible";
-                this.position_annotation(pos);
+                this.annotation.move(pos);
+                this.annotation.show();
                 this._draw_curve_elements();
             },
             evt => {
@@ -645,7 +675,7 @@ export class Drawer extends Plotter {
                 }
 
                 this.emit_curve_changed(curve)
-                this.annotation.style.visibility = "hidden";
+                this.annotation.hide();
                 startPos = null;
                 clear_array(yValues);
                 if (ele.parentNode) {
@@ -778,7 +808,7 @@ export class Drawer extends Plotter {
                 pos => {
                     spline.position_control_point(knotNr, FIRST_CP, pos[1], this.c1);
                     const slope = spline.get_derivative_at_knot(knotNr, RIGHT);
-                    this.annotation.innerHTML = "Slope: " + format_number(slope);
+                    this.annotation.annotate("Slope: " + format_number(slope));
                 },
             );
         }
@@ -803,7 +833,7 @@ export class Drawer extends Plotter {
                 pos => {
                     spline.position_control_point(knotNr - 1, SECOND_CP, pos[1], this.c1);
                     const slope = spline.get_derivative_at_knot(knotNr, LEFT);
-                    this.annotation.innerHTML = "Slope: " + format_number(slope);
+                    this.annotation.annotate("Slope: " + format_number(slope));
                 },
             );
         }
@@ -884,7 +914,7 @@ export class Drawer extends Plotter {
                 });
                  
                 const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
-                this.annotation.innerHTML = txt;
+                this.annotation.annotate(txt);
             },
             (evt, startPos) => {
                 start = startPos;
