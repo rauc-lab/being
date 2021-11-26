@@ -6,6 +6,7 @@ import { LEFT_MOUSE_BUTTON } from "/static/js/constants.js";
 
 /**
  * Make some draggable by attaching the necessary event listeners.
+ * 
  * @param ele HTML element to make draggable.
  * @param start_drag On start drag callback.
  * @param drag On dragging callback.

@@ -144,8 +144,13 @@ path.foreground {
     transition: none !important;
 }
 
-.selected {
+circle.selected {
     fill: blue;
+    filter: drop-shadow(0 0 4px blue);
+}
+
+path.selected {
+    stroke: blue;
     filter: drop-shadow(0 0 4px blue);
 }
 
@@ -344,6 +349,43 @@ class Selector {
 }
 
 
+
+class Selection {
+    constructor() {
+        this.set = new Set();
+    }
+
+    select(nr) {
+        return this.set.add(nr);
+    }
+
+    deselect(nr) {
+        return this.set.delete(nr);
+    }
+
+    is_selected(nr) {
+        return this.set.has(nr);
+    }
+
+    is_empty() {
+        return this.set.size === 0
+    }
+
+    deselect_all() {
+        if (this.is_empty()) {
+            return false;
+        }
+
+        this.set.clear();
+        return true;
+    }
+
+    sort() {
+        return Array.from(this.set).sort()
+    }
+}
+
+
 export class Drawer extends Plotter {
     constructor() {
         super();
@@ -363,21 +405,21 @@ export class Drawer extends Plotter {
         this.snapping_to_grid = true;
         this.limits = new BBox([0, -Infinity], [Infinity, Infinity]);
 
-        this.setup_svg_drag_navigation();
+        //this.setup_svg_drag_navigation();
         this.setup_keyboard_shortcuts();
 
         this.foregroundCurve = null;
         this.foregroundChannel = null;
-        this.foregroundSpline = null;
 
-        this.selector = new Selector(this);
+        this.selection = new Selection();
 
         this.svg.addEventListener("click", evt => {
-            this.selector.deselect_all();
+            this.selection.deselect_all();
+            this.update_selected_elements();
         });
 
         this.svg.addEventListener("dblclick", evt => {
-            evt.stopPropagation();
+            //evt.stopPropagation();
             if (!this.foregroundCurve) {
                 return;
             }
@@ -390,6 +432,28 @@ export class Drawer extends Plotter {
             this.emit_curve_changed(wc);
         });
     }
+
+
+
+    update_selected_elements() {
+        this.foregroundKnotElements.forEach((circle, nr) => {
+            if (this.selection.is_selected(nr)) {
+                circle.classList.add("selected");
+            } else {
+                circle.classList.remove("selected");
+            }
+        });
+        this.foregroundPathElements.forEach((path, nr) => {
+            const left = this.selection.is_selected(nr);
+            const right = this.selection.is_selected(nr + 1);
+            if (left || right) {
+                path.classList.add("selected");
+            } else {
+                path.classList.remove("selected");
+            }
+        });
+    }
+
 
     /**
      * Clear everything.
@@ -450,10 +514,10 @@ export class Drawer extends Plotter {
         addEventListener("keydown", evt => {
             switch(evt.key) {
                 case "Backspace":
-                    if (this.selector.something_is_selected()) {
-                        const numbers = this.selector.selected_knot_array();
-                        this.selector.deselect_all();
-                        this.remove_knots(this.foregroundCurve, this.foregroundChannel, numbers);
+                    if (!this.selection.is_empty()) {
+                        const knotNumbers = this.selection.sort();
+                        this.selection.deselect_all();
+                        this.remove_knots(this.foregroundCurve, this.foregroundChannel, knotNumbers);
                     }
                     break;
                 case "ArrowLeft":
@@ -759,7 +823,14 @@ export class Drawer extends Plotter {
         return cpGroup;
     }
 
-    remove_knots(curve, channel, numbers) {
+    /**
+     * Remove knots from curve channel spline.
+     *
+     * @param {Curve} curve Curve in question.
+     * @param {Number} channel Spline number.
+     * @param {Array} knotNumbers Knut indices to remove.
+     */
+    remove_knots(curve, channel, knotNumbers) {
         const wc = curve.copy()
         const spline = wc.splines[channel];
         if (spline.n_segments <= 1) {
@@ -767,12 +838,15 @@ export class Drawer extends Plotter {
         }
 
         this.emit_curve_changing();
-        numbers.sort().forEach((nr, i) => {
+        knotNumbers.sort().forEach((nr, i) => {
             if (spline.n_segments > 1) {
                 spline.remove_knot(nr - i);
             }
         });
         this.emit_curve_changed(wc);
+    }
+
+    move_selected_knots(offset) {
     }
 
     /**
@@ -799,14 +873,14 @@ export class Drawer extends Plotter {
          * case. If not deselect all before adding.
          */
         const click_select_this_knot = (evt) => {
-            if (
-                this.selector.something_is_selected()
-                && !this.selector.is_selected(knotNr)
-                && !evt.shiftKey
-            ) {
-                this.selector.deselect_all();
+            const nothingSelected = !this.selection.is_empty();
+            const knotUnselected = !this.selection.is_selected(knotNr);
+            if (nothingSelected && knotUnselected && !evt.shiftKey) {
+                this.selection.deselect_all();
             }
-            this.selector.select(knotNr);
+
+            this.selection.select(knotNr);
+            this.update_selected_elements();
         }
 
         this.make_draggable(
@@ -816,7 +890,7 @@ export class Drawer extends Plotter {
             pos => {
                 this.emit_curve_changing(pos)
                 const offset = subtract_arrays(pos, start);
-                selectedKnotNumbers.forEach((knotNr, i) => {
+                this.selection.sort().forEach((knotNr, i) => {
                     const target = add_arrays(initialPositions[i], offset);
                     spline.position_knot(knotNr, target, this.c1);
                 });
@@ -831,8 +905,7 @@ export class Drawer extends Plotter {
 
                 click_select_this_knot(evt);
 
-                selectedKnotNumbers = Array.from(this.selector.selection).sort();
-                selectedKnotNumbers.forEach(kn => {
+                this.selection.sort().forEach(kn => {
                     initialPositions.push(spline.point(kn, KNOT))
                 });
             },
@@ -842,7 +915,7 @@ export class Drawer extends Plotter {
             evt.stopPropagation();
         });
         knotCircle.addEventListener("dblclick", evt => {
-            this.selector.deselect_all();
+            this.selection.deselect_all();
             evt.stopPropagation();
             this.remove_knots(curve, channel, [knotNr]);
         });
@@ -851,6 +924,7 @@ export class Drawer extends Plotter {
 
     /**
      * Plot single curve channel.
+     *
      * @param {Curve} curve Curve to plot.
      * @param {Number} channel Active curve channel number.
      * @param {String} className CSS class name to assigne to path.
@@ -887,11 +961,8 @@ export class Drawer extends Plotter {
                 knotCircles.push(knotCircle)
             });
 
-            this.foregroundCurve = curve;
-            this.foregroundChannel = channel;
-            this.foregroundSpline = spline;
-            this.selector.set_spline(spline);
-            this.selector.set_knot_circles(knotCircles);
+            //this.selector.set_spline(spline);
+            //this.selector.set_knot_circles(knotCircles);
         }
     }
 
@@ -930,6 +1001,9 @@ export class Drawer extends Plotter {
 
         if (0 <= channel && channel < curve.n_splines) {
             this.plot_curve_channel(wc, channel, "foreground");
+            this.foregroundCurve = curve;
+            this.foregroundChannel = channel;
+            this.update_selected_elements();
         }
 
         this._draw_curve_elements();
