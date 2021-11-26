@@ -205,7 +205,6 @@ export class Editor extends Widget {
 
         this.toggle_limits();  // Enable by default. Can only happens once we have selected a motion player!
 
-
         // Channel select
         this.setup_channel_select();
 
@@ -222,22 +221,6 @@ export class Editor extends Widget {
             if (this.transport.playing) {
                 this.play_current_motions();
             }
-        });
-        this.drawer.svg.addEventListener("dblclick", evt => {
-            if (!this.list.selected) {
-                return;
-            }
-
-            const wc = this.history.retrieve().copy();
-            const channel = this.selected_channel();
-            const spline = wc.splines[channel];
-
-            this.curve_changing();
-
-            const pos = this.drawer.mouse_coordinates(evt);
-            spline.insert_knot(pos);
-
-            this.curve_changed(wc);
         });
 
         this.drawer.addEventListener("curvechanging", evt => {
