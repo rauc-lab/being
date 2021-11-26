@@ -345,35 +345,6 @@ class Selector {
 }
 
 
-
-class Selection extends Set {
-    select(nr) {
-        console.log("select()", nr);
-        return this.add(nr);
-    }
-
-    deselect(nr) {
-        console.log("deselect()", nr);
-        return this.delete(nr);
-    }
-
-    deselect_all() {
-        console.log("deselect_all()", nr);
-        return this.sort().map(this.deselect).some();
-    }
-
-    sort() {
-        return Array.from(this).sort()
-    }
-
-}
-
-selection = new Selection();
-selection.add(1)
-selection.add(3)
-selection.add(2)
-
-
 export class Drawer extends Plotter {
     constructor() {
         super();
@@ -392,11 +363,11 @@ export class Drawer extends Plotter {
         this.setup_svg_drag_navigation();
         this.setup_keyboard_shortcuts();
 
-        this.selector = new Selector(this);
-
         this.foregroundCurve = null;
         this.foregroundChannel = null;
         this.foregroundSpline = null;
+
+        this.selector = new Selector(this);
 
         this.svg.addEventListener("click", evt => {
             this.selector.deselect_all();
