@@ -106,12 +106,12 @@ path.middleground {
 path.foreground {
     stroke: black;
     stroke-width: 2;
-    cursor: move;
+    cursor: pointer;
 }
 
 .knot {
     fill: black;
-    cursor: move;
+    cursor: pointer;
 }
 
 .control-point line {
@@ -133,29 +133,27 @@ path.foreground {
     transition: none;
 }
 
-.selection-rectangle {
-    fill: rgba(0, 0, 255, 0.1);
-}
-
 .fade-in {
     opacity: 1.0 !important;
     transition: none !important;
 }
 
+.selection-rectangle {
+    fill: rgba(0, 0, 255, 0.1);
+}
+
+.selected {
+    filter: drop-shadow(0 0 4px blue);
+    cursor: move !important;
+}
+
 circle.selected {
     fill: blue;
-    filter: drop-shadow(0 0 4px blue);
 }
 
 path.selected {
     stroke: blue;
-    filter: drop-shadow(0 0 4px blue);
 }
-
-.no-pointer-events {
-    /*pointer-events: none;*/
-}
-
 </style>
 `
 
@@ -719,6 +717,7 @@ export class Drawer extends Plotter {
                 }
 
                 on_drag(pos);
+
                 spline.restrict_to_bbox(this.limits);
                 this.annotation.move(pos);
                 this.annotation.show();
@@ -727,16 +726,17 @@ export class Drawer extends Plotter {
             },
             "end_drag": evt => {
                 const endPos = this.mouse_coordinates(evt);
-                if (arrays_equal(startPos, endPos)) {
-                    return;
-                }
+                const somethingChanged = !arrays_equal(startPos, endPos);
 
-                this.emit_curve_changed(curve)
-                this.annotation.hide();
                 startPos = null;
                 clear_array(yValues);
+                this.annotation.hide();
                 if (ele.parentNode) {
                     ele.parentNode.classList.remove("fade-in");
+                }
+
+                if (somethingChanged) {
+                    this.emit_curve_changed(curve)
                 }
             },
         };
