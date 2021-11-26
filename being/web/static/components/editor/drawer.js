@@ -1,7 +1,7 @@
 /**
  * @module splien_drawer Component for drawing the actual splines inside the spline editor.
  */
-import { arange, subtract_arrays, add_arrays } from "/static/js/array.js";
+import { arange, subtract_arrays, add_arrays, multiply_scalar } from "/static/js/array.js";
 import { BBox } from "/static/js/bbox.js";
 import { LEFT_MOUSE_BUTTON } from "/static/js/constants.js";
 import { make_draggable } from "/static/js/draggable.js";
@@ -559,6 +559,12 @@ export class Drawer extends Plotter {
      * Setup global key event listeners.
      */
     setup_keyboard_shortcuts() {
+        const moveDirections = {
+            "ArrowLeft": [-0.5, 0],
+            "ArrowRight": [0.5, 0],
+            "ArrowUp": [0, 0.01],
+            "ArrowDown": [0, -0.01],
+        };
         addEventListener("keydown", evt => {
             switch(evt.key) {
                 case "Backspace":
@@ -568,18 +574,22 @@ export class Drawer extends Plotter {
                         this.remove_knots(this.foregroundCurve, this.foregroundChannel, knotNumbers);
                     }
                     break;
-                case "ArrowLeft":
-                    break;
-                case "ArrowRight":
-                    break;
-                case "ArrowUp":
-                    evt.preventDefault();
-                    break;
-                case "ArrowDown":
-                    evt.preventDefault();
-                    break;
                 case "Shift":
                     this.svg.style.cursor = "move";
+                    break;
+                case "ArrowLeft":
+                case "ArrowRight":
+                case "ArrowUp":
+                case "ArrowDown":
+                    evt.preventDefault();
+                    let offset = moveDirections[evt.key];
+                    if (evt.shiftKey) {
+                        offset = multiply_scalar(.1, offset);
+                    }
+                    this.remember_selected_knot_positions();
+                    this.emit_curve_changing();
+                    this.move_selected_knots(offset);
+                    this.emit_curve_changed(this.foregroundCurve);
                     break;
             }
         });
@@ -589,7 +599,6 @@ export class Drawer extends Plotter {
                 this.svg.style.cursor = "";
             }
         });
-        
     }
 
     /**
@@ -688,6 +697,70 @@ export class Drawer extends Plotter {
         };
 
         make_draggable(ele, callbacks);
+    }
+
+    /**
+     * Remove knots from curve channel spline.
+     *
+     * @param {Curve} curve Curve in question.
+     * @param {Number} channel Spline number.
+     * @param {Array} knotNumbers Knut indices to remove.
+     */
+    remove_knots(curve, channel, knotNumbers) {
+        const wc = curve.copy()
+        const spline = wc.splines[channel];
+        if (spline.n_segments <= 1) {
+            return;
+        }
+
+        this.emit_curve_changing();
+        knotNumbers.sort().forEach((nr, i) => {
+            if (spline.n_segments > 1) {
+                spline.remove_knot(nr - i);
+            }
+        });
+        this.emit_curve_changed(wc);
+    }
+
+    /**
+     * Click / select knot. Without shift the clicked knot erases the previous
+     * selection. With shift add knot to current selection.
+     */
+    click_select_knot(knotNr, shiftKey) {
+        const nothingSelected = !this.selection.is_empty();
+        const knotUnselected = !this.selection.is_selected(knotNr);
+        if (nothingSelected && knotUnselected && !shiftKey) {
+            this.selection.deselect_all();
+        }
+
+        this.selection.select(knotNr);
+        this.update_selected_elements();
+    }
+
+    /**
+     * Remember current knot positions of working copy. Necessary to then move
+     * the knots around.
+     */
+    remember_selected_knot_positions() {
+        const spline = this.foregroundCurve.splines[this.foregroundChannel];
+        const numbers = this.selection.sort();
+        this.initialPositions = numbers.map(knotNr => {
+            return Array.from(spline.point(knotNr, KNOT))  // Note: Flat array copy!
+        });
+    }
+
+    /**
+     * Move all selected knots by some offset.
+     * remember_selected_knot_positions() has to be called before!
+     */
+    move_selected_knots(offset) {
+        const spline = this.foregroundCurve.splines[this.foregroundChannel];
+        const numbers = this.selection.sort();
+        assert(numbers.length === this.initialPositions.length, "Rembered knot positions not up to date!");
+        numbers.forEach((knotNr, i) => {
+            const target = add_arrays(this.initialPositions[i], offset);
+            spline.position_knot(knotNr, target, this.c1);
+        });
     }
 
     /**
@@ -847,32 +920,6 @@ export class Drawer extends Plotter {
     }
 
     /**
-     * Remove knots from curve channel spline.
-     *
-     * @param {Curve} curve Curve in question.
-     * @param {Number} channel Spline number.
-     * @param {Array} knotNumbers Knut indices to remove.
-     */
-    remove_knots(curve, channel, knotNumbers) {
-        const wc = curve.copy()
-        const spline = wc.splines[channel];
-        if (spline.n_segments <= 1) {
-            return;
-        }
-
-        this.emit_curve_changing();
-        knotNumbers.sort().forEach((nr, i) => {
-            if (spline.n_segments > 1) {
-                spline.remove_knot(nr - i);
-            }
-        });
-        this.emit_curve_changed(wc);
-    }
-
-    move_selected_knots(offset) {
-    }
-
-    /**
      * Plot interactive spline knots.
      *
      * @param {Curve} curve Curve to draw knots from.
@@ -888,23 +935,6 @@ export class Drawer extends Plotter {
         knotCircle.classList.add("knot");
 
         let start = null;
-        let initialPositions = [];
-        let selectedKnotNumbers = [];
-
-        /**
-         * Select this knot. If shift is pressed add it to selection in any
-         * case. If not deselect all before adding.
-         */
-        const click_select_this_knot = (evt) => {
-            const nothingSelected = !this.selection.is_empty();
-            const knotUnselected = !this.selection.is_selected(knotNr);
-            if (nothingSelected && knotUnselected && !evt.shiftKey) {
-                this.selection.deselect_all();
-            }
-
-            this.selection.select(knotNr);
-            this.update_selected_elements();
-        }
 
         this.make_draggable(
             knotCircle,
@@ -913,27 +943,18 @@ export class Drawer extends Plotter {
             pos => {
                 this.emit_curve_changing(pos)
                 const offset = subtract_arrays(pos, start);
-                this.selection.sort().forEach((knotNr, i) => {
-                    const target = add_arrays(initialPositions[i], offset);
-                    spline.position_knot(knotNr, target, this.c1);
-                });
-                 
+                this.move_selected_knots(offset);
                 const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
                 this.annotation.annotate(txt);
             },
             (evt, startPos) => {
                 start = startPos;
-                clear_array(initialPositions);
-
-                click_select_this_knot(evt);
-
-                this.selection.sort().forEach(kn => {
-                    initialPositions.push(spline.point(kn, KNOT))
-                });
+                this.click_select_knot(knotNr, evt.shiftKey);
+                this.remember_selected_knot_positions();
             },
         );
         knotCircle.addEventListener("click", evt => {
-            click_select_this_knot(evt);
+            this.click_select_knot(knotNr, evt.shiftKey);
             evt.stopPropagation();
         });
         knotCircle.addEventListener("dblclick", evt => {
@@ -1023,7 +1044,7 @@ export class Drawer extends Plotter {
 
         if (0 <= channel && channel < curve.n_splines) {
             this.plot_curve_channel(wc, channel, "foreground");
-            this.foregroundCurve = curve;
+            this.foregroundCurve = wc;
             this.foregroundChannel = channel;
             this.update_selected_elements();
         }
