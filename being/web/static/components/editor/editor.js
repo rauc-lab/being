@@ -775,6 +775,7 @@ export class Editor extends Widget {
 
             const selectedCurve = this.list.selected_curve();
             this.drawer.change_viewport(selectedCurve.bbox());
+            this.drawer.clear_and_forget();
             this.draw_curve(selected, selectedCurve);
 
         });
@@ -917,7 +918,7 @@ export class Editor extends Widget {
      * Delete current curve.
      */
     async delete_current_curve() {
-        this.drawer.clear();
+        this.drawer.clear_and_forget();
         const selected = this.list.selected;
         if (!selected) {
             return console.log("No curve selected!");
@@ -1014,7 +1015,7 @@ export class Editor extends Widget {
             line.data.clear();
             line.data.maxlen = Infinity;
         });
-        this.drawer.clear();
+        this.drawer.clear_and_forget();
         await this.api.disable_motors();
         this.update_ui();
     }

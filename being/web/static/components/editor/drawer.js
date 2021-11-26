@@ -354,7 +354,7 @@ export class Drawer extends Plotter {
     }
 
     /**
-     * Clear everything.
+     * Clear foreground curve and SVG elements but remember selection .
      */
     clear() {
         this.foregroundCurve = null;
@@ -363,6 +363,15 @@ export class Drawer extends Plotter {
         clear_array(this.foregroundPathElements);
         clear_array(this.otherElements);
         remove_all_children(this.elementGroup);
+    }
+
+    /**
+     * Same as clear() but also forget selection.
+     */
+    clear_and_forget() {
+        this.clear();
+        this.selection.deselect_all();
+        this.update_selected_elements();
     }
 
     /**
