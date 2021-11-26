@@ -3,12 +3,11 @@
  */
 import { arange, subtract_arrays, add_arrays, multiply_scalar } from "/static/js/array.js";
 import { BBox } from "/static/js/bbox.js";
-import { LEFT_MOUSE_BUTTON } from "/static/js/constants.js";
 import { make_draggable } from "/static/js/draggable.js";
 import { clip } from "/static/js/math.js";
 import { Plotter } from "/static/components/plotter.js";
 import { COEFFICIENTS_DEPTH, KNOT, FIRST_CP, SECOND_CP, Degree, LEFT, RIGHT } from "/static/js/spline.js";
-import { create_element, path_d, setattr, getattr } from "/static/js/svg.js";
+import { create_element, path_d, setattr } from "/static/js/svg.js";
 import {
     assert, arrays_equal, clear_array, remove_all_children, emit_custom_event,
 } from "/static/js/utils.js";
@@ -67,7 +66,225 @@ function clip_point(pt, bbox) {
 }
 
 
-const EXTRA_STYLE = `
+/**
+ * Find index where to insert value in sorted array. Left sided.
+ *
+ * @param {Array} arr Array to search
+ * @param {Number} value Search value.
+ * @returns Index where to insert value to preserve order.
+ */
+function searchsorted_left(arr, value) {
+    let left = 0;
+    let right = arr.length;
+    while (left < right) {
+        const mid = Math.floor(0.5 * (left + right));
+        if (arr[mid] < value) {
+            left = mid + 1;
+        } else {
+            right = mid
+        }
+    }
+
+    return left;
+}
+
+
+/**
+ * Find index where to insert value in sorted array. Right sided.
+ *
+ * @param {Array} arr Array to search
+ * @param {Number} value Search value.
+ * @returns Index where to insert value to preserve order.
+ */
+function searchsorted_right(arr, value) {
+    let left = 0;
+    let right = arr.length;
+    while (left < right) {
+        const mid = Math.floor(0.5 * (left + right));
+        if (arr[mid] <= value) {
+            left = mid + 1;
+        } else {
+            right = mid;
+        }
+    }
+
+    return right;
+}
+
+
+/**
+ * Data container for selected indices.
+ */
+class Selection {
+    constructor() {
+        this.set = new Set();
+    }
+
+    /**
+     * Check if number is selected.
+     *
+     * @param {Number} nr Number to check.
+     * @returns If number is selected.
+     */
+    is_selected(nr) {
+        return this.set.has(nr);
+    }
+
+    /**
+     * If nothing is selected.
+     *
+     * @returns If nothing is selected.
+     */
+    is_empty() {
+        return this.set.size === 0
+    }
+
+    /**
+     * Select new number.
+     *
+     * @param {Number} nr Number to select.
+     * @returns If selection changed.
+     */
+    select(nr) {
+        return this.set.add(nr);
+    }
+
+    /**
+     * Deselect number.
+     *
+     * @param {Number} nr Number to deselect.
+     * @returns If selection changed.
+     */
+    deselect(nr) {
+        return this.set.delete(nr);
+    }
+
+    /**
+     * Clear selection.
+     *
+     * @returns If selection changed.
+     */
+    deselect_all() {
+        if (this.is_empty()) {
+            return false;
+        }
+
+        this.set.clear();
+        return true;
+    }
+
+    /**
+     * Get frozen sorted selection.
+     *
+     * @returns Sorted array copy of selection.
+     */
+    sort() {
+        return Array.from(this.set).sort()
+    }
+}
+
+
+/**
+ * Selection rectangle wrapper.
+ */
+class SelectionRectangle {
+    /**
+     * @param {Drawer} drawer Parent drawer instance.
+     */
+    constructor(drawer) {
+        this.drawer = drawer;
+        this.rect = create_element("rect");
+        this.rect.classList.add("selection-rectangle");
+        this.drawer.svg.appendChild(this.rect);
+        this.hide();
+    }
+
+    /**
+     * Move selection box.
+     *
+     * @param {Number} left Left side of selection box in data space coordinates.
+     * @param {Number} right Right side of selection box in data space coordinates.
+     */
+    move(left, right) {
+        const [a, _] = this.drawer.transform_point([left, 0]);
+        const [b, __] = this.drawer.transform_point([right, 0]);
+        setattr(this.rect, "x", a);
+        setattr(this.rect, "y", 0);
+        setattr(this.rect, "width", b - a);
+        setattr(this.rect, "height", this.drawer.clientHeight);
+    }
+
+    /**
+     * Show selection box rectangle.
+     */
+    show() {
+        this.rect.style.display = "";
+    }
+
+    /**
+     * Hide selection box rectangle.
+     */
+    hide() {
+        this.rect.style.display = "none";
+    }
+}
+
+
+/**
+ * Annotation wrapper.
+ */
+class Annotation {
+    /**
+     * @param {Drawer} drawer Parent drawer instance.
+     */
+    constructor(drawer) {
+        this.drawer = drawer;
+        this.span = document.createElement("span");
+        this.span.classList.add("annotation");
+        drawer.shadowRoot.appendChild(this.span);
+    }
+
+    /**
+     * Move annotate label around.
+     *
+     * @param {Array} pos Position to move to (data space).
+     * @param {Number} offset Offset value.
+     */
+    move(pos, offset = 10) {
+        const [x, y] = this.drawer.transform_point(pos);
+        const bbox = this.span.getBoundingClientRect();
+        const width = this.drawer.canvas.width;
+        const height = this.drawer.canvas.height;
+        this.span.style.left = Math.min(x + offset, width - bbox.width) + "px";
+        this.span.style.top = Math.max(y - offset - bbox.height, 0) + "px";
+    }
+
+    /**
+     * Set inner HTML of annotation label.
+     *
+     * @param {String} text Annotation text.
+     */
+    annotate(text) {
+        this.span.innerHTML = text;
+    }
+
+    /**
+     * Show annotation.
+     */
+    show() {
+        this.span.style.visibility = "visible";
+    }
+
+    /**
+     * Hide annotation.
+     */
+    hide() {
+        this.span.style.visibility = "hidden";
+    }
+}
+
+
+const DRAWER_STYLE = `
 <style>
 :host {
     user-select: none; /* standard syntax */
@@ -158,154 +375,10 @@ path.selected {
 `
 
 
-function searchsorted_left(arr, value) {
-    let left = 0;
-    let right = arr.length;
-    while (left < right) {
-        const mid = Math.floor(0.5 * (left + right));
-        if (arr[mid] < value) {
-            left = mid + 1;
-        } else {
-            right = mid
-        }
-    }
-
-    return left;
-}
-
-
-function searchsorted_right(arr, value) {
-    let left = 0;
-    let right = arr.length;
-    while (left < right) {
-        const mid = Math.floor(0.5 * (left + right));
-        if (arr[mid] <= value) {
-            left = mid + 1;
-        } else {
-            right = mid;
-        }
-    }
-
-    return right;
-}
-
-
-class Selection {
-    constructor() {
-        this.set = new Set();
-    }
-
-    select(nr) {
-        return this.set.add(nr);
-    }
-
-    deselect(nr) {
-        return this.set.delete(nr);
-    }
-
-    is_selected(nr) {
-        return this.set.has(nr);
-    }
-
-    is_empty() {
-        return this.set.size === 0
-    }
-
-    deselect_all() {
-        if (this.is_empty()) {
-            return false;
-        }
-
-        this.set.clear();
-        return true;
-    }
-
-    sort() {
-        return Array.from(this.set).sort()
-    }
-}
-
-
-class SelectionRectangle {
-    constructor(drawer) {
-        this.drawer = drawer;
-        this.rect = create_element("rect");
-        this.rect.classList.add("selection-rectangle");
-        this.drawer.svg.appendChild(this.rect);
-        this.hide();
-    }
-
-    move(left, right) {
-        const [a, _] = this.drawer.transform_point([left, 0]);
-        const [b, __] = this.drawer.transform_point([right, 0]);
-        setattr(this.rect, "x", a);
-        setattr(this.rect, "y", 0);
-        setattr(this.rect, "width", b - a);
-        setattr(this.rect, "height", this.drawer.clientHeight);
-    }
-
-    show() {
-        this.rect.style.display = "";
-    }
-
-    hide() {
-        this.rect.style.display = "none";
-    }
-}
-
-
-class Annotation {
-    constructor(drawer) {
-        this.drawer = drawer;
-        this.span = document.createElement("span");
-        this.span.classList.add("annotation");
-        drawer.shadowRoot.appendChild(this.span);
-    }
-
-    /**
-     * Move annotate label around.
-     *
-     * @param {Array} pos Position to move to (data space).
-     * @param {Number} offset Offset value.
-     */
-    move(pos, offset = 10) {
-        const [x, y] = this.drawer.transform_point(pos);
-        const bbox = this.span.getBoundingClientRect();
-        const width = this.drawer.canvas.width;
-        const height = this.drawer.canvas.height;
-        this.span.style.left = Math.min(x + offset, width - bbox.width) + "px";
-        this.span.style.top = Math.max(y - offset - bbox.height, 0) + "px";
-    }
-
-    /**
-     * Set inner HTML of annotation label.
-     *
-     * @param {String} text Annotation text.
-     */
-    annotate(text) {
-        this.span.innerHTML = text;
-    }
-
-    /**
-     * Show annotation.
-     */
-    show() {
-        this.span.style.visibility = "visible";
-    }
-
-    /**
-     * Hide annotation.
-     */
-    hide() {
-        this.span.style.visibility = "hidden";
-    }
-}
-
-
 export class Drawer extends Plotter {
     constructor() {
         super();
-        this.append_template(EXTRA_STYLE);
+        this.append_template(DRAWER_STYLE);
         this.autoscaling = false;
         this.foregroundCurve = null;
         this.foregroundChannel = null;
@@ -314,7 +387,6 @@ export class Drawer extends Plotter {
         this.c1 = true;
         this.snapping_to_grid = true;
         this.limits = new BBox([0, -Infinity], [Infinity, Infinity]);
-
 
         // SVG drawing elements
         this.elementGroup = this.svg.appendChild(create_element("g"));
@@ -447,9 +519,9 @@ export class Drawer extends Plotter {
                 clientStartPos = null;
                 original = null;
                 focal = 0;
-                let startPos = null;
-                let xs = [];
-                let shiftPressed = false;
+                startPos = null;
+                xs = [];
+                shiftPressed = false;
                 this.selectionRect.hide();
             },
         };
@@ -523,6 +595,7 @@ export class Drawer extends Plotter {
             }
         });
     }
+
     /**
      * Remove knots from curve channel spline.
      *
@@ -544,24 +617,6 @@ export class Drawer extends Plotter {
             }
         });
         this.emit_curve_changed(wc);
-    }
-
-    /**
-     * Process click on selected element.
-     *   - If already selected continue
-     *   - If not selected:
-     *       - Without shift key: Overwrite selection
-     *       - With shift key: Add to selection.
-     */
-    click_select_knots(knotNumbers, shiftKey) {
-        const somethingSelected = !this.selection.is_empty();
-        const adjacent = !knotNumbers.some(nr => this.selection.is_selected(nr));
-        if (somethingSelected && adjacent && !shiftKey) {
-            this.selection.deselect_all();
-        }
-
-        knotNumbers.forEach(nr => this.selection.select(nr));
-        this.update_selected_elements();
     }
 
     /**
@@ -588,6 +643,24 @@ export class Drawer extends Plotter {
             const target = add_arrays(this.initialPositions[i], offset);
             spline.position_knot(knotNr, target, this.c1);
         });
+    }
+
+    /**
+     * Process click on selected element.
+     *   - If already selected continue
+     *   - If not selected:
+     *       - Without shift key: Overwrite selection
+     *       - With shift key: Add to selection.
+     */
+    click_select_knots(knotNumbers, shiftKey) {
+        const somethingSelected = !this.selection.is_empty();
+        const adjacent = !knotNumbers.some(nr => this.selection.is_selected(nr));
+        if (somethingSelected && adjacent && !shiftKey) {
+            this.selection.deselect_all();
+        }
+
+        knotNumbers.forEach(nr => this.selection.select(nr));
+        this.update_selected_elements();
     }
 
     /**
