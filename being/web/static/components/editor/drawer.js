@@ -131,10 +131,12 @@ class Grid {
     _snap_y_value(y) {
         if (this.yValues.length > 0) {
             const idx = searchsorted_left(this.yValues, y);
-            const candidate = this.yValues[idx];
-            const dist = Math.abs(candidate - y);
-            if (dist < this.abs_tol) {
-                return candidate;
+            if (idx < this.yValues.length) {
+                const candidate = this.yValues[idx];
+                const dist = Math.abs(candidate - y);
+                if (dist < this.abs_tol) {
+                    return candidate;
+                }
             }
         }
 
