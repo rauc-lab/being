@@ -1,13 +1,13 @@
 /**
  * @module spline_editor Spline editor custom HTML element.
  */
+import { Drawer } from "/static/components/editor/drawer.js"; // Needs to be imported. Otherwise component does not load in time and SVG is not ready!
 import { as_curve } from "/static/components/editor/list.js";
-import { Drawer } from "/static/components/editor/drawer.js";  // Needs to be imported. Otherwise component does not load in time and SVG is not ready!
 import { PAUSED, PLAYING, RECORDING, Transport, } from "/static/components/editor/transport.js";
 import { Api } from "/static/js/api.js";
 import { BBox } from "/static/js/bbox.js";
 import { create_button } from "/static/js/button.js";
-import { 
+import {
     disable_button, enable_button, is_checked, switch_button_off,
     switch_button_on, switch_button_to, toggle_button,
 } from "/static/js/button.js";
@@ -15,7 +15,7 @@ import { Curve, ALL_CHANNELS } from "/static/js/curve.js";
 import { History } from "/static/js/history.js";
 import { clip } from "/static/js/math.js";
 import { zero_spline } from "/static/js/spline.js";
-import { clear_array, add_option, remove_all_children, } from "/static/js/utils.js";
+import { add_option, clear_array, remove_all_children, } from "/static/js/utils.js";
 import { Widget, append_template_to, create_select, } from "/static/js/widget.js";
 
 

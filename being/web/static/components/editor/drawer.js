@@ -1,43 +1,16 @@
 /**
  * @module drawer Component for drawing the actual curves / splines inside editor.
  */
+import { Plotter } from "/static/components/plotter.js";
+import { add_arrays, arange, multiply_scalar, subtract_arrays, } from "/static/js/array.js";
+import { BBox } from "/static/js/bbox.js";
+import { make_draggable } from "/static/js/draggable.js";
+import { clip } from "/static/js/math.js";
+import { Degree, FIRST_CP, KNOT, LEFT, RIGHT, SECOND_CP, } from "/static/js/spline.js";
+import { create_element, path_d, setattr } from "/static/js/svg.js";
 import {
-    Plotter
-} from "/static/components/plotter.js";
-import {
-    add_arrays,
-    arange,
-    multiply_scalar subtract_arrays,
-} from "/static/js/array.js";
-import {
-    BBox
-} from "/static/js/bbox.js";
-import {
-    make_draggable
-} from "/static/js/draggable.js";
-import {
-    clip
-} from "/static/js/math.js";
-import {
-    KNOT,
-    FIRST_CP,
-    SECOND_CP,
-    Degree,
-    LEFT,
-    RIGHT
-} from "/static/js/spline.js";
-import {
-    create_element,
-    path_d,
-    setattr
-} from "/static/js/svg.js";
-import {
-    assert,
-    arrays_equal,
-    clear_array,
+    arrays_equal, assert, clear_array, emit_custom_event, last_element,
     remove_all_children,
-    emit_custom_event,
-    last_element,
 } from "/static/js/utils.js";
 
 
