@@ -1,22 +1,50 @@
 /**
  * @module drawer Component for drawing the actual curves / splines inside editor.
  */
-import { arange, subtract_arrays, add_arrays, multiply_scalar } from "/static/js/array.js";
-import { BBox } from "/static/js/bbox.js";
-import { make_draggable } from "/static/js/draggable.js";
-import { clip } from "/static/js/math.js";
-import { Plotter } from "/static/components/plotter.js";
-import { KNOT, FIRST_CP, SECOND_CP, Degree, LEFT, RIGHT } from "/static/js/spline.js";
-import { create_element, path_d, setattr } from "/static/js/svg.js";
 import {
-    assert, arrays_equal, clear_array, remove_all_children, emit_custom_event, last_element,
+    Plotter
+} from "/static/components/plotter.js";
+import {
+    add_arrays,
+    arange,
+    multiply_scalar subtract_arrays,
+} from "/static/js/array.js";
+import {
+    BBox
+} from "/static/js/bbox.js";
+import {
+    make_draggable
+} from "/static/js/draggable.js";
+import {
+    clip
+} from "/static/js/math.js";
+import {
+    KNOT,
+    FIRST_CP,
+    SECOND_CP,
+    Degree,
+    LEFT,
+    RIGHT
+} from "/static/js/spline.js";
+import {
+    create_element,
+    path_d,
+    setattr
+} from "/static/js/svg.js";
+import {
+    assert,
+    arrays_equal,
+    clear_array,
+    remove_all_children,
+    emit_custom_event,
+    last_element,
 } from "/static/js/utils.js";
 
 
 /**
  * Nice float formatting with max precision and "0" for small numbers.
  */
-function format_number(number, precision=3, smallest=1e-10) {
+function format_number(number, precision = 3, smallest = 1e-10) {
     if (Math.abs(number) < smallest) {
         return "0";
     }
@@ -86,27 +114,47 @@ function searchsorted_right(arr, value) {
 }
 
 
+/**
+ * Data container for snapping to horizontal grid.
+ */
 class Grid {
-    constructor(ndigits=3, abs_tol=0.001) {
-        this.ndigits = ndigits;
+    /**
+     * @param {Number} abs_tol Absolute tolerance.
+     */
+    constructor(abs_tol = 0.001) {
         this.abs_tol = abs_tol;
         this.yValues = [];
     }
 
+    /**
+     * Clear grid values.
+     */
     clear() {
         clear_array(this.yValues);
     }
 
+    /**
+     * Add y value to grid.
+     */
     add_y_value(y) {
         const index = searchsorted_left(this.yValues, y);
         this.yValues.splice(index, 0, y);
     }
 
+    /**
+     * Remove y value from grid.
+     */
     remove_y_value(y) {
         const index = this.yValues.indexOf(y);
         this.yValues.splice(index, 1);
     }
 
+    /**
+     * Snap y value to grid.
+     *
+     * @param {Number} y Horizontal value to snap.
+     * @returns {Number} Snapped y value.
+     */
     _snap_y_value(y) {
         if (this.yValues.length > 0) {
             const idx = searchsorted_left(this.yValues, y);
@@ -120,10 +168,19 @@ class Grid {
         return y;
     }
 
+    /**
+     * Snap point to grid.
+     *
+     * @param {Array} pt 2D point.
+     * @returns {Array} Snapped 2D point.
+     */
     snap_point(pt) {
-        return [ pt[0], this._snap_y_value(pt[1]) ];
+        return [pt[0], this._snap_y_value(pt[1])];
     }
 
+    /**
+     * Update grid values from spline.
+     */
     update_from_spline(spline) {
         arange(spline.n_segments + 1).forEach(knotNr => {
             const [_, y] = spline.point(knotNr, KNOT);
@@ -481,16 +538,16 @@ export class Drawer extends Plotter {
      *   b) Navigate viewport. Horizontal shifts / vertical zooms around middle focal point.
      */
     setup_global_svg_drag_listeners() {
-        let shiftPressed = false;  // Remember on mouse down if shift key was pressed
+        let shiftPressed = false; // Remember on mouse down if shift key was pressed
 
         // Drag navigation
-        let clientStartPos = null;  // Initial start position in client space coordinates
-        let original = null;  // Original viewport copy
-        let focal = 0;  // Horizontal x coordinate of "focal point"
+        let clientStartPos = null; // Initial start position in client space coordinates
+        let original = null; // Original viewport copy
+        let focal = 0; // Horizontal x coordinate of "focal point"
 
         // Selection rectangle
-        let startPos = null;  // Initial start position in data space coordinates
-        let xs = [];  // Knot values
+        let startPos = null; // Initial start position in data space coordinates
+        let xs = []; // Knot values
 
         const callbacks = {
             "start_drag": evt => {
@@ -566,7 +623,7 @@ export class Drawer extends Plotter {
             "ArrowDown": [0, -0.01],
         };
         addEventListener("keydown", evt => {
-            switch(evt.key) {
+            switch (evt.key) {
                 case "Backspace":
                     if (!this.selection.is_empty()) {
                         const knotNumbers = this.selection.sort();
@@ -654,7 +711,7 @@ export class Drawer extends Plotter {
         const spline = this.foregroundCurve.splines[this.foregroundChannel];
         const numbers = this.selection.sort();
         this.initialPositions = numbers.map(knotNr => {
-            return Array.from(spline.point(knotNr, KNOT))  // Note: Flat array copy!
+            return Array.from(spline.point(knotNr, KNOT)) // Note: Flat array copy!
         });
     }
 
@@ -662,7 +719,7 @@ export class Drawer extends Plotter {
      * Move all selected knots by some offset.
      * remember_selected_knot_positions() has to be called before!
      */
-    move_selected_knots(offset, snap=false) {
+    move_selected_knots(offset, snap = false) {
         const spline = this.foregroundCurve.splines[this.foregroundChannel];
         const numbers = this.selection.sort();
         assert(numbers.length === this.initialPositions.length, "Rembered knot positions not up to date!");
@@ -757,7 +814,7 @@ export class Drawer extends Plotter {
      *
      * @param {Array} position Optional position value to trigger live preview.
      */
-    emit_curve_changing(position=null) {
+    emit_curve_changing(position = null) {
         emit_custom_event(this, "curvechanging", {
             position: position,
         });
@@ -798,7 +855,7 @@ export class Drawer extends Plotter {
      * @param {Function} on_drag On drag motion callback. Will be called with a relative
      * delta array.
      */
-    make_draggable(ele, curve, channel, callbacks={}) {
+    make_draggable(ele, curve, channel, callbacks = {}) {
         const no_action = (evt, pos) => {};
         callbacks = Object.assign({
             "start_drag": no_action,
@@ -900,7 +957,7 @@ export class Drawer extends Plotter {
 
             if (className === "middleground") {
                 path.addEventListener("click", evt => {
-                    evt.stopPropagation();  // Prevents transport cursor to jump
+                    evt.stopPropagation(); // Prevents transport cursor to jump
                     this.forget_selection();
                     this.emit_channel_changed(channel);
                 });
@@ -1049,7 +1106,7 @@ export class Drawer extends Plotter {
      * @param {String} className CSS class name to assigne to path.
      * @param {Number} radius Circle radius.
      */
-    plot_curve_channel(curve, channel, className, radius=6) {
+    plot_curve_channel(curve, channel, className, radius = 6) {
         const spline = curve.splines[channel];
         assert(spline.degree <= Degree.CUBIC, `Spline degree ${spline.degree} not supported!`);
         this.plot_curve_path(curve, channel, className);
@@ -1103,7 +1160,7 @@ export class Drawer extends Plotter {
      *
      * @param {Curve} curve Foreground curve to draw.
      */
-    draw_foreground_curve(curve, channel=-1) {
+    draw_foreground_curve(curve, channel = -1) {
         if (curve.n_splines === 0) {
             this.selector.clear();
             return;
