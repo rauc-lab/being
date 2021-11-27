@@ -178,7 +178,7 @@ export class List extends WidgetBase {
     select(name, publish=true) {
         assert(this.curves.has(name), `Unknown curve ${name}`);
         if (name === this.selected) {
-            return console.log(name, "is allready selected");
+            return;
         }
 
         if (this.selected) {

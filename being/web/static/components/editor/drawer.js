@@ -1,42 +1,16 @@
 /**
- * @module splien_drawer Component for drawing the actual splines inside the spline editor.
+ * @module drawer Component for drawing the actual curves / splines inside editor.
  */
 import { arange, subtract_arrays, add_arrays, multiply_scalar } from "/static/js/array.js";
 import { BBox } from "/static/js/bbox.js";
 import { make_draggable } from "/static/js/draggable.js";
 import { clip } from "/static/js/math.js";
 import { Plotter } from "/static/components/plotter.js";
-import { COEFFICIENTS_DEPTH, KNOT, FIRST_CP, SECOND_CP, Degree, LEFT, RIGHT } from "/static/js/spline.js";
+import { KNOT, FIRST_CP, SECOND_CP, Degree, LEFT, RIGHT } from "/static/js/spline.js";
 import { create_element, path_d, setattr } from "/static/js/svg.js";
 import {
-    assert, arrays_equal, clear_array, remove_all_children, emit_custom_event,
+    assert, arrays_equal, clear_array, remove_all_children, emit_custom_event, last_element,
 } from "/static/js/utils.js";
-
-
-/**
- * Try to snap value to array of grid values. Return value as if not close
- * enough to grid. Exclude value itself as grid line candidate.
- *
- * @param {Number} value Value to snap to grid.
- * @param {Array} grid Grid values.
- * @param {Number} threshold Distance attraction threshold.
- * @returns Snapped value.
- */
-function snap_to_value(value, grid, threshold=.001) {
-    let ret = value;
-    let dist = Infinity;
-    grid.forEach(g => {
-        if (value !== g) {
-            const d = Math.abs(value - g);
-            if (d < threshold && d < dist) {
-                dist = d;
-                ret = g;
-            }
-        }
-    });
-
-    return ret;
-}
 
 
 /**
@@ -112,18 +86,104 @@ function searchsorted_right(arr, value) {
 }
 
 
+class Grid {
+    constructor(ndigits=3, abs_tol=0.001) {
+        this.ndigits = ndigits;
+        this.abs_tol = abs_tol;
+        this.yValues = [];
+    }
+
+    clear() {
+        clear_array(this.yValues);
+    }
+
+    add_y_value(y) {
+        const index = searchsorted_left(this.yValues, y);
+        this.yValues.splice(index, 0, y);
+    }
+
+    remove_y_value(y) {
+        const index = this.yValues.indexOf(y);
+        this.yValues.splice(index, 1);
+    }
+
+    _snap_y_value(y) {
+        if (this.yValues.length > 0) {
+            const idx = searchsorted_left(this.yValues, y);
+            const candidate = this.yValues[idx];
+            const dist = Math.abs(candidate - y);
+            if (dist < this.abs_tol) {
+                return candidate;
+            }
+        }
+
+        return y;
+    }
+
+    snap_point(pt) {
+        return [ pt[0], this._snap_y_value(pt[1]) ];
+    }
+
+    update_from_spline(spline) {
+        arange(spline.n_segments + 1).forEach(knotNr => {
+            const [_, y] = spline.point(knotNr, KNOT);
+            this.add_y_value(y);
+        })
+    }
+}
+
+
 /**
- * Round array componentwise.
- *
- * @param {Array} arr Array to round.
- * @param {Number} ndigits Number of digits to round.
- * @returns Rounded array.
+ * Annotation wrapper.
  */
-function round_array(arr, ndigits=0) {
-    const shift = Math.pow(10, ndigits);
-    const a = multiply_scalar(shift, arr);
-    const b = a.map(Math.round);
-    return multiply_scalar(1 / shift, b);
+class Annotation {
+    /**
+     * @param {Drawer} drawer Parent drawer instance.
+     */
+    constructor(drawer) {
+        this.drawer = drawer;
+        this.span = document.createElement("span");
+        this.span.classList.add("annotation");
+        drawer.shadowRoot.appendChild(this.span);
+    }
+
+    /**
+     * Move annotate label around.
+     *
+     * @param {Array} pos Position to move to (data space).
+     * @param {Number} offset Offset value.
+     */
+    move(pos, offset = 10) {
+        const [x, y] = this.drawer.transform_point(pos);
+        const bbox = this.span.getBoundingClientRect();
+        const width = this.drawer.canvas.width;
+        const height = this.drawer.canvas.height;
+        this.span.style.left = Math.min(x + offset, width - bbox.width) + "px";
+        this.span.style.top = Math.max(y - offset - bbox.height, 0) + "px";
+    }
+
+    /**
+     * Set inner HTML of annotation label.
+     *
+     * @param {String} text Annotation text.
+     */
+    annotate(text) {
+        this.span.innerHTML = text;
+    }
+
+    /**
+     * Show annotation.
+     */
+    show() {
+        this.span.style.visibility = "visible";
+    }
+
+    /**
+     * Hide annotation.
+     */
+    hide() {
+        this.span.style.visibility = "hidden";
+    }
 }
 
 
@@ -245,59 +305,6 @@ class SelectionRectangle {
 }
 
 
-/**
- * Annotation wrapper.
- */
-class Annotation {
-    /**
-     * @param {Drawer} drawer Parent drawer instance.
-     */
-    constructor(drawer) {
-        this.drawer = drawer;
-        this.span = document.createElement("span");
-        this.span.classList.add("annotation");
-        drawer.shadowRoot.appendChild(this.span);
-    }
-
-    /**
-     * Move annotate label around.
-     *
-     * @param {Array} pos Position to move to (data space).
-     * @param {Number} offset Offset value.
-     */
-    move(pos, offset = 10) {
-        const [x, y] = this.drawer.transform_point(pos);
-        const bbox = this.span.getBoundingClientRect();
-        const width = this.drawer.canvas.width;
-        const height = this.drawer.canvas.height;
-        this.span.style.left = Math.min(x + offset, width - bbox.width) + "px";
-        this.span.style.top = Math.max(y - offset - bbox.height, 0) + "px";
-    }
-
-    /**
-     * Set inner HTML of annotation label.
-     *
-     * @param {String} text Annotation text.
-     */
-    annotate(text) {
-        this.span.innerHTML = text;
-    }
-
-    /**
-     * Show annotation.
-     */
-    show() {
-        this.span.style.visibility = "visible";
-    }
-
-    /**
-     * Hide annotation.
-     */
-    hide() {
-        this.span.style.visibility = "hidden";
-    }
-}
-
 
 const DRAWER_STYLE = `
 <style>
@@ -409,6 +416,10 @@ export class Drawer extends Plotter {
         this.foregroundPathElements = [];
         this.otherElements = [];
 
+        // Grid
+        this.grid = new Grid();
+
+        // Annotation
         this.annotation = new Annotation(this);
 
         // Knot selection
@@ -465,8 +476,9 @@ export class Drawer extends Plotter {
     }
 
     /**
-     * Setup drag event handlers for moving horizontally and zooming
-     * vertically.
+     * Setup drag handlers for SVG. Either:
+     *   a) Draw selection rectangle box
+     *   b) Navigate viewport. Horizontal shifts / vertical zooms around middle focal point.
      */
     setup_global_svg_drag_listeners() {
         let shiftPressed = false;  // Remember on mouse down if shift key was pressed
@@ -500,7 +512,7 @@ export class Drawer extends Plotter {
             },
             "drag": evt => {
                 if (shiftPressed) {
-                    // Affine image transformation around focal point
+                    // Affine transform viewport around focal point
                     const clientPos = [evt.clientX, evt.clientY];
                     const delta = subtract_arrays(clientPos, clientStartPos);
                     const shift = -delta[0] / this.canvas.width * original.width;
@@ -510,14 +522,14 @@ export class Drawer extends Plotter {
                     this.update_transformation_matrices();
                     this.draw();
                 } else {
-                    // Selection rectangle region
+                    // Selection rectangle box region
                     const pos = this.mouse_coordinates(evt);
                     const left = Math.min(startPos[0], pos[0]);
                     const right = Math.max(startPos[0], pos[0]);
                     this.selectionRect.move(left, right);
                     this.selectionRect.show();
 
-                    // Find selected knots
+                    // Selected knots inside selection rectangle box
                     const lo = searchsorted_left(xs, left);
                     const hi = searchsorted_right(xs, right);
                     xs.forEach((_, i) => {
@@ -650,12 +662,16 @@ export class Drawer extends Plotter {
      * Move all selected knots by some offset.
      * remember_selected_knot_positions() has to be called before!
      */
-    move_selected_knots(offset) {
+    move_selected_knots(offset, snap=false) {
         const spline = this.foregroundCurve.splines[this.foregroundChannel];
         const numbers = this.selection.sort();
         assert(numbers.length === this.initialPositions.length, "Rembered knot positions not up to date!");
         numbers.forEach((knotNr, i) => {
-            const target = add_arrays(this.initialPositions[i], offset);
+            let target = add_arrays(this.initialPositions[i], offset);
+            if (snap) {
+                target = this.grid.snap_point(target)
+            }
+
             spline.position_knot(knotNr, target, this.c1);
         });
     }
@@ -755,7 +771,7 @@ export class Drawer extends Plotter {
     emit_curve_changed(newCurve) {
         emit_custom_event(this, "curvechanged", {
             newCurve: newCurve,
-        })
+        });
     }
 
     /**
@@ -782,55 +798,71 @@ export class Drawer extends Plotter {
      * @param {Function} on_drag On drag motion callback. Will be called with a relative
      * delta array.
      */
-    make_draggable(ele, curve, channel, on_drag, start_drag=(evt, pos) => {}) {
-        /** Start position of drag motion. */
+    make_draggable(ele, curve, channel, callbacks={}) {
+        const no_action = (evt, pos) => {};
+        callbacks = Object.assign({
+            "start_drag": no_action,
+            "drag": no_action,
+            "end_drag": no_action,
+        }, callbacks);
+
         const spline = curve.splines[channel];
         let startPos = null;
-        let grid = [];
 
-        const callbacks = {
+        const outerCallbacks = {
             "start_drag": evt => {
                 startPos = this.mouse_coordinates(evt);
-
-                // Rounded y values for snapping_to_grid
-                const yVals = spline.c.flat(COEFFICIENTS_DEPTH);
-                const rounded = round_array(yVals, 3);
-                grid = new Set(rounded);
-                grid.add(0.0);
-
+                this.grid.update_from_spline(spline);
                 this.emit_curve_changing()
                 if (ele.parentNode) {
                     ele.parentNode.classList.add("fade-in");
                 }
 
-                start_drag(evt, startPos);
+                const snap = this.snapping_to_grid & !evt.shiftKey;
+                if (snap) {
+                    startPos = this.grid.snap_point(startPos);
+                }
+
+                callbacks.start_drag(evt, startPos);
+
+                // Removed selected points from grid
+                this.selection.set.forEach(knotNr => {
+                    const [_, y] = spline.point(knotNr, KNOT);
+                    this.grid.remove_y_value(y);
+                });
             },
             "drag": evt => {
                 let pos = this.mouse_coordinates(evt);
                 pos = clip_point(pos, this.limits);
-                if (this.snapping_to_grid & !evt.shiftKey) {
-                    pos[1] = snap_to_value(pos[1], grid, 0.001);
+                const snap = this.snapping_to_grid & !evt.shiftKey;
+                if (snap) {
+                    pos = this.grid.snap_point(pos);
                 }
 
-                on_drag(pos);
+                callbacks.drag(evt, pos);
 
                 spline.restrict_to_bbox(this.limits);
                 this.annotation.move(pos);
                 this.annotation.show();
                 this._draw_curve_elements();
-
             },
             "end_drag": evt => {
-                const endPos = this.mouse_coordinates(evt);
-                const somethingChanged = !arrays_equal(startPos, endPos);
+                let endPos = this.mouse_coordinates(evt);
+                const snap = this.snapping_to_grid & !evt.shiftKey;
+                if (snap) {
+                    endPos = this.grid.snap_point(endPos);
+                }
 
+                const somethingChanged = !arrays_equal(startPos, endPos);
                 startPos = null;
-                clear_array(grid);
                 this.annotation.hide();
                 if (ele.parentNode) {
                     ele.parentNode.classList.remove("fade-in");
                 }
 
+                callbacks.end_drag(evt, endPos);
+
+                this.grid.clear();
                 if (somethingChanged) {
                     this.emit_curve_changed(curve)
                 }
@@ -838,7 +870,7 @@ export class Drawer extends Plotter {
         };
 
         ele.addEventListener("click", evt => evt.stopPropagation());
-        make_draggable(ele, callbacks);
+        make_draggable(ele, outerCallbacks);
     }
 
     /**
@@ -874,25 +906,24 @@ export class Drawer extends Plotter {
                 });
             } else if (className === "foreground") {
                 let startPos = null;
-                this.make_draggable(
-                    path,
-                    curve,
-                    channel,
-                    pos => {
-                        this.emit_curve_changing(pos)
-                        const offset = subtract_arrays(pos, startPos);
-                        this.move_selected_knots(offset);
-                        const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
-                        this.annotation.annotate(txt);
-                    },
-                    (evt, pos) => {
+                const callbacks = {
+                    "start_drag": (evt, pos) => {
                         startPos = pos;
                         const leftKnot = seg;
                         const rightKnot = seg + 1
                         this.click_select_knots([leftKnot, rightKnot], evt.shiftKey);
                         this.remember_selected_knot_positions();
                     },
-                );
+                    "drag": (evt, pos) => {
+                        const snap = this.snapping_to_grid && !evt.shiftKey;
+                        this.emit_curve_changing(pos)
+                        const offset = subtract_arrays(pos, startPos);
+                        this.move_selected_knots(offset, snap);
+                        const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
+                        this.annotation.annotate(txt);
+                    },
+                };
+                this.make_draggable(path, curve, channel, callbacks);
                 path.addEventListener("click", evt => {
                     // Stop bubbling
                     evt.stopPropagation();
@@ -924,16 +955,16 @@ export class Drawer extends Plotter {
             const controlPoint = this.create_svg_circle(() => spline.point(knotNr, FIRST_CP), radius);
             this.otherElements.push(controlPoint);
             cpGroup.appendChild(controlPoint);
-            this.make_draggable(
-                controlPoint,
-                curve,
-                channel,
-                pos => {
+
+            const callbacks = {
+                "drag": (evt, pos) => {
                     spline.position_control_point(knotNr, FIRST_CP, pos[1], this.c1);
                     const slope = spline.get_derivative_at_knot(knotNr, RIGHT);
                     this.annotation.annotate("Slope: " + format_number(slope));
-                },
-            );
+                }
+            }
+
+            this.make_draggable(controlPoint, curve, channel, callbacks);
         }
 
         if (knotNr > 0) {
@@ -949,16 +980,16 @@ export class Drawer extends Plotter {
             const controlPoint = this.create_svg_circle(() => spline.point(knotNr - 1, SECOND_CP), radius);
             this.otherElements.push(controlPoint);
             cpGroup.appendChild(controlPoint);
-            this.make_draggable(
-                controlPoint,
-                curve,
-                channel,
-                pos => {
+
+            const callbacks = {
+                "drag": (evt, pos) => {
                     spline.position_control_point(knotNr - 1, SECOND_CP, pos[1], this.c1);
                     const slope = spline.get_derivative_at_knot(knotNr, LEFT);
                     this.annotation.annotate("Slope: " + format_number(slope));
-                },
-            );
+                }
+            }
+
+            this.make_draggable(controlPoint, curve, channel, callbacks);
         }
 
         return cpGroup;
@@ -981,23 +1012,23 @@ export class Drawer extends Plotter {
 
         let startPos = null;
 
-        this.make_draggable(
-            knotCircle,
-            curve,
-            channel,
-            pos => {
-                this.emit_curve_changing(pos)
-                const offset = subtract_arrays(pos, startPos);
-                this.move_selected_knots(offset);
-                const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
-                this.annotation.annotate(txt);
-            },
-            (evt, pos) => {
+        const callbacks = {
+            "start_drag": (evt, pos) => {
                 startPos = pos;
                 this.click_select_knots([knotNr], evt.shiftKey);
                 this.remember_selected_knot_positions();
             },
-        );
+            "drag": (evt, pos) => {
+                this.emit_curve_changing(pos)
+                const offset = subtract_arrays(pos, startPos);
+                const snap = this.snapping_to_grid && !evt.shiftKey;
+                this.move_selected_knots(offset, snap);
+                const txt = "Time: " + format_number(pos[0]) + "<br>Position: " + format_number(pos[1]);
+                this.annotation.annotate(txt);
+            },
+        }
+
+        this.make_draggable(knotCircle, curve, channel, callbacks);
         knotCircle.addEventListener("click", evt => {
             // Stop bubbling
             evt.stopPropagation();
@@ -1048,9 +1079,6 @@ export class Drawer extends Plotter {
                 });
                 knotCircles.push(knotCircle)
             });
-
-            //this.selector.set_spline(spline);
-            //this.selector.set_knot_circles(knotCircles);
         }
     }
 
@@ -1063,6 +1091,7 @@ export class Drawer extends Plotter {
         if (curve.n_splines === 0) {
             return;
         }
+
         curve.splines.forEach((spline, c) => {
             this.plot_curve_channel(curve, c, "background");
         });
