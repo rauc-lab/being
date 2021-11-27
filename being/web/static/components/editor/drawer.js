@@ -844,7 +844,7 @@ export class Drawer extends Plotter {
                 spline.restrict_to_bbox(this.limits);
                 this.annotation.move(pos);
                 this.annotation.show();
-                this._draw_curve_elements();
+                this.draw_svg();
             },
             "end_drag": evt => {
                 let endPos = this.mouse_coordinates(evt);
@@ -1095,7 +1095,7 @@ export class Drawer extends Plotter {
         curve.splines.forEach((spline, c) => {
             this.plot_curve_channel(curve, c, "background");
         });
-        this._draw_curve_elements();
+        this.draw_svg();
     }
 
     /**
@@ -1123,24 +1123,24 @@ export class Drawer extends Plotter {
             this.update_selected_elements();
         }
 
-        this._draw_curve_elements();
+        this.draw_svg();
     }
 
     /**
      * Draw / update all SVG elements.
      */
-    _draw_curve_elements() {
+    draw_svg() {
         this.otherElements.forEach(ele => ele.draw());
         this.foregroundPathElements.forEach(ele => ele.draw());
         this.foregroundKnotElements.forEach(ele => ele.draw());
     }
 
     /**
-     * Draw the current state (update all SVG elements).
+     * Draw everything
      */
     draw() {
-        super.draw();
-        this._draw_curve_elements();
+        this.draw_canvas();
+        this.draw_svg();
     }
 }
 

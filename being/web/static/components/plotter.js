@@ -322,9 +322,9 @@ export class Plotter extends WidgetBase {
     }
 
     /**
-     * Draw everything
+     * Rescale and draw canvas.
      */
-    draw() {
+    draw_canvas() {
         if (this.autoscaling) {
             this.auto_scale();
         }
@@ -332,6 +332,13 @@ export class Plotter extends WidgetBase {
         this.clear_canvas();
         this.draw_axis_and_tick_labels();
         this.draw_lines();
+    }
+
+    /**
+     * Draw everything
+     */
+    draw() {
+        this.draw_canvas();
     }
 
     /**

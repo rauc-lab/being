@@ -1101,7 +1101,6 @@ export class Editor extends Widget {
 
         const channel = this.selected_channel();
         this.drawer.draw_foreground_curve(current, channel);
-        this.drawer._draw_curve_elements();
         this.update_ui();
     }
 
@@ -1296,7 +1295,7 @@ export class Editor extends Widget {
             this.drawer.auto_scale();
         }
 
-        this.drawer.draw();
+        this.drawer.draw_canvas();
     }
 
     /**
