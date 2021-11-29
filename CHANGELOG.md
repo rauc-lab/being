@@ -1,3 +1,4 @@
+
 # Changelog
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -19,8 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - Improved snapping to grid. Selected knots are excluded from grid.
 - Drawer drag navigation secondary with shift key.
-- make_draggable() helper functions with callback object as argument. Also click / dblclick suppression on movement.
-- Plotter / Drawer: Separation of draw_canvas() and draw_svg() (formerly _draw_curve_elements()).
+- `make_draggable()` helper functions with callback object as argument. Also click / dblclick suppression when moved.
+- `Plotter` / `Drawer`: Separation of `draw_canvas()` and `draw_svg()` (formerly `_draw_curve_elements()`).
 
 ### Fixed
 
@@ -37,12 +38,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
-- CiA402Node state switching. The state switching job now continuously tries to replan the state trajectory if anything changes.
+- `CiA402Node` state switching. The state switching job now continuously tries to replan the state trajectory if anything changes.
 - Default motor settings as ordered dictionaries
 - Drawer refactor: Control points inside group with fading out effect.
-- UI buttons now hold an <i> element holding the icon (so that we can rotate it independently from button). change_icon(newIcon) button "method" for changing the icon later on.
+- UI buttons now hold an  `<i></i>` element holding the icon (so that we can rotate it independently from button). `change_icon(newIcon)` button "method" for changing the icon later on.
 - Viewport not resizing when making a change and already zoomed in
-- JS arange array function with start, stop, step arguments
+- JS `arange()` array function with start, stop, step arguments
 
 ### Added
 
@@ -54,7 +55,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### Fixed
 
 - Hanging state transition during crude homing. Single SDO based state transition seemed to clash with PDO based ones. To be tested...
-- get_logger() not returning being root logger for some arguments
+- `get_logger()` not returning being root logger for some arguments
 - Plotting lines order did not correspond with motor id order
 
 ## [0.3.0] - 2021-11-18
@@ -88,29 +89,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 
-- Being CONFIG instance now resides in module being.configuration (being.config -> being.configuration)
+- Being `CONFIG` instance now resides in module `being.configuration` (renamed `being.config` -> `being.configuration`)
 - Block value and message connection helper methods return created inputs / outputs for concatenation
 
 ### Added
 
-- Config / ConfigFile implementations for TOML, YAML, JSON and INI formats
-- Parameter blocks: Slider, SingleSelection, MultiSelection and MotionSelection. With UI integration
-- NestedDict mutable mapping
+- `Config` / `ConfigFile` implementations for TOML, YAML, JSON and INI formats
+- Parameter blocks: `Slider`, `SingleSelection`, `MultiSelection` and `MotionSelection`. With UI integration
+- `NestedDict` mutable mapping
 
 ## [0.2.4] - 2021-09-16
 
 ### Added
 
 - Profiled position mode via message connections
-- New motor blocks: BeltDriveMotor, LeadScrewMotor and WindupMotor
+- New motor blocks: `BeltDriveMotor`, `LeadScrewMotor` and `WindupMotor`
 - Some CiA 402 test cases
 
 ### Changed
 
-- Pacemaker separate from Being object
-- MotorBlock base class with abc get_length() method
-- Change node operation mode via Controller
-- Motor with deviceUnits
+- `Pacemaker` separate from `Being` object
+- `MotorBlock` base class with ABC method `get_length()` .
+- Change node operation mode via `Controller`
+- Motor with `deviceUnits`
 
 ### Fixed
 
@@ -118,21 +119,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Removed
 
-- Sawtooth block
+- `Sawtooth` block
 - Old scripts
 
 ## [0.2.3] - 2021-09-14
 
 ### Added
 
-- Support for generator based CiA402Node state switching
+- Support for generator based `CiA402Node` state switching
 - Node settings path now support int parts
-- MotorInterface abc, MotorState
-- CiA402Node move_to() / move_with() methods
+- `MotorInterface` ABC, `MotorState`
+- `CiA402Node` `move_to()` / `move_with()` methods
 
 ### Changed
 
-- SYNC thread now in Pacemaker class
+- SYNC thread now in `Pacemaker` class
 - Homing
 - Being root logger
 
@@ -151,11 +152,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Dedicated SYNC message sender thread
 - Enabling / disabling motor with optional timeout
 - Motor blocks done homing event
-- Software side position controller for Epos4
+- Software side position controller for `Epos4`
 
 ### Changed
 
-- proper_homing() routine
+- `proper_homing()` routine
 
 ### Fixed
 
@@ -188,4 +189,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Motor blocks, controllers, motors
 - Motion players / motors web API
 - Web UI console moved to control panel
-
