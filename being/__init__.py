@@ -8,4 +8,4 @@ if sys.platform.startswith('darwin'):
 
 
 __author__ = 'atheler'
-__version__ = '0.3.2'
+__version__ = '0.3.3'
