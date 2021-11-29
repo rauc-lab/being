@@ -745,7 +745,7 @@ export class Editor extends Widget {
         }
 
         const indices = Array.from(unique);
-        indices.sort();
+        indices.sort((a, b) => a - b);
         this.outputIndices = indices;
     }
 

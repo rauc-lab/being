@@ -88,6 +88,18 @@ function searchsorted_right(arr, value) {
 
 
 /**
+ * Return a sorted number copy of array.
+ */
+function sorted_numbers(arr) {
+    const ret = [...arr];
+    // Mozilla compare function for sorting number arrays without Infinity or NaN
+    // https://developer.mozilla.org/de/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
+    ret.sort((a, b) => a - b);
+    return ret;
+}
+
+
+/**
  * Data container for snapping to horizontal grid.
  */
 class Grid {
@@ -285,8 +297,8 @@ class Selection {
      *
      * @returns Sorted array copy of selection.
      */
-    sort() {
-        return Array.from(this.set).sort()
+    sorted() {
+        return sorted_numbers(this.set);
     }
 }
 
@@ -601,7 +613,7 @@ export class Drawer extends Plotter {
             switch (evt.key) {
                 case "Backspace":
                     if (!this.selection.is_empty()) {
-                        const knotNumbers = this.selection.sort();
+                        const knotNumbers = this.selection.sorted();
                         this.selection.deselect_all();
                         this.remove_knots(this.foregroundCurve, this.foregroundChannel, knotNumbers);
                     }
@@ -670,7 +682,7 @@ export class Drawer extends Plotter {
         }
 
         this.emit_curve_changing();
-        knotNumbers.sort().forEach((nr, i) => {
+        sorted_numbers(knotNumbers).forEach((nr, i) => {
             if (spline.n_segments > 1) {
                 spline.remove_knot(nr - i);
             }
@@ -684,7 +696,7 @@ export class Drawer extends Plotter {
      */
     remember_selected_knot_positions() {
         const spline = this.foregroundCurve.splines[this.foregroundChannel];
-        const numbers = this.selection.sort();
+        const numbers = this.selection.sorted();
         this.initialPositions = numbers.map(knotNr => {
             return Array.from(spline.point(knotNr, KNOT)) // Note: Flat array copy!
         });
@@ -696,7 +708,7 @@ export class Drawer extends Plotter {
      */
     move_selected_knots(offset, snap = false) {
         const spline = this.foregroundCurve.splines[this.foregroundChannel];
-        const numbers = this.selection.sort();
+        const numbers = this.selection.sorted();
         assert(numbers.length === this.initialPositions.length, "Rembered knot positions not up to date!");
         numbers.forEach((knotNr, i) => {
             let target = add_arrays(this.initialPositions[i], offset);
