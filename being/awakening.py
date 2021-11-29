@@ -1,4 +1,14 @@
-"""Awake being to life. Main start execution entry point."""
+"""Awake being to life. Main entry point runner. Define a block network and run
+them with the :meth:`being.awakening.awake` function.
+
+Example:
+    >>> from being.block import Block
+    ... from being.awakening import awake
+    ... block = Block()
+    ... awake(block)  # Will start web server and periodically call block.update()
+
+The interval rate can be configured inside :mod:`being.configuration`.
+"""
 import asyncio
 import os
 import signal
@@ -19,10 +29,12 @@ from being.web.server import init_web_server, run_web_server
 from being.web.web_socket import WebSocket
 
 
-API_PREFIX = CONFIG['Web']['API_PREFIX']
-WEB_SOCKET_ADDRESS = CONFIG['Web']['WEB_SOCKET_ADDRESS']
-INTERVAL = CONFIG['General']['INTERVAL']
-WEB_INTERVAL = CONFIG['Web']['INTERVAL']
+# Look before you leap
+_API_PREFIX = CONFIG['Web']['API_PREFIX']
+_WEB_SOCKET_ADDRESS = CONFIG['Web']['WEB_SOCKET_ADDRESS']
+_INTERVAL = CONFIG['General']['INTERVAL']
+_WEB_INTERVAL = CONFIG['Web']['INTERVAL']
+
 LOGGER = get_logger(name=__name__, parent=None)
 
 
@@ -32,15 +44,19 @@ def _exit_signal_handler(signum=None, frame=None):
     sys.exit(0)
 
 
-def _run_being_standalone(being):
-    """Run being standalone without web server / front-end."""
+def _run_being_standalone(being: Being):
+    """Run being standalone without web server / front-end.
+
+    Args:
+        being: Being application instance.
+    """
     if os.name == 'posix':
         signal.signal(signal.SIGTERM, _exit_signal_handler)
 
-    cycle = int(time.perf_counter() / INTERVAL)
+    cycle = int(time.perf_counter() / _INTERVAL)
     while True:
         now = time.perf_counter()
-        then = cycle * INTERVAL
+        then = cycle * _INTERVAL
         sleepTime = then - now
         if sleepTime >= 0:
             time.sleep(then - now)
@@ -49,14 +65,18 @@ def _run_being_standalone(being):
         cycle += 1
 
 
-async def _run_being_async(being):
-    """Run being inside async loop."""
+async def _run_being_async(being: Being):
+    """Run being inside async loop.
+
+    Args:
+        being: Being application instance.
+    """
     time_func = asyncio.get_running_loop().time
-    cycle = int(time_func() / INTERVAL)
+    cycle = int(time_func() / _INTERVAL)
 
     while True:
         now = time_func()
-        then = cycle * INTERVAL
+        then = cycle * _INTERVAL
         sleepTime = then - now
         if sleepTime >= 0:
             await asyncio.sleep(sleepTime)
@@ -71,7 +91,7 @@ async def _send_being_state_to_front_end(being: Being, ws: WebSocket):
     main loop.
 
     Args:
-        being: Being instance.
+        being: Being application instance.
         ws: Active web socket.
     """
     dummies = []
@@ -81,10 +101,10 @@ async def _send_being_state_to_front_end(being: Being, ws: WebSocket):
         dummies.append(dummy)
 
     time_func = asyncio.get_running_loop().time
-    cycle = int(time_func() / WEB_INTERVAL)
+    cycle = int(time_func() / _WEB_INTERVAL)
     while True:
         now = time_func()
-        then = cycle * WEB_INTERVAL
+        then = cycle * _WEB_INTERVAL
         if then > now:
             await asyncio.sleep(then - now)
 
@@ -101,11 +121,11 @@ async def _send_being_state_to_front_end(being: Being, ws: WebSocket):
         cycle += 1
 
 
-async def _run_being_with_web_server(being):
+async def _run_being_with_web_server(being: Being):
     """Run being with web server. Continuation for awake() for asyncio part.
 
     Args:
-        being: Being instance.
+        being: Being application instance.
     """
     ws = WebSocket()
     app = init_web_server(being, ws)
@@ -164,7 +184,6 @@ def awake(
             _run_being_standalone(being)
 
     except Exception as err:
+        # Log and throw anti pattern but error should appear in stderr as well.
         LOGGER.fatal(err, exc_info=True)
-        # Todo(atheler): Log and throw anti pattern. Want to see error in stderr
-        # as well.
         raise

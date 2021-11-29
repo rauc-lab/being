@@ -3,8 +3,7 @@
 Some block related helpers.
 
 Todo:
-    Should ``input_connections()``, ``output_connections()``,
-    ``input_neighbors()`` and ``output_neighbors()`` become ``Block`` methods?
+    - Should ``input_connections()``, ``output_connections()``, ``input_neighbors()`` and ``output_neighbors()`` become ``Block`` methods?
 """
 import collections
 import functools
@@ -143,13 +142,14 @@ class Block:
 
     """Block base class.
 
-    Child classes have to override the update() method. We leave it as a normal
-    method (and not a abstract method) in order for testing. New connections can
-    be added with the helper methods:
-      - add_value_input()
-      - add_message_input()
-      - add_value_output()
-      - add_message_output()
+    Child classes have to override the :meth:`Block.update` method. Not
+    implemented as ABC method so that :class:`Block` can be used for testing.
+
+    New connections can be added with the helper methods:
+      - :meth:`Block.add_value_input`
+      - :meth:`Block.add_message_input`
+      - :meth:`Block.add_value_output`
+      - :meth:`Block.add_message_output`
 
     These methods also take an additional `name` argument which can be used to
     store the newly created connection as an attribute.
@@ -200,7 +200,7 @@ class Block:
 
         return self.outputs[0]
 
-    def add_value_input(self, name: Optional[str] = None):
+    def add_value_input(self, name: Optional[str] = None) -> ValueInput:
         """Add new value input to block.
 
         Args:
@@ -213,7 +213,7 @@ class Block:
 
         return input_
 
-    def add_message_input(self, name: Optional[str] = None):
+    def add_message_input(self, name: Optional[str] = None) -> MessageInput:
         """Add new message input to block.
 
         Args:
@@ -226,7 +226,7 @@ class Block:
 
         return input_
 
-    def add_value_output(self, name: Optional[str] = None):
+    def add_value_output(self, name: Optional[str] = None) -> ValueOutput:
         """Add new value output to block.
 
         Args:
@@ -239,7 +239,7 @@ class Block:
 
         return output
 
-    def add_message_output(self, name: Optional[str] = None):
+    def add_message_output(self, name: Optional[str] = None) -> MessageOutput:
         """Add new message output to block.
 
         Args:
