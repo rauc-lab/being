@@ -1,5 +1,4 @@
-"""Spline motion player block.
-
+"""Curve / motion player block.
 
 Todo:
   - Changing playback speed on the fly. As separate input? Need some internal
@@ -9,14 +8,15 @@ Todo:
 import json
 from typing import NamedTuple, Optional
 
+import numpy as np
 from scipy.interpolate import BPoly
 
 from being.block import Block, output_neighbors
 from being.clock import Clock
 from being.content import Content
+from being.curve import Curve
 from being.logging import get_logger
 from being.motors.blocks import MotorBlock
-from being.spline import Spline, sample_spline, spline_shape
 from being.utils import filter_by_type
 
 
@@ -32,7 +32,7 @@ class Urgency(Enum):
 """
 
 
-def constant_spline(position=0, duration=1.) -> BPoly:
+def constant_spline(position=0.0, duration=1.0) -> BPoly:
     """Create a constant spline for a given position which extrapolates
     indefinitely.
 
@@ -46,11 +46,17 @@ def constant_spline(position=0, duration=1.) -> BPoly:
     return BPoly(c=[[position]], x=[0., duration], extrapolate=True)
 
 
+def constant_curve(positions=0.0, duration=1.0) -> Curve:
+    """Create a curve with keeping constant values."""
+    return Curve([
+        constant_spline(pos, duration)
+        for pos in np.atleast_1d(positions)
+    ])
 
 
 class MotionCommand(NamedTuple):
 
-    """Message to trigger spline playback."""
+    """Message to trigger curve playback."""
 
     name: str
     loop: bool = False
@@ -78,85 +84,84 @@ class MotionPlayer(Block):
 
         super().__init__(**kwargs)
         self.add_message_input('mcIn')
-        #self.add_message_output('feedbackOut')
         self.positionOutputs = []
         for _ in range(ndim):
             self.add_position_output()
 
         self.clock = clock
         self.content = content
-        self.spline = None
+        self.curve = None
         self.startTime = 0
         self.looping = False
         self.logger = get_logger(str(self))
 
     @property
     def playing(self) -> bool:
-        """Spline playback in progress."""
-        return self.spline is not None
+        """Playback in progress."""
+        return self.curve is not None
 
     @property
     def ndim(self) -> int:
-        """Number of output dimensions."""
+        """Number of position outputs."""
         return len(self.positionOutputs)
 
     def add_position_output(self):
         """Add an additional position out to the motion player."""
-        self.add_value_output()
-        latestOut = self.outputs[-1]
-        self.positionOutputs.append(latestOut)
+        newOutput = self.add_value_output()
+        self.positionOutputs.append(newOutput)
 
     def stop(self):
         """Stop spline playback."""
-        self.spline = None
+        self.curve = None
         self.startTime = 0
         self.looping = False
-        #self.feedbackOut.send(SUCCESS)
 
-    def play_spline(self, spline: Spline, loop: bool = False, offset: float = 0.) -> float:
-        """Play a spline directly.
+    def play_curve(self, curve: Curve, loop: bool = False, offset: float = 0.) -> float:
+        """Play a curve directly.
 
         Args:
-            spline: Spline to play.
-            loop: Loop spline playback.
-            offset: Start offset inside spline.
+            curve: Curve to play.
+            loop: Loop playback.
+            offset: Start time offset.
 
         Returns:
-            Scheduled start time of spline.
+            Scheduled start time.
         """
-        self.logger.info('Playing spline')
-        self.spline = spline
+        self.logger.info('Playing curve')
+        self.curve = curve
         self.startTime = self.clock.now() - offset
         self.looping = loop
         return self.startTime
 
     def process_mc(self, mc: MotionCommand) -> Optional[float]:
-        """Process new motion command and schedule next spline to play.
+        """Process new motion command and schedule next curve to play.
 
         Args:
             mc: Motion command.
 
         Returns:
-            Scheduled start time of spline (if any).
+            Scheduled start time.
         """
         try:
             self.logger.info('Playing motion %r', mc.name)
-            spline = self.content.load_motion(mc.name)
+            curve = self.content.load_curve(mc.name)
         except FileNotFoundError:
             self.logger.error('Motion %r does not exist!', mc.name)
             currentVals = [out.value for out in self.positionOutputs]
-            spline = constant_spline(currentVals, duration=5.)
+            curve = constant_curve(currentVals, duration=5.)
         except json.JSONDecodeError:
             self.logger.error('Could not decode %r!', mc.name)
             currentVals = [out.value for out in self.positionOutputs]
-            spline = constant_spline(currentVals, duration=5.)
+            curve = constant_curve(currentVals, duration=5.)
 
-        shape = spline_shape(spline)
-        if shape != (self.ndim, ):
-            msg = f'Motion {mc.name} (shape {shape}) is not compatible with connected motors ({self.ndim})!'
+        if curve.n_channels != self.ndim:
+            msg = (
+                f'Motion {mc.name} is not compatible with connected motors'
+                f'({curve.n_channels} != {self.ndim})!'
+            )
             self.logger.error(msg)
 
-        return self.play_spline(spline, mc.loop)
+        return self.play_curve(curve, mc.loop)
 
     def update(self):
         for mc in self.input.receive():
@@ -165,12 +170,12 @@ class MotionPlayer(Block):
         if self.playing:
             now = self.clock.now()
             t = now - self.startTime
-            samples = sample_spline(self.spline, t, loop=self.looping)
+            if not self.looping and t >= self.curve.end:
+                return self.stop()
+
+            samples = self.curve.sample(t, loop=self.looping)
             for val, out in zip(samples, self.positionOutputs):
                 out.value = val
-
-            if not self.looping and t >= self.spline.x[-1]:
-                self.stop()
 
     def neighboring_motors(self):
         for out in self.positionOutputs:

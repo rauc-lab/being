@@ -4,15 +4,14 @@ div.toolbar {
     border-bottom: none;
     border-left: none;
     border-width: 0 2px 0 0;
-    z-index: 666;
+    /*z-index: 666;*/
     margin-bottom: -2px;
     align-items: center;
 }
 
-div.toolbar > button,
+div.toolbar button,
 div.toolbar > select,
-div.toolbar > div,
-div.toolbar i
+div.toolbar > div
 {
     height: 32px;
     margin: -2px 0 0 -2px;
@@ -27,18 +26,7 @@ div.toolbar button {
     width: 48px;
 }
 
-div.toolbar i {
-    font-size: 24px;
-    height: 28px;
-    width: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-div.toolbar button:active,
-div.toolbar i:active
-{
+div.toolbar button:active {
     background: black;
     color: white;
 }
@@ -48,9 +36,7 @@ div.toolbar button[checked] {
     color: white;
 }
 
-div.toolbar button:disabled,
-div.toolbar i:disabled
-{
+div.toolbar button:disabled {
     color: silver;
 }
 

@@ -24,6 +24,11 @@ export function setattr(ele, name, value) {
 }
 
 
+export function getattr(ele, name) {
+    return ele.getAttributeNS(null, name);
+}
+
+
 /**
  * SVG path d attribute string from array of 2d control points.
  * 

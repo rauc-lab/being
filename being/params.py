@@ -178,12 +178,12 @@ class MotionSelection(MultiSelection):
         if content is None:
             content = Content.single_instance_setdefault()
 
-        possibilities = list(content._sorted_names())
+        possibilities = content.list_curve_names()
         super().__init__(fullname, possibilities, **kwargs)
         self.content = content
         self.loaddefault(default)
 
     def on_content_changed(self):
         """Callback function on contented changed."""
-        self.possibilities = list(self.content._sorted_names())
+        self.possibilities = self.content.list_curve_names()
         self.load()

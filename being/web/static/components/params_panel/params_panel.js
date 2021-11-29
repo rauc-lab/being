@@ -1,15 +1,7 @@
-import {API} from "/static/js/config.js";
-import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js/fetching.js";
-import { clip } from "/static/js/math.js";
+import { Slider, SingleSelection, MultiSelection, MotionSelection } from "/static/components/params_panel/components.js";  // Needs to be imported in order to register custom elements
+import { API } from "/static/js/config.js";
+import { get_json } from "/static/js/fetching.js";
 import { Widget } from "/static/js/widget.js";
-import { remove_all_children, clear_array } from "/static/js/utils.js";
-import { Slider, SingleSelection, MultiSelection, MotionSelection } from "/static/components/params_panel/components.js";
-
-
-customElements.define("being-slider", Slider);
-customElements.define("being-single-selection", SingleSelection);
-customElements.define("being-multi-selection", MultiSelection);
-customElements.define("being-motion-selection", MotionSelection);
 
 
 function populate(container, obj, level=1) {
@@ -42,7 +34,6 @@ function populate(container, obj, level=1) {
                     widget = document.createElement("being-motion-selection");
                     widget.populate(param);
                     break
-
             }
 
             container.appendChild(widget);
@@ -63,8 +54,7 @@ function init_parameters_elements(container, params) {
 export class ParamsPanel extends Widget {
     constructor() {
         super();
-        this._append_link("static/components/params_panel/params_panel.css");
-        window.panel = this;
+        this.append_link("static/components/params_panel/params_panel.css");
     }
 
     async connectedCallback() {
@@ -81,3 +71,6 @@ export class ParamsPanel extends Widget {
         }
     }
 }
+
+
+customElements.define("being-params-panel", ParamsPanel);

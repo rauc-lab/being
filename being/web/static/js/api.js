@@ -1,7 +1,7 @@
 /**
  *  @module api Back end API definitions.
  */
-import {BPoly} from "/static/js/spline.js";
+import {objectify, anthropomorphify} from "/static/js/serialization.js";
 import {API} from "/static/js/config.js";
 import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js/fetching.js";
 
@@ -34,15 +34,15 @@ export class Api {
     }
 
     /**
-     * Fit spline from trajectory data.
+     * Fit curve from trajectory data.
      *
      * @param {Array} trajectory Recorded trajectory. Array of timestamps and position values.
-     * @returns Fitted smoothing spline instance.
+     * @returns Fitted curve with smoothing splines.
      */
-         async fit_spline(trajectory) {
-            const obj = await post_json(API + "/fit_spline", trajectory);
-            return BPoly.from_object(obj);
-        }
+    async fit_curve(trajectory) {
+        const dct = await post_json(API + "/fit_curve", trajectory);
+        return objectify(dct);
+    }
 
 
     /** Motor API */
@@ -88,13 +88,16 @@ export class Api {
 
     /** Motion player API */
 
-
     /**
-     * Play spline in backend.
+     * Play multiple curves in back-end.
      */
-    async play_spline(spline, id, loop = false, offset = 0) {
-        const res = await post_json(API + "/motionPlayers/" + id + "/play", {
-            "spline": spline.to_dict(),
+    async play_multiple_curves(armed, loop = false, offset = 0) {
+        const armSer = {};
+        for (const [mpId, curve] of Object.entries(armed)) {
+            armSer[mpId] = curve.to_dict();
+        }
+        const res = await post_json(API + "/motionPlayers/play", {
+            "armed": armSer,
             "loop": loop,
             "offset": offset,
         });
@@ -121,53 +124,70 @@ export class Api {
 
     /** Content API */
 
+    /**
+     * Get all curves. Returned a motion message with curves as [name, curve]
+     * tuples (most recently modified order).
+     *
+     * {
+     *      type: "motions",
+     *      curves: [
+     *          ["some name", {"type": "Curve", ...}],
+     *          ["other name", {"type": "Curve", ...}],
+     *          ...
+     *      ]
+     * }
+     */
+    async get_curves() {
+        const url = encodeURI(API + "/curves");
+        const msg = await get_json(url);
+        msg.curves = msg.curves.map(entry => {
+            const [name, dct] = entry;
+            return [name, objectify(dct)];
+        });
+        return msg;
+    }
 
-    async find_free_name(wishName=null) {
+    async get_curve(name) {
+        const url = encodeURI(API + "/curves/" + name);
+        const dct = await get_json(url);
+        return objectify(dct)
+    }
+
+    async create_curve(name, curve) {
+        const url = encodeURI(API + "/curves/" + name);
+        return post_json(url, anthropomorphify(curve));
+    }
+
+    async update_curve(name, curve) {
+        const url = encodeURI(API + "/curves/" + name);
+        return post_json(url, anthropomorphify(curve));
+    }
+
+    async delete_curve(name) {
+        const url = encodeURI(API + "/curves/" + name);
+        return delete_fetch(url);
+    }
+
+    async rename_curve(oldName, newName) {
+        const data = {
+            oldName: oldName,
+            newName: newName,
+        };
+        return put_json(API + "/rename_curve", data);
+    }
+
+    async find_free_name(wishName=undefined) {
         let uri = API + "/find-free-name";
-        if (wishName !== null) {
+        if (wishName !== undefined) {
             uri += "/" + wishName;
         }
 
         return get_json(encodeURI(uri));
     }
 
-    async get_spline(name) {
-        const url = encodeURI(API + "/motions/" + name);
-        const obj = await get_json(url);
-        return BPoly.from_object(obj);
-    }
-
-    async create_spline(name, spline) {
-        const url = encodeURI(API + "/motions/" + name);
-        return post_json(url, spline.to_dict());
-    }
-
-    async update_spline(name, spline) {
-        const url = encodeURI(API + "/motions/" + name);
-        return post_json(url, spline.to_dict());
-    }
-
-    async delete_spline(name) {
-        const url = encodeURI(API + "/motions/" + name);
-        return delete_fetch(url);
-    }
-
-    async download_all_motions_as_zip() {
-        const url = encodeURI(API + "/download-zipped-motions");
+    async download_all_curves_as_zip() {
+        const url = encodeURI(API + "/download-zipped-curves");
         return fetch(url);
-    }
-
-    /**
-     * Load entire content from backend / content.
-     *
-     * @returns Fetch promise
-     */
-    async fetch_splines() {
-        return get_json(API + "/motions");
-    }
-
-    async load_motions() {
-        return get_json(API + "/motions2");
     }
 
 

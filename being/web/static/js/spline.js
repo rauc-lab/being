@@ -1,7 +1,10 @@
 /**
  * @module spline Spline stuff. Some constants and BPoly wrapper. Spline data container.
  */
-import {array_shape, array_min, array_max, array_ndims, arange, zeros, array_full} from "/static/js/array.js";
+import {
+    array_shape, array_min, array_max, array_ndims, arange, zeros, array_full,
+    array_reshape, multiply_scalar, diff_array,
+} from "/static/js/array.js";
 import {deep_copy, last_element} from "/static/js/utils.js";
 import {BBox} from "/static/js/bbox.js";
 import {assert, searchsorted, insert_in_array, remove_from_array} from "/static/js/utils.js";
@@ -137,7 +140,7 @@ export class BPoly {
     /**
      * Construct from BPoly object.
      */
-    static from_object(dct) {
+    static from_dict(dct) {
         return new BPoly(dct.coefficients, dct.knots, dct.extrapolate, dct.axis);
     }
 
@@ -470,4 +473,47 @@ export class BPoly {
             });
         });
     }
+
+    scale(factor) {
+        const shape = array_shape(this.c);
+        this.c = array_reshape(multiply_scalar(factor, this.c.flat(COEFFICIENTS_DEPTH)), shape);
+    }
+
+    stretch(factor) {
+        this.x = multiply_scalar(factor, this.x);
+    }
+
+    shift(offset) {
+        offset = Math.max(offset, -this.start);
+        this.x = this.x.map(pos => {
+            return pos + offset;
+        });
+    }
+
+    flip_horizontally() {
+        // Flip knots
+        const delta = diff_array(this.x);
+        delta.reverse();
+        const newX = [this.x[0]];
+        delta.forEach(dx => {
+            newX.push(last_element(newX) + dx);
+        });
+        this.x = newX;
+
+        // Flip coeffs
+        this.c.forEach(row => { row.reverse(); });
+        this.c.reverse();
+    }
+
+    flip_vertically() {
+        const shape = array_shape(this.c)
+        const cvals = this.c.flat(COEFFICIENTS_DEPTH);
+        if (cvals.length === 0) {
+            return;
+        }
+
+        const maxc = array_max(cvals);
+        const newcvals = cvals.map(val => maxc - val);
+        this.c = array_reshape(newcvals, shape)
+    };
 }

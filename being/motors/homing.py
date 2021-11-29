@@ -172,13 +172,14 @@ class HomingBase(abc.ABC):
 
     def update(self):
         """Tick homing one step further."""
-        if not self.job:
-            return
-
-        try:
-            next(self.job)
-        except StopIteration:
-            self.job = None
+        if self.job:
+            try:
+                next(self.job)
+            except StopIteration:
+                self.job = None
+            except TimeoutError as err:
+                self.job = None
+                self.logger.exception(err)
 
     def __str__(self):
         return f'{type(self).__name__}({self.state})'
@@ -241,7 +242,7 @@ class CiA402Homing(HomingBase):
 
     def change_state(self, target) -> Generator:
         """Change to node's state job."""
-        return self.node.change_state(target, how='pdo', retGenerator=True)
+        return self.node.state_switching_job(target, how='pdo')
 
     def capture(self):
         """Capture current node's state and operation mode."""
@@ -310,12 +311,12 @@ class CrudeHoming(CiA402Homing):
         speed: Speed for homing in device units.
     """
 
-    def __init__(self, node, minWidth, *args, **kwargs):
+    def __init__(self, node, minWidth, currentLimit, *args, **kwargs):
         super().__init__(node, *args, **kwargs)
         self.minWidth = minWidth
+        self.currentLimit = currentLimit
         self.lower = INF
         self.upper = -INF
-        self.currentLimit = self.node.sdo['Current Control Parameter Set']['Continuous Current Limit'].raw
 
     @property
     def width(self) -> float:
@@ -334,16 +335,19 @@ class CrudeHoming(CiA402Homing):
 
     def halt_drive(self) -> Generator:
         """Stop drive."""
+        self.logger.debug('halt_drive()')
         self.controlword.raw = Command.ENABLE_OPERATION | CW.HALT
         yield
 
     def move_drive(self, velocity: int) -> Generator:
         """Move motor with constant velocity."""
+        self.logger.debug('move_drive(%d)', velocity)
         self.controlword.raw = Command.ENABLE_OPERATION
         yield
         self.node.set_target_velocity(velocity)
         yield
         self.controlword.raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
+        yield
 
     def on_the_wall(self) -> bool:
         """Check if motor is on the wall."""
@@ -376,14 +380,16 @@ class CrudeHoming(CiA402Homing):
         for vel in velocities:
             yield from self.halt_drive()
             yield from self.move_drive(vel)
+            self.logger.debug('Driving towards the wall')
             while not self.on_the_wall():
                 self.expand_range(node.get_actual_position())
                 yield
 
+            self.logger.debug('Hit the wall')
             yield from self.halt_drive()
 
             # Turn off voltage to reset current current value
-            node.change_state(CiA402State.READY_TO_SWITCH_ON)
+            yield from self.change_state(CiA402State.READY_TO_SWITCH_ON)
 
         yield from self.teardown()
 

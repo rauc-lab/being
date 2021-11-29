@@ -10,6 +10,7 @@ import os
 import zipfile
 from typing import Dict
 
+import numpy as np
 from aiohttp import web
 from aiohttp.typedefs import MultiDictProxy
 
@@ -19,6 +20,7 @@ from being.configs import SEP, Config
 from being.configuration import CONFIG
 from being.connectables import ValueOutput, _ValueContainer
 from being.content import CONTENT_CHANGED, Content
+from being.curve import Curve
 from being.logging import get_logger
 from being.motors.blocks import MotorBlock
 from being.params import Parameter
@@ -75,16 +77,69 @@ def content_controller(content: Content) -> web.RouteTableDef:
     """
     routes = web.RouteTableDef()
 
-    @routes.get('/motions')
-    async def get_all_motions(request):
-        return json_response(content.dict_motions())
+    @routes.get('/curves')
+    async def get_curves(request):
+        """Get all current curves."""
+        return json_response(content.forge_message())
 
-    @routes.get('/motions2')
-    async def get_all_motions_2(request):
-        return json_response(content.dict_motions_2())
+    @routes.get('/curves/{name}')
+    async def get_curve(request):
+        """Get single curve by name."""
+        name = request.match_info['name']
+        if not content.curve_exists(name):
+            return web.HTTPNotFound(text=f'Curve {name!r} does not exist!')
+
+        spline = content.load_curve(name)
+        return json_response(spline)
+
+    @routes.post('/curves/{name}')
+    async def create_curve(request):
+        """Create a new curve."""
+        name = request.match_info['name']
+        try:
+            spline = await request.json(loads=loads)
+        except json.JSONDecodeError:
+            return web.HTTPNotAcceptable(text='Failed deserializing JSON curve!')
+
+        content.save_curve(name, spline)
+        return json_response()
+
+    @routes.put('/curves/{name}')
+    async def update_curve(request):
+        """Update a existing curve."""
+        name = request.match_info['name']
+        if not content.curve_exists(name):
+            return web.HTTPNotFound(text=f'Motion {name!r} does not exist!')
+
+        try:
+            spline = await request.json(loads=loads)
+        except json.JSONDecodeError:
+            return web.HTTPNotAcceptable(text='Failed deserializing JSON curve!')
+
+        content.save_curve(name, spline)
+        return json_response()
+
+    @routes.delete('/curves/{name}')
+    async def delete_curve(request):
+        """Delete a curve."""
+        name = request.match_info['name']
+        if not content.curve_exists(name):
+            return web.HTTPNotFound(text=f'Curve {name!r} does not exist!')
+
+        content.delete_curve(name)
+        return json_response()
+
+    @routes.put('/rename_curve')
+    async def rename_curve(request):
+        instructions = await request.json()
+        oldName = instructions['oldName']
+        newName = instructions['newName']
+        content.rename_curve(oldName, newName)
+        return json_response()
 
     @routes.get('/find-free-name')
     async def find_free_name(request):
+        """Find an available name."""
         return json_response(content.find_free_name())
 
     @routes.get('/find-free-name/{wishName}')
@@ -92,51 +147,8 @@ def content_controller(content: Content) -> web.RouteTableDef:
         wishName = request.match_info['wishName']
         return json_response(content.find_free_name(wishName=wishName))
 
-    @routes.get('/motions/{name}')
-    async def get_motion_by_name(request):
-        name = request.match_info['name']
-        if not content.motion_exists(name):
-            return web.HTTPNotFound(text=f'Motion {name!r} does not exist!')
-
-        spline = content.load_motion(name)
-        return json_response(spline)
-
-    @routes.post('/motions/{name}')
-    async def create_motion_by_name(request):
-        name = request.match_info['name']
-        try:
-            spline = await request.json(loads=loads)
-        except json.JSONDecodeError:
-            return web.HTTPNotAcceptable(text='Failed deserializing JSON spline!')
-
-        content.save_motion(name, spline)
-        return json_response()
-
-    @routes.put('/motions/{name}')
-    async def update_motion_by_name(request):
-        name = request.match_info['name']
-        if not content.motion_exists(name):
-            return web.HTTPNotFound(text=f'Motion {name!r} does not exist!')
-
-        try:
-            spline = await request.json(loads=loads)
-        except json.JSONDecodeError:
-            return web.HTTPNotAcceptable(text='Failed deserializing JSON spline!')
-
-        content.save_motion(name, spline)
-        return json_response()
-
-    @routes.delete('/motions/{name}')
-    async def delete_motion_by_name(request):
-        name = request.match_info['name']
-        if not content.motion_exists(name):
-            return web.HTTPNotFound(text=f'Motion {name!r} does not exist!')
-
-        content.delete_motion(name)
-        return json_response()
-
-    @routes.get('/download-zipped-motions')
-    async def download_zipped_motions(request):
+    @routes.get('/download-zipped-curves')
+    async def download_zipped_curves(request):
         stream = io.BytesIO()
         with zipfile.ZipFile(stream, 'w') as zf:
             for fp in glob.glob(content.directory + '/*.json'):
@@ -150,7 +162,8 @@ def content_controller(content: Content) -> web.RouteTableDef:
         )
 
     def pluck_files(dct: MultiDictProxy) -> tuple:
-        """Pluck JSON files (and data) from MultiDictProxy files dct. Also open up zip files if any.
+        """Pluck JSON files (and data) from MultiDictProxy files dct. Also open
+        up zip files if any.
 
         Args:
             dct: Multi dict proxy from file upload post request.
@@ -167,18 +180,18 @@ def content_controller(content: Content) -> web.RouteTableDef:
             else:
                 yield fn, filefield.file.read()
 
-    @routes.post('/upload-motions')
-    async def upload_motions(request):
+    @routes.post('/upload-curves')
+    async def upload_curves(request):
         data = await request.post()
 
         # Empty upload
         if isinstance(data, bytearray):
             return json_response([{'type': 'error', 'message': 'Nothing uploaded!'}])
 
-        notis = []
+        notificationMessages = []
         for fp, data in pluck_files(data):
             if not fp.lower().endswith('.json'):
-                notis.append({'type': 'error', 'message': '%r is not a JSON file!' % fp})
+                notificationMessages.append({'type': 'error', 'message': '%r is not a JSON file!' % fp})
                 continue
 
             try:
@@ -190,12 +203,12 @@ def content_controller(content: Content) -> web.RouteTableDef:
                 with open(os.path.join(content.directory, fn), 'wb') as f:
                     f.write(data)
 
-                notis.append({'type': 'success', 'message': 'Uploaded file %r' % fp})
+                notificationMessages.append({'type': 'success', 'message': 'Uploaded file %r' % fp})
             except Exception as err:
-                notis.append({'type': 'error', 'message': '%r %s' % (fp, err)})
+                notificationMessages.append({'type': 'error', 'message': '%r %s' % (fp, err)})
 
         content.publish(CONTENT_CHANGED)
-        return json_response(notis)
+        return json_response(notificationMessages)
 
     return routes
 
@@ -383,28 +396,31 @@ def motion_player_controllers(motionPlayers, behaviors) -> web.RouteTableDef:
         """Inform front end of available motion players / motors."""
         return json_response(motionPlayers)
 
-    @routes.post('/motionPlayers/{id}/play')
-    async def start_spline_playback(request):
-        """Start spline playback for a received spline from front end."""
-        id = int(request.match_info['id'])
+    @routes.post('/motionPlayers/play')
+    async def play_curves(request):
+        """Play multiple curves on multiple motion players in parallel."""
         for behavior in behaviors:
             behavior.pause()
 
         try:
-            mp = mpLookup[id]
-            dct = await request.json()
-            spline = spline_from_dict(dct['spline'])
-            startTime = mp.play_spline(spline, loop=dct['loop'], offset=dct['offset'])
-            return json_response({
-                'startTime': startTime,
-            })
+            dct = await request.json(loads=loads)
+            startTimes = []
+            for idStr, curve in dct['armed'].items():
+                id = int(idStr)  # JSON object keys become strings
+                mp = mpLookup[id]
+                t0 = mp.play_curve(curve, loop=dct['loop'], offset=dct['offset'])
+                startTimes.append(t0)
+
+            if not startTimes:
+                return web.HTTPBadRequest(text='Invalid request!')
+
+            return json_response({'startTime': min(startTimes)})
         except IndexError:
             return web.HTTPBadRequest(text=f'Motion player with id {id} does not exist!')
         except KeyError:
-            return web.HTTPBadRequest(text='Could not parse spline!')
+            return web.HTTPBadRequest(text='Invalid request!')
         except ValueError as err:
             LOGGER.error(err)
-            LOGGER.debug('id: %d', id)
             LOGGER.debug('dct: %s', dct)
             return web.HTTPBadRequest(text=f'Something went wrong with the spline. Raw data was: {dct}!')
 
@@ -505,13 +521,19 @@ def misc_controller() -> web.RouteTableDef:
     """
     routes = web.RouteTableDef()
 
-    @routes.post('/fit_spline')
+    @routes.post('/fit_curve')
     async def convert_trajectory(request):
         """Convert a trajectory array to a spline."""
         try:
             trajectory = await request.json()
-            spline = fit_spline(trajectory, smoothing=1e-9)
-            return json_response(spline)
+            data = np.array(trajectory)
+            t, *positionValues = data.T
+            splines = [
+                fit_spline(np.array([t, pos]).T, smoothing=1e-7)
+                for pos in positionValues
+            ]
+            curve = Curve(splines)
+            return json_response(curve)
         except ValueError:
             return web.HTTPBadRequest(text='Wrong trajectory data format. Has to be 2d!')
 

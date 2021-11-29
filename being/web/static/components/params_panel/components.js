@@ -1,77 +1,12 @@
-import {API} from "/static/js/config.js";
-import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js/fetching.js";
+import { API } from "/static/js/config.js";
+import { make_editable } from "/static/js/editable_text.js";
+import { put_json } from "/static/js/fetching.js";
 import { clip } from "/static/js/math.js";
-import { remove_all_children, clear_array } from "/static/js/utils.js";
-import {append_template_to, append_link_to} from "/static/js/widget.js";
+import { remove_all_children } from "/static/js/utils.js";
+import { append_template_to } from "/static/js/widget.js";
 
 
 const INVALID = "INVALID";
-
-
-/**
- * Make text field editable by double clicking it.
- * 
- * @param {*} ele Element to make editable.
- * @param {*} on_change On change event callback.
- * @param {*} validator Text content validator function.
- * @param {*} newLines If to accept new lines or not.
- */
-
-function make_editable(ele, on_change, validator=null, newLines=false) {
-    if (validator === null) {
-        validator = value => { return value; }
-    }
-
-    ele.addEventListener("dblclick", evt => {
-        ele.contentEditable = true;
-        ele.focus();
-    });
-
-    let oldValue = null;
-    function capture() {
-        oldValue = ele.innerText;
-    }
-
-    function revert() {
-        ele.innerText = oldValue;
-    }
-
-    ele.addEventListener("focus", evt => {
-        capture();
-    });
-
-    ele.addEventListener("blur", evt => {
-        ele.contentEditable = false;
-    })
-
-    ele.addEventListener("keyup", evt => { 
-        if (evt.key === "Escape") {
-            revert();
-            ele.blur();
-        } else if (evt.key === "Enter") {
-            try {
-                const validated = validator(ele.innerText);
-                on_change(validated);
-                ele.innerText = validated;
-            }
-            catch {
-                revert();
-            }
-
-            ele.blur();
-        }
-    });
-
-    if (!newLines) {
-        ele.addEventListener("keypress", evt => {
-            if (evt.key === "Enter") {
-                evt.preventDefault();
-            }
-        })
-    }
-}
-
-
 const PARAM_STYLE = `
 <style>
     :host {
@@ -120,10 +55,8 @@ class Param extends HTMLElement {
     }
 }
 
+
 export class Slider extends Param {
-
-    N_TICKS = 1000;
-
     constructor() {
         super();
         this.minValue = 0.0;
@@ -132,6 +65,7 @@ export class Slider extends Param {
         this.slider = document.createElement("input");
         this.slider.type = "range";
         this.slider.min = 0;
+        this.N_TICKS = 1000;
         this.slider.max = this.N_TICKS;
         this.shadowRoot.appendChild(this.slider);
 
@@ -183,6 +117,9 @@ export class Slider extends Param {
         return clip(num, this.minValue, this.maxValue);
     }
 }
+
+
+customElements.define("being-slider", Slider);
 
 
 class Selection extends Param {
@@ -247,6 +184,9 @@ export class SingleSelection extends Selection {
 }
 
 
+customElements.define("being-single-selection", SingleSelection);
+
+
 export class MultiSelection extends Selection {
     add_entry(possibility, index) {
         const id = "multi" + index;
@@ -287,4 +227,11 @@ export class MultiSelection extends Selection {
 
 }
 
+
+customElements.define("being-multi-selection", MultiSelection);
+
+
 export class MotionSelection extends MultiSelection {}
+
+
+customElements.define("being-motion-selection", MotionSelection);

@@ -86,7 +86,7 @@ export class Behavior extends Widget {
      */
     init_html_elements() {
         this.playPauseBtn = this.add_button_to_toolbar("play_arrow");
-        this._append_link("static/components/behavior/behavior.css");
+        this.append_link("static/components/behavior/behavior.css");
         this.append_template(BEHAVIOR_TEMPLATE);
 
         this.statesDiv = this.shadowRoot.getElementById("statesDiv");
@@ -117,8 +117,8 @@ export class Behavior extends Widget {
         const stateNames = await this.api.load_behavior_states();
         this.populate_states(stateNames);
 
-        const motions = await this.api.load_motions();
-        const names = Object.keys(motions.splines);
+        const content = await this.api.get_curves();
+        const names = content.curves.map(curvename => {return curvename[0]});
         this.populate_motions(names);
 
         const behavior = await this.api.load_behavior();
@@ -273,7 +273,7 @@ export class Behavior extends Widget {
             return;
         }
 
-        this.playPauseBtn.innerHTML = behavior.active ? "pause" : "play_arrow";
+        this.playPauseBtn.change_icon(behavior.active ? "pause" : "play_arrow");
         this.nowPlayingSpan.innerHTML = behavior.lastPlayed;
         this.update_attention_span_slider(behavior.params.attentionSpan);
         this.update_attention_span_label(behavior.params.attentionSpan);
@@ -327,9 +327,11 @@ export class Behavior extends Widget {
      * @param {Object} msg ?
      */
     async content_message(msg) {
-        const names = Object.keys(msg.splines);
+        const names = msg.curves.map(curvename => curvename[0]);
         this.populate_motions(names);
         const behavior = await this.api.load_behavior();
         this.update(behavior);
     }
 }
+
+customElements.define("being-behavior", Behavior);

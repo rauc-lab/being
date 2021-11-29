@@ -11,7 +11,7 @@ Resources:
 """
 import functools
 import math
-from typing import Sequence
+from typing import Sequence, List
 from enum import IntEnum
 
 
@@ -123,6 +123,26 @@ def spline_coefficients(spline: Spline, segment: int) -> ndarray:
         return spline.c[:, segment].copy()
 
     raise ValueError(f'segment number {segment} not in [0, {nSegments})!')
+
+
+def split_spline(spline: Spline) -> List[Spline]:
+    """Split each dimension into its own spline."""
+    t = type(spline)
+    knots = spline.x
+    coeffs = spline.c
+    if coeffs.ndim == 2:
+        # Promote scalar spline to one dimensional
+        coeffs = coeffs[..., np.newaxis]
+        return [
+            t.construct_fast(coeffs, knots, spline.extrapolate, spline.axis)
+        ]
+
+    dims = spline_dimensions(spline)
+    parts = np.split(coeffs, dims, axis=-1)
+    return [
+        t.construct_fast(c, knots, spline.extrapolate, spline.axis)
+        for c in parts
+    ]
 
 
 """PPoly exclusives"""

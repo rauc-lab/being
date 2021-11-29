@@ -29,8 +29,8 @@ const Transitions = {
  * looping, playing, cursor drawing.
  */
 export class Transport {
-    constructor(editor, looping = true) {
-        this.editor = editor;
+    constructor(drawer, looping = true) {
+        this.drawer = drawer;
         this.state = PAUSED;
         this.looping = looping;
         this.position = 0;  // TODO(atheler): Rename. It's not a position. It's a moment in time...
@@ -68,7 +68,7 @@ export class Transport {
         const line = create_element("line");
         setattr(line, "stroke-width", 2);
         setattr(line, "stroke", "gray");
-        this.editor.transportGroup.appendChild(line);
+        this.drawer.svg.prepend(line);
         this.cursor = line;
     }
 
@@ -132,11 +132,11 @@ export class Transport {
      * Draw SVG cursor line (update its attributes).
      */
     draw_cursor() {
-        const [x, _] = this.editor.transform_point([this.position, 0]);
+        const [x, _] = this.drawer.transform_point([this.position, 0]);
         setattr(this.cursor, "x1", x);
         setattr(this.cursor, "y1", 0);
         setattr(this.cursor, "x2", x);
-        setattr(this.cursor, "y2", this.editor.canvas.height);
+        setattr(this.cursor, "y2", this.drawer.canvas.height);
     }
 
     /**

@@ -134,14 +134,18 @@ class Controller(MotorInterface):
         self.upper = length * self.position_si_2_device
         self.lastState = node.get_state()
         self.switchJob = None
+
+        # Prepare settings
+        self.settings = merge_dicts(self.motor.defaultSettings, settings)
+
         self.init_homing(**homingKwargs)
 
-        self.node.reset_fault()
+        # Possible fault reset
+        self.node.change_state(State.SWITCH_ON_DISABLED, 'sdo')
 
         # Configure node
         self.apply_motor_direction(direction)
-        merged = merge_dicts(self.motor.defaultSettings, settings)
-        self.node.apply_settings(merged)
+        self.node.apply_settings(self.settings)
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 
@@ -149,10 +153,10 @@ class Controller(MotorInterface):
         self.node.set_operation_mode(operationMode)
 
     def disable(self):
-        self.switchJob = self.node.change_state(State.READY_TO_SWITCH_ON, how='pdo', retGenerator=True)
+        self.switchJob = self.node.state_switching_job(State.READY_TO_SWITCH_ON, how='pdo')
 
     def enable(self):
-        self.switchJob = self.node.change_state(State.OPERATION_ENABLED, how='pdo', retGenerator=True)
+        self.switchJob = self.node.state_switching_job(State.OPERATION_ENABLED, how='pdo')
 
     def motor_state(self):
         if self.lastState is State.OPERATION_ENABLED:
@@ -276,12 +280,14 @@ class Controller(MotorInterface):
             self.homing.update()
             if not self.homing.ongoing:
                 self.publish(MotorEvent.HOMING_CHANGED)
-        else:
-            if self.switchJob:
-                try:
-                    next(self.switchJob)
-                except StopIteration:
-                    self.switchJob = None
+        elif self.switchJob:
+            try:
+                next(self.switchJob)
+            except StopIteration:
+                self.switchJob = None
+            except TimeoutError as err:
+                self.logger.exception(err)
+                self.switchJob = None
 
     def __str__(self):
         return f'{type(self).__name__}({self.node}, {self.motor})'
@@ -319,7 +325,8 @@ class Mclm3002(Controller):
         method = default_homing_method(**homingKwargs)
         if method in self.HARD_STOP_HOMING:
             minWidth = self.position_si_2_device * self.length
-            self.homing = CrudeHoming(self.node, minWidth, homingMethod=method)
+            currentLimit = self.settings['Current Control Parameter Set/Continuous Current Limit']
+            self.homing = CrudeHoming(self.node, minWidth, homingMethod=method, currentLimit=currentLimit)
         else:
             super().init_homing(homingMethod=method)
 
