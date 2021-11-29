@@ -3,6 +3,8 @@
 Choreos are ini files where each motion curve is defined under its own section.
 Section name corresponds to motor id. Example:
 
+.. code-block:: ini
+
     [7]
     # format time[s]=pos,vel,acc,dec [all in SI]
 

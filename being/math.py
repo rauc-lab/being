@@ -39,9 +39,10 @@ def sign(number: float) -> float:
 
 
 def solve_quadratic_equation(a: float, b: float, c: float) -> Tuple[float, float]:
-    """Both solutions of the quadratic equation a * x^2 + b * x + c = 0.
+    """Both solutions of the quadratic equation
 
-    x0, x1 = (-b +/- sqrt(b^2 - 4*a*c)) / (2 * a)
+    .. math::
+        x_{1,2} = \\frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
 
     Returns:
         tuple: Solutions.
@@ -72,9 +73,10 @@ def linear_mapping(xRange: Tuple[float, float], yRange: Tuple[float, float]) -> 
 
 class ArchimedeanSpiral(NamedTuple):
 
-    """Archimedean spiral defined by:
+    """Archimedean spiral defined by
 
-        r(phi) = a + b * phi.
+    .. math::
+        r(\phi) = a + b\phi
     """
 
     a: float

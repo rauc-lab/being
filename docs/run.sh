@@ -3,3 +3,4 @@ sphinx-apidoc -f -o reference ../being
 #sphinx-apidoc -f -o docs/source projectdir
 #sphinx-apidoc -f -o reference ../being
 make html
+open _build/html/index.html
