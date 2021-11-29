@@ -1,0 +1,8 @@
+.py.attribute,
+.py.function,
+.py.class,
+.py.data,
+.py.method,
+.py.property {
+    margin-bottom: 1em;
+}

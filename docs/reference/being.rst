@@ -38,14 +38,6 @@ being.behavior module
    :undoc-members:
    :show-inheritance:
 
-being.behavior\_tree module
----------------------------
-
-.. automodule:: being.behavior_tree
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 being.being module
 ------------------
 
@@ -130,6 +122,14 @@ being.content module
 --------------------
 
 .. automodule:: being.content
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+being.curve module
+------------------
+
+.. automodule:: being.curve
    :members:
    :undoc-members:
    :show-inheritance:
