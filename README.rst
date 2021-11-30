@@ -12,8 +12,8 @@ Being
 =====
 
 Block based Python middle ware library for the `PATHOS
-<https://pathos.ethz.ch>`_ project.
-Developed at `RAUC <https://asl.ethz.ch/research/rauc.html>`_.
+<https://pathos.ethz.ch>`__ project.
+Developed at `RAUC <https://asl.ethz.ch/research/rauc.html>`__.
 Makes it possible to steer motors via CAN / CanOpen and process sensor data.
 Controllable via a web user interface.
 
@@ -29,9 +29,9 @@ The middleware of PATHOS is called BEING.
 We intend to grow and improve its programming and hardware library over time through a contribution model.
 Its aim is to translate high level settings into nuanced hardware control and to stay platform independent while interfacing hardware as it comes and goes.
 
-The project is currently developed at the Robotics Aesthetics & Usability Center (RAUC) nested within the `Autonomous Systems Lab <https://asl.ethz.ch>`_ at ETHZ.
+The project is currently developed at the Robotics Aesthetics & Usability Center (RAUC) nested within the `Autonomous Systems Lab <https://asl.ethz.ch>`__ at ETHZ.
 
-PATHOS was initiated by the Indo-Danish art duo Pors & Rao during an artist residency at the `Wyss Zurich <https://www.wysszurich.uzh.ch/projects/outreach-projects/pathos?tx_ogwyssteams_teamlist%5Baction%5D=show&tx_ogwyssteams_teamlist%5Bcontroller%5D=Page&tx_ogwyssteams_teamlist%5Bteamid%5D=266&cHash=309fe1ed2ff78ac4cddd292a3f2b0d2e>`_ in early 2017.
+PATHOS was initiated by the Indo-Danish art duo Pors & Rao during an artist residency at the `Wyss Zurich <https://www.wysszurich.uzh.ch/projects/outreach-projects/pathos?tx_ogwyssteams_teamlist%5Baction%5D=show&tx_ogwyssteams_teamlist%5Bcontroller%5D=Page&tx_ogwyssteams_teamlist%5Bteamid%5D=266&cHash=309fe1ed2ff78ac4cddd292a3f2b0d2e>`__ in early 2017.
 The frustrations they faced over a period of 19 years while working with lifelike physical animation and response informed the enabling of robotics as a performative medium.
 
 Getting Started
@@ -47,7 +47,7 @@ Being can be installed via the setup.py
     python setup.py install
 
 
-or via `PyPi <https://pypi.org/project/being/>`_ (check latest version).
+or via `PyPi <https://pypi.org/project/being/>`__ (check latest version).
 
 .. code-block:: bash
 
@@ -129,15 +129,15 @@ A small example being, based on the one from the ÉCAL workshop (without sensor 
 A `Behavior` block tells a `MotionPlayer` which motions to play.
 Motions are multi dimensional splines which will be stored in a content directory next to the program.
 The `MotionPlayer` blocks samples the currently playing spline and outputs the values to two `Motor` blocks (CAN IDs 1 and 2).
-This will also startup a web UI which can be accessed under `localhost:8080 <http://localhost:8080>`_.
+This will also startup a web UI which can be accessed under `localhost:8080 <http://localhost:8080>`__.
 
 Further Being Programs
 ^^^^^^^^^^^^^^^^^^^^^^
 
 Please have a look at these other example programs:
 
-* `ecal_being.py <https://github.com/rauc-lab/being/blob/master/ecal_being.py>`_: Being program for the ÉCAL workshop.
-* `run_dummy_being.py <https://github.com/rauc-lab/being/blob/master/run_dummy_being.py>`_: Standalone being with two virtual dummy motors for development and testing purposes.
+* `ecal_being.py <https://github.com/rauc-lab/being/blob/master/ecal_being.py>`__: Being program for the ÉCAL workshop.
+* `run_dummy_being.py <https://github.com/rauc-lab/being/blob/master/run_dummy_being.py>`__: Standalone being with two virtual dummy motors for development and testing purposes.
 
 
 Coding Style
@@ -149,13 +149,13 @@ With the one exception for variable and argument names (`camelCase`). Function a
 Workshops
 ---------
 
-* Tutorial videos for the workshop *Being at ÉCAL* can be found `here <https://pathos.ethz.ch/ecal-workshop-2021.html>`_.
+* Tutorial videos for the workshop *Being at ÉCAL* can be found `here <https://pathos.ethz.ch/ecal-workshop-2021.html>`__.
 
 Authors
 -------
 
-* Alexander Theler (`RAUC <https://asl.ethz.ch/research/rauc.html>`_, `GitHub <https://github.com/atheler>`_)
-* Silvan Januth (`Wyss Zurich <https://www.wysszurich.uzh.ch/technology-platforms/robotics-technologies?tx_ogwyssteams_teamlist%5Baction%5D=show&tx_ogwyssteams_teamlist%5Bcontroller%5D=Page&tx_ogwyssteams_teamlist%5Bteamid%5D=14&cHash=fd397786f38a735838b306d7e9655ca9#c117>`_)
+* Alexander Theler (`RAUC <https://asl.ethz.ch/research/rauc.html>`__, `GitHub <https://github.com/atheler>`__)
+* Silvan Januth (`Wyss Zurich <https://www.wysszurich.uzh.ch/technology-platforms/robotics-technologies?tx_ogwyssteams_teamlist%5Baction%5D=show&tx_ogwyssteams_teamlist%5Bcontroller%5D=Page&tx_ogwyssteams_teamlist%5Bteamid%5D=14&cHash=fd397786f38a735838b306d7e9655ca9#c117>`__)
 
 
 Original Idea & User Interface

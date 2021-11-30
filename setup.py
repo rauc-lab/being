@@ -56,7 +56,6 @@ setup(
     ],
     keywords='Poetic animatronics robotic framework',
     long_description=longDescription,
-    #long_description_content_type='text/rst',  # TODO: Does not work. Maybe .rst -> .md
     name='being',
     packages=find_packages(),
     data_files=[
