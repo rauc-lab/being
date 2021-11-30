@@ -165,9 +165,9 @@ class CanMotor(MotorBlock):
 
     This class initializes all the necessary components for accessing and
     configuring a CAN motor:
-      - network (if non has been initialized yet)
-      - CiA402Node CAN node for given node id.
-      - Controller depending on manufacturer.
+    - network (if non has been initialized yet)
+    - CiA402Node CAN node for given node id.
+    - Controller depending on manufacturer.
 
     Since most of the time the network will be created implicitly always use
     this class within `manage_resources` context manager so the that the

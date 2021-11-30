@@ -2,12 +2,12 @@
 import abc
 import sys
 import warnings
-from typing import Optional, Set
+from typing import Optional, Set, List
 
 from canopen.emcy import EmcyError
 
 from being.bitmagic import clear_bit, set_bit
-from being.can.cia_402 import CiA402Node, HOMING_METHOD, OperationMode, State
+from being.can.cia_402 import CiA402Node, HOMING_METHOD, OperationMode, State, StateSwitching
 from being.configuration import CONFIG
 from being.constants import FORWARD
 from being.logging import get_logger
@@ -80,21 +80,27 @@ class Controller(MotorInterface):
       - Relaying EMCY errors.
 
     Attributes:
-        EMERGENCY_ERROR_CODES: Todo.
-        SUPPORTED_HOMING_METHODS: Supported homing methods.
-        node: Connected CiA 402 CANopen node.
-        motor: Associated hardware motor.
-        direction: Motor direction.
-        homingMethod: Homing method.
-        homingDirection: Homing direction.
-        lower: Lower clipping value for target position in device units.
-        upper: Upper clipping value for target position in device units.
-        logger: Controller logging instance.
-        only_new_ones: Filter for showing error messages only once.
+        node (CiA402Node): Connected CiA 402 CANopen node.
+        motor (Motor): Associated hardware motor.
+        direction (float): Motor direction.
+        length (float): Length of motor.
+        logger (Logger): Controller logger instance.
+        position_si_2_device (float): SI position to device units conversion factor.
+        velocity_si_2_device (float): SI velocity to device units conversion factor.
+        acceleration_si_2_device (float): SI acceleration to device units conversion factor.
+        lower (int): Lower clipping value for target position in device units.
+        upper (int): Upper clipping value for target position in device units.
+        lastState (being.can.cia_402.State): Last receive state of motor controller.
+        switchJob (Optional[StateSwitching]): Ongoing state switching job.
     """
 
-    EMERGENCY_DESCRIPTIONS: list = []
+    EMERGENCY_DESCRIPTIONS: List[tuple] = []
+    """List of (code (int), mask (int), description (str)) tuples with the error
+    informations.
+    """
+
     SUPPORTED_HOMING_METHODS: Set[int] = {}
+    """Set of the supported homing method numbers for the controller."""
 
     def __init__(self,
             node: CiA402Node,
