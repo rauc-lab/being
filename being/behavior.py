@@ -1,17 +1,19 @@
-"""Simple behavior "engine".
+"""Simple behavior three state behavior engine.
 
-To be expanded with a proper behavior tree engine (to be discussed).
+A behavior processes sensor inputs and outputs motion commands to motion players
+to trigger motion playback.
 """
 import enum
 import itertools
 import os
 import random
 import warnings
+from typing import Optional, ForwardRef
 
 from being.block import Block, output_neighbors
 from being.clock import Clock
-from being.content import Content
 from being.constants import INF
+from being.content import Content
 from being.logging import get_logger
 from being.motion_player import MotionPlayer, MotionCommand
 from being.pubsub import PubSub
@@ -30,18 +32,31 @@ class State(enum.Enum):
 
 register_enum(State)
 
-
 # For comforts / de-clutter
 STATE_I = State.STATE_I
 STATE_II = State.STATE_II
 STATE_III = State.STATE_III
 
+BEHAVIOR_CHANGED: str = 'BEHAVIOR_CHANGED'
+"""PubSub event string literal. Triggered when something inside behavior has
+changed (behavior state change but also if another motion gets played).
+"""
 
-BEHAVIOR_CHANGED = 'BEHAVIOR_CHANGED'
+Behavior = ForwardRef('Behavior')
 
 
-def create_params(attentionSpan=10., motions=None):
-    """Create default behavior params dictionary."""
+def create_params(attentionSpan: float = 10., motions: Optional[list] = None) -> dict:
+    """Create default behavior params dictionary.
+
+    Args:
+        attentionSpan (optional): Initial attention span duration (default is 10
+            seconds).
+        motions (optional): Initial motion lists. List of motion names for each
+            behavior state. Lookup happens via index...
+
+    Returns:
+        Behavior params dictionary.
+    """
     if motions is None:
         motions = [[] for _ in State]
 
@@ -53,25 +68,46 @@ def create_params(attentionSpan=10., motions=None):
 
 class Behavior(Block, PubSub):
 
-    """Simple 3x state finite state machine behavior engine for ECAL workshop.
-    Based on modified Anima II/III behavior engine. The three states are:
+    """Simple 3x state finite state machine behavior engine. Originally build
+    for the ÉCAL workshop in March 2021.
+
+    There are three states (:class:`being.behavior.State`):
       1) STATE_I
       2) STATE_II
       3) STATE_III
 
-    Sensor trigger transitions STATE_I / STATE_II -> STATE_III and fire one
-    animation playback. After this single animation behavior will go to STATE_II
-    where it will stay for at least `params.attentionSpan` many seconds. After
-    that it will transition to STATE_I state.
+    Each state has its own repertoire of motions. The sensor input
+    (:class:`being.connectables.MessageInput`) triggers a state transition to
+    STATE_III and fires one single animation playback for STATE_III. When this
+    motion finishes the behavior transitions to STATE_II where it will stay for
+    at least ``params.attentionSpan`` many seconds and play motions for this
+    state. Afterwards it transitions back to STATE_I.
 
-    Animations are chosen randomly from supplied animation from params.
+    If provided with a filepath the current behavior params get stored / loaded
+    from a JSON file (inside current working directory).
 
-    Extra Params class for JSON serialization / API.
+    Notes:
+      - By setting the ``attentionSpan`` to zero STATE_II can be skipped.
+      - Animations are chosen randomly from supplied animation from params.
+      - A new sensor trigger will always interrupt STATE_I / STATE_II and jump
+        immediately to STATE_III
     """
 
     FREE_NUMBERS = itertools.count(1)
+    """Behavior number counter for default behavior names."""
 
-    def __init__(self, params=None, clock=None, content=None, name=None):
+    def __init__(self,
+            params: Optional[dict] = None,
+            clock: Optional[Clock] = None,
+            content: Optional[Content] = None,
+            name: Optional[str] = None,
+        ):
+        """Args:
+            params (optional): Behavior params dictionary
+            clock (optional): Being clock (DI).
+            content (optional): Being content (DI).
+            name (optional): Behavior name.
+        """
         if params is None:
             params = create_params()
 
@@ -103,12 +139,18 @@ class Behavior(Block, PubSub):
         self.logger = get_logger(self.name)
 
     @classmethod
-    def from_config(cls, filepath: str, *args, **kwargs):
-        """Create behavior instance with params from config file. Remembers
-        filepath and save each change of params to disk.
+    def from_config(cls, filepath: str, *args, **kwargs) -> Behavior:
+        """
+        Construct behavior instance with an associated parms JSON file.
+        Remembers ``filepath`` and save each change of params to disk.
 
         Args:
             filepath: JSON config file.
+            *args: Behavior variable length argument list.
+            **kwargs: Arbitrary Behavior keyword arguments.
+
+        Returns:
+            New Behavior instance.
         """
         if os.path.exists(filepath):
             params = loads(read_file(filepath))
@@ -127,7 +169,9 @@ class Behavior(Block, PubSub):
 
     @params.setter
     def params(self, params: dict):
-        """Update behavior params."""
+        """Update behavior params. If ``filepath`` attribute is defined also
+        save it to disk.
+        """
         self._params = params
         self._purge_params()
         if self.filepath:
@@ -147,7 +191,7 @@ class Behavior(Block, PubSub):
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
 
     def reset(self):
-        """Reset behavior attributes."""
+        """Reset behavior states and attributes. Jump back to STATE_I."""
         self.active = True
         self.state = State.STATE_I
         self.lastChanged = 0.
@@ -169,7 +213,11 @@ class Behavior(Block, PubSub):
             mp.stop()
 
     def sensor_triggered(self) -> bool:
-        """Check if sensor got triggered."""
+        """Check if sensor got triggered. This will drain all input messages.
+
+        Returns:
+            True if we received `any` message at the sensor input.
+        """
         triggered = False
         for _ in self.sensorIn.receive():  # Consume all trigger messages
             triggered = True
@@ -177,9 +225,7 @@ class Behavior(Block, PubSub):
         return triggered
 
     def _purge_params(self):
-        """Check with content and remove all non existing motion names from
-        _params.
-        """
+        """Check with content and remove all outdated motions from params."""
         existing = self.content.list_curve_names()
         for stateNr, names in enumerate(self._params['motions']):
             self._params['motions'][stateNr] = [
@@ -194,8 +240,8 @@ class Behavior(Block, PubSub):
         return motion.end
 
     def play_random_motion_for_current_state(self):
-        """Pick a random motion name from `motions` and fire a non-looping
-        motion command.
+        """Pick a random motion name from motions and fire a non-looping motion
+        command.
         """
         names = self._params['motions'][self.state.value]
         if len(names) == 0:
@@ -212,7 +258,11 @@ class Behavior(Block, PubSub):
         self.publish(BEHAVIOR_CHANGED)
 
     def change_state(self, newState: State):
-        """Change state of behavior to `newState`."""
+        """Change behavior state.
+
+        Args:
+            newState: New behavior state to change to.
+        """
         if newState is self.state:
             return
 
