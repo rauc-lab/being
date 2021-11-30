@@ -1,5 +1,7 @@
-"""Being object. Encapsulates the various blocks for a given program."""
-from typing import List, Optional
+"""Being application core object. Encapsulates the various blocks for a given
+program and defines the single cycle.
+"""
+from typing import List, Optional, Iterable, Generator
 
 from being.backends import CanBackend
 from being.behavior import Behavior
@@ -19,17 +21,28 @@ from being.params import Parameter
 from being.utils import filter_by_type
 
 
-INTERVAL = CONFIG['General']['INTERVAL']
+def value_outputs(blocks: Iterable[Block]) -> Generator[ValueOutput, None, None]:
+    """Collect all value outputs from blocks.
 
+    Args:
+        blocks: Blocks to traverse.
 
-def value_outputs(blocks):
-    """Collect all value outputs from blocks."""
+    Yields:
+        All ValueOutputs.
+    """
     for block in blocks:
         yield from filter_by_type(block.outputs, ValueOutput)
 
 
-def message_outputs(blocks):
-    """Collect all message outputs from blocks."""
+def message_outputs(blocks: Iterable[Block]) -> Generator[MessageOutput, None, None]:
+    """Collect all message outputs from blocks.
+
+    Args:
+        blocks: Blocks to traverse.
+
+    Yields:
+        All MessageOutputs.
+    """
     for block in blocks:
         yield from filter_by_type(block.outputs, MessageOutput)
 
@@ -39,7 +52,23 @@ class Being:
     """Being core.
 
     Main application-like object. Container for being components. Block network
-    graph and additional components (some back ends, clock, motors...).
+    graph and additional components (some back ends, clock, motors...). Defines
+    the single cycle which be called repeatedly. Also some helper shortcut
+    methods.
+
+    Attributes:
+        clock (Clock): Being clock.
+        pacemaker (Pacemaker): Being pacemaker.
+        network (CanBackend): Being CAN backend / network.
+        graph (Graph): Block network for running program.
+        execOrder (List[Block]): Block execution order.
+        logger (Logger): Instance logger.
+        valueOutputs (List[ValueOutput]): All value outputs.
+        messageOutputs (List[MessageOutput]): All message outputs.
+        behaviors (List[Behavior]): All behavior blocks.
+        motionPlayers (List[MotionPlayer]): All motion player blocks.
+        motors (List[MotorBlock]): All motor blocks.
+        params (List[Parameter]): All parameter blocks.
     """
 
     def __init__(self,
@@ -49,11 +78,10 @@ class Being:
             network: Optional[CanBackend] = None,
         ):
         """Args:
-            blocks: Blocks to execute.
+            blocks: Blocks (forming a block network) to execute.
             clock: Being clock instance.
-            pacemaker: Pacemaker thread (will not be started, used as dummy).
-            network: CanBackend instance (if any).
-            usePacemaker: If to use a pacemaker thread (if CanBackend network).
+            pacemaker: Pacemaker instance. Thread will not be started but will be used as dummy.
+            network: CanBackend instance (if any, DI).
         """
         self.clock = clock
         self.pacemaker = pacemaker
@@ -61,7 +89,7 @@ class Being:
         self.graph = block_network_graph(blocks)
         self.execOrder = topological_sort(self.graph)
 
-        self.logger = get_logger('Being')
+        self.logger = get_logger(type(self).__name__)
 
         self.valueOutputs = list(value_outputs(self.execOrder))
         self.messageOutputs = list(message_outputs(self.execOrder))
@@ -99,7 +127,9 @@ class Being:
             behavior.pause()
 
     def single_cycle(self):
-        """Execute single cycle of block networks."""
+        """Execute single being cycle. Network sync, executing block network,
+        advancing clock.
+        """
         if self.network:
             self.network.send_sync()
 
