@@ -71,7 +71,7 @@ Dependencies
 
 TODO Needed?
 
-Communication channels
+Communication Channels
 ======================
 
 TODO Needed?
@@ -98,6 +98,7 @@ Table of Contents
    tutorials
    guides
    reference/modules
+   reference/being
 
 Indices and tables
 ==================
