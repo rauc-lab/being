@@ -1,6 +1,16 @@
 Tutorials
 =========
 
+Building a Motion Looper Block
+------------------------------
+
+TODO
+
+Building a Sine Block
+---------------------
+
+TODO
+
 Creating a New Being
 --------------------
 
