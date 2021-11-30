@@ -5,6 +5,7 @@ from scipy.interpolate import CubicSpline
 from being.behavior import STATE_I, STATE_II, STATE_III, Behavior, create_params
 from being.clock import Clock
 from being.connectables import MessageInput
+from being.curve import Curve
 from being.motion_player import MotionPlayer
 
 
@@ -14,8 +15,9 @@ EXCITED_MOTION = 'Excited Motion'
 
 
 class DummyContent:
-    def load_motion(self, name):
-        return CubicSpline([0., 1.], [[0.], [0.]])
+    def load_curve(self, name):
+        spline = CubicSpline([0., 1.], [[0.], [0.]])
+        return Curve(splines=[spline])
 
 
 class CallCounter:
@@ -37,7 +39,8 @@ class TestBehavior(unittest.TestCase):
 
     def setUp(self):
         self.clock = Clock(interval=0.5)
-        self.motionPlayer = MotionPlayer(clock=self.clock, content=DummyContent())
+        content = DummyContent()
+        self.motionPlayer = MotionPlayer(clock=self.clock, content=content)
         params = create_params(
             attentionSpan=5.,
             motions=[
@@ -46,7 +49,7 @@ class TestBehavior(unittest.TestCase):
                 [EXCITED_MOTION],
             ],
         )
-        self.behavior = Behavior(params=params, clock=self.clock)
+        self.behavior = Behavior(params=params, clock=self.clock, content=content)
         self.behavior.change_state = CallCounter(self.behavior.change_state)
         self.behavior.associate(self.motionPlayer)
         self.drain = MessageInput()

@@ -69,3 +69,10 @@ h1 {
     margin-top: 0.6em;
     margin-bottom: 0.2em;
 }
+
+/* Alertify / notification styling */
+.alertify-notifier .ajs-message,
+.alertify-notifier .ajs-message.ajs-warning {
+    border: solid 2px #000;
+    border-radius: 0;
+}

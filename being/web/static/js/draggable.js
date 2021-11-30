@@ -5,35 +5,43 @@ import { LEFT_MOUSE_BUTTON } from "/static/js/constants.js";
 
 
 /**
- * Make some draggable by attaching the necessary event listeners.
- * @param ele HTML element to make draggable.
- * @param start_drag On start drag callback.
- * @param drag On dragging callback.
- * @param end_drag On end drag callback.
- * @param mouseButton On which mouse button to react to. Left mouse button by default.
+ * Dummy event listener.
  */
-export function make_draggable(ele, start_drag, drag, end_drag,
-    mouseButton = LEFT_MOUSE_BUTTON) {
-    /**
-     * Enable all event listeners for drag action.
-     */
-    function enable_drag_listeners() {
-        addEventListener("mousemove", drag_internal);
-        addEventListener("mouseup", end_drag_internal);
-        addEventListener("mouseleave", end_drag_internal);
-        addEventListener("keyup", escape_drag_internal);
-    }
+function NO_ACTION(evt) {}
 
 
-    /**
-     * Disable all event listerns of drag action.
-     */
-    function disable_drag_listeners() {
-        removeEventListener("mousemove", drag_internal);
-        removeEventListener("mouseup", end_drag_internal);
-        removeEventListener("mouseleave", end_drag_internal);
-        removeEventListener("keyup", escape_drag_internal);
-    }
+/**
+ * Stop event propagation.
+ */
+function stop_propagation(evt) {
+    evt.stopPropagation();
+}
+
+
+/**
+ * 
+ * @param {HTMLElement} ele HTML element to make draggable.
+ * @param {Object} callbacks Drag event callbacks:
+ *     {Function} start_drag
+ *     {Function} drag
+ *     {Function} end_drag
+ * @param {Object} options Drag options:
+ *     mouseButton {Number}: Which mouse button to react to (default is left mouse button).
+ *     escapable {Boolean}: End drag by pressing ESC key (default is true).
+ *     suppressClicks {Boolean}: End drag by pressing ESC key (default is true).
+ */
+export function make_draggable(ele, callbacks={}, options={}) {
+    callbacks = Object.assign({
+        "start_drag": NO_ACTION,
+        "drag": NO_ACTION,
+        "end_drag": NO_ACTION,
+    }, callbacks);
+    options = Object.assign({
+        "mouseButton": LEFT_MOUSE_BUTTON,
+        "escapable": true,
+        "suppressClicks": true,
+    }, options);
+    let startPos = null;
 
 
     /**
@@ -41,17 +49,15 @@ export function make_draggable(ele, start_drag, drag, end_drag,
      * @param {MouseEvent} evt Mouse event.
      */
     function start_drag_internal(evt) {
-        if (evt.which !== mouseButton) {
+        if (evt.which !== options.mouseButton) {
             return;
         }
 
         evt.stopPropagation();
-        //disable_drag_listeners();  // TODO(atheler): Do we need this?
+        startPos = [evt.clientX, evt.clientY];
         enable_drag_listeners();
-        start_drag(evt);
+        callbacks.start_drag(evt);
     }
-
-    ele.addEventListener("mousedown", start_drag_internal);
 
 
     /**
@@ -60,7 +66,56 @@ export function make_draggable(ele, start_drag, drag, end_drag,
      */
     function drag_internal(evt) {
         evt.preventDefault();
-        drag(evt);
+        callbacks.drag(evt);
+    }
+
+
+    /**
+     * End dragging of element.
+     * @param {MouseEvent} evt Mouse event.
+     */
+    function end_drag_internal(evt) {
+        const moved = (evt.clientX !== startPos[0] || evt.clientY !== startPos[1]);
+        disable_drag_listeners(moved);
+        startPos = null;
+        callbacks.end_drag(evt);
+    }
+
+
+    /**
+     * Enable all event listeners for drag action.
+     */
+    function enable_drag_listeners() {
+        addEventListener("mousemove", drag_internal);
+        addEventListener("mouseup", end_drag_internal);
+        addEventListener("mouseleave", end_drag_internal);
+        addEventListener("keyup", escape_drag_internal);
+        if (options.suppressClicks) {
+            addEventListener("click", stop_propagation, true);
+            addEventListener("dblclick", stop_propagation, true);
+        }
+    }
+
+
+    /**
+     * Disable all event listerns of drag action.
+     */
+    function disable_drag_listeners(moved=false) {
+        removeEventListener("mousemove", drag_internal);
+        removeEventListener("mouseup", end_drag_internal);
+        removeEventListener("mouseleave", end_drag_internal);
+        removeEventListener("keyup", escape_drag_internal);
+        if (options.suppressClicks) {
+            if (moved) {
+                setTimeout(() => {
+                    removeEventListener("click", stop_propagation, true);
+                    removeEventListener("dblclick", stop_propagation, true);
+                }, 50);
+            } else {
+                removeEventListener("click", stop_propagation, true);
+                removeEventListener("dblclick", stop_propagation, true);
+            }
+        }
     }
 
 
@@ -74,13 +129,5 @@ export function make_draggable(ele, start_drag, drag, end_drag,
         }
     }
 
-
-    /**
-     * End dragging of element.
-     * @param {MouseEvent} evt Mouse event.
-     */
-    function end_drag_internal(evt) {
-        disable_drag_listeners();
-        end_drag(evt);
-    }
+    ele.addEventListener("mousedown", start_drag_internal);
 }

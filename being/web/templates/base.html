@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <title>Being</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="static/css/reset.css">
+{% block head %}
+{% endblock %}
+</head>
+<body>
+    <div id="wrapper">
+{% block body %}
+{% endblock %}
+
+    {% block footer %}
+    <footer style="text-align: center;">
+        <a href="http://rauc.ethz.ch">RAUC</a> © 2021
+    </footer>
+    {% endblock %}
+    </div>
+</body>
+</html>

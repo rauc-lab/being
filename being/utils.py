@@ -1,16 +1,15 @@
+"""Miscellaneous helpers."""
 import collections
 import fnmatch
 import glob
+import itertools
 import os
+import random
 import weakref
 from typing import Dict, List, Generator
 
 
-Filepath = str
-
-
-
-def filter_by_type(sequence, type_) -> Generator:
+def filter_by_type(sequence, type_) -> Generator[object, None, None]:
     """Filter sequence by type."""
     return (
         ele for ele in sequence
@@ -25,7 +24,7 @@ def rootname(path: str) -> str:
     return root
 
 
-def collect_files(directory, pattern='*') -> Generator[Filepath, None, None]:
+def collect_files(directory, pattern='*') -> Generator[str, None, None]:
     """Recursively walk over all files in directory. With file extension
     filter."""
     # Give full context
@@ -35,7 +34,7 @@ def collect_files(directory, pattern='*') -> Generator[Filepath, None, None]:
             yield os.path.join(dirpath, fn)
 
 
-def listdir(directory, fullpath=True) -> List[Filepath]:
+def listdir(directory, fullpath=True) -> List[str]:
     """List directory content. Not recursive. No hidden files. Lexicographically
     sorted.
 
@@ -52,19 +51,56 @@ def listdir(directory, fullpath=True) -> List[Filepath]:
     ]
 
 
-def read_file(filepath):
+def read_file(filepath: str) -> str:
+    """Read entire data from file."""
     with open(filepath) as file:
         return file.read()
 
 
-def write_file(filepath, data):
+def write_file(filepath: str, data):
+    """Write data to file."""
     with open(filepath, 'w') as file:
         file.write(data)
 
 
-def any_item(iterable):
-    """Pick first element of iterable."""
-    return next(iter(iterable))
+def update_dict_recursively(dct: dict, other: dict, default_factory: type = None) -> dict:
+    """Update dictionary recursively.
+
+    Args:
+        dct: Dictionary to update.
+        other: Other dict to go through.
+
+    Kwargs:
+        default_factory: Default factory for intermediate dicts.
+    """
+    if default_factory is None:
+        default_factory = type(dct)
+
+    for k, v in other.items():
+        if isinstance(v, collections.abc.Mapping):
+            dct[k] = update_dict_recursively(dct.get(k, default_factory()), v)
+        else:
+            dct[k] = v
+
+    return dct
+
+
+def merge_dicts(first: dict, *others) -> dict:
+    """Merge dict together. Pre Python 3.5 compatible. Type of first dict is
+    used for the returned one.
+
+    Arguments:
+        first: First dict to copy and update.
+        *others: All the other dicts.
+
+    Returns:
+        Updated dict.
+    """
+    merged = first.copy()
+    for dct in others:
+        merged.update(dct)
+
+    return merged
 
 
 class SingleInstanceCache:
@@ -133,12 +169,113 @@ class SingleInstanceCache:
 
 class IdAware:
 
-    """Assign ascending id numbers to instances."""
+    """Class mixin for assigning assigning id numbers to each instance. Each
+    type has its own counter / starts from zero.
+    """
 
-    COUNTERS = collections.defaultdict(int)
+    ID_COUNTERS = collections.defaultdict(itertools.count)
 
     def __new__(cls, *args, **kwargs):
-        self = super().__new__(cls, *args, **kwargs)
-        self.id = cls.COUNTERS[cls]
-        cls.COUNTERS[cls] += 1
+        self = object.__new__(cls)
+        self.id = next(cls.ID_COUNTERS[cls])
         return self
+
+
+class NestedDict(collections.abc.MutableMapping):
+
+    """Nested dict.
+    Tuples as key path for accessing nested dicts within.
+    Similar to defaultdict but NestedDict wraps an existing dict-like object
+    within.
+    """
+
+    # To key error, or not to key error, that is the question. Kind of pointless
+    # to have a NestedDict when setting a new nested value always leads to key
+    # errors? Also then setdefault works as expected.
+
+    def __init__(self, data=None, default_factory=dict):
+        """Kwargs:
+            iterable: Initial data.
+            default_factory: Default factory for intermediate dicts.
+        """
+        if data is None:
+            data = default_factory()
+
+        self.data = data
+        self.default_factory = default_factory
+
+    @staticmethod
+    def _as_keys(key) -> tuple:
+        """Assure tuple key path."""
+        if isinstance(key, tuple):
+            return key
+
+        return (key,)
+
+    def __setitem__(self, key, value):
+        d = self.data
+        *path, last = self._as_keys(key)
+        for k in path:
+            #d = d[k]
+            d = d.setdefault(k, self.default_factory())
+
+        d[last] = value
+
+    def __getitem__(self, key):
+        d = self.data
+        for k in self._as_keys(key):
+            #d = d[k]
+            d = d.setdefault(k, self.default_factory())
+
+        return d
+
+    def __delitem__(self, key):
+        d = self.data
+        *path, last = self._as_keys(key)
+        for k in path:
+            d = d[k]
+
+        del d[last]
+
+    def __iter__(self):
+        return iter(self.data)
+
+    def __len__(self):
+        return len(self.data)
+
+    def __repr__(self):
+        return f'{type(self).__name__}({self.data!r})'
+
+    def get(self, key, default=None):
+        d = self.data
+        for k in self._as_keys(key):
+            if k not in d:
+                return default
+
+            d = d[k]
+
+        return d
+
+    def setdefault(self, key, default=None):
+        d = self.data
+        *path, last = self._as_keys(key)
+        for k in path:
+            d = d.setdefault(k, self.default_factory())
+
+        return d.setdefault(last, default)
+
+
+def toss_coin(probability: float = .5) -> bool:
+    """Toss a coin."""
+    return random.random() < probability
+
+
+def unique(iterable):
+    """Iterate over unique elements while preserving order."""
+    seen = set()
+    for item in iterable:
+        if item in seen:
+            continue
+
+        seen.add(item)
+        yield item

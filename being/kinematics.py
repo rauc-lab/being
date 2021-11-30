@@ -1,6 +1,7 @@
 """Optimal trajectory and kinematic filtering."""
 import collections
 import functools
+from typing import NamedTuple
 
 import numpy as np
 
@@ -8,26 +9,28 @@ from being.constants import INF
 from being.math import sign, clip
 
 
-State = collections.namedtuple('State', 'position velocity acceleration', defaults=(0., 0., 0.))
+class State(NamedTuple):
+
+    """Kinematic state."""
+
+    position: float = 0.
+    velocity: float = 0.
+    acceleration: float = 0.
 
 
-def optimal_trajectory(
-    xEnd: float,
-    vEnd: float = 0.,
-    state: State = State(),
-    maxSpeed: float = 1.,
-    maxAcc: float = 1.,
-    ) -> list:
+def optimal_trajectory(initial: State, target: State, maxSpeed: float = 1., maxAcc: float = 1.) -> list:
     """Calculate acceleration bang profiles for optimal trajectory from initial
-    `state` to target position / velocity. Respecting the kinematic limits. Bang
-    profiles are given by their duration and the acceleration value.
+    state `start` to `target` state. Respecting the kinematic limits. Bang
+    profiles are given by their duration and the acceleration values.
+
+    Both target and start velocities have to be below the `maxSpeed` limit.
+    Error otherwise.
 
     Args:
-        xEnd: Target position.
+        initial: Initial state.
+        target: Target state.
 
     Kwargs:
-        vEnd: Target velocity.
-        state: Initial state.
         maxSpeed: Maximum speed.
         maxAcc: Maximum acceleration (and deceleration).
 
@@ -35,7 +38,7 @@ def optimal_trajectory(
         List of bang speed profiles.
 
     Usage:
-        >>> optimal_trajectory(xEnd=1., maxSpeed=.5, maxAcc=1.)
+        >>> optimal_trajectory(,
         [(0.5, 1.0), (1.5, 0.0), (0.5, -1.0)]
 
     Resources:
@@ -44,11 +47,14 @@ def optimal_trajectory(
         Manipulators.
         http://webarchiv.ethz.ch/roboearth/wp-content/uploads/2013/02/OMG.pdf
     """
-    x0, v0, _ = state
+    x0 = initial[0]
+    v0 = initial[1]
+    xEnd = target[0]
+    vEnd = target[1]
     dx = xEnd - x0
     dv = vEnd - v0
     if dx == dv == 0:
-        return [(0., 0.)]
+        return []
 
     # Determine critical profile
     sv = sign(dv)
@@ -72,8 +78,7 @@ def optimal_trajectory(
 
     # Trapezoidal speed profile
     accDuration = (s * maxSpeed - v0) / (s * maxAcc)
-    t2 = ((vEnd**2 + v0**2 - 2 * s * maxSpeed * v0) /
-          (2 * maxAcc) + s * dx) / maxSpeed
+    t2 = ((vEnd**2 + v0**2 - 2 * s * maxSpeed * v0) / (2 * maxAcc) + s * dx) / maxSpeed
     cruiseDuration = t2 - accDuration
     decDuration = (vEnd - s * maxSpeed) / (-s * maxAcc)
     return [
@@ -113,14 +118,14 @@ def step(state: State, dt: float) -> State:
 
 
 def kinematic_filter(
-    targetPosition: float,
-    dt: float,
-    state: State = State(),
-    targetVelocity: float = 0.,
-    maxSpeed: float = 1.,
-    maxAcc: float = 1.,
-    lower: float = -INF,
-    upper: float = INF,
+        targetPosition: float,
+        dt: float,
+        initial: State = State(),
+        targetVelocity: float = 0.,
+        maxSpeed: float = 1.,
+        maxAcc: float = 1.,
+        lower: float = -INF,
+        upper: float = INF,
     ) -> State:
     """Filter target position with respect to the kinematic limits (maximum
     speed and maximum acceleration / deceleration). Online optimal trajectory.
@@ -141,30 +146,25 @@ def kinematic_filter(
     Returns:
         The next state.
     """
-    bangProfiles = optimal_trajectory(
-        clip(targetPosition, lower, upper),
-        targetVelocity,
-        state,
-        maxSpeed,
-        maxAcc,
-    )
+    target = (clip(targetPosition, lower, upper), targetVelocity)
+    bangProfiles = optimal_trajectory(initial, target, maxSpeed, maxAcc)
 
     # Effectively spline evaluation. Go through all segments and see where we
     # are at `dt`. Update state for intermediate steps.
     for duration, acc in bangProfiles:
         if dt <= duration:
-            return step((state.position, state.velocity, acc), dt)
+            return step((initial.position, initial.velocity, acc), dt)
 
-        state = step((state.position, state.velocity, acc), duration)
+        initial = step((initial.position, initial.velocity, acc), duration)
         dt -= duration
 
-    return state._replace(acceleration=0.)
+    return initial._replace(acceleration=0.)
 
 
-def kinematic_filter_vec(targets, dt, state=State(), **kwargs):
+def kinematic_filter_vec(targets, dt, initial=State(), **kwargs):
     traj = []
     for target in targets:
-        state = kinematic_filter(target, dt, state=state, **kwargs)
-        traj.append(state)
+        initial = kinematic_filter(target, dt, initial=initial, **kwargs)
+        traj.append(initial)
 
     return np.array(traj)

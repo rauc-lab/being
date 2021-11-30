@@ -1,24 +1,44 @@
 """Web server back end."""
-import os
 import asyncio
+import datetime
 import logging
+import os
 import types
 
 from aiohttp import web
+import aiohttp_jinja2
+import jinja2
 
+from being import __version__ as BEING_VERSION_NUMBER
 from being.behavior import BEHAVIOR_CHANGED
-from being.config import  CONFIG
+from being.configuration import CONFIG
 from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
-from being.logging import BEING_LOGGERS
-from being.logging import get_logger
+from being.logging import BEING_LOGGER, get_logger
+from being.motors.definitions import MotorEvent
+from being.params import MotionSelection
 from being.sensors import Sensor
 from being.utils import filter_by_type
-from being.web.api import content_controller, being_controller, behavior_controller, misc_controller
+from being.web.api import (
+    behavior_controllers,
+    being_controller,
+    content_controller,
+    messageify,
+    misc_controller,
+    motion_player_controllers,
+    motor_controllers,
+    params_controller,
+)
 from being.web.web_socket import WebSocket
 
 
-LOGGER = get_logger(__name__)
+API_PREFIX = CONFIG['Web']['API_PREFIX']
+WEB_SOCKET_ADDRESS = CONFIG['Web']['WEB_SOCKET_ADDRESS']
+INTERVAL = CONFIG['General']['INTERVAL']
+WEB_INTERVAL = CONFIG['Web']['INTERVAL']
+
+
+LOGGER = get_logger(name=__name__, parent=None)
 """Server module logger."""
 
 
@@ -31,17 +51,10 @@ def wire_being_loggers_to_web_socket(ws: WebSocket):
     """
     class WsHandler(logging.Handler):
         def emit(self, record):
-            ws.send_json_buffered({
-                'type': 'log',
-                'level': record.levelno,
-                'name': record.name,
-                'message': self.format(record),
-            })
+            ws.send_json_buffered(record)
 
     handler = WsHandler()
-    for logger in BEING_LOGGERS:
-        logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
+    BEING_LOGGER.addHandler(handler)
 
 
 def patch_sensor_to_web_socket(sensor, ws: WebSocket):
@@ -68,22 +81,50 @@ def init_api(being, ws: WebSocket) -> web.Application:
     """Initialize and setup Rest-like API sub-app."""
     content = Content.single_instance_setdefault()
     api = web.Application()
-    api.add_routes(misc_controller())
-    api.add_routes(content_controller(content))
 
-    # Content
-    content.subscribe(CONTENT_CHANGED, lambda: ws.send_json_buffered(content.dict_motions_2()))
 
-    # Behavior
-    if len(being.behaviors) >= 1:
-        behavior = being.behaviors[0]
-        api.add_routes(behavior_controller(behavior))
-        behavior.subscribe(BEHAVIOR_CHANGED, lambda: ws.send_json_buffered(behavior.infos()))
-        content.subscribe(CONTENT_CHANGED, behavior._purge_params)
+    def ws_emit(obj):
+        """Function factory for creating callable sender task to emit the
+        current state of an object via the web socket connection. Used for the
+        PubSub pattern further down to register subscribers.
+
+        Originally lambda's were in place for this job but that led to a nasty
+        false reference bug when iterating over e.g. multiple motors.
+
+        The bug can be basically recreated with this:
+
+            >>> callbacks = []
+            ... for obj in range(5):
+            ...     callbacks.append(lambda: obj)
+            ...
+            ... for func in callbacks:
+            ...     print(func())
+            4
+            4
+            4
+            4
+            4
+
+        All the lambda point to the name `obj` which changes during the
+        iteration. Possible workarounds:
+          - Using functools.partial
+          - Intermediate function for freezing the scope.
+
+        The decision fell on the latter in order to protect posterity.
+        """
+        return lambda: ws.send_json_buffered(messageify(obj))
 
     # Being
     api.add_routes(being_controller(being))
-    wire_being_loggers_to_web_socket(ws)
+
+    # Misc functionality
+    api.add_routes(misc_controller())
+
+    # Content
+    api.add_routes(content_controller(content))
+    content.subscribe(CONTENT_CHANGED, lambda: ws.send_json_buffered(content.forge_message()))
+    for motionSelection in filter_by_type(being.params, MotionSelection):
+        content.subscribe(CONTENT_CHANGED, motionSelection.on_content_changed)
 
     # Patch sensor events
     sensors = list(filter_by_type(being.execOrder, Sensor))
@@ -91,33 +132,92 @@ def init_api(being, ws: WebSocket) -> web.Application:
         sensor = sensors[0]
         patch_sensor_to_web_socket(sensor, ws)
 
+    # Behaviors
+    api.add_routes(behavior_controllers(being.behaviors))
+    for behavior in being.behaviors:
+        behavior.subscribe(BEHAVIOR_CHANGED, ws_emit(behavior))
+        content.subscribe(CONTENT_CHANGED, behavior._purge_params)
+
+    # Motion players
+    api.add_routes(motion_player_controllers(being.motionPlayers, being.behaviors))
+
+    # Motors
+    api.add_routes(motor_controllers(being))
+
+    def ws_motor_error_notification(motor):
+        return lambda msg: ws.send_json_buffered({
+            'type': 'motor-error',
+            'motor': motor,
+            'message': msg,
+        })
+
+    for motor in being.motors:
+        motor.subscribe(MotorEvent.STATE_CHANGED, ws_emit(motor))
+        motor.subscribe(MotorEvent.HOMING_CHANGED, ws_emit(motor))
+        motor.subscribe(MotorEvent.ERROR, ws_motor_error_notification(motor))
+
+    api.add_routes(params_controller(being.params))
+
+    wire_being_loggers_to_web_socket(ws)
+
     return api
 
 
-def init_web_server() -> web.Application:
+def which_year_is_it() -> int:
+    """Which year is it now?
+
+    Returns:
+        Year number.
+    """
+    return datetime.date.today().year
+
+
+def init_web_server(being, ws) -> web.Application:
     """Initialize aiohttp web server application and setup some routes.
 
     Returns:
         app: Application instance.
     """
+    app = web.Application()
+    aiohttp_jinja2.setup(app, loader=jinja2.PackageLoader('being.web', 'templates'))
+
+    # Web socket
+    app.router.add_get(WEB_SOCKET_ADDRESS, ws.handle_new_connection)
+
+    # Signals
+    app.on_startup.append(ws.start_broker)
+    app.on_shutdown.append(ws.stop_broker)
+    app.on_shutdown.append(ws.close_all_connections)
+
+    # Static directory
     here = os.path.dirname(os.path.abspath(__file__))
     staticDir = os.path.join(here, 'static')
-    app = web.Application()
     app.router.add_static(prefix='/static', path=staticDir, show_index=True)
 
+    # Routes
     routes = web.RouteTableDef()
 
     @routes.get('/favicon.ico')
     async def get_favicon(request):
         return web.FileResponse(os.path.join(staticDir, 'favicon.ico'))
 
-
     @routes.get('/')
+    @aiohttp_jinja2.template('index.html')
     async def get_index(request):
-        return web.FileResponse(os.path.join(staticDir, 'index.html'))
-
+        return {
+            'version': BEING_VERSION_NUMBER,
+            'behaviors': being.behaviors,
+            'motionPlayers': being.motionPlayers,
+            'year': which_year_is_it(),
+            'hasParams': bool(being.params),
+        }
 
     app.router.add_routes(routes)
+
+    # API
+    api = init_api(being, ws)
+    app.add_subapp(API_PREFIX, api)
+
     return app
 
 
@@ -127,7 +227,7 @@ async def run_web_server(app: web.Application):
     Args:
         app (?): Aiohttp web application.
     """
-    runner = web.AppRunner(app)
+    runner = web.AppRunner(app, handle_signals=True)
     LOGGER.info('Setting up runner')
     await runner.setup()
     site = web.TCPSite(
@@ -138,5 +238,8 @@ async def run_web_server(app: web.Application):
     LOGGER.info(f'Starting site at:\n{site.name}')
     await site.start()
 
-    while True:
-        await asyncio.sleep(3600)  # sleep forever
+    try:
+        while True:
+            await asyncio.sleep(3600)  # sleep forever
+    finally:
+        await runner.cleanup()

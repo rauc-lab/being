@@ -1,0 +1,10 @@
+:host {
+    -webkit-column-width: 300px;
+    -moz-column-width: 300px;
+    column-width: 300px;
+    column-fill: auto;
+}
+
+:host h1, h2, h3, h4 {
+    font-weight: 500;
+}

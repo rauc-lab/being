@@ -1,7 +1,6 @@
 /**
  * @module array Numpy style array helpers.
  */
-
 import {assert, arrays_equal} from "/static/js/utils.js";
 
 
@@ -89,8 +88,17 @@ export function zeros(shape) {
 /**
  * Ascending integer array for given length. 
  */
-export function arange(length) {
-    return [...Array(length).keys()];
+export function arange(start, stop=undefined, step=1) {
+    if (stop === undefined) {
+        [start, stop] = [0, start];
+    }
+
+    const ret = [];
+    for (let i=start; i<stop; i+=step) {
+        ret.push(i);
+    }
+
+    return ret;
 }
 
 
@@ -155,3 +163,13 @@ export function array_full(shape, fillValue) {
 
 assert(arrays_equal( array_full([3], 1), [1, 1, 1]));
 assert(arrays_equal( array_full([1, 3], 1), [[1, 1, 1]]));
+
+
+export function diff_array(arr) {
+    const delta = [];
+    for (let i=1; i<arr.length; i++) {
+        delta.push(arr[i] - arr[i - 1]);
+    }
+
+    return delta;
+}

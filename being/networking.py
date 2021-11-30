@@ -28,14 +28,14 @@ class NetworkBlock(Block):
         sock: Socket instance.
     """
 
-    def __init__(self, address: Address, sock: Optional[Socket] = None):
+    def __init__(self, address: Address, sock: Optional[Socket] = None, **kwargs):
         """Args:
             address: Network address.
 
         Kwargs:
             sock: Socket instance.
         """
-        super().__init__()
+        super().__init__(**kwargs)
         if sock is None:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.setblocking(False)
@@ -49,8 +49,8 @@ class NetworkOut(NetworkBlock):
 
     """Datagram network out block. Send being messages over UDP."""
 
-    def __init__(self, address: Address, sock: Optional[Socket] = None):
-        super().__init__(address, sock)
+    def __init__(self, address: Address, sock: Optional[Socket] = None, **kwargs):
+        super().__init__(address, sock, **kwargs)
         self.inputs = [MessageInput(owner=self)]
 
     def update(self):
@@ -63,8 +63,8 @@ class NetworkIn(NetworkBlock):
 
     """Datagram network in block. Receive being messages over UDP."""
 
-    def __init__(self, address: Address, sock: Optional[Socket] = None):
-        super().__init__(address, sock)
+    def __init__(self, address: Address, sock: Optional[Socket] = None, **kwargs):
+        super().__init__(address, sock, **kwargs)
         self.outputs = [MessageOutput(owner=self)]
         self.decoder = FlyByDecoder(term=TERM)
         self.sock.bind(address)

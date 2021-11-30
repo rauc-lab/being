@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block head %}
+    <!-- Include third party libs -->
+    <script src="static/libs/alertifyjs/1.13.1/alertify.min.js"></script>
+    <link rel="stylesheet" href="static/libs/alertifyjs/1.13.1/css/alertify.min.css" />
+    <link rel="stylesheet" href="static/libs/alertifyjs/1.13.1/css/themes/default.min.css" />
+    <script src="static/libs/elk/0.7.1/elk.bundled.js"></script>
+
+    <!-- Include being web components -->
+    <script type="module">
+        import {ControlPanel, Behavior, Editor, ParamsPanel} from "/static/components.js";
+    </script>
+
+    <link rel="stylesheet" type="text/css" href="static/css/open_sans.css">
+    <link rel="stylesheet" type="text/css" href="static/css/material_icons.css">
+    <link rel="stylesheet" type="text/css" href="static/css/being.css">
+{% endblock %}
+
+{% block body%}
+    <nav>
+        <span>Being</span>
+        <span class="filler"></span>
+        <a href="#control-panel-anchor">Control Panel</a>
+        {% if hasParams %}
+            <a href="#params-anchor">Parameters</a>
+        {% endif %}
+        <a href="#behavior-anchor">Behavior</a>
+        <a href="#editor-anchor">Motion Editor</a>
+    </nav>
+    <hr>
+
+    <a class="anchor" id="control-panel-anchor"></a>
+    <h1>Control Panel</h1>
+    <being-control-panel></being-control-panel>
+
+    {% if hasParams %}
+        <a class="anchor" id="params-anchor"></a>
+        <h1>Parameters</h1>
+        <being-params-panel></being-params-panel>
+    {% endif %}
+
+    {% if behaviors %}
+        <a class="anchor" id="behavior-anchor"></a>
+        <h1>Behavior</h1>
+        {% for behavior in behaviors %}
+            <being-behavior behaviorId={{behavior.id}}></being-behavior>
+        {% endfor %}
+    {% endif %}
+
+    <a class="anchor" id="editor-anchor"></a>
+    <h1>Motion Editor</h1>
+    <being-editor id="editor"></being-editor>
+
+    <script type="module">
+        import { WS_ADDRESS } from "/static/js/config.js";
+        import { WebSocketCentral } from "/static/js/web_socket.js";
+        import { defaultdict } from "/static/js/utils.js";
+        import { NotificationCenter } from "/static/js/notification_center.js";
+
+        const ws = new WebSocketCentral(WS_ADDRESS);
+        const notificationCenter = new NotificationCenter(alertify);
+
+        // Web socket down or up & running notifications
+        let notiId = 0;
+        ws.subscribe("open", () => {
+            notiId = notificationCenter.notify_persistent("Connected to Being", "success", 2, notiId);
+        });
+        ws.subscribe("close", () => {
+            notiId = notificationCenter.notify_persistent("Being offline", "error", 0, notiId);
+        });
+
+        // Wire up web socket to the different widgets.
+        ws.subscribe_to_message("motor-update", msg => notificationCenter.new_motor_message(msg));
+        ws.subscribe_to_message("motor-updates", msg => notificationCenter.new_motor_message(msg));
+        ws.subscribe_to_message("motor-error", msg => notificationCenter.new_motor_message(msg));
+
+        for (let controlPanel of document.getElementsByTagName("being-control-panel")) {
+            controlPanel.set_notification_center(notificationCenter);
+            ws.subscribe_to_message("motor-update", msg => controlPanel.new_motor_message(msg));
+            ws.subscribe_to_message("motor-updates", msg => controlPanel.new_motor_message(msg));
+            ws.subscribe_to_message("LogRecord", msg => controlPanel.new_log_message(msg));
+            ws.subscribe_to_message("being-state", msg => controlPanel.new_being_state_message(msg));
+            ws.subscribe("open", () => controlPanel.set_value_connection_flow(true));
+            ws.subscribe("close", () => controlPanel.set_value_connection_flow(false));
+            //ws.subscribe_to_message("motions", msg => controlPanel.content_changed());
+        }
+
+        for (let paramsPanel of document.getElementsByTagName("being-params-panel")) {
+            ws.subscribe_to_message("motions", msg => paramsPanel.content_changed());
+        }
+
+        for (let behavior of document.getElementsByTagName("being-behavior")) {
+            ws.subscribe_to_message("behavior-update", msg => behavior.new_behavior_message(msg));
+            ws.subscribe_to_message("motions", msg => behavior.content_message(msg));
+            ws.subscribe_to_message("sensor-message", () => behavior.pulse_led());
+        }
+
+        for (let editor of document.getElementsByTagName("being-editor")) {
+            editor.set_notification_center(notificationCenter);
+            ws.subscribe_to_message("being-state", msg => editor.new_data(msg));
+            ws.subscribe_to_message("behavior-update", msg => editor.new_behavior_message(msg));
+            ws.subscribe_to_message("motions", msg => editor.new_motions_message(msg));
+        }
+
+        ws.connect();
+    </script>
+{% endblock %}
+
+{% block footer %}
+<footer style="text-align: center;">
+    PATHOS Being {{version}}. Escaped from <a href="http://rauc.ethz.ch">RAUC</a> lab © {{year}}
+</footer>
+{% endblock %}

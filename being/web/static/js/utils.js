@@ -88,7 +88,7 @@ export function arrays_equal(a, b) {
 
         return true;
     } else {
-        return a == b;
+        return a === b;
     }
 }
 
@@ -128,11 +128,17 @@ export function searchsorted(arr, val) {
  * @param {HTMLElement} select Select element to append option to.
  * @param {String} name Option name.
  */
-export function add_option(select, name) {
+export function add_option(select, name, after=undefined) {
     const option = document.createElement("option");
     option.setAttribute("value", name);
     option.innerHTML = name;
-    select.appendChild(option);
+    if (after !== undefined) {
+        const ref = select.children[after];
+        insert_after(option, ref);
+    } else {
+        select.appendChild(option);
+    }
+
     return option;
 }
 
@@ -168,4 +174,101 @@ export function insert_in_array(array, index, item) {
  */
 export function remove_from_array(array, index) {
     array.splice(index, 1);
+}
+
+
+/**
+ * Python like defaultdict.
+ */
+export function defaultdict(default_factory) {
+    const handler = {
+        get: function(obj, key) {
+            if (!obj[key]) {  // TODO: Should use hasOwnProperty or in operator. But does not work
+                obj[key] = default_factory();
+            }
+
+            return obj[key];
+        }
+    };
+
+    return new Proxy({}, handler);
+}
+
+
+/**
+ * Sleep for some time (async).
+ *
+ * @param {Number} duration Sleep duration in seconds.
+ * @returns {Promise} Awaitable setTimeout promis;
+ */
+export function sleep(duration) {
+    return new Promise(resolve => setTimeout(resolve, 1000 * duration));
+}
+
+
+/**
+ * Rename map entry to a new key. No error checking whatsoever, overwrites
+ * existing entries.
+ */
+export function rename_map_key(map, oldKey, newKey) {
+    const value = map.get(oldKey);
+    map.delete(oldKey);
+    map.set(newKey, value);
+}
+
+
+/**
+ * Find key for a value inside a map.
+ */
+export function find_map_key_for_value(map, value) {
+    for (const [k, v] of map.entries()) {
+        if (v === value) {
+            return k;
+        }
+    }
+}
+
+
+/**
+ * Insert HTML node after an existing node (needs to have a parentNode!).
+ * 
+ * @param {HTMLElement} newNode New node to insert.
+ * @param {HTMLElement} referenceNode Reference node.
+ * @returns {HTMLElement} Inserted HTML node.
+ */
+export function insert_after(newNode, referenceNode) {
+    return referenceNode.parentNode.insertBefore(newNode, referenceNode);
+}
+
+
+/**
+ * Emit event for HTML element.
+ */
+export function emit_event(ele, typeArg, bubbles=false, cancelable=false, composed=false) {
+    if ("Event" in window) {
+        const evt = new Event(typeArg, {
+            "bubbles": bubbles,
+            "cancelable": cancelable,
+            "compose": composed,
+        });
+        ele.dispatchEvent(evt);
+
+    } else if ("createEvent" in document) {
+        const evt = document.createEvent("HTMLEvents");
+        evt.initEvent(typeArg, bubbles, cancelable);
+        evt.eventName = typeArg;
+        ele.dispatchEvent(evt);
+
+    } else {
+        const evt = document.createEventObject();
+        evt.eventName = typeArg;
+        evt.eventType = typeArg;
+        ele.fireEvent("on" + evt.eventType, evt);
+    }
+}
+
+
+export function emit_custom_event(ele, typeArg, detail=null) {
+    const evt = new CustomEvent(typeArg, {detail: detail});
+    ele.dispatchEvent(evt);
 }

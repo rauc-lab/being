@@ -4,8 +4,8 @@ except ImportError:
     from being.logging import get_logger
 
 
-    LOGGER = get_logger(__name__)
-    LOGGER.warn('RPi.GPIO is not installed. Will continue with dummy Rpi.GPIO!')
+    LOGGER = get_logger(name=__name__, parent=None)
+    LOGGER.warning('RPi.GPIO is not installed. Will continue with dummy Rpi.GPIO!')
 
 
     class GPIO:

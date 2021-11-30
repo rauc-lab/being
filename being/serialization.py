@@ -12,6 +12,7 @@ Notes:
 """
 import base64
 import json
+import logging
 from collections import OrderedDict
 from enum import EnumMeta
 from typing import Generator, Dict
@@ -20,8 +21,10 @@ import numpy as np
 from numpy import ndarray
 from scipy.interpolate import PPoly, BPoly, CubicSpline
 
-from being.typing import Spline
+from being.block import Block
 from being.constants import EOT
+from being.curve import Curve
+from being.typing import Spline
 
 
 NAMED_TUPLE_LOOKUP: Dict[str, type] = {}
@@ -59,13 +62,30 @@ def register_named_tuple(namedTupleType: type):
     NAMED_TUPLE_LOOKUP[name] = namedTupleType
 
 
-def register_enum(enum: EnumMeta):
+def _enum_type_qualname(enumType: EnumMeta) -> str:
+    """Quasi qualname for enum types. So to distinguish different enum types
+    with the same name in different modules.
+
+    Usage:
+        >>> import enum
+        ...
+        ... class Foo(enum.Enum):
+        ...     FIRST = 0
+        ...     SECOND = 1
+        ...
+        ... print(_enum_type_qualname(Foo))
+        __main__.Foo
+    """
+    return enumType.__module__ + '.' + enumType.__name__
+
+
+def register_enum(enumType: EnumMeta):
     """Register enum for serialization / deserialization."""
-    name = enum.__name__
+    name = _enum_type_qualname(enumType)
     if name in ENUM_LOOKUP:
         raise RuntimeError(f'Enum {name!r} is already registered!')
 
-    ENUM_LOOKUP[name] = enum
+    ENUM_LOOKUP[name] = enumType
 
 
 def spline_to_dict(spline: Spline) -> OrderedDict:
@@ -115,12 +135,13 @@ def ndarray_from_dict(dct: dict) -> ndarray:
     return np.frombuffer(data, dct['dtype']).reshape(dct['shape'])
 
 
-def enum_to_dict(obj) -> OrderedDict:
+def enum_to_dict(enum) -> OrderedDict:
     """Convert enum instance to dct representation."""
+    enumType = type(enum)
     return OrderedDict([
-        ('type', type(obj).__name__),
-        ('members', list(type(obj).__members__)),
-        ('value', obj.value),
+        ('type', _enum_type_qualname(enumType)),
+        ('members', list(enumType.__members__)),
+        ('value', enum.value),
     ])
 
 
@@ -176,6 +197,9 @@ def being_object_hook(dct):
     if msgType == set.__name__:
         return set(dct['values'])
 
+    if msgType == Curve.__name__:
+        return Curve(splines=dct['splines'])
+
     return dct
 
 
@@ -206,6 +230,26 @@ class BeingEncoder(json.JSONEncoder):
 
         if objType is set:
             return {'type': set.__name__, 'values': list(o)}
+
+        if isinstance(o, Block):
+            return o.to_dict()
+
+        if isinstance(o, logging.LogRecord):
+            return {
+                'type': 'LogRecord',
+                'name': o.name,
+                #'msg': o.msg,
+                #'args': o.args,
+                'message': o.msg % o.args,
+                'levelname': o.levelname,
+                'levelno': o.levelno,
+            }
+
+        if isinstance(o, Curve):
+            return OrderedDict([
+                ('type', type(o).__name__),
+                ('splines', o.splines),
+            ])
 
         return json.JSONEncoder.default(self, o)
 

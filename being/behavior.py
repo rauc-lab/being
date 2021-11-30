@@ -3,17 +3,20 @@
 To be expanded with a proper behavior tree engine (to be discussed).
 """
 import enum
+import itertools
 import os
 import random
+import warnings
 
-from being.block import Block
+from being.block import Block, output_neighbors
 from being.clock import Clock
 from being.content import Content
+from being.constants import INF
 from being.logging import get_logger
 from being.motion_player import MotionPlayer, MotionCommand
 from being.pubsub import PubSub
 from being.serialization import register_enum, loads, dumps
-from being.utils import read_file, write_file
+from being.utils import read_file, write_file, filter_by_type
 
 
 class State(enum.Enum):
@@ -66,7 +69,9 @@ class Behavior(Block, PubSub):
     Extra Params class for JSON serialization / API.
     """
 
-    def __init__(self, params=None, clock=None, content=None):
+    FREE_NUMBERS = itertools.count(1)
+
+    def __init__(self, params=None, clock=None, content=None, name=None):
         if params is None:
             params = create_params()
 
@@ -76,23 +81,26 @@ class Behavior(Block, PubSub):
         if content is None:
             content = Content.single_instance_setdefault()
 
-        super().__init__()
+        if name is None:
+            name = 'Behavior %d' % next(self.FREE_NUMBERS)
+
+        super().__init__(name=name)
         PubSub.__init__(self, events=[BEHAVIOR_CHANGED])
         self.add_message_input('sensorIn')
         self.add_message_output('mcOut')
-        #self.add_message_input('feedbackIn')
 
         self._params = params
         self.clock = clock
         self.content = content
 
         self.active = True
-        self.motionPlayer = None
         self.state = State.STATE_I
-        self.lastChanged = 0.
+        self.lastChanged = -INF
         self.lastPlayed = ''
-        self.logger = get_logger('Behavior')
+        self.playingUntil = -INF
+
         self.filepath = ''
+        self.logger = get_logger(self.name)
 
     @classmethod
     def from_config(cls, filepath: str, *args, **kwargs):
@@ -132,9 +140,19 @@ class Behavior(Block, PubSub):
         Args:
             motionPlayer: To couple with behavior.
         """
-        self.motionPlayer = motionPlayer
-        self.mcOut.connect(motionPlayer.mcIn)
-        #motionPlayer.feedbackOut.connect(self.feedbackIn)
+        msg = (
+            'Behavior.associate(motionPlayer) is deprecated. Just connect'
+            ' motion player normally behavior.mcOut.connect(motionPlayer).'
+        )
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+
+    def reset(self):
+        """Reset behavior attributes."""
+        self.active = True
+        self.state = State.STATE_I
+        self.lastChanged = 0.
+        self.lastPlayed = ''
+        self.playingUntil = 0.
 
     def play(self):
         """Start behavior playback."""
@@ -143,45 +161,41 @@ class Behavior(Block, PubSub):
 
     def pause(self):
         """Pause behavior playback."""
+        self.reset()
         self.active = False
-        self.lastPlayed = ''
-        self.motionPlayer.stop()
-        self.state = STATE_I
         self.publish(BEHAVIOR_CHANGED)
+        outputNeighbors = output_neighbors(self)
+        for mp in filter_by_type(outputNeighbors, MotionPlayer):
+            mp.stop()
 
     def sensor_triggered(self) -> bool:
         """Check if sensor got triggered."""
         triggered = False
-        for _ in self.sensorIn.receive():
+        for _ in self.sensorIn.receive():  # Consume all trigger messages
             triggered = True
 
         return triggered
 
     def _purge_params(self):
-        """Check with content and remove all non existing motion names from _params."""
-        existing = list(self.content._sorted_names())
-        for i, names in enumerate(self._params['motions']):
-            self._params['motions'][i] = [
+        """Check with content and remove all non existing motion names from
+        _params.
+        """
+        existing = self.content.list_curve_names()
+        for stateNr, names in enumerate(self._params['motions']):
+            self._params['motions'][stateNr] = [
                 name
                 for name in names
                 if name in existing
             ]
 
-    def motion_playing(self) -> bool:
-        """Check if associated motionPlayer is playing a motion at the moment or
-        idling.
-        """
-        # TODO(atheler): Dirty hack following
-        # Reasoning: We should feed that via the feedback messages from the
-        # motionPlayer. But then we have to take special care for if there is
-        # nothing playing at the start (e.g. extra playing flag in behavior).
-        # For now, let's just look at this state directly from the
-        # motionPlayer, even though it's ugly...
-        return self.motionPlayer.playing
+    def motion_duration(self, name: str) -> float:
+        """Get duration of motion."""
+        motion = self.content.load_curve(name)
+        return motion.end
 
     def play_random_motion_for_current_state(self):
         """Pick a random motion name from `motions` and fire a non-looping
-        motion command to the motionPlayer.
+        motion command.
         """
         names = self._params['motions'][self.state.value]
         if len(names) == 0:
@@ -189,7 +203,10 @@ class Behavior(Block, PubSub):
 
         name = random.choice(names)
         self.lastPlayed = name
-        #self.logger.info('Playing motion %r', name)
+        self.logger.info('Playing motion %r', name)
+        duration = self.motion_duration(name)
+        until = self.clock.now() + duration
+        self.playingUntil = until
         mc = MotionCommand(name)
         self.mcOut.send(mc)
         self.publish(BEHAVIOR_CHANGED)
@@ -205,12 +222,14 @@ class Behavior(Block, PubSub):
         self.publish(BEHAVIOR_CHANGED)
 
     def update(self):
+        triggered = self.sensor_triggered()  # Consume trigger events also when not active
+
         if not self.active:
             return
 
-        triggered = self.sensor_triggered()
-        playing = self.motion_playing()
-        passed = self.clock.now() - self.lastChanged
+        now = self.clock.now()
+        playing = now <= self.playingUntil
+        passed = now - self.lastChanged
         attentionLost = (passed >= self._params['attentionSpan'])
 
         if self.state is STATE_I:
@@ -237,11 +256,10 @@ class Behavior(Block, PubSub):
         if not playing:
             self.play_random_motion_for_current_state()
 
-    def infos(self):
-        return {
-            'type': 'behavior-update',
-            'active': self.active,
-            'state': self.state,
-            'lastPlayed': self.lastPlayed,
-            'params': self._params,
-        }
+    def to_dict(self):
+        dct = super().to_dict()
+        dct['active'] = self.active
+        dct['lastPlayed'] = self.lastPlayed
+        dct['params'] = self._params
+        dct['state'] = self.state
+        return dct

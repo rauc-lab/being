@@ -18,7 +18,8 @@ class Sensor(Block):
 
 
 class SensorGpio(Sensor):
-    def __init__(self, channel: int, edge=GPIO.RISING, pull_up_down=GPIO.PUD_DOWN, bouncetime=.01, rpi=None):
+    def __init__(self, channel: int, edge=GPIO.RISING,
+            pull_up_down=GPIO.PUD_DOWN, bouncetime=.01, rpi=None, name=None):
         """Arguments according to RPi.GPIO.
 
         Args:
@@ -29,8 +30,9 @@ class SensorGpio(Sensor):
             pull_up_down: Pull up termination or not.
             bouncetime: Edge detection bounce time in seconds.
             rpi: Raspberry PI backend (DI).
+            name: Block name.
         """
-        super().__init__()
+        super().__init__(name=name)
         self.channel = channel
         if rpi is None:
             rpi = Rpi.single_instance_setdefault()

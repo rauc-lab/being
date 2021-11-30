@@ -1,0 +1,81 @@
+.container {
+    border-top: 2px solid black;
+    min-height: 40vh;
+    position: relative;
+    /*
+    overflow: hidden;
+    */
+}
+
+.container svg {
+    position: absolute;
+    z-index : 1;
+}
+
+.container ul.console {
+    background: white;
+    border-left: 2px solid black;
+    filter: drop-shadow(0 0 0.9em #999);
+    font-family: monospace;
+    height: 100%;
+    list-style: none;
+    margin: 0;
+    opacity: 0.95;
+    overflow-y: scroll;
+    /* overflow: hidden; */
+    padding: 0 0 0 1em;
+    position: absolute;
+    right: 0;
+    width: 30%;
+    z-index : 2;
+}
+
+div.toolbar button.state-fault {
+    background-color: red;
+}
+
+div.toolbar button.state-disabled {
+    background-color: white;
+}
+
+div.toolbar button.state-enabled {
+    background-color: black;
+    color: white;
+}
+
+@keyframes pulsating-black {
+    0% {
+        background-color: white;
+        color: black;
+    }
+    40% {
+        background-color: black;
+        color: white;
+    }
+    100% {
+        background-color: white;
+        color: black;
+    }
+}
+
+@keyframes pulse-green {
+    0% { background-color: green; }
+    100% { background-color: white; }
+}
+
+div.toolbar button.homing-failed {
+    background-color: red;
+}
+
+div.toolbar button.homing-unhomed {
+    background-color: orange;
+}
+
+div.toolbar button.homing-ongoing {
+    color: white;
+    animation: pulsating-black 2s infinite !important;
+}
+
+div.toolbar button.homing-homed {
+    animation: pulse-green 2s 1;
+}

@@ -9,7 +9,7 @@ from scipy.interpolate import PPoly, CubicSpline, BPoly
 from being.serialization import (
     ENUM_LOOKUP, EOT, NAMED_TUPLE_LOOKUP, FlyByDecoder, dumps, enum_from_dict,
     enum_to_dict, loads, named_tuple_as_dict, named_tuple_from_dict,
-    register_enum, register_named_tuple,
+    register_enum, register_named_tuple, _enum_type_qualname,
 )
 
 
@@ -78,7 +78,7 @@ class TestSerialization(unittest.TestCase):
         dct = enum_to_dict(foo)
 
         self.assertEqual(dct, {
-            'type': Foo.__name__,
+            'type': _enum_type_qualname(Foo),
             'members': list(Foo.__members__),
             'value': foo.value,
         })
@@ -93,7 +93,7 @@ class TestSerialization(unittest.TestCase):
         self.assertEqual(foo, foo2)
         self.assertEqual(foo, loads(dumps(foo)))
 
-        ENUM_LOOKUP.pop('Foo')
+        ENUM_LOOKUP.pop(_enum_type_qualname(Foo))
 
     def test_a_set_mapps_back_to_itself(self):
         x = {1, 2, 'Hello, world!'}

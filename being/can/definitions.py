@@ -1,72 +1,29 @@
-"""Some universal CANopen (CiA 302, CiA 402) register definitions. EDS
-independent.
-"""
+"""Some CANopen definitions. EDS independent."""
 import enum
 
 
-# Mandatory CiA 302
-DEVICE_TYPE = 0x1000
-ERROR_REGISTER = 0x1001
-IDENTITY_OBJECT = 0x1018
+# Some non-mandatory fields and vendor specific object dictionary entries. Index
+# ranges:
+#   0x0000:          Reserved
+#   0x0001 - 0x009f: Data types
+#   0x00a0 - 0x0fff: Reserved
+#   0x1000 - 0x1fff: Communication Profile Area (CiA 301)
+#   0x2000 - 0x5fff: Manufacturer-specific Profile Area
+#   0x6000 - 0x9fff: Standardized Device Area (CiA 402)
+#   0xa000 - 0xffff: Reserved
+STORE_EDS = 0x1021  # Some manufacturer use this for downloading object
+                    # dictionary from device.
+                    # Not with Maxon nor Faulhaber ?!
 
-#VENDOR_ID = 0x1018, 1
-#PRODUCT_CODE = 0x1018, 2
-#REVISION_NUMBER = 0x1018, 3
-#SERIAL_NUMBER = 0x1018, 4
-
-# Non-mandatory fields
-#MANUFACTURER_DEVICE_NAME = 0x1008
-STORE_EDS = 0x1021
-
-
+# Faulhaber specific registers (not with Maxon!)
 MOTOR_DATA = 0x2350
 ENCODER_DATA = 0x2351
-
-# CiA 402
-CONTROLWORD = 0x6040
-STATUSWORD = 0x6041
-MODES_OF_OPERATION = 0x6060
-MODES_OF_OPERATION_DISPLAY = 0x6061
-POSITION_DEMAND_VALUE = 0x6062
-POSITION_ACTUAL_INTERNAL_VALUE = 0x6063
-POSITION_ACTUAL_VALUE = 0x6064
-POSITION_WINDOW = 0x6067
-POSITION_WINDOW_TIME = 0x6068
-VELOCITY_DEMAND_VALUE = 0x606B
-VELOCITY_ACTUAL_VALUE = 0x606C
-VELOCITY_WINDOW = 0x606D
-VELOCITY_WINDOW_TIME = 0x606E
-VELOCITY_THRESHOLD = 0x606F
-VELOCITY_THRESHOLD_TIME = 0x6070
-CURRENT_ACTUAL_VALUE = 0x6078
-TARGET_POSITION = 0x607A
-POSITION_RANGE_LIMIT = 0x607B
-HOMING_OFFSET = 0x607C
-SOFTWARE_POSITION_LIMIT = 0x607D
-POLARITY = 0x607E
-MAX_PROFILE_VELOCITY = 0x607F
-PROFILE_VELOCITY = 0x6081
-PROFILE_ACCELERATION = 0x6083
-PROFILE_DECELERATION = 0x6084
-QUICK_STOP_DECELERATION = 0x6085
-POSITION_ENCODER_RESOLUTION = 0x608F
-GEAR_RATIO = 0x6091
-FEED_CONSTANT = 0x6092
-POSITION_FACTOR = 0x6093
-HOMING_METHOD = 0x6098
-HOMING_SPEED = 0x6099
-HOMING_ACCELERATION = 0x609A
-CONTROL_EFFORT = 0x60FA
-DIGITAL_INPUTS = 0x60FD
-TARGET_VELOCITY = 0x60FF
-SUPPORTED_DRIVE_MODES = 0x6502
 
 
 class FunctionCode(enum.IntEnum):
 
-    """Canopen function operation codes.
-    TODO: Is 'FunctionCode' the right name for this?
-    """
+    """Canopen function operation codes."""
+    # TODO: Is 'FunctionCode' the right name for this?
 
     NMT = (0b0000 << 7)  # 0x0 + node id
     SYNC = (0b0001 << 7)  # 0x80 + node id
@@ -89,8 +46,10 @@ class TransmissionType(enum.IntEnum):
     """PDO transmission type."""
 
     SYNCHRONOUS_ACYCLIC = 0
-    SYNCHRONOUS_CYCLIC = 1
 
+    # 1 - 240 synchronous cyclic. Value = # SYNC objects until PDO is send
+    SYNCHRONOUS_CYCLIC = 1
     ...
 
+    ASYNCHRONOUS_RTR = 253
     ASYNCHRONOUS = 255

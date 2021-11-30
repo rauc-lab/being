@@ -2,33 +2,62 @@
  * @module web_socket Small web socket wrapper.
  */
 import {MS} from "/static/js/constants.js";
+import {defaultdict} from "/static/js/utils.js";
 
 
 /**
- * Try to receive data from web socket connection and hand over to data to
- * function handler. Repeatedly try to reconnect if connection dead. Assumes
- * JSON data.
+ * Web socket central / relay. Try to receive data from web socket connection
+ * and hand over to data to function handler. Repeatedly try to reconnect if
+ * connection dead. Assumes Subscribe callbacks for message types. JSON data.
  *
- * @param url to fetch color data for panels from.
- * @param callbacks type name -> callback dictionary.
+ * @param url Web socket url to fetch data from.
+ * @param reconnectTimeout Reconnect timeout duration in seconds.
  */
-export function receive_from_websocket(url, callbacks, reconnectTimeout=1.) {
-    const sock = new WebSocket(url);
-    sock.onopen = function() {
-        console.log("Open socket connection", url);
-    };
-    sock.onmessage = function(evt) {
-        let obj = JSON.parse(evt.data);
-        callbacks[obj.type].forEach(function(func) {
-            func(obj);
-        });
-    };
-    sock.onerror = function(evt) {
-        console.log("Socket error", evt);
-        sock.close();
-    };
-    sock.onclose = function(evt) {
-        console.log("Closed socket connection", evt);
-        window.setTimeout(receive_from_websocket, reconnectTimeout*MS, url, callbacks);
-    };
+export class WebSocketCentral {
+    constructor(url, reconnectTimeout=1.) {
+        this.url = url;
+        this.reconnectTimeout = reconnectTimeout;
+        this.connected = false;
+        this.callbacks = { "open": [], "close": [], }
+        this.msgCallbacks = defaultdict(Array);
+    }
+
+    subscribe(event, callback) {
+        this.callbacks[event].push(callback);
+    }
+
+    subscribe_to_message(msgType, callback) {
+        this.msgCallbacks[msgType].push(callback);
+    }
+
+    connect() {
+        const sock = new WebSocket(this.url);
+        sock.onopen = evt => {
+            if (!this.connected) {
+                this.connected = true;
+                this.callbacks["open"].forEach(callback => {callback()})
+            }
+        };
+        sock.onmessage = evt => {
+            let msg = JSON.parse(evt.data);
+            this.msgCallbacks[msg.type].forEach(function(func) {
+                func(msg);
+            });
+        };
+        sock.onerror = evt => {
+            sock.close();
+        };
+        sock.onclose = evt => {
+            if (this.connected) {
+                this.connected = false;
+                this.callbacks["close"].forEach(callback => {callback()})
+            }
+
+            if (this.reconnectTimeout !== null) {
+                window.setTimeout(() => {
+                    this.connect()
+                }, this.reconnectTimeout * MS);
+            }
+        };
+    }
 }

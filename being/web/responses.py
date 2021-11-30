@@ -19,7 +19,7 @@ def json_response(obj=None):
 
     return web.json_response(obj, dumps=dumps)
 
-# Note: Do not use these functions! Leads to errors under Windows because the
+# Note: Do not use lambda function as response factories! Leads to errors under Windows because the
 # IocpProactor proactor does not accept non-async lambda functions.
 #
 # Excerpt:

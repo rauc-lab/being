@@ -55,3 +55,15 @@ export function mod(dividend, divisor) {
 export function floor_division(number, divisor) {
     return Math.floor(number / divisor);
 }
+
+/**
+ * Check if two values are reasonably close to each other. Adapted from pythons
+ * math.isclose() function.
+ */
+export function isclose(a, b, rel_tol=1e-9, abs_tol=0) {
+    if (a === b)
+        return true
+
+    const diff = Math.abs(b - a);
+    return (((diff <= Math.abs(rel_tol * b)) || (diff <= Math.abs(rel_tol * a))) || (diff <= abs_tol));
+}

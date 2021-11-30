@@ -1,8 +1,10 @@
 """Block base class.
 
 Some block related helpers."""
+import collections
 import functools
-from typing import List, ForwardRef, Generator, Union
+import itertools
+from typing import List, ForwardRef, Generator, Union, Optional
 
 from being.connectables import (
     Connection,
@@ -154,9 +156,20 @@ class Block:
         outputs: Output connections.
     """
 
-    def __init__(self):
+    ID_COUNTER = itertools.count()
+    """Counter used for id assignment."""
+
+    def __init__(self, name: Optional[str] = None):
+        """Kwargs:
+            name: Optional block name for UI. Block type name by default.
+        """
+        if name is None:
+            name = type(self).__name__
+
+        self.name = name
         self.inputs: List[InputBase] = []
         self.outputs: List[OutputBase] = []
+        self.id: int = next(self.ID_COUNTER)
 
     @property
     def nInputs(self) -> int:
@@ -184,7 +197,7 @@ class Block:
 
         return self.outputs[0]
 
-    def add_value_input(self, name=None):
+    def add_value_input(self, name: Optional[str] = None):
         """Add new value input to block.
 
         Kwargs:
@@ -195,7 +208,9 @@ class Block:
         if name:
             setattr(self, name, input_)
 
-    def add_message_input(self, name=None):
+        return input_
+
+    def add_message_input(self, name: Optional[str] = None):
         """Add new message input to block.
 
         Kwargs:
@@ -206,7 +221,9 @@ class Block:
         if name:
             setattr(self, name, input_)
 
-    def add_value_output(self, name=None):
+        return input_
+
+    def add_value_output(self, name: Optional[str] = None):
         """Add new value output to block.
 
         Kwargs:
@@ -217,7 +234,9 @@ class Block:
         if name:
             setattr(self, name, output)
 
-    def add_message_output(self, name=None):
+        return output
+
+    def add_message_output(self, name: Optional[str] = None):
         """Add new message output to block.
 
         Kwargs:
@@ -227,6 +246,8 @@ class Block:
         self.outputs.append(output)
         if name:
             setattr(self, name, output)
+
+        return output
 
     def update(self):
         """Block's update / run / tick method."""
@@ -247,3 +268,13 @@ class Block:
     def __ror__(self, output) -> Block:
         # Reverse operands. Maintain order.
         return pipe_operator(output, self)
+
+    def to_dict(self):
+        return collections.OrderedDict([
+            ('type', 'Block'),
+            ('blockType', type(self).__name__),
+            ('name', self.name),
+            ('id', self.id),
+            ('inputNeighbors', [neighbor.id for neighbor in input_neighbors(self)]),
+            ('outputNeighbors', [neighbor.id for neighbor in output_neighbors(self)]),
+        ])
