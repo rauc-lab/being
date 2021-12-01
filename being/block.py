@@ -1,11 +1,9 @@
-"""Block base class.
-
-Some block related helpers.
+"""Block base class and some block related helpers.
 
 Todo:
     - Should ``input_connections()``, ``output_connections()``, ``input_neighbors()`` and ``output_neighbors()`` become ``Block`` methods?
 """
-import collections
+from collections import OrderedDict
 import functools
 import itertools
 from typing import List, ForwardRef, Generator, Union, Optional
@@ -117,16 +115,21 @@ def fetch_output(blockOrOutput: Outputable) -> OutputBase:
 
 
 def pipe_operator(left: Outputable, right: Inputable) -> Block:
-    """Pipe blocks or connections together. pipe_operator(a, b) is the same as
-    a.output.connect(b). Left to right. Return rightmost block for
-    concatenation.
+    """Binary or dyadic pipe operator for connecting blocks and/or connections
+    with each other. Used by :meth:`being.block.Block.__or__` and
+    :meth:`being.block.Block.__ror__.` for the shorthand
+
+    >>> a | b | c  # Instead of a.output.connect(b.input); b.output.connect(c.input)
+
+    This function also works with :class:`being.connectables.OutputBase` and
+    :class:`being.connectables.InputBase` instances.
 
     Args:
-        left (Block or OutputBase): Left operand.
-        right (Block or InputBase): Right operand.
+        left: Left operand.
+        right: Right operand.
 
     Returns:
-        Block: Owner of incoming connection.
+        Block: Owner of rightmost incoming connection.
     """
     output = fetch_output(left)
     input_ = fetch_input(right)
@@ -142,8 +145,11 @@ class Block:
 
     """Block base class.
 
-    Child classes have to override the :meth:`Block.update` method. Not
-    implemented as ABC method so that :class:`Block` can be used for testing.
+    Blocks are the main *building blocks* (pun intended) of a being program.
+    They hold there own state and can communicate with each other via *value* or
+    *message* connections. Each block has an :meth:`Block.update` method which
+    will be called once during execution. This method should be overridden by
+    child classes.
 
     New connections can be added with the helper methods:
       - :meth:`Block.add_value_input`
@@ -154,9 +160,26 @@ class Block:
     These methods also take an additional `name` argument which can be used to
     store the newly created connection as an attribute.
 
+    Example:
+
+        >>> class MyBlock(Block):
+        ...     def __init__(self):
+        ...         self.add_message_output(name='mouth')
+        ... 
+        ...     def update(self):
+        ...         self.mouth.send('I am alive!')
+
+    Note:
+        Not a ABC so that we can use the base class for testing.
+
     Attributes:
-        inputs: Input connections.
-        outputs: Output connections.
+        name (str): Block name. Used in user interface to identify block.
+        inputs (List[OutputBase]): Input connections.
+        outputs (List[InputBase]): Output connections.
+        id (int): Ascending node id. Starting from zero.
+
+    .. automethod:: __or__
+    .. automethod:: __ror__
     """
 
     ID_COUNTER = itertools.count()
@@ -205,6 +228,9 @@ class Block:
 
         Args:
             name: Attribute name.
+
+        Returns:
+            Newly created value input.
         """
         input_ = ValueInput(owner=self)
         self.inputs.append(input_)
@@ -218,6 +244,9 @@ class Block:
 
         Args:
             name: Attribute name.
+
+        Returns:
+            Newly created message input.
         """
         input_ = MessageInput(owner=self)
         self.inputs.append(input_)
@@ -231,6 +260,9 @@ class Block:
 
         Args:
             name: Attribute name.
+
+        Returns:
+            Newly created value output.
         """
         output = ValueOutput(owner=self)
         self.outputs.append(output)
@@ -244,6 +276,9 @@ class Block:
 
         Args:
             name: Attribute name.
+
+        Returns:
+            Newly created message output.
         """
         output = MessageOutput(owner=self)
         self.outputs.append(output)
@@ -272,8 +307,14 @@ class Block:
         # Reverse operands. Maintain order.
         return pipe_operator(output, self)
 
-    def to_dict(self):
-        return collections.OrderedDict([
+    def to_dict(self) -> OrderedDict:
+        """Convert block to dictionary representation which can be used for
+        dumping as JSON.
+
+        Returns:
+            Block's dictionary representation.
+        """
+        return OrderedDict([
             ('type', 'Block'),
             ('blockType', type(self).__name__),
             ('name', self.name),
