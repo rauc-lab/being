@@ -107,10 +107,13 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         """
         return filter_by_type(self.values(), CiA402Node)
 
-    def switch_off_drives(self):
-        """Switch off all registered drives."""
-        for drive in self.drives:
-            drive.switch_off()
+    def turn_off_motors(self):
+        """Turn off all registered drives."""
+        for node in self.drives:
+            try:
+                node.disable()
+            except TimeoutError as err:
+                self.logger.exception(err)
 
     def enable_pdo_communication(self):
         """Enable PDO communication by setting NMT state to OPERATIONAL."""
@@ -159,9 +162,11 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.disable_pdo_communication()
-        self.switch_off_drives()
-        self.disconnect()
+        try:
+            self.disable_pdo_communication()
+            self.turn_off_motors()
+        finally:
+            self.disconnect()
 
 
 class AudioBackend(SingleInstanceCache, contextlib.AbstractContextManager):
