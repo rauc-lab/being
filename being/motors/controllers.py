@@ -7,7 +7,14 @@ from typing import Optional, Set, List
 from canopen.emcy import EmcyError
 
 from being.bitmagic import clear_bit, set_bit
-from being.can.cia_402 import CiA402Node, HOMING_METHOD, OperationMode, State, StateSwitching
+from being.can.cia_402 import (
+    CiA402Node,
+    HOMING_METHOD,
+    MODES_OF_OPERATION,
+    OperationMode,
+    State,
+    StateSwitching,
+)
 from being.configuration import CONFIG
 from being.constants import FORWARD
 from being.logging import get_logger
@@ -131,23 +138,26 @@ class Controller(MotorInterface):
         self.motor: Motor = motor
         self.direction = direction
         self.length = length
+        self.operationMode = operationMode
 
         self.logger = get_logger(str(self))
         self.position_si_2_device = motor.si_2_device_units('position')
         self.velocity_si_2_device = motor.si_2_device_units('velocity')
         self.acceleration_si_2_device = motor.si_2_device_units('acceleration')
-        self.lower = 0.
+        self.lower = 0.0
         self.upper = length * self.position_si_2_device
-        self.lastState = node.get_state()
         self.switchJob = None
+        self.wasEnabled: Optional[bool] = None  # None means "has not been set"
 
         # Prepare settings
         self.settings = merge_dicts(self.motor.defaultSettings, settings)
 
         self.init_homing(**homingKwargs)
 
-        # Possible fault reset
-        self.node.change_state(State.SWITCH_ON_DISABLED, 'sdo')
+        # TODO: Perform fault reset if necessary before applying settings?
+
+        self.node.disable()  # Blocking SDO
+        self.lastState = node.get_state(how='sdo')
 
         # Configure node
         self.apply_motor_direction(direction)
@@ -155,7 +165,6 @@ class Controller(MotorInterface):
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 
-        self.disable()
         self.node.set_operation_mode(operationMode)
 
     def disable(self):
@@ -172,9 +181,27 @@ class Controller(MotorInterface):
         else:
             return MotorState.DISABLED
 
+    def capture(self):
+        """Capture node state before homing."""
+        # If switchJob ongoing ignore
+        if not self.switchJob and self.wasEnabled is None:
+            self.wasEnabled = self.lastState is State.OPERATION_ENABLED
+        else:
+            self.wasEnabled = None
+
+    def restore(self):
+        """Restore captured node state after homing is done."""
+        self.node.sdo[MODES_OF_OPERATION].raw = self.operationMode
+        if self.wasEnabled:
+            self.enable()
+        elif self.wasEnabled is False:
+            self.disable()
+
+        self.wasEnabled = None
+
     def home(self):
         """Create homing job routine for this controller."""
-        self.logger.debug('home()')
+        self.capture()
         self.homing.home()
         self.publish(MotorEvent.HOMING_CHANGED)
 
@@ -193,6 +220,7 @@ class Controller(MotorInterface):
             raise ValueError(f'Homing method {method} not supported for controller {self}')
 
         self.homing = CiA402Homing(self.node)
+        self.logger.debug('Setting homing method to %d', method)
         self.node.sdo[HOMING_METHOD].raw = method
 
     @abc.abstractmethod
@@ -285,7 +313,9 @@ class Controller(MotorInterface):
         if self.homing.ongoing:
             self.homing.update()
             if not self.homing.ongoing:
+                self.restore()
                 self.publish(MotorEvent.HOMING_CHANGED)
+
         elif self.switchJob:
             try:
                 next(self.switchJob)
