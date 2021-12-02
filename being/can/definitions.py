@@ -54,5 +54,7 @@ class TransmissionType(enum.IntEnum):
     SYNCHRONOUS_CYCLIC = 1
     ...
 
-    ASYNCHRONOUS_RTR = 253
+    SYNCHRONOUS_RTR = 252  # not recommended anymore
+    ASYNCHRONOUS_RTR = 253  # not recommended anymore
+    ASYNCHRONOUS_INTERNAL = 254
     ASYNCHRONOUS = 255
