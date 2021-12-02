@@ -58,3 +58,18 @@ html_theme = 'alabaster'
 html_static_path = ['_static']
 
 todo_include_todos = True
+
+
+# Autodoc do not skip __init__ methods
+# https://newbedev.com/how-to-use-sphinx-s-autodoc-to-document-a-class-s-init-self-method
+autoclass_content = 'both'
+
+def skip(app, what, name, obj, would_skip, options):
+    if name == '__init__':
+        return False
+
+    return would_skip
+
+
+def setup(app):
+    app.connect('autodoc-skip-member', skip)
