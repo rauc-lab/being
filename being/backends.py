@@ -34,7 +34,7 @@ import can
 import canopen
 
 from being.can.cia_402 import CiA402Node
-from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL
+from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL, RESET_COMMUNICATION
 from being.configuration import CONFIG
 from being.logging import get_logger
 from being.rpi_gpio import GPIO
@@ -124,6 +124,10 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         """Disable PDO communication by setting NMT state to PRE-OPERATIONAL."""
         self.logger.debug('Global NMT -> PRE-OPERATIONAL')
         self.nmt.state = PRE_OPERATIONAL
+
+    def reset_communication(self):
+        """Reset NMT communication."""
+        self.nmt.state = RESET_COMMUNICATION
 
     def send_sync(self):
         """Send SYNC message over CAN network."""
