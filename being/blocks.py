@@ -1,7 +1,8 @@
-"""Miscellaneous blocks."""
+"""Collection of miscellaneous blocks."""
 import math
 import sys
 import time
+from typing import ForwardRef, Sequence
 
 from being.backends import AudioBackend
 from being.block import Block
@@ -13,6 +14,7 @@ from being.resources import register_resource
 from being.sensors import Sensor
 
 
+# Look before you leap
 INTERVAL = CONFIG['General']['INTERVAL']
 
 
@@ -40,14 +42,24 @@ class Sine(Block):
         return '%s()' % type(self).__name__
 
 
+Trafo = ForwardRef('Trafo')
+
+
 class Trafo(Block):
 
-    """Transforms input signal (by some fixed scale and offset)."""
+    """Transforms input signal (by some fixed scale and offset).
+
+    Attributes:
+        scale (float): Scale factor.
+        offset (float): Offset factor.
+    """
 
     def __init__(self, scale: float = 1., offset: float = 0., **kwargs):
-        """Args:
+        """
+        Args:
             scale: Scaling factor.
             offset: Offset factor.
+            **kwargs: Arbitrary block keyword arguments.
         """
         super().__init__(**kwargs)
         self.scale = scale
@@ -56,7 +68,20 @@ class Trafo(Block):
         self.add_value_output()
 
     @classmethod
-    def from_ranges(cls, inRange=(0., 1.), outRange=(0., 1.)):
+    def from_ranges(cls, inRange: Sequence = (0., 1.), outRange: Sequence = (0., 1.)) -> Trafo:
+        """Construct :class:Trafo. instance for a given input and output range.
+
+        Args:
+            inRange: Lower and upper value of input range.
+            outRange: Lower and upper value of output range.
+
+        Returns:
+            Trafo instance.
+
+        Example:
+            >>> # This trafo block will map input values from [1, 2] -> [30, 40]
+            >>> trafo = Trafo.from_ranges([1, 2], [30, 40])
+        """
         scale, offset = linear_mapping(inRange, outRange)
         return cls(scale, offset)
 
@@ -101,8 +126,8 @@ class Printer(Block):
 
 
 class DummySensor(Sensor):
-    def __init__(self, interval=5.0):
-        super().__init__()
+    def __init__(self, interval=5.0, **kwargs):
+        super().__init__(**kwargs)
         self.add_message_output()
         self.interval = interval
         self.nextUpd = -1
@@ -134,8 +159,8 @@ def ranged_sine_pulse_integrated(phase: float, lower: float = 0.0, upper: float 
 
 
 class Pendulum(Block):
-    def __init__(self, frequency=1., lower=0., upper=1.):
-        super().__init__()
+    def __init__(self, frequency=1., lower=0., upper=1., **kwargs):
+        super().__init__(**kwargs)
         self.add_value_output()
         self.frequency = frequency
         self.lower = lower
