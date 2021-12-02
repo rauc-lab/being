@@ -24,6 +24,9 @@ Possible Topics
    - Motor Homing
    - Cyclic Synchronous Position (CSP) vs Profile Position mode
 
+- Communication SDO / PDO
+- Parallel State Change / Homing
+
 - Pacemaker
 
 - Configs and Parameters
