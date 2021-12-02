@@ -550,10 +550,10 @@ class CiA402Node(RemoteNode):
             target: Target state to switch to.
             how (optional): Communication channel. 'sdo' (default) or 'pdo'.
         """
+        self.logger.debug('set_state(%s (how=%r))', target, how)
         if target in {State.NOT_READY_TO_SWITCH_ON, State.FAULT, State.FAULT_REACTION_ACTIVE}:
             raise ValueError(f'Can not change to state {target}')
 
-        self.logger.debug('Setting state to %s (%s)', target, how)
         current = self.get_state(how)
         if current is target:
             return
@@ -598,6 +598,7 @@ class CiA402Node(RemoteNode):
             yield current
 
             if current is target:
+                self.logger.debug('Reached target %s', target)
                 return
 
             #self.logger.debug('Still in %s (not in %s)', current.name, target.name)
