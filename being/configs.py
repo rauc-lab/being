@@ -1,5 +1,11 @@
 """Config data / file access for ini, json, yaml and toml. Round trip
 preservation.
+
+Todo:
+    - Different config formats
+    - Unifying with nested dictionary structures
+    - Config name / path <-> key representation.
+    - Round trip preservation.
 """
 import collections
 import io
@@ -15,7 +21,7 @@ from being.utils import NestedDict
 
 
 SEP: str = '/'
-"""Separator for name <-> key path conversion."""
+"""Separator character for name <-> key path conversion."""
 
 ROOT_NAME: str = ''
 """Empty string denoting the root config entry."""

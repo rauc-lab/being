@@ -54,7 +54,10 @@ def solve_quadratic_equation(a: float, b: float, c: float) -> Tuple[float, float
 
 
 def linear_mapping(xRange: Tuple[float, float], yRange: Tuple[float, float]) -> ndarray:
-    """Get linear coefficients for y = a * x + b.
+    """Get linear coefficients for
+
+    .. math::
+        y = a \cdot x + b.
 
     Args:
         xRange: Input range (xmin, xmax).

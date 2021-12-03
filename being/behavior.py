@@ -102,11 +102,12 @@ class Behavior(Block, PubSub):
             content: Optional[Content] = None,
             name: Optional[str] = None,
         ):
-        """Args:
+        """
+        Args:
             params (optional): Behavior params dictionary
             clock (optional): Being clock (DI).
             content (optional): Being content (DI).
-            name (optional): Behavior name.
+            name (optional): Block name.
         """
         if params is None:
             params = create_params()
@@ -129,13 +130,24 @@ class Behavior(Block, PubSub):
         self.clock = clock
         self.content = content
 
-        self.active = True
-        self.state = State.STATE_I
-        self.lastChanged = -INF
-        self.lastPlayed = ''
-        self.playingUntil = -INF
+        self.active: bool = True
+        """If behavior engine is running."""
 
-        self.filepath = ''
+        self.state: State = State.STATE_I
+        """Current behavior state."""
+
+        self.lastChanged: float = -INF
+        """Duration since last behavior state change."""
+
+        self.lastPlayed: str = ''
+        """Name of the last played motion."""
+
+        self.playingUntil: float = -INF
+        """Timestamp until current motion is playing."""
+
+        self.filepath: str = ''
+        """Associated behavior config file for storing params."""
+
         self.logger = get_logger(self.name)
 
     @classmethod
@@ -183,6 +195,10 @@ class Behavior(Block, PubSub):
 
         Args:
             motionPlayer: To couple with behavior.
+
+        Warning:
+            Deprecated! Behavior runs now in "open loop" and keeps track how
+            long motions run for.
         """
         msg = (
             'Behavior.associate(motionPlayer) is deprecated. Just connect'

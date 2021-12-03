@@ -11,7 +11,7 @@ from being.clock import Clock
 from being.configuration import CONFIG
 from being.connectables import ValueOutput, MessageOutput
 from being.execution import execute, block_network_graph
-from being.graph import topological_sort
+from being.graph import Graph, topological_sort
 from being.logging import get_logger
 from being.motion_player import MotionPlayer
 from being.motors.blocks import MotorBlock
@@ -55,20 +55,6 @@ class Being:
     graph and additional components (some back ends, clock, motors...). Defines
     the single cycle which be called repeatedly. Also some helper shortcut
     methods.
-
-    Attributes:
-        clock (Clock): Being clock.
-        pacemaker (Pacemaker): Being pacemaker.
-        network (CanBackend): Being CAN backend / network.
-        graph (Graph): Block network for running program.
-        execOrder (List[Block]): Block execution order.
-        logger (Logger): Instance logger.
-        valueOutputs (List[ValueOutput]): All value outputs.
-        messageOutputs (List[MessageOutput]): All message outputs.
-        behaviors (List[Behavior]): All behavior blocks.
-        motionPlayers (List[MotionPlayer]): All motion player blocks.
-        motors (List[MotorBlock]): All motor blocks.
-        params (List[Parameter]): All parameter blocks.
     """
 
     def __init__(self,
@@ -77,26 +63,47 @@ class Being:
             pacemaker: Pacemaker,
             network: Optional[CanBackend] = None,
         ):
-        """Args:
+        """
+        Args:
             blocks: Blocks (forming a block network) to execute.
             clock: Being clock instance.
             pacemaker: Pacemaker instance. Thread will not be started but will be used as dummy.
             network: CanBackend instance (if any, DI).
         """
-        self.clock = clock
-        self.pacemaker = pacemaker
-        self.network = network
-        self.graph = block_network_graph(blocks)
-        self.execOrder = topological_sort(self.graph)
+        self.clock: Clock = clock
+        """Being clock."""
+
+        self.pacemaker: Pacemaker = pacemaker
+        """Being pacemaker."""
+
+        self.network: CanBackend = network
+        """Being CAN backend / network."""
+
+        self.graph: Graph = block_network_graph(blocks)
+        """Block network for running program."""
+
+        self.execOrder: List[Block] = topological_sort(self.graph)
+        """Block execution order."""
 
         self.logger = get_logger(type(self).__name__)
 
-        self.valueOutputs = list(value_outputs(self.execOrder))
-        self.messageOutputs = list(message_outputs(self.execOrder))
-        self.behaviors = list(filter_by_type(self.execOrder, Behavior))
-        self.motionPlayers = list(filter_by_type(self.execOrder, MotionPlayer))
-        self.motors = list(filter_by_type(self.execOrder, MotorBlock))
-        self.params = list(filter_by_type(self.execOrder, Parameter))
+        self.valueOutputs: List[ValueOutput] = list(value_outputs(self.execOrder))
+        """All value outputs."""
+
+        self.messageOutputs: List[MessageOutput] = list(message_outputs(self.execOrder))
+        """All message outputs."""
+
+        self.behaviors: List[Behavior] = list(filter_by_type(self.execOrder, Behavior))
+        """All behavior blocks."""
+
+        self.motionPlayers: List[MotionPlayer] = list(filter_by_type(self.execOrder, MotionPlayer))
+        """All motion player blocks."""
+
+        self.motors: List[MotorBlock] = list(filter_by_type(self.execOrder, MotorBlock))
+        """All motor blocks."""
+
+        self.params: List[Parameter] = list(filter_by_type(self.execOrder, Parameter))
+        """All parameter blocks."""
 
     def enable_motors(self):
         """Enable all motor blocks."""

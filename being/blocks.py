@@ -23,7 +23,8 @@ class Sine(Block):
     """Sine generator. Outputs sine wave for a given frequency."""
 
     def __init__(self, frequency: float = 1., startPhase: float = 0., **kwargs):
-        """Args:
+        """
+        Args:
             frequency: Initial frequency value.
             startPhase: Inital phase.
         """
@@ -47,11 +48,10 @@ Trafo = ForwardRef('Trafo')
 
 class Trafo(Block):
 
-    """Transforms input signal (by some fixed scale and offset).
+    """Transforms input signal (by some fixed scale and offset):
 
-    Attributes:
-        scale (float): Scale factor.
-        offset (float): Offset factor.
+    .. math::
+        y = a \cdot x + b.
     """
 
     def __init__(self, scale: float = 1., offset: float = 0., **kwargs):
@@ -94,9 +94,14 @@ class Trafo(Block):
 
 class Mic(Block):
 
-    # Todo: Make me!
+    """Microphone block.
+
+    Warning:
+        Make me!
+    """
 
     def __init__(self, audioBackend=None, **kwargs):
+        """Intentionally left blank."""
         if audioBackend is None:
             audioBackend = AudioBackend.single_instance_setdefault()
             register_resource(audioBackend, duplicates=False)
@@ -109,8 +114,10 @@ class Printer(Block):
     """Print input values to stdout."""
 
     def __init__(self, prefix: str = '', carriageReturn: bool = False, **kwargs):
-        """Args:
-            prefix: Prefix string to prepend.
+        """
+        Args:
+            prefix (optional): Prefix string to prepend.
+            carriageReturn (optional). Prepend carriage return character to each output.
         """
         super().__init__(**kwargs)
         self.prefix = prefix
@@ -126,10 +133,20 @@ class Printer(Block):
 
 
 class DummySensor(Sensor):
-    def __init__(self, interval=5.0, **kwargs):
+
+    """Dummy sensor block for testing and standalone usage. Every interval
+    output gibberish message.
+    """
+
+    def __init__(self, interval: float = 5.0, **kwargs):
+        """
+        Args:
+            interval: Message send interval in seconds.
+            **kwargs: Arbitrary block keyword arguments.
+        """
         super().__init__(**kwargs)
         self.add_message_output()
-        self.interval = interval
+        self.interval: float = interval
         self.nextUpd = -1
 
     def update(self):
@@ -159,7 +176,19 @@ def ranged_sine_pulse_integrated(phase: float, lower: float = 0.0, upper: float 
 
 
 class Pendulum(Block):
-    def __init__(self, frequency=1., lower=0., upper=1., **kwargs):
+
+    """Outputs scaled / shifted sine pulses. Can be used to sway back and forth
+    between two extremes.
+    """
+
+    def __init__(self, frequency: float = 1., lower: float = 0., upper: float = 1., **kwargs):
+        """
+        Args:
+            frequency (optional): Frequency of output signal.
+            lower (optional): Lower output value.
+            upper (optional): Upper output value.
+            **kwargs: Arbitrary block keyword arguments.
+        """
         super().__init__(**kwargs)
         self.add_value_output()
         self.frequency = frequency

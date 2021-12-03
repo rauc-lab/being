@@ -143,9 +143,7 @@ def pipe_operator(left: Outputable, right: Inputable) -> Block:
 
 class Block:
 
-    """Block base class.
-
-    Blocks are the main *building blocks* (pun intended) of a being program.
+    """Blocks are the main *building blocks* (pun intended) of a being program.
     They hold there own state and can communicate with each other via *value* or
     *message* connections. Each block has an :meth:`Block.update` method which
     will be called once during execution. This method should be overridden by
@@ -171,31 +169,33 @@ class Block:
 
     Note:
         Not a ABC so that we can use the base class for testing.
-
-    Attributes:
-        name (str): Block name. Used in user interface to identify block.
-        inputs (List[OutputBase]): Input connections.
-        outputs (List[InputBase]): Output connections.
-        id (int): Ascending node id. Starting from zero.
-
-    .. automethod:: __or__
-    .. automethod:: __ror__
     """
 
     ID_COUNTER = itertools.count()
     """Counter used for id assignment."""
 
     def __init__(self, name: Optional[str] = None):
-        """Args:
-            name: Optional block name for UI. Block type name by default.
+        """
+        Args:
+            name (optional): Block name for UI. Block type name by default.
+
+        .. automethod:: __or__
+        .. automethod:: __ror__
         """
         if name is None:
             name = type(self).__name__
 
-        self.name = name
+        self.name: str = name
+        """Block name. Used in user interface to identify block."""
+
         self.inputs: List[InputBase] = []
+        """Input connections."""
+
         self.outputs: List[OutputBase] = []
+        """Output connections."""
+
         self.id: int = next(self.ID_COUNTER)
+        """Ascending block id number. Starting from zero."""
 
     @property
     def nInputs(self) -> int:

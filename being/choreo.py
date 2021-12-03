@@ -19,10 +19,14 @@ Section name corresponds to motor id. Example:
     0.870=0.0904, 0.1277, 0.2495, 0.2495
     1.894=0.0315, 0.0847, 0.1219, 0.1219
     3.283=0.0806, 0.1286, 0.3372, 0.3372
+
+These values correspond to target or set-point values and do not incorporate a
+initial value. :func:`being.spline.optimal_trajectory_spline` is used to
+perform a kinematic simulation.
 """
 import warnings
-from typing import Iterable, List, Generator
-from configparser import ConfigParser, SectionProxy
+from configparser import ConfigParser
+from typing import Iterable, Generator, Sequence, NewType
 
 import numpy as np
 from scipy.interpolate import PPoly
@@ -31,9 +35,14 @@ from being.kinematics import State
 from being.spline import optimal_trajectory_spline, copy_spline, ppoly_insert
 
 
-Choreo = ConfigParser
-Segment = List
+Choreo = NewType('Choreo', ConfigParser)
+"""Ini choreo represented by :class:`ConfigParser` instance."""
+
+Segment = NewType('Segment', list)
+"""Single Choreo motion segment."""
+
 Segments = Generator[Segment, None, None]
+"""Multiple choreo segments."""
 
 
 def collect_segments_from_section(section) -> Segments:
@@ -97,6 +106,12 @@ def convert_segments_to_splines(segments, start=State()) -> Generator[PPoly, Non
 def combine_splines_in_time(splines: Iterable[PPoly]) -> PPoly:
     """Combine multiple one dimensional splines in time. Takes care of overlap
     situation. Assumes that input splines can be extrapolated.
+
+    Args:
+        splines: Splines to merge into one single spline.
+
+    Returns:
+        Combined spline.
     """
     splines = iter(splines)
     spline = copy_spline(next(splines))
@@ -112,16 +127,28 @@ def combine_splines_in_time(splines: Iterable[PPoly]) -> PPoly:
     return spline
 
 
-def _ppoly_insert_inplace(newX, spline, extrapolate):
-    """In-place PPoly insert function. Doc: See original ppoly_insert()."""
+def _ppoly_insert_inplace(newX: float, spline: PPoly, extrapolate: bool):
+    """In-place PPoly insert function. Doc: See original ppoly_insert().
+
+    Args:
+        newX: New knot value.
+        spline: Spline to insert new knot to.
+        extrapolate: Spline extrapolate flag.
+    """
     new = ppoly_insert(newX, spline, extrapolate)
     spline.x = new.x
     spline.c = new.c
 
 
-def combine_splines_in_dimensions(splines):
+def combine_splines_in_dimensions(splines: Sequence[PPoly]) -> PPoly:
     """Pack / stack multiple single dimensional splines into one. Inserts
     missing knots if the single dimensional splines do not align up.
+
+    Args:
+        splines: PPoly splines to combine along dimension.
+
+    Returns:
+        New combined spline.
     """
     splines = [copy_spline(s) for s in splines]
     allKnots = np.concatenate([s.x for s in splines])
@@ -148,10 +175,13 @@ def convert_choreo_to_spline(choreo: Choreo) -> PPoly:
     choreo return multi dimensional spline.
 
     Args:
-        choreo: Configparser for chore file.
+        choreo: Configparser for choreo file.
 
     Returns:
         Extracted simulated motion curves.
+
+    Todo:
+        Make it possible to provide initial state of the kinematic simulation.
     """
     segments = collect_segments_from_choreo(choreo)
     splines = map(convert_segments_to_splines, segments)
