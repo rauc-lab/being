@@ -57,19 +57,14 @@ html_theme = 'alabaster'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-todo_include_todos = True
+# napoleon configuration
+napoleon_google_docstring = True
+#napoleon_use_param = False
+#napoleon_use_ivar = True
 
-
-# Autodoc do not skip __init__ methods
-# https://newbedev.com/how-to-use-sphinx-s-autodoc-to-document-a-class-s-init-self-method
+# autodoc configuration
 autoclass_content = 'both'
+autodoc_member_order = 'bysource'  # alphabetical, bysource, groupwise
 
-def skip(app, what, name, obj, would_skip, options):
-    if name == '__init__':
-        return False
-
-    return would_skip
-
-
-def setup(app):
-    app.connect('autodoc-skip-member', skip)
+# todo configuration
+todo_include_todos = True

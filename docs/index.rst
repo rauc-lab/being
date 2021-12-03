@@ -97,7 +97,6 @@ Table of Contents
    concepts
    tutorials
    guides
-   reference/modules
    reference/being
 
 Indices and tables
