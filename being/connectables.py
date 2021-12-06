@@ -1,9 +1,7 @@
-"""Connectables.
-
-Connectable outputs and inputs objects. In general it is always possible to
+"""Block output and input connectables. In general it is always possible to
 connect one output to multiple inputs but not the other way round.
 
-A connection is a (output, input) tuple.
+A `connection` is a (:class:`OutputBase`, :class:`InputBase`) tuple.
 
 There are two types of connections:
   - Value: Propagate some value through the connections in very tick
@@ -15,10 +13,16 @@ the gateway between the outside and the inside world when building composite
 blocks. They work as an output and an input at the same time. E.g. ValueOutput
 -> ValueRelay -> ValueInput (note that there can be multiple relays between an
 output and an input).
+
+Note:
+    This code is directly taken from the Klang project. Relays are not used in
+    Being until now but can be used to build *Composite Blocks*. This are blocks
+    which contain their own blocks and maintain their own execution order. Have
+    a look at the Klang_ project.
 """
 import collections
 import itertools
-from typing import Tuple, ForwardRef, Optional, Union, Set, Any
+from typing import Tuple, ForwardRef, Optional, Union, Set, Any, Iterable, Generator
 
 
 from being.error import BeingError
@@ -32,7 +36,10 @@ OutputBase = ForwardRef('OutputBase')
 InputBase = ForwardRef('InputBase')
 Block = ForwardRef('Block')
 Connection = Tuple[OutputBase, InputBase]
+"""Output -> input connection."""
+
 Connectable = Union[OutputBase, InputBase]
+"""General connectable."""
 
 
 class InputAlreadyConnected(BeingError):
@@ -75,6 +82,10 @@ def is_valid_connection(output: OutputBase, input_: InputBase) -> bool:
 def validate_connection(output: OutputBase, input_: InputBase):
     """Validate connection coupling tuple.
 
+    Args:
+        output: Output connectable.
+        input_: Input connectable.
+
     Raises:
         IncompatibleConnection: When it is not possible to connect output with
             input.
@@ -86,7 +97,12 @@ def validate_connection(output: OutputBase, input_: InputBase):
 
 
 def make_connection(output: OutputBase, input_: InputBase):
-    """Make directional connection from output -> input_."""
+    """Make directional connection from output -> input_.
+
+    Args:
+        output: Output connectable.
+        input_: Input connectable.
+    """
     validate_connection(output, input_)
     if input_.connected:
         msg = '%s is already connected to another output!' % input_
@@ -98,7 +114,12 @@ def make_connection(output: OutputBase, input_: InputBase):
 
 
 def break_connection(output: OutputBase, input_: InputBase):
-    """Break directional connection from output -> input_."""
+    """Break directional connection from output -> input_.
+
+    Args:
+        output: Output connectable.
+        input_: Input connectable.
+    """
     validate_connection(output, input_)
 
     # Break the actual connection
@@ -107,16 +128,30 @@ def break_connection(output: OutputBase, input_: InputBase):
 
 
 def is_connected(output: OutputBase, input_: InputBase) -> bool:
-    """Check if output is connected to input_."""
+    """Check if output is connected to input_.
+
+    Args:
+        output: Output connectable.
+        input_: Input connectable.
+
+    Returns:
+        If output and input_ are connected.
+    """
     if not is_valid_connection(output, input_):
         return False
 
     return output is input_.incomingConnection and input_ in output.outgoingConnections
 
 
-def are_connected(*connectables) -> bool:
-    """Check if each pair in a chain of connectalbes are connected to each
+def are_connected(*connectables: Iterable[Connectable]) -> bool:
+    """Check if each pair in a chain of connectables are connected to each
     other.
+
+    Args:
+        *connectables: Multiple connectables.
+
+    Returns:
+        If provided connectables form a connected chain or not.
     """
     # Iterate over pairs
     outputs, inputs = itertools.tee(connectables)
@@ -128,8 +163,15 @@ def are_connected(*connectables) -> bool:
     return True
 
 
-def str_function(connectable) -> str:
-    """__str__ function for OutputBase and InputBase."""
+def str_function(connectable: Connectable) -> str:
+    """__str__ function for :class:`OutputBase` and :class:`InputBase`.
+
+    Args:
+        connectable: Connectable to stringify.
+
+    Returns:
+        __str__ string.
+    """
     infos = []
     if connectable.owner:
         infos.append('owner: %s' % connectable.owner)
@@ -144,19 +186,19 @@ def str_function(connectable) -> str:
 
 class OutputBase:
 
-    """Base class for all outputs.
-
-    Attributes:
-        owner: Parent block owning connectable.
-        outgoingConnections: All connected InputBases.
-    """
+    """Base class for all outputs."""
 
     def __init__(self, owner: Optional[Block] = None):
-        """Args:
+        """
+        Args:
             owner: Parent block owning this output.
         """
+
         self.owner: Optional[Block] = owner
+        """Parent block owning this connectable."""
+
         self.outgoingConnections: Set[InputBase] = set()
+        """Connected inputs (outgoing connections)."""
 
     @property
     def connected(self) -> bool:
@@ -179,16 +221,19 @@ class InputBase:
     """Base class for all inputs.
 
     Attributes:
-        owner: Parent block owning connection.
         incomingConnection (OutputBase): Connected OutputBase.
     """
 
     def __init__(self, owner: Optional[Block] = None):
-        """Args:
+        """
+        Args:
             owner: Parent block owning this output.
         """
         self.owner: Optional[Block] = owner
+        """Parent block owning this connectable."""
+
         self.incomingConnection: Optional[OutputBase] = None
+        """Connected output (incoming connection)."""
 
     @property
     def connected(self) -> bool:
@@ -252,20 +297,18 @@ class _ValueContainer:
     With value fetching a property looks nice (data = input.value) with value
     propagating a setter looks better (output.set_value(data)).
 
-
-    Attributes:
-        _value: Stored Python value.
-
     Todo:
         Kill ``get_value()`` / ``set_value()``? Property getter / setter access
         `could` be a little bit faster.
     """
 
     def __init__(self, value: Any = 0.):
-        """Args:
+        """
+        Args:
             value: Initial value.
         """
-        self._value = value
+        self._value: Any = value
+        """Stored Python value."""
 
     @property
     def value(self):
@@ -337,22 +380,22 @@ class _MessageQueue:
 
     """Message queue mixin class."""
 
-    MAX_MESSAGES = 50
-    """int: Maximum number of messages on a queue."""
+    MAX_MESSAGES: int = 50
+    """Maximum size of message queue."""
 
     def __init__(self):
         self.queue = collections.deque(maxlen=self.MAX_MESSAGES)
 
-    def push(self, message):
+    def push(self, message: Any):
         """Push message on the message queue."""
         self.queue.append(message)
 
-    def receive(self):
+    def receive(self) -> Generator[Any, None, None]:
         """Iterate over received messages."""
         while self.queue:
             yield self.queue.popleft()
 
-    def receive_latest(self):
+    def receive_latest(self) -> Optional[Any]:
         """Return latest received messages (if any). Discard the rest."""
         if not self.queue:
             return None
@@ -365,7 +408,7 @@ class _MessageQueue:
 class MessageInput(InputBase, _MessageQueue):
 
     """Message input. Has its own message queue where it receives from a
-    connected MessageOutput.
+    connected :class:`MessageOutput`.
     """
 
     def __init__(self, owner: Optional[Block] = None):
@@ -377,7 +420,7 @@ class MessageOutput(OutputBase):
 
     """Message output. Sends messages to all connected message inputs."""
 
-    def send(self, message):
+    def send(self, message: Any):
         """Send message to all connected message inputs."""
         for con in self.outgoingConnections:
             con.push(message)
@@ -385,8 +428,8 @@ class MessageOutput(OutputBase):
 
 class MessageRelay(RelayBase, MessageOutput):
 
-    """Message relay. Passes on all messages from a connected MessageOutput to
-    all connected MessageInputs.
+    """Message relay. Passes on all messages from a connected
+    :class:`MessageOutput` to all connected :class:`MessageInputs`.
     """
 
     push = MessageOutput.send

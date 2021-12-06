@@ -19,7 +19,7 @@ import collections
 import io
 import json
 import os
-from typing import Tuple, Any, Optional
+from typing import Tuple, Any, Optional, TextIO, Dict
 
 import ruamel.yaml
 import tomlkit
@@ -74,11 +74,11 @@ def guess_config_format(filepath: str) -> str:
 
 class _ConfigImpl(NestedDict):
 
-    """Base class for private implementations of different config formats.
+    """Base class for config implementation / interface.
 
     Holds the dict-like data object from the various third-party libraries.
     Contains the default_factory() for intermediate levels. Allows for path like
-    `name` syntax to access nested dicts with string keys.
+    `name` syntax to access nested dicts with string as keys.
 
     Attributes:
         data: Original dict-like config data object.
@@ -90,10 +90,22 @@ class _ConfigImpl(NestedDict):
         ... c.store('this/is/it', 'Hello, world!')
         ... c.storedefault('this/is/it', 42)
         'Hello, world!'
+
+    Todo:
+        Ditch subclassing from :class:`being.utils.NestedDict`. Composition over
+        inheritance.
     """
 
     def retrieve(self, name: str = ROOT_NAME) -> Any:
-        """Retrieve config entry of a given name. Root object by default."""
+        """Retrieve config value for a given name. This can also be an intermediate entry.
+
+        Args:
+            name (optional): Config path name to retrieve value for. Root path
+                by default.
+
+        Returns:
+            Config value.
+        """
         if name == ROOT_NAME:
             return self.data
 
@@ -101,34 +113,63 @@ class _ConfigImpl(NestedDict):
         return self[keys]
 
     def store(self, name: str, value: Any):
-        """Store config entry under a given name."""
+        """Store value to config.
+
+        Args:
+            name: Config path name to store value under.
+        """
         keys = tuple(name.split(SEP))
         self[keys] = value
 
     def erase(self, name: str):
-        """Erase config entry."""
+        """Erase config value for a given `name`.
+
+        Args:
+            name: Config path name to erase.
+        """
         keys = tuple(name.split(SEP))
         del self[keys]
 
     def storedefault(self, name: str, default: Any = None) -> Any:
-        """Store config entry under name if it does not exist."""
+        """Fetch config value while providing a default value if entry does not
+        exist. Similar :class:`dict.setdefault`.
+
+        Args:
+            name: Config path name to store value under.
+            default: Default value to insert if config entry does not exist.
+
+        Returns:
+            Config value.
+        """
         keys = tuple(name.split(SEP))
         return self.setdefault(keys, default)
 
-    def loads(self, string):
-        """Load from string..."""
+    def loads(self, string: str):
+        """Load data from string to :class:`being.configs._ConfigImpl` instance.
+
+        Args:
+            string: String to parse.
+        """
         raise NotImplementedError
 
-    def load(self, stream):
-        """Load from stream..."""
+    def load(self, stream: TextIO):
+        """Load from stream to :class:`being.configs._ConfigImpl` instance.
+
+        Args:
+            stream: Stream like source to read from.
+        """
         raise NotImplementedError
 
     def dumps(self) -> str:
-        """Dumps config to string."""
+        """Dumps config data to string."""
         raise NotImplementedError
 
-    def dump(self, stream) -> str:
-        """Dumps to stream..."""
+    def dump(self, stream: TextIO) -> str:
+        """Dump config data to stream.
+
+        Args:
+            stream: Stream like to write to.
+        """
         raise NotImplementedError
 
 
@@ -250,9 +291,10 @@ class Config(_ConfigImpl, collections.abc.MutableMapping):
     """Configuration object. Proxy for _ConfigImpl (depending on config format)."""
 
     def __init__(self, data: Optional[dict] = None, configFormat: Optional[str] = None):
-        """Args:
-            data: Initial / internal data.
-            configFormat: Config format (if any).
+        """
+        Args:
+            data (optional): Initial data.
+            configFormat (optional): Config format (if any).
         """
         if configFormat not in IMPLEMENTATIONS:
             raise ValueError(f'No config implementation for {configFormat}!')
@@ -261,7 +303,8 @@ class Config(_ConfigImpl, collections.abc.MutableMapping):
         self.impl: _ConfigImpl = implType(data)
 
     @property
-    def data(self):
+    def data(self) -> Dict:
+        """Underlying dict-like data container."""
         return self.impl.data
 
     def __getitem__(self, key):
@@ -279,43 +322,54 @@ class Config(_ConfigImpl, collections.abc.MutableMapping):
     def __len__(self):
         return len(self.impl)
 
-    def store(self, name, value):
+    def store(self, name: str, value: Any):
         self.impl.store(name, value)
 
-    def retrieve(self, name=ROOT_NAME) -> Any:
+    def retrieve(self, name: str = ROOT_NAME) -> Any:
         return self.impl.retrieve(name)
 
-    def erase(self, name):
+    def erase(self, name: str):
         return self.impl.erase(name)
 
-    def storedefault(self, name, default=None):
+    def storedefault(self, name: str, default: Optional[Any] = None):
         return self.impl.storedefault(name, default)
 
-    def loads(self, string):
+    def loads(self, string: str):
         self.impl.loads(string)
 
-    def load(self, stream):
+    def load(self, stream: TextIO):
         self.impl.load(stream)
 
     def dumps(self):
         return self.impl.dumps()
 
-    def dump(self, stream):
+    def dump(self, stream: TextIO):
         return self.impl.dump(stream)
 
 
 class ConfigFile(Config):
-    def __init__(self, filepath):
+
+    """Config instance which can be loaded / saved to a config file on disk."""
+
+    def __init__(self, filepath: str):
+        """
+        Args:
+            filepath: Associated config file.
+        """
         super().__init__(configFormat=guess_config_format(filepath))
-        self.filepath = filepath
+        self.filepath: str = filepath
+        """Associated filepath of config file."""
+
         if os.path.exists(self.filepath):
             self.reload()
 
     def save(self):
+        """Save data to config file."""
         with open(self.filepath, 'w') as fp:
             self.impl.dump(fp)
 
     def reload(self):
+        """Load data from config file."""
         with open(self.filepath) as fp:
             self.impl.load(fp)
 

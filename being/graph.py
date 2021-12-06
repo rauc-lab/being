@@ -5,12 +5,16 @@ from typing import ForwardRef, Generator, Hashable, Iterable, List, Optional, Se
 
 
 Vertex = Hashable
+"""Graph vertex."""
+
 Edge = Tuple[Vertex, Vertex]
+"""Source -> destination graph edge."""
+
 Graph = ForwardRef('Graph')
 
 
 def unique_elements(iterable: Iterable[Hashable]) -> Generator[Hashable, None, None]:
-    """Iterate over unique elements iterable."""
+    """Iterate over unique elements in iterable."""
     seen = set()
     for element in itertools.filterfalse(seen.__contains__, iterable):
         seen.add(element)
@@ -18,7 +22,17 @@ def unique_elements(iterable: Iterable[Hashable]) -> Generator[Hashable, None, N
 
 
 def find_back_edges(graph) -> Generator[Edge, None, None]:
-    """Find back edges of graph."""
+    """Find back edges of graph.
+
+    Args:
+        graph: Input graph.
+
+    Yields:
+        Source to destination back edges.
+
+    See Also:
+        `Output of a depth-first search <https://en.wikipedia.org/wiki/Depth-first_search#Output_of_a_depth-first_search>`_
+    """
     paths = collections.deque([v] for v in graph.vertices)
     visited = set()
     while paths:
@@ -36,7 +50,14 @@ def find_back_edges(graph) -> Generator[Edge, None, None]:
 
 
 def remove_back_edges(graph: Graph) -> Graph:
-    """Remove back edges from graph an return new DAG."""
+    """Remove back edges from graph an return new DAG.
+
+    Args:
+        graph: Input graph.
+
+    Returns:
+        DAG
+    """
     backEdges = list(find_back_edges(graph))
     if not backEdges:
         return graph
@@ -50,7 +71,14 @@ def remove_back_edges(graph: Graph) -> Graph:
 
 
 def topological_sort(graph: Graph) -> List[Vertex]:
-    """Topological sorting of directed graph vertices."""
+    """Topological sorting of directed graph vertices.
+
+    Args:
+        Input graph.
+
+    Returns:
+        Topological sorting.
+    """
     order = []
     dag = remove_back_edges(graph)
 
@@ -76,24 +104,30 @@ def topological_sort(graph: Graph) -> List[Vertex]:
 
 class Graph(collections.namedtuple('Graph', ['vertices', 'edges', 'successors', 'predecessors'])):
 
-    """Immutable graph.
+    """Immutable graph. Graph vertices can be any hashable Python object. An
+    edge is a source -> destination tuple. A graph is a tuple of a vertex and a
+    edges sets.
 
-    The graph vertices can be any hashable Python object. An edge is a source ->
-    destination tuple. A graph is a tuple of a vertex and a edges sets. Tuples
-    instead of sets to preserve order.
+    Note:
+        Tuples instead of sets to preserve order.
 
     Attributes:
-        vertices: Graph vertices.
-        edges: Graph edges.
-        successors: Source -> destinations relationships.
-        predecessors: Destination -> sources relationships.
+        vertices (tuple): Graph vertices.
+        edges (tuple): Graph edges.
+        successors (collections.defaultdict): Source -> destinations
+            relationships. For each source vertex get a list of destination
+            vertices.
+        predecessors (collections.defaultdict): Destination -> sources
+            relationships. For each destination vertex get a list of source
+            vertices.
     """
 
     # __slots__ = ()  # ...consenting adults
 
     def __new__(cls, vertices: Optional[Iterable] = None,
             edges: Sequence[Edge] = None):
-        """Args:
+        """
+        Args:
             vertices: Initial vertices. Final vertices will be auto updated from
                 the ones present in the edges.
             edges: Source -> destination edge tuples.

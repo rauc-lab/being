@@ -6,7 +6,7 @@ import itertools
 import os
 import random
 import weakref
-from typing import Dict, List, Generator
+from typing import Dict, List, Generator, Callable
 
 
 def filter_by_type(sequence, type_) -> Generator[object, None, None]:
@@ -181,10 +181,8 @@ class IdAware:
 
 class NestedDict(collections.abc.MutableMapping):
 
-    """Nested dict.
-    Tuples as key path for accessing nested dicts within.
-    Similar to defaultdict but NestedDict wraps an existing dict-like object
-    within.
+    """Nested dictionary. Supports :class:`tuple` as keys for accessing
+    intermediate dictionaries within.
     """
 
     # To key error, or not to key error, that is the question. Kind of pointless
@@ -192,19 +190,25 @@ class NestedDict(collections.abc.MutableMapping):
     # errors? Also then setdefault works as expected.
 
     def __init__(self, data=None, default_factory=dict):
-        """Args:
-            iterable: Initial data.
-            default_factory: Default factory for intermediate dicts.
+        """
+        Args:
+            data (optional): Initial data object. If non given (default) use
+                `default_factory` to create a new one.
+            default_factory (optional): Default factory for intermediate
+                dictionaries (:class:`dict` by default).
         """
         if data is None:
             data = default_factory()
 
-        self.data = data
-        self.default_factory = default_factory
+        self.data: Dict = data
+        """Dict-like data container."""
+
+        self.default_factory: Callable = default_factory
+        """Default factory for intermediate dictionaries."""
 
     @staticmethod
     def _as_keys(key) -> tuple:
-        """Assure tuple key path."""
+        """Assure key as tuple."""
         if isinstance(key, tuple):
             return key
 
@@ -263,8 +267,15 @@ class NestedDict(collections.abc.MutableMapping):
         return d.setdefault(last, default)
 
 
-def toss_coin(probability: float = .5) -> bool:
-    """Toss a coin."""
+def toss_coin(probability: float = 0.5) -> bool:
+    """Toss a coin.
+
+    Args:
+        probability: Success probability. Fifty-fifty by default.
+
+    Returns:
+        True or False.
+    """
     return random.random() < probability
 
 

@@ -1,20 +1,24 @@
-"""Curve set.
+"""Curve set. Spline-like which can contain multiple splines."""
+from typing import List
 
-Curve is a spline-like which can contain multiple curves / splines.
-"""
 import numpy as np
 
 from being.constants import INF
 from being.math import clip
 from being.spline import spline_dimensions
+from being.typing import Spline
 
 
 class Curve:
 
     """Curve container aka. curve set. Contains multiple curves as splines."""
 
-    def __init__(self, splines):
-        self.splines = splines
+    def __init__(self, splines: List[Spline]):
+        """
+        Args:
+            splines: List of splines.
+        """
+        self.splines: List[Spline] = splines
 
     @property
     def start(self) -> float:
@@ -39,26 +43,26 @@ class Curve:
 
     @property
     def n_channels(self) -> int:
-        """Number of channels. Sum of all spline dimensions. Not the same as
-        number of splines.
+        """Number of channels. Sum of all spline dimensions.
+
+        Tip:
+            This is not the same as number of splines :meth:`Curve.n_splines`.
         """
         return sum(
             spline_dimensions(s)
             for s in self.splines
         )
 
-    def sample(self, timestamp, loop=False):
-        """Sample curve. Returns n_channels samples. Subsequent child splines
-        get clamped.
+    def sample(self, timestamp: float, loop: bool = False) -> List[float]:
+        """Sample curve. Returns :attr:`Curve.n_channels` many samples.
+        Subsequent child splines get clamped.
 
         Args:
-            timestamp: Time value.
-
-        Kwargs:
-            loop: If to loop time.
+            timestamp: Time value to sample for.
+            loop (optional): Loop curve playback. False by default.
 
         Returns:
-            Samples
+            Curve samples.
         """
         if loop:
             period = self.duration
@@ -67,6 +71,9 @@ class Curve:
 
         samples = []
         for spline in self.splines:
+            # Subtracting a small epsilon from upper clipping border. Non
+            # extrapolating splines *can* return NaN when on the edge
+            # (spline(spline.x[-1])). But not always :(
             samples.extend(spline(clip(timestamp % period, spline.x[0], spline.x[-1] - 1e-15)))
 
         #return np.array(samples)

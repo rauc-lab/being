@@ -1,28 +1,35 @@
-"""Content manager. Manages spline motions in content directory. Motion model."""
+"""Content manager. Manages motions inside content directory."""
 import collections
 import glob
 import os
 from collections import OrderedDict
-from typing import Generator
+from typing import Generator, Callable, Optional
 
 from being.configuration import CONFIG
 from being.curve import Curve
 from being.logging import get_logger
 from being.pubsub import PubSub
+import being.serialization
 from being.serialization import loads, dumps
 from being.spline import BPoly, split_spline
 from being.utils import SingleInstanceCache, read_file, rootname, write_file
 
 
-CONTENT_CHANGED = 'CONTENT_CHANGED'
+CONTENT_CHANGED: str = 'CONTENT_CHANGED'
 """String literal for content changed PubSub event."""
 
-DEFAULT_DIRECTORY = CONFIG['General']['CONTENT_DIRECTORY']
-"""Default content directory."""
+DEFAULT_DIRECTORY: str = CONFIG['General']['CONTENT_DIRECTORY']
+"""Default content directory. Taken from :obj:`being.configuration.CONFIG`."""
 
 
-def stripext(p):
+def stripext(p: str) -> str:
     """Strip file extension from path.
+
+    Args:
+        p: Input path.
+
+    Returns:
+        Input path without extension part.
 
     Usage:
         >>> stripext('this/is/a_file.ext')
@@ -38,6 +45,8 @@ def upgrade_splines_to_curves(directory, logger=None):
 
     Args:
         directory: Folder to check.
+        logger (optional): Logger to write informations to (e.g. Instance logger
+            of calling :class:`Content` instance).
     """
     if logger is None:
         logger = get_logger('upgrade_splines_to_curves()')
@@ -51,38 +60,40 @@ def upgrade_splines_to_curves(directory, logger=None):
             logger.info('Upgrading spline to curve %r', fp)
             write_file(fp, dumps(curve))
         else:
-            logger.warning('Do not know what to do with obj', obj)
+            logger.warning('Do not know what to do with obj %r', obj)
 
 
 class Files(collections.MutableMapping):
 
     """Wrap files inside directory on disk as dictionary. Iteration order is
     most recently modified.
-
-    Attributes:
-        directory: Directory to manage.
-        loads: Serialization loader function
-        dumps: Serialization dumper function
     """
 
-    def __init__(self, directory: str, loads=loads, dumps=dumps):
-        """Args:
-            directory: Directory to manage.
-
-        Kwargs:
-            loads: Serialization loader function.
-            dumps: Serialization dumper function.
+    def __init__(self, directory: str, loads: Callable = loads, dumps: Callable = dumps):
         """
-        self.directory = directory
-        self.loads = loads
-        self.dumps = dumps
+        Args:
+            directory: Directory to manage.
+            loads (optional): Serialization loader function. Default is
+                :func:`being.serialization.loads`.
+            dumps (optional): Serialization dumper function. Default is
+                :func:`being.serialization.dumps`.
+        """
+        self.directory: str = directory
+        """Directory to manage."""
+
+        self.loads: Callable = loads
+        """Serialization loader function."""
+
+        self.dumps: Callable = dumps
+        """Serialization dumper function."""
+
         os.makedirs(self.directory, exist_ok=True)
 
     def _fullpath(self, path: str) -> str:
         """Resolve fullpath."""
         return os.path.join(self.directory, path)
 
-    def _recently_modified(self):
+    def _recently_modified(self) -> Generator[str, None, None]:
         """Iterate over most recently modified paths."""
         filepaths = glob.iglob(self.directory + '/*')
         mostRecently = sorted(filepaths, key=os.path.getctime, reverse=True)
@@ -120,17 +131,25 @@ class Files(collections.MutableMapping):
 
 class Content(PubSub, SingleInstanceCache):
 
-    """Content manager. For now only motions / splines."""
+    """Content manager. For now only motions and splines. Motion name is the
+    basename without file extension.
 
-    # TODO: Extend for all kind of files, subfolders.
-    # TODO: NestedDict?
+    Todo:
+        - Extend for all kind of files (multiple subfolders).
+        - :class:`being.utils.NestedDict` appropriate?
+    """
 
-    def __init__(self, directory=DEFAULT_DIRECTORY, data=None, ext='.json'):
-        """Kwargs:
-            directory: Directory to manage. Default content directory from
-                configuration by default.
-            data: Data container.
-            ext: File extensions. name + ext = path.
+    def __init__(self,
+            directory: str = DEFAULT_DIRECTORY,
+            data: Optional[Files] = None,
+            ext: str = '.json',
+        ):
+        """
+        Args:
+            directory (optional): Directory to manage.
+            Default content directory from :obj:`being.configuration.CONFIG`.
+            data (optional): Data container.
+            ext (optional): File extensions. name + ext = path.
         """
         if data is None:
             data = Files(directory)

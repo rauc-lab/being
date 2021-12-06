@@ -1,4 +1,12 @@
-"""Execution of blocks."""
+"""Block execution. Given some interconnected blocks find a suitable *order* to
+execute them in. Aka. calling the :meth:`being.block.Block.update` methods in an
+appropriate order.
+
+Caution:
+    If the block network graph has cycles it is not possible to resolve a
+    *proper* execution order. In this case blocks will have to work with out of
+    date data.
+"""
 import collections
 
 from typing import Iterable, List
@@ -15,7 +23,7 @@ def block_network_graph(blocks: Iterable[Block]) -> Graph:
     """Traverse block network and build block network graph.
 
     Args:
-        blocks (iterable): Starting blocks for graph traversal.
+        blocks: Starting blocks for graph traversal.
 
     Returns:
         Block network graph.
@@ -39,12 +47,23 @@ def block_network_graph(blocks: Iterable[Block]) -> Graph:
 
 
 def determine_execution_order(blocks: Iterable[Block]) -> ExecOrder:
-    """Determine execution order for blocks."""
+    """Determine execution order for blocks.
+
+    Args:
+        blocks: Interconnected blocks.
+
+    Returns:
+        Execution order.
+    """
     graph = block_network_graph(blocks)
     return topological_sort(graph)
 
 
 def execute(execOrder: ExecOrder):
-    """Execute execution order."""
+    """Execute execution order.
+
+    Args:
+        execOrder: Blocks to execute.
+    """
     for block in execOrder:
         block.update()

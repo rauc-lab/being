@@ -1,12 +1,20 @@
-"""Loading configurations and default configuration values."""
+"""Being configuration and default values. Searches the *current working
+directory* for a ``being.ini`` configuration file. If present default
+configuration values get updated.
+
+Todo:
+    Rename :obj:`CONFIG` to ``DEFAULT_CONFIG``? Should not overwrite defaults
+    but instead update a copy.
+"""
 import logging
 import os
+from typing import Dict, Any
 
 from being.configs import ConfigFile
 from being.utils import update_dict_recursively
 
 
-CONFIG: dict = {
+CONFIG: Dict[str, Any] = {
     'General': {
         'INTERVAL': .010,  # Main loop interval in seconds.
         'CONTENT_DIRECTORY': 'content',  # Default directory for motions / splines
@@ -32,7 +40,8 @@ CONFIG: dict = {
 
 Note:
     - Not a :class:`being.configs.Config` instance because read-only
-    - Not a :class:`being.utils.NestedDict` instance in order to catch :ref:`KeyError` pre-runtime.
+    - Not a :class:`being.utils.NestedDict` instance in order to catch
+      :exc:`KeyError` pre-runtime.
 """
 
 for fp in [
