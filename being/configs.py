@@ -1,11 +1,19 @@
-"""Config data / file access for ini, json, yaml and toml. Round trip
-preservation.
+"""Different config formats. Currently supported are:
+    - JSON
+    - INI
+    - YAML
+    - TOML
 
-Todo:
-    - Different config formats
-    - Unifying with nested dictionary structures
-    - Config name / path <-> key representation.
-    - Round trip preservation.
+Round-trip preservation for preserving comments in config files (depending on
+third-party libraries). Internally all config formats get mapped on a
+:class:`being.utils.NestedDict` data structure which can be accessed through a
+`path-like` syntax.
+
+Example:
+    >>> c = Config()
+    ... c.store('this/is/it', 1234)
+    ... print(c.data)
+    {'this': {'is': {'it': 1234}}}
 """
 import collections
 import io
@@ -29,7 +37,7 @@ ROOT_NAME: str = ''
 
 def split_name(name: str) -> Tuple[str, str]:
     """Split name into (head, tail) where tail is everything after the finals
-    separator.
+    separator (like splitting a filepath in the directory vs. filename part).
 
     Args:
         name: Name to split.
@@ -48,7 +56,18 @@ def split_name(name: str) -> Tuple[str, str]:
 
 
 def guess_config_format(filepath: str) -> str:
-    """Guess config format from file extension."""
+    """Guess config format from file extension.
+
+    Args:
+        filepath: Path to guess from.
+
+    Returns:
+        Config format.
+
+    Example:
+        >>> guess_config_format('this/is/it.json')
+        'json'
+    """
     _, ext = os.path.splitext(filepath)
     return ext[1:].lower()
 

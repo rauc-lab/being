@@ -31,8 +31,8 @@ CONFIG: dict = {
 """Global being configuration.
 
 Note:
-- Not a being.configs.Config instance because read-only
-- Not a being.utils.NestedDict instance in order to catch KeyErrors pre-runtime.
+    - Not a :class:`being.configs.Config` instance because read-only
+    - Not a :class:`being.utils.NestedDict` instance in order to catch :ref:`KeyError` pre-runtime.
 """
 
 for fp in [
