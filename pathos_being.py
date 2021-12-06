@@ -12,9 +12,13 @@ from being.resources import register_resource, manage_resources
 from being.sensors import SensorGpio
 
 
+# Params
+MOTOR_NAME: str = 'LM1247'
+"""Motor name."""
+
 #setup_logging()
 suppress_other_loggers()
-logging.basicConfig(level=0)
+logging.basicConfig(level=10)
 
 
 with manage_resources():
@@ -22,7 +26,7 @@ with manage_resources():
     network = CanBackend.single_instance_setdefault()
     register_resource(network, duplicates=False)
     motors = [
-        LinearMotor(nodeId, length=0.100)
+        LinearMotor(nodeId, motor=MOTOR_NAME, name=f'Motor ID {nodeId}')
         for nodeId in network.scan_for_node_ids()
     ]
     if not motors:
