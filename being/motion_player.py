@@ -1,18 +1,34 @@
-"""Curve / motion player block.
+"""Curve / motion player block. Outputs motion samples to the motors.
+
+.. graphviz::
+
+   digraph motion_player_diagram {
+      rankdir="LR"
+      dummy [label="", shape=none, height=0, width=0]
+      MP [shape=box, label="Motion Player"];
+      A [shape=box, label="Motor 1"];
+      B [shape=box, label="Motor 2"];
+      C [shape=box, label="Motor 3"];
+
+      dummy -> MP [label="Motion Command"]
+      MP -> A [style=dashed, label="Target Position"]
+      MP -> B [style=dashed]
+      MP -> C [style=dashed]
+   }
 
 Todo:
-  - Changing playback speed on the fly. As separate input? Need some internal
-    clock. Or a phasor?
-  - Slow and fast crossover between splines?
+  - Changing playback speed on the fly. As separate input? Phasor?
+  - Motion crossover
 """
 import json
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, List
 
 import numpy as np
 from scipy.interpolate import BPoly
 
 from being.block import Block, output_neighbors
 from being.clock import Clock
+from being.connectables import ValueOutput
 from being.content import Content
 from being.curve import Curve
 from being.logging import get_logger
@@ -20,25 +36,12 @@ from being.motors.blocks import MotorBlock
 from being.utils import filter_by_type
 
 
-"""
-# Todo: Urgency. Do we need that? Should we use it for slow and fast crossovers?
-
-from enum import Enum, auto
-
-class Urgency(Enum):
-    NOW = auto()
-    NEXT = auto()
-    ENQUEUE = auto()
-"""
-
-
-def constant_spline(position=0.0, duration=1.0) -> BPoly:
-    """Create a constant spline for a given position which extrapolates
-    indefinitely.
+def constant_spline(position: float = 0.0, duration: float = 1.0) -> BPoly:
+    """Create a constant position spline which extrapolates indefinitely.
 
     Args:
         position: Target position value.
-        duration: Todo.
+        duration: Duration of the constant motion.
 
     Returns:
         Constant spline.
@@ -46,8 +49,17 @@ def constant_spline(position=0.0, duration=1.0) -> BPoly:
     return BPoly(c=[[position]], x=[0., duration], extrapolate=True)
 
 
-def constant_curve(positions=0.0, duration=1.0) -> Curve:
-    """Create a curve with keeping constant values."""
+def constant_curve(positions: float = 0.0, duration: float = 1.0) -> Curve:
+    """Create a constant curve with a single channel. Keeping a constant value
+    indefinitely.
+
+    Args:
+        position: Target position value.
+        duration: Duration of the constant motion.
+
+    Returns:
+        Constant curve.
+    """
     return Curve([
         constant_spline(pos, duration)
         for pos in np.atleast_1d(positions)
@@ -56,26 +68,40 @@ def constant_curve(positions=0.0, duration=1.0) -> Curve:
 
 class MotionCommand(NamedTuple):
 
-    """Message to trigger curve playback."""
+    """Message to trigger motion curve playback."""
 
     name: str
+    """Name of the motion."""
+
     loop: bool = False
+    """Looping the motion indefinitely or not. """
 
 
 class MotionPlayer(Block):
 
-    """Spline sampler block. Feeds on motion commands and outputs position
-    values for a given spline. Supports different playback speeds and looping
-    option.
+    """Motion curve sampler block. Receives motion commands on its message
+    input, looks up motion curve from :class:`being.content.Content` and samples
+    motion curve to position outputs.  Supports looping playback.
 
-    Attributes:
-        spline (Spline): Currently playing spline.
-        startTime (float): Start time of current spline.
-        playbackSpeed (float): Playback speed for current spline.
-        looping (bool): Looping motion.
+    Note:
+        :attr:`MotionPlayer.positionOutputs` attributes for the position outputs
+        only. In order to distinguish them from other outputs in the future.
     """
 
-    def __init__(self, ndim=1, clock=None, content=None, **kwargs):
+    def __init__(self,
+            ndim: int = 1,
+            clock: Optional[Clock] = None,
+            content: Optional[Content] = None,
+            **kwargs,
+        ):
+        """
+        Args:
+            ndim (optional): Number of dimensions / motors / initial number of
+                position outputs. Default is one.
+            clock (optional): Clock instance (DI).
+            content (optional): Content instance (DI).
+            **kwargs: Arbitrary block keyword arguments.
+        """
         if clock is None:
             clock = Clock.single_instance_setdefault()
 
@@ -84,16 +110,24 @@ class MotionPlayer(Block):
 
         super().__init__(**kwargs)
         self.add_message_input('mcIn')
-        self.positionOutputs = []
+        self.positionOutputs: List[ValueOutput] = []
+        """Position value outputs."""
+
         for _ in range(ndim):
             self.add_position_output()
 
         self.clock = clock
         self.content = content
-        self.curve = None
-        self.startTime = 0
-        self.looping = False
         self.logger = get_logger(str(self))
+
+        self.curve: Optional[Curve] = None
+        """Currently playing motion curve."""
+
+        self.startTime: float = 0.0
+        """Start time of current motion curve."""
+
+        self.looping: bool = False
+        """If current motion curve is looping."""
 
     @property
     def playing(self) -> bool:
@@ -113,10 +147,10 @@ class MotionPlayer(Block):
     def stop(self):
         """Stop spline playback."""
         self.curve = None
-        self.startTime = 0
+        self.startTime = 0.0
         self.looping = False
 
-    def play_curve(self, curve: Curve, loop: bool = False, offset: float = 0.) -> float:
+    def play_curve(self, curve: Curve, loop: bool = False, offset: float = 0.0) -> float:
         """Play a curve directly.
 
         Args:
@@ -133,7 +167,7 @@ class MotionPlayer(Block):
         self.looping = loop
         return self.startTime
 
-    def process_mc(self, mc: MotionCommand) -> Optional[float]:
+    def process_mc(self, mc: MotionCommand) -> float:
         """Process new motion command and schedule next curve to play.
 
         Args:
@@ -178,6 +212,11 @@ class MotionPlayer(Block):
                 out.value = val
 
     def neighboring_motors(self):
+        """Iterate over neighboring blocks at the position outputs.
+
+        Yields:
+            Motor blocks.
+        """
         for out in self.positionOutputs:
             input_ = next(iter(out.connectedInputs))
             if input_.owner:
@@ -191,4 +230,4 @@ class MotionPlayer(Block):
         return dct
 
     def __str__(self):
-        return type(self).__name__
+        return '%s()' % type(self).__name__

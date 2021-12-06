@@ -3,6 +3,7 @@
 .py.class,
 .py.data,
 .py.method,
-.py.property {
+.py.property,
+.field-list.simple {
     margin-bottom: 1em;
 }

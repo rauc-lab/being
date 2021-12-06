@@ -10,7 +10,14 @@ import scipy.optimize
 
 
 def clip(number: float, lower: float, upper: float) -> float:
-    """Clip `number` to the closed interval [`lower`, `upper`].
+    r"""Clip `number` to the closed interval [`lower`, `upper`].
+
+    .. math::
+        f_\mathrm{clip}(x; a, b) = \begin{cases}
+            a & x < a \\
+            x & a \leq x \leq b \\
+            b & b < x \\
+        \end{cases}
 
     Args:
         number: Input value.
@@ -27,13 +34,17 @@ def clip(number: float, lower: float, upper: float) -> float:
 
 
 def sign(number: float) -> float:
-    """Signum function.
+    """`Signum function <https://en.wikipedia.org/wiki/Sign_function>`_
 
     Args:
         number: Input value.
 
     Returns:
         Sign part of the number.
+
+    Example:
+        >>> sign(-12.34)
+        -1.0
     """
     return math.copysign(1., number)
 
@@ -76,21 +87,27 @@ def linear_mapping(xRange: Tuple[float, float], yRange: Tuple[float, float]) -> 
 
 class ArchimedeanSpiral(NamedTuple):
 
-    """Archimedean spiral defined by
+    """`Archimedean spiral <https://en.wikipedia.org/wiki/Archimedean_spiral>`_
+    defined by
 
     .. math::
         r(\phi) = a + b\phi
     """
 
     a: float
+    """Centerpoint offset from origin."""
+
     b: float = 0.  # Trivial case circle
+    """Distance between loops. Default is zero (trivial case spiral as
+    circle).
+    """
 
     def radius(self, angle: float) -> float:
         """Calculate radius of spiral for a given angle."""
         return self.a + self.b * angle
 
     @staticmethod
-    def arc_length_helper(anlge, b):
+    def arc_length_helper(anlge: float, b: float) -> float:
         """Helper function for arc length calculations."""
         return b / 2 * (
             anlge * math.sqrt(1 + anlge ** 2)
@@ -101,12 +118,15 @@ class ArchimedeanSpiral(NamedTuple):
         return self.arc_length_helper(angle, self.b) + self.a * angle
 
     def arc_length(self, endAngle: float, startAngle: float = 0) -> float:
-        """Arc length of spiral from a startAngle to an endAngle."""
+        """Arc length of spiral from a `startAngle` to an `endAngle`."""
         return self._arc_length(endAngle) - self._arc_length(startAngle)
 
     @classmethod
     def fit(cls, diameter, outerDiameter, arcLength) -> tuple:
-        """Args:
+        """Fit :class:`ArchimedeanSpiral` to a given `diameter`, `outerDiameter`
+        and `arcLength`.
+
+        Args:
             diameter: Inner diameter of spiral.
             outerDiameter: Outer diameter of spiral. If equal to diameter -> Circle.
             arcLength: Measured arc length.

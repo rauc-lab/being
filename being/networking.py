@@ -1,11 +1,14 @@
-"""Networking sending and receiving blocks."""
+"""Networking blocks which can send / receive data via UDP over the network.
+
+Warning:
+    Untested.
+"""
 import socket
 from typing import Optional, Tuple
 
 from being.block import Block
 from being.resources import register_resource
 from being.serialization import EOT, FlyByDecoder, dumps
-from being.connectables import MessageOutput, MessageInput
 
 
 Socket = socket.socket
@@ -21,17 +24,16 @@ BUFFER_SIZE: int = 1024
 
 class NetworkBlock(Block):
 
-    """Base class for network / socket blocks.
-
-    Attributes:
-        address: Socket address.
-        sock: Socket instance.
+    """Base class for network / socket blocks. Sockets get registered as
+    resources with :func:`register_resource`. Default :mod:`being.serialization`
+    is used for data serialization.
     """
 
     def __init__(self, address: Address, sock: Optional[Socket] = None, **kwargs):
-        """Args:
+        """
+        Args:
             address: Network address.
-            sock: Socket instance.
+            sock (optional): Socket instance (DI).
         """
         super().__init__(**kwargs)
         if sock is None:
@@ -39,8 +41,11 @@ class NetworkBlock(Block):
             sock.setblocking(False)
             register_resource(sock)
 
-        self.address = address
-        self.sock = sock
+        self.address: Address = address
+        """Socket address."""
+
+        self.sock: Socket = sock
+        """Underlying socket instance."""
 
 
 class NetworkOut(NetworkBlock):
@@ -49,7 +54,7 @@ class NetworkOut(NetworkBlock):
 
     def __init__(self, address: Address, sock: Optional[Socket] = None, **kwargs):
         super().__init__(address, sock, **kwargs)
-        self.inputs = [MessageInput(owner=self)]
+        self.add_message_input()
 
     def update(self):
         for msg in self.input.receive():
@@ -63,7 +68,7 @@ class NetworkIn(NetworkBlock):
 
     def __init__(self, address: Address, sock: Optional[Socket] = None, **kwargs):
         super().__init__(address, sock, **kwargs)
-        self.outputs = [MessageOutput(owner=self)]
+        self.add_message_output()
         self.decoder = FlyByDecoder(term=TERM)
         self.sock.bind(address)
 

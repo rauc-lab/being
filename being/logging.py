@@ -1,6 +1,6 @@
 """Being logging.
 
-Resources:
+References:
   - https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
 """
 import logging
@@ -24,12 +24,15 @@ DEFAULT_EXCLUDES = ['parso', 'matplotlib', 'can', 'canopen', 'aiohttp',]
 
 
 def get_logger(name: Optional[str] = None, parent: Optional[Logger] = BEING_LOGGER) -> Logger:
-    """Get logger. Wrap for `logging.getLogger` in order to keep track of being
-    loggers (via evil global variable BEING_LOGGERS).
+    """Get being logger. Wraps :func:`logging.getLogger`. Keeps track of all
+    created being loggers (child loggers of :data:`being.logging.BEING_LOGGER`).
 
     Args:
         name: Logger name. None for root logger if not parent logger.
         parent: Parent logger. BEING_LOGGER by default.
+
+    Returns:
+        Requested logger for given mame.
     """
     if name is None:
         return BEING_LOGGER
@@ -51,8 +54,12 @@ def suppress_other_loggers(*excludes):
                 logging.getLogger(name).disabled = True
 
 
-def setup_logging(level=LEVEL):
-    """Setup being loggers."""
+def setup_logging(level: int = LEVEL):
+    """Setup being loggers.
+
+    Args:
+        level: Logging level.
+    """
     # Note using logging.basicConfig(level=level) would route all the other
     # loggers to stdout
     logging.root.setLevel(level)

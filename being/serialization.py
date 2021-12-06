@@ -8,7 +8,7 @@ Notation:
   - dct -> JSON dict / object
 
 Notes:
-  - We use OrderedDict to control key ordering for Python versions before 3.6.
+  - :class:`OrderedDict` to control key ordering for Python versions prior to 3.6.
 """
 import base64
 import json
@@ -28,23 +28,37 @@ from being.typing import Spline
 
 
 NAMED_TUPLE_LOOKUP: Dict[str, type] = {}
-"""Named tuples type lookup."""
+"""Lookup for all registered named tuple types.
+
+   :meta hide-value:
+"""
 
 ENUM_LOOKUP: Dict[str, type] = {}
-"""Enum type lookup."""
+"""Lookup for all registered enum types.
+
+   :meta hide-value:
+"""
 
 SPLINE_TYPES: Dict[type, type] = {
     CubicSpline: PPoly,
     PPoly: PPoly,
     BPoly: BPoly,
 }
-"""Supported spline types. CubicSplines get mapped to PPoly."""
+"""Supported spline types.
+
+Note:
+    :class:`scipy.interpolate._cubic.CubicSpline` get mapped to
+    :class:`scipy.interpolate.interpolate.PPoly`.
+"""
 
 SPLINE_LOOKUP: Dict[str, type] = {
     cls.__name__: cls
     for cls in SPLINE_TYPES.values()
 }
-"""Spline type lookup."""
+"""Lookup for spline types.
+
+   :meta hide-value:
+"""
 
 
 def register_named_tuple(namedTupleType: type):

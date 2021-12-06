@@ -1,5 +1,4 @@
 """Optimal trajectory and kinematic filtering."""
-import collections
 import functools
 from typing import NamedTuple
 
@@ -14,11 +13,21 @@ class State(NamedTuple):
     """Kinematic state."""
 
     position: float = 0.
+    """Scalar position value."""
+
     velocity: float = 0.
+    """Scalar speed value."""
+
     acceleration: float = 0.
+    """Scalar acceleration value."""
 
 
-def optimal_trajectory(initial: State, target: State, maxSpeed: float = 1., maxAcc: float = 1.) -> list:
+def optimal_trajectory(
+        initial: State,
+        target: State,
+        maxSpeed: float = 1.0,
+        maxAcc: float = 1.0,
+    ) -> list:
     """Calculate acceleration bang profiles for optimal trajectory from initial
     state `start` to `target` state. Respecting the kinematic limits. Bang
     profiles are given by their duration and the acceleration values.
@@ -29,14 +38,16 @@ def optimal_trajectory(initial: State, target: State, maxSpeed: float = 1., maxA
     Args:
         initial: Initial state.
         target: Target state.
-        maxSpeed: Maximum speed.
-        maxAcc: Maximum acceleration (and deceleration).
+        maxSpeed (optional): Maximum speed value. 1.0 by default.
+        maxAcc (optional): Maximum acceleration (and deceleration) value. 1.0 by default.
 
     Returns:
-        List of bang speed profiles.
+        List of bang speed profiles. A bang segment is a (duration,
+        acceleration) tuple. 1-3 bang profiles depending on resulting speed
+        profile (critical, triangular or trapezoidal).
 
     Example:
-        >>> optimal_trajectory(,
+        >>> optimal_trajectory(initial=(0, 0, 0), target=(1, 0, 0), maxSpeed=0.5)
         [(0.5, 1.0), (1.5, 0.0), (0.5, -1.0)]
 
     Resources:
@@ -109,7 +120,7 @@ def step(state: State, dt: float) -> State:
     """Evolve state for some time interval."""
     x0, v0, a0 = state
     return State(
-        x0 + v0 * dt + .5 * a0 * dt**2,
+        x0 + v0 * dt + 0.5 * a0 * dt**2,
         v0 + a0 * dt,
         a0,
     )
@@ -119,9 +130,9 @@ def kinematic_filter(
         targetPosition: float,
         dt: float,
         initial: State = State(),
-        targetVelocity: float = 0.,
-        maxSpeed: float = 1.,
-        maxAcc: float = 1.,
+        targetVelocity: float = 0.0,
+        maxSpeed: float = 1.0,
+        maxAcc: float = 1.0,
         lower: float = -INF,
         upper: float = INF,
     ) -> State:

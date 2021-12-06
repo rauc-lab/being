@@ -1,6 +1,7 @@
 """Pacemaker thread."""
 import contextlib
 import threading
+from typing import Any
 
 from being.backends import CanBackend
 from being.configuration import CONFIG
@@ -14,10 +15,22 @@ class Once:
 
     """Value changed detector."""
 
-    def __init__(self, initial):
+    def __init__(self, initial: Any):
+        """
+        Args:
+            initial: Initial value.
+        """
         self.prev = initial
 
-    def changed(self, value):
+    def changed(self, value: Any) -> bool:
+        """Check if value changed since last call.
+
+        Args:
+            value: Value to check.
+
+        Returns:
+            True if value changed since last call. False otherwise.
+        """
         if value == self.prev:
             return False
 
@@ -29,15 +42,21 @@ class Pacemaker(contextlib.AbstractContextManager):
 
     """Pacemaker / watchdog / dead man's switch daemon thread.
 
-    Can step in to trigger PDO transmission / SYNC message if main thread is not
-    on time. In order to prevent RPDO timeouts.
+    Can step in to trigger SYNC messages and  PDO transmission if main thread is
+    not on time. In order to prevent RPDO timeouts.
+
+    Note:
+        Does not start by default (:meth:`Pacemaker.start`). Can be used as
+        dummy if unstarted.
     """
 
     def __init__(self, network: CanBackend, maxWait: float = 1.2 * INTERVAL):
-        """Args:
+        """
+        Args:
             network: CanBackend network instance to trigger PDO transmits / SYNC
                 messages.
-            maxWait: Maximum wait duration before stepping in.
+            maxWait: Maximum wait duration before stepping in. Some portion
+                larger than global :attr:`INTERVAL`.
         """
         self.network = network
         self.maxWait = maxWait
