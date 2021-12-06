@@ -20,6 +20,9 @@
 project = 'Being'
 copyright = '2021, Alexander Theler'
 author = 'Alexander Theler'
+github_url = 'https://github.com'
+github_repo_org = 'rauc-lab'
+github_repo_name = 'being'
 
 
 # -- General configuration ---------------------------------------------------
@@ -35,6 +38,10 @@ extensions = [
     #'sphinx.ext.graphviz',
     #'matplotlib.sphinxext.plot_directive',
 ]
+
+intersphinx_mapping = {
+    'python': ('http://docs.python.org/3', None),
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -57,6 +64,9 @@ html_theme = 'alabaster'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+
+# -- Options extensions ------------------------------------------------------
+
 # napoleon configuration
 napoleon_google_docstring = True
 #napoleon_use_param = False
@@ -68,3 +78,9 @@ autodoc_member_order = 'bysource'  # alphabetical, bysource, groupwise
 
 # todo configuration
 todo_include_todos = True
+
+# -- Misc --------------------------------------------------------------------
+# RST prolog for global href links
+rst_prolog = """
+.. _Klang: http://github.com/atheler/klang
+"""

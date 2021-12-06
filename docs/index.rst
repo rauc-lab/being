@@ -10,7 +10,7 @@ Welcome to Being
 .. image:: images/pathos\ logo.png
    :alt: PATHOS logo
 
-Robotic middleware library for easy to use robotic project.
+Robotic middleware library for easy to use robotic projects.
 
 .. _GitHub: https://github.com/rauc-lab/being
 
@@ -79,7 +79,13 @@ TODO Needed?
 Contributing
 ============
 
+Coding style is mostly compatible with
+`Google Python Style Guide <https://google.github.io/styleguide/pyguide.html>`_
+with one exception: `camelCase <https://en.wikipedia.org/wiki/Camel_case>`_ for
+variables, arguments and attributes.
+
 TODO
+
 
 Authors and License
 ===================
