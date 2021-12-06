@@ -35,6 +35,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
+    'sphinx.ext.viewcode',
     #'sphinx.ext.graphviz',
     #'matplotlib.sphinxext.plot_directive',
 ]
