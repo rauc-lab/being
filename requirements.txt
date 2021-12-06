@@ -1,0 +1,11 @@
+setuptools
+numpy
+scipy
+matplotlib
+python-can
+canopen
+aiohttp >= 3.7.0, <= 3.7.4
+aiohttp-jinja2>=1.4.2
+ruamel.yaml
+tomlkit
+configobj
