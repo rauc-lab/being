@@ -1,4 +1,32 @@
-"""Global being resources exit stack. Dynamically manage resources."""
+"""Dynamic resources handling with a global exit stack.
+
+Example:
+    >>> from being.resources import manage_resources, register_resource, add_callback
+    ... 
+    ... 
+    ... class Foo:
+    ...     def __enter__(self):
+    ...         print('Foo.__enter__()')
+    ...         return self
+    ... 
+    ...     def __exit__(self, exc_type, exc_value, traceback):
+    ...         print('Foo.__exit__()')
+    ... 
+    ... 
+    ... class Bar:
+    ...     def close(self):
+    ...         print('Bar.close()')
+    ... 
+    ... 
+    ... with manage_resources():
+    ...     foo = Foo()
+    ...     register_resource(foo)  # Calls __enter__ here and __exit__ at the end
+    ...     bar = Bar()
+    ...     add_callback(bar.close)
+    Foo.__enter__()
+    Bar.close()
+    Foo.__exit__()
+"""
 import contextlib
 import warnings
 from typing import ContextManager
@@ -43,4 +71,11 @@ def manage_resources():
 
 
 def add_callback(callback, *args, **kwargs):
+    """Add closing callback to EXIT_STACK.
+
+    Args:
+        callback: Callback function
+        *args: Variable length argument list for callback.
+        **kwargs: Arbitrary keyword arguments for callback.
+    """
     EXIT_STACK.callback(callback, *args, **kwargs)

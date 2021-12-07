@@ -1,11 +1,26 @@
 """Serialization of being objects.
 
 Supports dynamic named tuples and enums but these types have to be registered
-with register_named_tuple() and register_enum().
+with :func:`being.serialization.register_named_tuple` and
+:func:`being.serialization.register_enum`.
 
-Notation:
-  - obj -> Python object
-  - dct -> JSON dict / object
+Python objects ``obj`` get converted to dictionary representation ``dct`` which
+then can be JSON serialized.
+
+Example:
+    >>> class Foo:
+    ...     def __init__(self, a, b=0):
+    ...         self.a = a
+    ...         self.b = b
+
+    >>> import json
+    ... obj = Foo(1, 2)
+    ... json.dumps(obj)
+    TypeError: Object of type Foo is not JSON serializable
+
+    >>> dct = {'type': 'Foo', 'a': 1, 'b': 2}
+    ... json.dumps(dct)
+    '{"type": "Foo", "a": 1, "b": 2}'
 
 Notes:
   - :class:`OrderedDict` to control key ordering for Python versions prior to 3.6.
@@ -15,7 +30,7 @@ import json
 import logging
 from collections import OrderedDict
 from enum import EnumMeta
-from typing import Generator, Dict
+from typing import Generator, Dict, Any
 
 import numpy as np
 from numpy import ndarray
@@ -25,6 +40,9 @@ from being.block import Block
 from being.constants import EOT
 from being.curve import Curve
 from being.typing import Spline
+
+
+__all__ = [ 'FlyByDecoder', 'dumps', 'loads', 'register_enum', 'register_named_tuple', ]
 
 
 NAMED_TUPLE_LOOKUP: Dict[str, type] = {}
@@ -62,7 +80,27 @@ SPLINE_LOOKUP: Dict[str, type] = {
 
 
 def register_named_tuple(namedTupleType: type):
-    """Register named tuple type for serialization / deserialization."""
+    """Register named tuple type for serialization / deserialization in
+    :attr:`being.serialization.NAMED_TUPLE_LOOKUP`.
+
+    Args:
+        namedTupleType: Named tuple type to register for serialization / deserialization.
+
+    Raises:
+        ValueError: If named tuple has already been registered.
+
+    Example:
+        >>> from typing import NamedTuple
+        ... 
+        ... class Foo(NamedTuple):
+        ...     first: int
+        ...     second: int
+        ...     third = None
+        ... 
+        ... register_named_tuple(Foo)
+        ... dumps(Foo(1, 2))
+        '{"type": "Foo", "first": 1, "second": 2}'
+    """
     name = namedTupleType.__name__
     if 'type' in namedTupleType._fields:
         raise ValueError(
@@ -80,6 +118,12 @@ def _enum_type_qualname(enumType: EnumMeta) -> str:
     """Quasi qualname for enum types. So to distinguish different enum types
     with the same name in different modules.
 
+    Args:
+        enumType: Enum type.
+
+    Returns:
+        Enum qualname.
+
     Example:
         >>> import enum
         ...
@@ -94,7 +138,26 @@ def _enum_type_qualname(enumType: EnumMeta) -> str:
 
 
 def register_enum(enumType: EnumMeta):
-    """Register enum for serialization / deserialization."""
+    """Register enum for serialization / deserialization in
+    :attr:`being.serialization.ENUM_LOOKUP`.
+
+    Args:
+        enumType: Enum type to register for serialization / deserialization.
+
+    Raises:
+        RuntimeError: If enum type has already been registered.
+
+    Example:
+        >>> class Foo(enum.Enum):
+        ...     first = 0
+        ...     second = 1
+        ...     third = 2
+        ... 
+        ... register_enum(Foo)
+        ... x = Foo.first
+        ... dumps(x)
+        '{"type": "__main__.Foo", "members": ["first", "second", "third"], "value": 0}'
+    """
     name = _enum_type_qualname(enumType)
     if name in ENUM_LOOKUP:
         raise RuntimeError(f'Enum {name!r} is already registered!')
@@ -268,13 +331,35 @@ class BeingEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, o)
 
 
-def dumps(obj, *args, **kwargs):
-    """Serialize being object to JSON string."""
+def dumps(obj: Any, *args, **kwargs) -> str:
+    """Serialize being object to JSON string.
+
+    Args:
+        obj: Object to serialize.
+        *args: Variable length argument list for :class:`being.serialization.BeingEncoder`.
+        **kwargs: Arbitrary keyword arguments for :class:`being.serialization.BeingEncoder`.
+
+    Returns:
+        JSON string.
+
+    Example:
+        >>> from being.block import Block
+        ... block = Block(name='My Block')
+        ... dumps(block)
+        '{"type": "Block", "blockType": "Block", "name": "My Block", "id": 0, "inputNeighbors": [], "outputNeighbors": []}'
+    """
     return json.dumps(obj, cls=BeingEncoder, *args, **kwargs)
 
 
-def loads(string):
-    """Deserialize being object from JSON string."""
+def loads(string: str) -> Any:
+    """Deserialize being object from JSON string.
+
+    Args:
+        string: Input string.
+
+    Returns:
+        Decoded being object.
+    """
     return json.loads(string, object_hook=being_object_hook)
 
 
@@ -295,14 +380,19 @@ class FlyByDecoder:
     """
 
     def __init__(self, term: str = EOT):
-        """Args:
-            term: Termination character.
+        """
+        Args:
+            term: Termination character (EOT by default).
         """
         self.term = term
         self.incomplete = ''
 
-    def decode_more(self, new: str) -> Generator:
-        """Try to decode more objects."""
+    def decode_more(self, new: str) -> Generator[Any, None, None]:
+        """Try to decode more objects.
+
+        Yields:
+            Completely decoded objects.
+        """
         self.incomplete += new
         while self.term in self.incomplete:
             complete, self.incomplete = self.incomplete.split(self.term, maxsplit=1)

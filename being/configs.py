@@ -301,6 +301,7 @@ class Config(_ConfigImpl, collections.abc.MutableMapping):
 
         implType = IMPLEMENTATIONS[configFormat]
         self.impl: _ConfigImpl = implType(data)
+        """Private config implementation."""
 
     @property
     def data(self) -> Dict:

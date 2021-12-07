@@ -1,3 +1,8 @@
+"""Raspberry Pi General Purpose Input/Output.
+
+The package `RPi.GPIO` is not available on non Raspberry Pi platform. Dummy
+:class:`being.rpi_gpio.GPIO` for these systems.
+"""
 try:
     import RPi.GPIO as GPIO
 except ImportError:

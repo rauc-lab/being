@@ -1,7 +1,15 @@
-"""Parameter blocks which can be used to control values inside the block network
-and to mirror their state inside a config file.
+"""Parameter blocks can be used to control values inside the block network.
+Their value are mirrored in a dedicated config file. All Parameter blocks appear
+in the web UI and can be tweaked by the end user.
+
+Example:
+    >>> # !This will create / add to the config file in your current working directory!
+    >>> slider = Slider('some/value', default=0.0, minValue=0.0, maxValue=10.0)
+    ... slider.change(15.0)  # Will get clipped to `maxValue`
+    ... print(slider.output.value)
+    10.0
 """
-from typing import Any, Optional
+from typing import Any, Optional, Iterable, List
 
 from being.block import Block
 from being.configs import ConfigFile, split_name
@@ -16,8 +24,8 @@ PARAMETER_CONFIG_FILEPATH = CONFIG['General']['PARAMETER_CONFIG_FILEPATH']
 
 class ParamsConfigFile(ConfigFile, SingleInstanceCache):
 
-    """Slim ConfigFile subclass so that we can use it with
-    SingleInstanceCache.
+    """Slim :class:`being.configs.ConfigFile` subclass so that we can use it
+    with :class:`being.utils.SingleInstanceCache`.
     """
 
     def __init__(self, filepath=PARAMETER_CONFIG_FILEPATH):
@@ -26,18 +34,14 @@ class ParamsConfigFile(ConfigFile, SingleInstanceCache):
 
 class Parameter(Block):
 
-    """Parameter block base class.
-
-    Attributes:
-        fullname: Full name of config entry.
-        configFile: Configuration file instance.
-    """
+    """Parameter block base class."""
 
     def __init__(self, fullname: str, configFile: Optional[ConfigFile] = None):
-        """Args:
+        """
+        Args:
             fullname: Full name of config entry.
             configFile: Configuration file instance (DI). Default is
-                ParamsConfigFile instance.
+                :attr:`being.params.ParamsConfigFile` instance.
         """
         _, name = split_name(fullname)
         if configFile is None:
@@ -45,8 +49,11 @@ class Parameter(Block):
 
         super().__init__(name=name)
         self.add_value_output()
-        self.fullname = fullname
-        self.configFile = configFile
+        self.fullname: str = fullname
+        """Full name of config entry."""
+
+        self.configFile: ConfigFile = configFile
+        """Configuration file instance."""
 
     def validate(self, value: Any) -> Any:
         """Validate value. Pass-through / no validation by default.
@@ -70,7 +77,8 @@ class Parameter(Block):
         self.output.value = validated
 
     def loaddefault(self, default):
-        """Load value from Configuration file with default value (setdefault).
+        """Load value from Configuration file with default value (similar
+        :meth:`dict.setdefault`).
 
         Args:
             default: Default value.
@@ -79,8 +87,8 @@ class Parameter(Block):
         self.configFile.storedefault(self.fullname, validated)
         self.load()
 
-    def change(self, value):
-        """Change value and store it to Configuration file.
+    def change(self, value: Any):
+        """Change value and store it to the config file.
 
         Args:
             value: New value to set.
@@ -104,7 +112,21 @@ class Slider(Parameter):
 
     """Scalar value slider."""
 
-    def __init__(self, fullname, default: Any = 0.0, minValue=0., maxValue=1., **kwargs):
+    def __init__(self,
+            fullname: str,
+            default: Any = 0.0,
+            minValue: float = 0.,
+            maxValue: float = 1.,
+            **kwargs,
+        ):
+        """
+        Args:
+            fullname: Full name of config entry.
+            default (optional): Default value.
+            minValue (optional): Minimum value.
+            maxValue (optional): Maximum value.
+            **kwargs: Arbitrary Parameter block keyword arguments.
+        """
         if maxValue < minValue:
             raise ValueError
 
@@ -128,7 +150,20 @@ class SingleSelection(Parameter):
 
     """Single selection out of multiple possibilities."""
 
-    def __init__(self, fullname, possibilities, default=None, **kwargs):
+    def __init__(self,
+            fullname: str,
+            possibilities: Iterable,
+            default: Optional[Any] = None,
+            **kwargs,
+        ):
+        """
+        Args:
+            fullname: Full name of config entry.
+            possibilities: All possibilities to choose from.
+            default (optional): Default value. First entry of `possibilities` by
+                default.
+            **kwargs: Arbitrary Parameter block keyword arguments.
+        """
         super().__init__(fullname, **kwargs)
         self.possibilities = list(unique(possibilities))
         if default is None:
@@ -150,7 +185,20 @@ class MultiSelection(Parameter):
 
     """Multiple selection out of multiple possibilities."""
 
-    def __init__(self, fullname, possibilities, default=None, **kwargs):
+    def __init__(self,
+            fullname: str,
+            possibilities: Iterable,
+            default: Optional[List[Any]] = None,
+            **kwargs,
+        ):
+        """
+        Args:
+            fullname: Full name of config entry.
+            possibilities: All possibilities to choose from.
+            default (optional): Default value(s). List of elements from
+                `possibilities`. Nothing selected by default.
+            **kwargs: Arbitrary Parameter block keyword arguments.
+        """
         super().__init__(fullname, **kwargs)
         if default is None:
             default = []
@@ -169,9 +217,25 @@ class MultiSelection(Parameter):
 
 class MotionSelection(MultiSelection):
 
-    """Multiple motion selection."""
+    """Multiple motion selection. Similar to
+    :class:`being.params.MultiSelection` but works with motions from
+    :class:`being.content.Content` and can be updated.
+    """
 
-    def __init__(self, fullname, default=None, content=None, **kwargs):
+    def __init__(self,
+            fullname: str,
+            default: Optional[List[str]] = None,
+            content: Optional[Content] = None,
+            **kwargs,
+        ):
+        """
+        Args:
+            fullname: Full name of config entry.
+            default (optional): Default motions. List of motion names. Nothing
+                selected by default.
+            content (optional): Content instance (DI).
+            **kwargs: Arbitrary Parameter block keyword arguments.
+        """
         if default is None:
             default = []
 
@@ -184,6 +248,8 @@ class MotionSelection(MultiSelection):
         self.loaddefault(default)
 
     def on_content_changed(self):
-        """Callback function on contented changed."""
+        """Callback function on content changed. Motion cleanup. Will reload
+        possibilities from current motions.
+        """
         self.possibilities = self.content.list_curve_names()
         self.load()

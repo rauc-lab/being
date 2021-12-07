@@ -9,7 +9,6 @@ from being.configuration import CONFIG
 from being.curve import Curve
 from being.logging import get_logger
 from being.pubsub import PubSub
-import being.serialization
 from being.serialization import loads, dumps
 from being.spline import BPoly, split_spline
 from being.utils import SingleInstanceCache, read_file, rootname, write_file
@@ -146,8 +145,8 @@ class Content(PubSub, SingleInstanceCache):
         ):
         """
         Args:
-            directory (optional): Directory to manage.
-            Default content directory from :obj:`being.configuration.CONFIG`.
+            directory (optional): Directory to manage. Default content directory
+                from :obj:`being.configuration.CONFIG`.
             data (optional): Data container.
             ext (optional): File extensions. name + ext = path.
         """

@@ -13,7 +13,10 @@ from being.resources import add_callback
 DEFAULT_COLORS = [
     dct['color'] for dct in plt.rcParams['axes.prop_cycle']
 ]
-"""Default matplotlib colors."""
+"""Default matplotlib colors.
+
+   :meta hide-value:
+"""
 
 
 def plot_trajectory(t, trajectory, *args, ax=None, labelit=False, **kwargs):

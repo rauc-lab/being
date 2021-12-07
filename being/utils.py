@@ -6,11 +6,28 @@ import itertools
 import os
 import random
 import weakref
-from typing import Dict, List, Generator, Callable
+from typing import Any, Iterable, Dict, List, Generator, Callable
 
 
-def filter_by_type(sequence, type_) -> Generator[object, None, None]:
-    """Filter sequence by type."""
+def filter_by_type(sequence: Iterable, type_) -> Generator[Any, None, None]:
+    """Filter sequence by type.
+
+    Args:
+        sequence: Input sequence to filter.
+        type_: Type to filter.
+
+    Returns:
+        Filtered types generator.
+
+    Example:
+        >>> data = ['Everyone', 1, 'Likes', 2.0, 'Ice', 'Cream']
+        ... for txt in filter_by_type(data, str):
+        ...     print(txt)
+        Everyone
+        Likes
+        Ice
+        Cream
+    """
     return (
         ele for ele in sequence
         if isinstance(ele, type_)
@@ -18,15 +35,34 @@ def filter_by_type(sequence, type_) -> Generator[object, None, None]:
 
 
 def rootname(path: str) -> str:
-    """Get 'root' part of path (filename without ext)."""
+    """Get 'root' part of path (filename without ext).
+
+    Args:
+        path: Input path.
+
+    Returns:
+        Root name.
+
+    Example:
+        >>> rootname('swedish-chef/chocolate-moose.txt')
+        'chocolate-moose'
+    """
     filename = os.path.basename(path)
     root, ext = os.path.splitext(filename)
     return root
 
 
-def collect_files(directory, pattern='*') -> Generator[str, None, None]:
+def collect_files(directory: str, pattern: str = '*') -> Generator[str, None, None]:
     """Recursively walk over all files in directory. With file extension
-    filter."""
+    filter.
+
+    Args:
+        directory: Directory to traverse.
+        pattern (optional): Filter pattern. No filter / all files by default.
+
+    Yields:
+        Absolute file paths.
+    """
     # Give full context
     # pylint: disable=unused-variable
     for dirpath, dirnames, filenames in os.walk(directory):
@@ -34,12 +70,16 @@ def collect_files(directory, pattern='*') -> Generator[str, None, None]:
             yield os.path.join(dirpath, fn)
 
 
-def listdir(directory, fullpath=True) -> List[str]:
+def listdir(directory, fullpath: bool = True) -> List[str]:
     """List directory content. Not recursive. No hidden files. Lexicographically
     sorted.
 
     Args:
         directory: Directory to traverse.
+        fullpath: If to return full path or not.
+
+    Returns:
+        List of found paths.
     """
     filepaths = sorted(glob.iglob(os.path.join(directory, '*')))
     if fullpath:
@@ -64,12 +104,18 @@ def write_file(filepath: str, data):
 
 
 def update_dict_recursively(dct: dict, other: dict, default_factory: type = None) -> dict:
-    """Update dictionary recursively.
+    """Update dictionary recursively in-place.
 
     Args:
         dct: Dictionary to update.
         other: Other dict to go through.
         default_factory: Default factory for intermediate dicts.
+
+    Example:
+        >>> kermit = {'type': 'Frog', 'skin': {'type': 'Skin', 'color': 'green',}}
+        ... update_dict_recursively(kermit, {'skin': {'color': 'blue'}})
+        ... print(kermit['skin']['color'])
+        blue
     """
     if default_factory is None:
         default_factory = type(dct)
@@ -80,19 +126,21 @@ def update_dict_recursively(dct: dict, other: dict, default_factory: type = None
         else:
             dct[k] = v
 
-    return dct
-
 
 def merge_dicts(first: dict, *others) -> dict:
     """Merge dict together. Pre Python 3.5 compatible. Type of first dict is
     used for the returned one.
 
-    Arguments:
+    Args:
         first: First dict to copy and update.
         *others: All the other dicts.
 
     Returns:
         Updated dict.
+
+    Example:
+        >>> merge_dicts({'name': 'Sid'}, {'item': 'cookie'}, {'mood': 'happy'})
+        {'name': 'Sid', 'item': 'cookie', 'mood': 'happy'}
     """
     merged = first.copy()
     for dct in others:
@@ -113,7 +161,7 @@ class SingleInstanceCache:
     will not keep cached instances alive. They can get garbage collected
     (problematic if resource release during deconstruction).
 
-    Resources:
+    References:
         https://softwareengineering.stackexchange.com/questions/40373/so-singletons-are-bad-then-what
 
     Example:

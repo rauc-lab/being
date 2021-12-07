@@ -1,33 +1,52 @@
 """Spline related helper functions. Building splines, smoothing splines, Bézier
-control points.
+control points, etc. Using :class:`scipy.interpolate.BPoly` and
+:class:`scipy.interpolate.PPoly`.
 
-Definitions:
-  - order = degree + 1
+Knots are stored in sorted breakpoints array :attr:`Spline.x`. The coefficients
+in :attr:`Spline.c`. The shape of :attr:`Spline.c` is given by ``(k, m, ...)``
+where ``k`` is the spline order and ``m`` the number of segments.
 
-Resources:
-    https://ocw.mit.edu/courses/electrical-engineering-and-computer-science/6-837-computer-graphics-fall-2012/lecture-notes/MIT6_837F12_Lec01.pdf
-    http://www.idav.ucdavis.edu/education/CAGDNotes/Bernstein-Polynomials.pdf
-    https://geom.ivd.kit.edu/downloads/pubs/pub-boehm-prautzsch_2002_preview.pdf
+Caution:
+    .. math::
+        k_\mathrm{order} = k_\mathrm{degree} + 1
+
+References:
+    - `Bézier Curves and Splines <https://ocw.mit.edu/courses/electrical-engineering-and-computer-science/6-837-computer-graphics-fall-2012/lecture-notes/MIT6_837F12_Lec01.pdf>`_
+    - `Bernstein Polynomials <http://www.idav.ucdavis.edu/education/CAGDNotes/Bernstein-Polynomials.pdf>`_
+    - `Bézier- and B-spline techniques <https://geom.ivd.kit.edu/downloads/pubs/pub-boehm-prautzsch_2002_preview.pdf>`_
 """
 import functools
 import math
-from typing import Sequence, List
+from typing import NewType, Sequence, List
 from enum import IntEnum
-
 
 import numpy as np
 from numpy import ndarray
 from scipy.interpolate import PPoly, BPoly, splrep, splprep
+from scipy.interpolate.interpolate import _PPolyBase
 
 from being.constants import ONE_D, TWO_D
 from being.kinematics import optimal_trajectory
 from being.math import clip
-from being.typing import Spline
+
+
+Spline = NewType('Spline', _PPolyBase)
+"""Piecewise spline.
+
+Args:
+    c (ndarray): Polynomial coefficients, shape (k, m, ...), order `k` and `m` intervals.
+    x (ndarray): Polynomial breakpoints, shape (m+1,). Must be sorted in either
+        increasing or decreasing order.
+    extrapolate (bool, optional): If bool, determines whether to extrapolate to
+        out-of-bounds points based on first and last intervals, or to return
+        NaNs.  If 'periodic', periodic extrapolation is used. Default is True.
+    axis (int, optional): Interpolation axis. Default is zero.
+"""
 
 
 class Degree(IntEnum):
 
-    """Spline / polynomial degree. degree = order - 1."""
+    """Spline / polynomial degree. ``degree = order - 1``."""
 
     CONSTANT = 0
     LINEAR = 1
@@ -35,13 +54,16 @@ class Degree(IntEnum):
     CUBIC = 3
 
 
+
 def spline_order(spline: Spline) -> int:
-    """Order of spline. order = degree + 1."""
+    """Order of spline."""
     return spline.c.shape[0]
 
 
 def spline_dimensions(spline: Spline) -> int:
-    """Number of dimensions of spline."""
+    """Number of dimensions of spline. Scalar values are treated as 1
+    dimensional.
+    """
     if spline.c.ndim == 3:
         return spline.c.shape[2]
 
@@ -49,7 +71,12 @@ def spline_dimensions(spline: Spline) -> int:
 
 
 def spline_shape(spline: Spline) -> tuple:
-    """Spline shape."""
+    """Spline output value shape. Output dimensionality to except when
+    evaluating spline.
+
+    Note:
+        For scalar splines returns empty tuple.
+    """
     if spline.c.ndim == 3:
         return spline.c.shape[2:]
 
@@ -58,7 +85,7 @@ def spline_shape(spline: Spline) -> tuple:
 
 
 def spline_duration(spline: Spline) -> float:
-    """Spline duration in seconds."""
+    """Spline duration in seconds. Trims starting delays."""
     knots = spline.x
     return knots[-1] - knots[0]
 
@@ -117,7 +144,18 @@ def sample_spline(spline: Spline, t, loop: bool = False):
 
 
 def spline_coefficients(spline: Spline, segment: int) -> ndarray:
-    """Get spline coefficients for a given segment."""
+    """Get copy of spline coefficients for a given segment.
+
+    Args:
+        spline: Input spline.
+        segment: Segment number.
+
+    Returns:
+        Segment coefficients.
+
+    Raises:
+        ValueError: Out of bound segment number.
+    """
     nSegments = spline.c.shape[1]
     if 0 <= segment < nSegments:
         return spline.c[:, segment].copy()
@@ -126,7 +164,14 @@ def spline_coefficients(spline: Spline, segment: int) -> ndarray:
 
 
 def split_spline(spline: Spline) -> List[Spline]:
-    """Split each dimension into its own spline."""
+    """Split multi dimensional spline along each dimension.
+
+    Args:
+        spline: Input spline to split.
+
+    Returns:
+        One dimensional splines.
+    """
     t = type(spline)
     knots = spline.x
     coeffs = spline.c
@@ -203,8 +248,15 @@ for x in range(10):
 
 
 def power_basis(order: int) -> ndarray:
-    """Create power basis vector. Ordered so that it fits the spline
+    r"""Create power basis vector. Ordered so that it fits the spline
     coefficients matrix.
+
+    .. math::
+        \left[
+            \begin{array}{ccccc}
+                k! & (k-1)! & \ldots & 1! & 0!  \\
+            \end{array}
+        \right]
 
     Args:
         order: Order of the spline.
@@ -218,14 +270,39 @@ def power_basis(order: int) -> ndarray:
 
 
 def ppoly_coefficients_at(spline: PPoly, x: float) -> ndarray:
-    """Get PPoly coefficients for a given `x` value."""
+    """Get :class:`scipy.interpolate.PPoly` coefficients for a given `x` value
+    (which is between two existing knots / breakpoints). Makes it possible to
+    add new knots to the spline without altering its curve shape.
+
+    Args:
+        spline: Input PPoly spline.
+        x: X value.
+
+    Returns:
+        Coefficients for intermediate point `x`.
+
+    Example:
+        >>> spline = PPoly([[2], [0]], [0, 1])  # Linear ppoly 0.0 -> 1.0
+        ... ppoly_coefficients_at(spline, 0.5)
+        array([2., 1.])  # Still slope of 2.0 but second coefficient went up by 1.0
+    """
     order = spline.c.shape[0]
     vals = [spline(x, nu) for nu in range(order)]
     return vals[::-1] / power_basis(order)
 
 
 def ppoly_insert(newX: float, spline: PPoly, extrapolate: bool = None) -> PPoly:
-    """Insert a new knot / breakpoint somewhere in a spline segment."""
+    """Insert a new knot / breakpoint somewhere in a
+    :class:`scipy.interpolate.PPoly` spline.
+
+    Args:
+        newX: New knot / breakpoint value to insert.
+        spline: Target spline.
+        extrapolate (optional): Spline extrapolation. Same as input spline by default.
+
+    Returns:
+        New :class:`scipy.interpolate.PPoly` spline with inserted knot.
+    """
     if not isinstance(spline, PPoly):
         raise ValueError('Not a PPoly spline!')
 
@@ -295,10 +372,8 @@ def smoothing_spline(
     Returns:
         Piecewise polynomial smoothing spline.
 
-    Resources:
-      - https://en.wikipedia.org/wiki/Smoothing_spline
-      - https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.splrep.html
-      - https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.splprep.html
+    References:
+        `Smoothing spline <https://en.wikipedia.org/wiki/Smoothing_spline>`_
     """
     ndim = np.ndim(y)
     if ndim > TWO_D:
@@ -328,8 +403,16 @@ def smoothing_spline(
     return ppoly
 
 
-def fit_spline(trajectory, smoothing=1e-6) -> BPoly:
-    """Fit a smoothing spline through a trajectory."""
+def fit_spline(trajectory: ndarray, smoothing: float = 1e-6) -> BPoly:
+    """Fit a smoothing spline through a trajectory.
+
+    Args:
+        trajectory: Trajectory data in matrix form.
+        smoothing (optional): Smoothing factor.
+
+    Returns:
+        Fitted BPoly spline.
+    """
     trajectory = np.asarray(trajectory)
     if trajectory.ndim != TWO_D:
         raise ValueError('trajectory has to be 2d!')
@@ -394,13 +477,14 @@ def smoothing_spline_demo():
 
 
 def optimal_trajectory_spline(
-        initial,
-        target,
+        initial: tuple,
+        target: tuple,
         maxSpeed: float = 1.,
         maxAcc: float = 1.,
         extrapolate: bool = False,
     ) -> PPoly:
-    """Build spline following the optimal trajectory.
+    """Build a :class:`scipy.interpolate.PPoly` spline following the optimal
+    trajectory from `initial` to `target` state.
 
     Args:
         initial: Start state.
@@ -410,7 +494,7 @@ def optimal_trajectory_spline(
         extrapolate: Extrapolate splines over borders.
 
     Returns:
-        Optimal trajectory spline.
+        PPoly optimal trajectory spline.
     """
     profiles = optimal_trajectory(initial, target, maxSpeed=maxSpeed, maxAcc=maxAcc)
     durations, accelerations = zip(*profiles)
