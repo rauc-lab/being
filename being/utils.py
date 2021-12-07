@@ -6,7 +6,7 @@ import itertools
 import os
 import random
 import weakref
-from typing import Any, Iterable, Dict, List, Generator, Callable
+from typing import Any, Iterable, Dict, List, Generator, Callable, Optional
 
 
 def filter_by_type(sequence: Iterable, type_) -> Generator[Any, None, None]:
@@ -52,17 +52,9 @@ def rootname(path: str) -> str:
     return root
 
 
-def collect_files(directory: str, pattern: str = '*') -> Generator[str, None, None]:
+def collect_files(directory, pattern='*') -> Generator[str, None, None]:
     """Recursively walk over all files in directory. With file extension
-    filter.
-
-    Args:
-        directory: Directory to traverse.
-        pattern (optional): Filter pattern. No filter / all files by default.
-
-    Yields:
-        Absolute file paths.
-    """
+    filter."""
     # Give full context
     # pylint: disable=unused-variable
     for dirpath, dirnames, filenames in os.walk(directory):
@@ -70,16 +62,12 @@ def collect_files(directory: str, pattern: str = '*') -> Generator[str, None, No
             yield os.path.join(dirpath, fn)
 
 
-def listdir(directory, fullpath: bool = True) -> List[str]:
+def listdir(directory, fullpath=True) -> List[str]:
     """List directory content. Not recursive. No hidden files. Lexicographically
     sorted.
 
     Args:
         directory: Directory to traverse.
-        fullpath: If to return full path or not.
-
-    Returns:
-        List of found paths.
     """
     filepaths = sorted(glob.iglob(os.path.join(directory, '*')))
     if fullpath:
@@ -111,6 +99,9 @@ def update_dict_recursively(dct: dict, other: dict, default_factory: type = None
         other: Other dict to go through.
         default_factory: Default factory for intermediate dicts.
 
+    Returns:
+        Mutated input dictionary (for recursive calls).
+
     Example:
         >>> kermit = {'type': 'Frog', 'skin': {'type': 'Skin', 'color': 'green',}}
         ... update_dict_recursively(kermit, {'skin': {'color': 'blue'}})
@@ -125,6 +116,8 @@ def update_dict_recursively(dct: dict, other: dict, default_factory: type = None
             dct[k] = update_dict_recursively(dct.get(k, default_factory()), v)
         else:
             dct[k] = v
+
+    return dct
 
 
 def merge_dicts(first: dict, *others) -> dict:
@@ -153,16 +146,18 @@ class SingleInstanceCache:
 
     """Aka. almost a Singleton but not quite.
 
-    Use get_or_construct_instance() constructor to access single instance from
-    class. Still possible to initialize multiple instances. __init__() /
-    __new__() stay untouched.
+    Use :meth:`SingleInstanceCache.single_instance_setdefault` to construct and
+    / or access single instance for class.
 
-    Weak references. Pay attention to reference counting. Single instance cache
-    will not keep cached instances alive. They can get garbage collected
-    (problematic if resource release during deconstruction).
+    It is still possible to initialize multiple instances of the class.
+    :meth:`__init__` and :meth:`__new__` stay untouched.
+
+    Uses weak references inside. Pay attention to reference counting. Single
+    instance cache will not keep cached instances alive. They can get garbage
+    collected (problematic if resource release during deconstruction).
 
     References:
-        https://softwareengineering.stackexchange.com/questions/40373/so-singletons-are-bad-then-what
+        `So Singletons are bad, then what? <https://softwareengineering.stackexchange.com/questions/40373/so-singletons-are-bad-then-what>`_
 
     Example:
         >>> class Foo(SingleInstanceCache):
@@ -182,8 +177,8 @@ class SingleInstanceCache:
     """Instances cache."""
 
     @classmethod
-    def single_instance_initialized(cls):
-        """Check if cached instance of cls."""
+    def single_instance_initialized(cls) -> bool:
+        """Check if cached instance of cls exists."""
         return cls in cls.INSTANCES
 
     @classmethod
@@ -192,7 +187,7 @@ class SingleInstanceCache:
         cls.INSTANCES.clear()
 
     @classmethod
-    def single_instance_get(cls):
+    def single_instance_get(cls) -> Optional[object]:
         """Get cached single instance (if any). None otherwise."""
         ref = cls.INSTANCES.get(cls)
         if ref is None:
@@ -204,6 +199,13 @@ class SingleInstanceCache:
     def single_instance_setdefault(cls, *args, **kwargs):
         """Get cached single instance or create a new one (and add it to the
         cache).
+
+        Args:
+            *args: Variable length argument list for :class:`cls`.
+            **kwargs: Arbitrary keyword arguments for :class:`cls`.
+
+        Returns:
+            :class:`cls` instance.
         """
         self = cls.single_instance_get()
         if self is None:
@@ -231,6 +233,12 @@ class NestedDict(collections.abc.MutableMapping):
 
     """Nested dictionary. Supports :class:`tuple` as keys for accessing
     intermediate dictionaries within.
+
+    Example:
+        >>> dct = NestedDict()
+        ... dct[1, 2, 3] = 'Fozzie'
+        ... print(dct)
+        NestedDict({1: {2: {3: 'Fozzie'}}})
     """
 
     # To key error, or not to key error, that is the question. Kind of pointless
@@ -327,8 +335,15 @@ def toss_coin(probability: float = 0.5) -> bool:
     return random.random() < probability
 
 
-def unique(iterable):
-    """Iterate over unique elements while preserving order."""
+def unique(iterable: Iterable) -> Generator[Any, None, None]:
+    """Iterate over unique elements while preserving order.
+
+    Args:
+        iterable: Elements to iterate through.
+
+    Yields:
+        Unique elements.
+    """
     seen = set()
     for item in iterable:
         if item in seen:
