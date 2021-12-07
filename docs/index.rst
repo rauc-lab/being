@@ -83,6 +83,8 @@ Coding style is mostly compatible with
 `Google Python Style Guide <https://google.github.io/styleguide/pyguide.html>`_
 with one exception: `camelCase <https://en.wikipedia.org/wiki/Camel_case>`_ for
 variables, arguments and attributes.
+`snake_case <https://en.wikipedia.org/wiki/Snake_case>`_ for functions, methods
+and properties.
 
 TODO
 

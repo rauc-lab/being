@@ -37,12 +37,9 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.graphviz',
+    'sphinx.ext.intersphinx',
     #'matplotlib.sphinxext.plot_directive',
 ]
-
-intersphinx_mapping = {
-    'python': ('http://docs.python.org/3', None),
-}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -76,9 +73,18 @@ napoleon_google_docstring = True
 # autodoc configuration
 autoclass_content = 'both'
 autodoc_member_order = 'bysource'  # alphabetical, bysource, groupwise
+add_module_names = False
 
 # todo configuration
 todo_include_todos = True
+
+# intersphinx configuration
+intersphinx_mapping = {
+    'python': ('http://docs.python.org/3', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy/', None),
+    'matplotlib': ('https://matplotlib.org/stable/', None),
+}
 
 # -- Misc --------------------------------------------------------------------
 # RST prolog for global href links
