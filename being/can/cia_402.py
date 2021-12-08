@@ -1,8 +1,10 @@
-"""CiA 402 definitions, state machine and CiA402Node class.
+"""CiA 402 object dictionary addresses, definitions, state machine and
+CiA402Node class.
 
 CiA402Node is a trimmed down version of canopen.BaseNode402. We favor SDO
 communication during setup but synchronous acyclic PDO communication during
-operation. Also added support for CYCLIC_SYNCHRONOUS_POSITION mode.
+operation. Also added support for
+:class:`being.can.cia_402.OperationMode.CYCLIC_SYNCHRONOUS_POSITION`.
 """
 import collections
 import contextlib
@@ -32,34 +34,89 @@ from being.logging import get_logger
 
 # Mandatory (?) CiA 402 object dictionary entries
 # (SJA): CiA 402 is still a Draft Specification Proposal (DSP).
-CONTROLWORD = 0x6040
-STATUSWORD = 0x6041
-MODES_OF_OPERATION = 0x6060
-MODES_OF_OPERATION_DISPLAY = 0x6061
-POSITION_DEMAND_VALUE = 0x6062
-POSITION_ACTUAL_VALUE = 0x6064
-POSITION_WINDOW = 0x6067
-POSITION_WINDOW_TIME = 0x6068
-VELOCITY_DEMAND_VALUE = 0x606B
-VELOCITY_ACTUAL_VALUE = 0x606C
-TARGET_POSITION = 0x607A
-POSITION_RANGE_LIMIT = 0x607B
-SOFTWARE_POSITION_LIMIT = 0x607D
-MIN_POSITION_LIMIT = 1
-MAX_POSITION_LIMIT = 2
-MAX_PROFILE_VELOCITY = 0x607F
-PROFILE_VELOCITY = 0x6081
-PROFILE_ACCELERATION = 0x6083
-PROFILE_DECELERATION = 0x6084
-QUICK_STOP_DECELERATION = 0x6085
-HOMING_METHOD = 0x6098
-HOMING_SPEEDS = 0x6099
-SPEED_FOR_SWITCH_SEARCH = 1
-SPEED_FOR_ZERO_SEARCH = 2
-HOMING_ACCELERATION = 0x609A
-DIGITAL_INPUTS = 0x60FD
-TARGET_VELOCITY = 0x60FF
-SUPPORTED_DRIVE_MODES = 0x6502
+CONTROLWORD: int = 0x6040
+"""Controlword. :hex:"""
+
+STATUSWORD: int = 0x6041
+"""Statusword. :hex:"""
+
+MODES_OF_OPERATION: int = 0x6060
+"""Selecting the active drive profile. :hex:"""
+
+MODES_OF_OPERATION_DISPLAY: int = 0x6061
+"""Get supported modes of operations for drive. :hex:"""
+
+POSITION_DEMAND_VALUE: int = 0x6062
+"""Target position in user units. :hex:"""
+
+POSITION_ACTUAL_VALUE: int = 0x6064
+"""Actual position in internal units. :hex:"""
+
+POSITION_WINDOW: int = 0x6067
+"""Target corridor around set-point value for target reached. :hex:"""
+
+POSITION_WINDOW_TIME: int = 0x6068
+"""Time needed in target corridor for target reached. :hex:"""
+
+VELOCITY_DEMAND_VALUE: int = 0x606B
+"""Target velocity in user units. :hex:"""
+
+VELOCITY_ACTUAL_VALUE: int = 0x606C
+"""Actual velocity in internal units. :hex:"""
+
+TARGET_POSITION: int = 0x607A
+"""Target position in internal units. :hex:"""
+
+POSITION_RANGE_LIMIT: int = 0x607B
+"""Min / max position range limit. :hex:"""
+
+SOFTWARE_POSITION_LIMIT: int = 0x607D
+"""Min / max software position range limit. :hex:"""
+
+MIN_POSITION_LIMIT: int = 1
+"""Subindex for lower position range limit."""
+
+MAX_POSITION_LIMIT: int = 2
+"""Subindex for upper position range limit."""
+
+MAX_PROFILE_VELOCITY: int = 0x607F
+"""Maximum velocity. Units vendor dependent. :hex:"""
+
+PROFILE_VELOCITY: int = 0x6081
+"""Maximum velocity. Units vendor dependent. :hex:"""
+
+PROFILE_ACCELERATION: int = 0x6083
+"""Maximum acceleration. :hex:"""
+
+PROFILE_DECELERATION: int = 0x6084
+"""Maximum deceleration. :hex:"""
+
+QUICK_STOP_DECELERATION: int = 0x6085
+"""Quick stop deceleration. :hex:"""
+
+HOMING_METHOD: int = 0x6098
+"""Homing method number. :hex:"""
+
+HOMING_SPEEDS: int = 0x6099
+"""Speed values of homing. :hex:"""
+
+SPEED_FOR_SWITCH_SEARCH: int = 1
+"""Homing speed for switch searching."""
+
+SPEED_FOR_ZERO_SEARCH: int = 2
+"""Homing speed for zero search."""
+
+HOMING_ACCELERATION: int = 0x609A
+"""Acceleration during homing. :hex:"""
+
+DIGITAL_INPUTS: int = 0x60FD
+"""Read state of digital inputs (read-only). :hex:"""
+
+TARGET_VELOCITY: int = 0x60FF
+"""Target velocity. :hex:"""
+
+SUPPORTED_DRIVE_MODES: int = 0x6502
+"""Supported operating modes for drive. :hex:"""
 
 
 State = ForwardRef('State')

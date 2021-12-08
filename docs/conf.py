@@ -121,3 +121,39 @@ plot_rcparams = {
 rst_prolog = """
 .. _Klang: http://github.com/atheler/klang
 """
+
+
+# -- Custom DataDocumenter for int as hex-------------------------------------
+from sphinx.ext.autodoc import DataDocumenter, separate_metadata
+
+
+class BeingDataDocumenter(DataDocumenter):
+
+    """Hex representation for int with :hex: role."""
+
+    def get_doc(self):
+        """Omit :hex: from doc string if present."""
+        stuff = super().get_doc()
+        if not stuff:
+            return stuff
+
+        lines = stuff[0]
+        return [
+            [line.replace(':hex:', '').strip()]
+            for line in lines
+        ]
+
+    def add_directive_header(self, sig: str) -> None:
+        super().add_directive_header(sig)
+
+        # :hex: hack
+        doc = super().get_doc()
+        docstring, _ = separate_metadata('\n'.join(sum(doc, [])))
+        if ':hex:' in docstring:
+            self.directive.result.pop()
+            sourcename = self.get_sourcename()
+            self.add_line('   :value: ' + hex(self.object), sourcename)
+
+
+def setup(app):
+    app.add_autodocumenter(BeingDataDocumenter, True)
