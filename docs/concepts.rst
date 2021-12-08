@@ -53,3 +53,25 @@ Motion Player
 -------------
 
 - Plays motion curves and outputs their samples
+
+
+Splines
+-------
+
+.. plot::
+
+   import matplotlib.pyplot as plt
+
+   from being.plotting import plot_spline_2
+
+   from scipy.interpolate import BPoly
+
+
+   c = [[0, 2], [0, 2], [2, 1], [2, 1]]
+   x = [0, 1, 3]
+
+   spline = BPoly(c, x)
+
+   plot_spline_2(spline)
+   prettify_plot()
+   plt.show()

@@ -38,7 +38,7 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.graphviz',
     'sphinx.ext.intersphinx',
-    #'matplotlib.sphinxext.plot_directive',
+    'matplotlib.sphinxext.plot_directive',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -85,6 +85,36 @@ intersphinx_mapping = {
     'scipy': ('https://docs.scipy.org/doc/scipy/', None),
     'matplotlib': ('https://matplotlib.org/stable/', None),
 }
+
+
+
+plot_include_source = True
+plot_pre_code = """
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+#plt.rcParams['axes.spines.top'] = False
+#plt.rcParams['axes.spines.right'] = False
+#plt.rcParams['axes.spines.bottom'] = False
+#plt.rcParams['axes.spines.left'] = False
+
+
+def prettify_plot(ax=None):
+    if ax is None:
+        ax = plt.gca()
+
+    ax.xaxis.set_ticks_position('none')
+    ax.yaxis.set_ticks_position('none')
+"""
+
+plot_rcparams = {
+    'axes.spines.top': False,
+    'axes.spines.right': False,
+    'axes.spines.bottom': False,
+    'axes.spines.left': False,
+}
+
 
 # -- Misc --------------------------------------------------------------------
 # RST prolog for global href links
