@@ -146,16 +146,27 @@ class CW(enum.IntEnum):
     """Controlword bits."""
 
     SWITCH_ON = (1 << 0)
+    """:bin:"""
     ENABLE_VOLTAGE = (1 << 1)
+    """:bin:"""
     QUICK_STOP = (1 << 2)
+    """:bin:"""
     ENABLE_OPERATION = (1 << 3)
+    """:bin:"""
     NEW_SET_POINT = (1 << 4)
+    """:bin:"""
     START_HOMING_OPERATION = NEW_SET_POINT  # Alias
+    """:bin:"""
     ENABLE_IP_MODE = NEW_SET_POINT  # Alias
+    """:bin:"""
     CHANGE_SET_IMMEDIATELY = (1 << 5)
+    """:bin:"""
     ABS_REL = (1 << 6)
+    """:bin:"""
     FAULT_RESET = (1 << 7)
+    """:bin:"""
     HALT = (1 << 8)
+    """:bin:"""
 
 
 class Command(enum.IntEnum):
@@ -163,12 +174,19 @@ class Command(enum.IntEnum):
     """CANopen CiA 402 controlword commands for state transitions."""
 
     SHUT_DOWN = CW.QUICK_STOP | CW.ENABLE_VOLTAGE
+    """:bin:"""
     SWITCH_ON = CW.QUICK_STOP | CW.ENABLE_VOLTAGE | CW.SWITCH_ON
+    """:bin:"""
     DISABLE_VOLTAGE = 0
+    """:bin:"""
     QUICK_STOP = CW.ENABLE_VOLTAGE
+    """:bin:"""
     DISABLE_OPERATION = CW.QUICK_STOP | CW.ENABLE_VOLTAGE | CW.SWITCH_ON
+    """:bin:"""
     ENABLE_OPERATION = CW.ENABLE_OPERATION | CW.QUICK_STOP | CW.ENABLE_VOLTAGE | CW.SWITCH_ON
+    """:bin:"""
     FAULT_RESET = CW.FAULT_RESET
+    """:bin:"""
 
 
 class SW(enum.IntEnum):
@@ -176,21 +194,36 @@ class SW(enum.IntEnum):
     """Statusword bits."""
 
     READY_TO_SWITCH_ON = (1 << 0)
+    """:bin:"""
     SWITCHED_ON = (1 << 1)
+    """:bin:"""
     OPERATION_ENABLED = (1 << 2)
+    """:bin:"""
     FAULT = (1 << 3)
+    """:bin:"""
     VOLTAGE_ENABLED = (1 << 4)
+    """:bin:"""
     QUICK_STOP = (1 << 5)
+    """:bin:"""
     SWITCH_ON_DISABLED = (1 << 6)
+    """:bin:"""
     WARNING = (1 << 7)
+    """:bin:"""
     #alwayszero = (1 << 8)
     REMOTE = (1 << 9)
+    """:bin:"""
     TARGET_REACHED = (1 << 10)
+    """:bin:"""
     INTERNAL_LIMIT_ACTIVE = (1 << 11)
+    """:bin:"""
     ACKNOWLEDGE = (1 << 12)
+    """:bin:"""
     HOMING_ATTAINED = ACKNOWLEDGE  # Alias
+    """:bin:"""
     HOMING_ERROR = (1 << 13)
+    """:bin:"""
     DEVIATION_ERROR = HOMING_ERROR  # Alias
+    """:bin:"""
     #NOT_IN_USE_0 = (1 << 14)
     #NOT_IN_USE_1 = (1 << 15)
 

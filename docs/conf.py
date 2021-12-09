@@ -10,9 +10,10 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
+import os
+import sys
 # sys.path.insert(0, os.path.abspath('.'))
+sys.path.append(os.path.abspath('ext'))
 
 
 # -- Project information -----------------------------------------------------
@@ -39,6 +40,7 @@ extensions = [
     'sphinx.ext.graphviz',
     'sphinx.ext.intersphinx',
     'matplotlib.sphinxext.plot_directive',
+    'formatted_autodoc',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -86,8 +88,7 @@ intersphinx_mapping = {
     'matplotlib': ('https://matplotlib.org/stable/', None),
 }
 
-
-
+# matplotlib plotting configuration
 plot_include_source = True
 plot_pre_code = """
 import numpy as np
@@ -121,39 +122,3 @@ plot_rcparams = {
 rst_prolog = """
 .. _Klang: http://github.com/atheler/klang
 """
-
-
-# -- Custom DataDocumenter for int as hex-------------------------------------
-from sphinx.ext.autodoc import DataDocumenter, separate_metadata
-
-
-class BeingDataDocumenter(DataDocumenter):
-
-    """Hex representation for int with :hex: role."""
-
-    def get_doc(self):
-        """Omit :hex: from doc string if present."""
-        stuff = super().get_doc()
-        if not stuff:
-            return stuff
-
-        lines = stuff[0]
-        return [
-            [line.replace(':hex:', '').strip()]
-            for line in lines
-        ]
-
-    def add_directive_header(self, sig: str) -> None:
-        super().add_directive_header(sig)
-
-        # :hex: hack
-        doc = super().get_doc()
-        docstring, _ = separate_metadata('\n'.join(sum(doc, [])))
-        if ':hex:' in docstring:
-            self.directive.result.pop()
-            sourcename = self.get_sourcename()
-            self.add_line('   :value: ' + hex(self.object), sourcename)
-
-
-def setup(app):
-    app.add_autodocumenter(BeingDataDocumenter, True)
