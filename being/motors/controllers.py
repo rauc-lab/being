@@ -1,9 +1,14 @@
-"""Motor controllers."""
+"""Motor controllers.
+
+Because of ever so small differences between the different motor controller
+models there are different subclasses of the main :class:`Controller` class.
+"""
 import abc
 import sys
 import warnings
-from typing import Optional, Set, List
+from typing import Optional, Set, List, Iterable, Any
 
+from canopen import RemoteNode
 from canopen.emcy import EmcyError
 
 from being.bitmagic import clear_bit, set_bit
@@ -12,7 +17,7 @@ from being.configuration import CONFIG
 from being.constants import FORWARD
 from being.logging import get_logger
 from being.math import clip
-from being.motors.definitions import MotorInterface, MotorState, MotorEvent, PositionProfile, VelocityProfile
+from being.motors.definitions import MotorInterface, MotorState, MotorEvent, PositionProfile, VelocityProfile, HomingState
 from being.motors.homing import CiA402Homing, CrudeHoming, default_homing_method
 from being.motors.motors import Motor
 from being.motors.vendor import (
@@ -29,22 +34,35 @@ INTERVAL = CONFIG['General']['INTERVAL']
 LOGGER = get_logger(name=__name__, parent=None)
 
 
-def nested_get(dct, keys):
-    """Nested dict access."""
+def nested_get(dct: dict, keys: Iterable) -> Any:
+    """Nested dict value access.
+
+    Args:
+        dct: Dictionary-like under question.
+        keys: Keys to traverse.
+
+    Returns:
+        Whatever sits at target location.
+
+    Example:
+        >>> dct = {'this': {'is': {'it': 1234}}}
+        ... nested_get(dct, ('this', 'is', 'it'))
+        1234
+    """
     for k in keys:
         dct = dct[k]
 
     return dct
 
 
-def inspect(node, name):
-    """Inspect node setting / parameter by name."""
+def inspect(node: RemoteNode, name: str):
+    """Prints node setting / parameter to stdout. SDO based."""
     e = nested_get(node.sdo, name.split('/'))
     print(name, e.raw)
 
 
-def inspect_many(node, names):
-    """Inspect many node settings / parameters by name."""
+def inspect_many(node: RemoteNode, names: Iterable[str]):
+    """Prints many node settings / parameters by name. SDO based."""
     for name in names:
         inspect(node, name)
 
@@ -72,46 +90,38 @@ class Controller(MotorInterface):
     """Semi abstract controller base class.
 
     Implements general, non-vendor specific, controller functionalities.
-      - Configuring and managing of CanOpen node.
+      - Configuring and managing of CANopen node.
       - Homing
       - Target position clipping range.
       - Drives node state switch jobs (for asynchronous state changes).
       - SI <-> device units conversion.
       - Relaying EMCY errors.
-
-    Attributes:
-        node (CiA402Node): Connected CiA 402 CANopen node.
-        motor (Motor): Associated hardware motor.
-        direction (float): Motor direction.
-        length (float): Length of motor.
-        logger (Logger): Controller logger instance.
-        position_si_2_device (float): SI position to device units conversion factor.
-        velocity_si_2_device (float): SI velocity to device units conversion factor.
-        acceleration_si_2_device (float): SI acceleration to device units conversion factor.
-        lower (int): Lower clipping value for target position in device units.
-        upper (int): Upper clipping value for target position in device units.
-        lastState (being.can.cia_402.State): Last receive state of motor controller.
-        switchJob (Optional[StateSwitching]): Ongoing state switching job.
     """
 
     EMERGENCY_DESCRIPTIONS: List[tuple] = []
     """List of (code (int), mask (int), description (str)) tuples with the error
     informations.
+
+    :meta hide-value:
     """
 
-    SUPPORTED_HOMING_METHODS: Set[int] = {}
-    """Set of the supported homing method numbers for the controller."""
+    SUPPORTED_HOMING_METHODS: Set[int] = set()
+    """Set of the supported homing method numbers for the controller.
+
+    :meta hide-value:
+    """
 
     def __init__(self,
             node: CiA402Node,
             motor: Motor,
             length: float,
-            direction: int = FORWARD,
+            direction: float = FORWARD,
             settings: Optional[dict] = None,
             operationMode: OperationMode = OperationMode.CYCLIC_SYNCHRONOUS_POSITION,
             **homingKwargs,
         ):
-        """Args:
+        """
+        Args:
             node: Connected CanOpen node.
             motor: Motor definitions / settings.
             length: Clipping length in SI units.
@@ -126,23 +136,46 @@ class Controller(MotorInterface):
 
         super().__init__()
 
-        # Attrs
+        # Lots and lots of attributes
         self.node: CiA402Node = node
+        """Connected CiA 402 CANopen node."""
+
         self.motor: Motor = motor
+        """Associated hardware motor."""
+
         self.direction = direction
+        """Motor direction."""
+
         self.length = length
+        """Length of motor."""
 
         self.logger = get_logger(str(self))
+        """Instance logger."""
+
         self.position_si_2_device = motor.si_2_device_units('position')
+        """SI position to device units conversion factor."""
+
         self.velocity_si_2_device = motor.si_2_device_units('velocity')
+        """SI velocity to device units conversion factor."""
+
         self.acceleration_si_2_device = motor.si_2_device_units('acceleration')
+        """SI acceleration to device units conversion factor."""
+
         self.lower = 0.
+        """Lower clipping value for target position in device units."""
+
         self.upper = length * self.position_si_2_device
+        """Upper clipping value for target position in device units."""
+
         self.lastState = node.get_state()
+        """Last receive state of motor controller."""
+
         self.switchJob = None
+        """Ongoing state switching job."""
 
         # Prepare settings
         self.settings = merge_dicts(self.motor.defaultSettings, settings)
+        """Final motor settings (which got applied to the drive."""
 
         self.init_homing(**homingKwargs)
 
@@ -159,12 +192,20 @@ class Controller(MotorInterface):
         self.node.set_operation_mode(operationMode)
 
     def disable(self):
+        """Disable motor. Schedule a state switching job. Will start by the next
+        call of :meth:`Controller.update`.
+        """
         self.switchJob = self.node.state_switching_job(State.READY_TO_SWITCH_ON, how='pdo')
 
     def enable(self):
+        """Enable motor. Schedule a state switching job. Will start by the next
+        call of :meth:`Controller.update`.
+        """
         self.switchJob = self.node.state_switching_job(State.OPERATION_ENABLED, how='pdo')
 
-    def motor_state(self):
+    def motor_state(self) -> MotorState:
+
+        # Map CiA 402 state to simplified MotorState
         if self.lastState is State.OPERATION_ENABLED:
             return MotorState.ENABLED
         elif self.lastState is State.FAULT:
@@ -173,20 +214,23 @@ class Controller(MotorInterface):
             return MotorState.DISABLED
 
     def home(self):
-        """Create homing job routine for this controller."""
+        """Start homing for this controller. Will start by the next call of
+        :meth:`Controller.update`.
+        """
         self.logger.debug('home()')
         self.homing.home()
         self.publish(MotorEvent.HOMING_CHANGED)
 
-    def homing_state(self):
+    def homing_state(self) -> HomingState:
         return self.homing.state
 
     def init_homing(self, **homingKwargs):
-        """Setup homing. Done here and not directly in __init__ so that child
-        class can overwrite this behavior.
+        """Setup homing. Done here and not directly in
+        :meth:`Controller.__init__` so that child class can overwrite this
+        behavior.
 
         Args:
-            **homingKwargs: Homing parameters.
+            **homingKwargs: Arbitrary keyword arguments for Homing.
         """
         method = default_homing_method(**homingKwargs)
         if method not in self.SUPPORTED_HOMING_METHODS:
@@ -214,7 +258,7 @@ class Controller(MotorInterface):
             code = int.from_bytes(raw[:2], 'little')
             yield format_error_code(code, self.EMERGENCY_DESCRIPTIONS)
 
-    def set_target_position(self, targetPosition):
+    def set_target_position(self, targetPosition: float):
         """Set target position in SI units."""
         if self.homing.homed:
             dev = targetPosition * self.position_si_2_device
@@ -226,26 +270,26 @@ class Controller(MotorInterface):
         return self.node.get_actual_position() / self.position_si_2_device
 
     def play_position_profile(self, profile: PositionProfile):
-        """Play position profile."""
-        pos = self.position_si_2_device * profile.position
+        """Play a position profile :class:`PositionProfile`."""
+        pos = int(self.position_si_2_device * profile.position)
         vel = None
         acc = None
 
         if profile.velocity is not None:
-            vel = self.velocity_si_2_device * profile.velocity
+            vel = int(self.velocity_si_2_device * profile.velocity)
 
         if profile.acceleration is not None:
-            acc = self.acceleration_si_2_device * profile.acceleration
+            acc = int(self.acceleration_si_2_device * profile.acceleration)
 
         self.node.move_to(position=pos, velocity=vel, acceleration=acc)
 
     def play_velocity_profile(self, profile: VelocityProfile):
-        """Play velocity profile."""
-        vel = self.velocity_si_2_device * profile.velocity
+        """Play velocity profile :class:`VelocityProfile`."""
+        vel = int(self.velocity_si_2_device * profile.velocity)
         acc = None
 
         if profile.acceleration is not None:
-            acc = self.acceleration_si_2_device * profile.acceleration
+            acc = int(self.acceleration_si_2_device * profile.acceleration)
 
         self.node.move_with(velocity=vel, acceleration=acc)
 
@@ -358,7 +402,6 @@ class Epos4(Controller):
 
     Todo:
         Testing if ``firmwareVersion < 0x170h``?
-
     """
 
     EMERGENCY_DESCRIPTIONS = MAXON_EMERGENCY_DESCRIPTIONS
@@ -372,7 +415,8 @@ class Epos4(Controller):
             operationMode: OperationMode = OperationMode.CYCLIC_SYNCHRONOUS_POSITION,
             **kwargs,
         ):
-        """Args:
+        """
+        Args:
             usePositionController: If True use position controller on EPOS4 with
                 operation mode CYCLIC_SYNCHRONOUS_POSITION. Otherwise simple
                 custom application side position controller working with the
@@ -422,7 +466,7 @@ class Epos4(Controller):
         variable.raw = newMisc
 
     @staticmethod
-    def set_all_digital_inputs_to_none(node):
+    def set_all_digital_inputs_to_none(node: RemoteNode):
         """Set all digital inputs of Epos4 controller to none by default.
         Reason: Because of settings dictionary it is not possible to have two
         entries. E.g. unset and then set to HOME_SWITCH.
@@ -430,7 +474,7 @@ class Epos4(Controller):
         for subindex in range(1, 9):
             node.sdo['Configuration of digital inputs'][subindex].raw = MaxonDigitalInput.NONE
 
-    def set_target_position(self, targetPosition):
+    def set_target_position(self, targetPosition: float):
         if self.homing.homed:
             dev = targetPosition * self.position_si_2_device
             posSoll = clip(dev, self.lower, self.upper)

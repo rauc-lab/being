@@ -3,7 +3,7 @@
 
 # Generate API doc from source code
 rm -r reference
-sphinx-apidoc -f -o reference ../being
+sphinx-apidoc --force --module-first --output-dir reference ../being
 # TODO: sphinx-js for JavaScript code
 
 make html

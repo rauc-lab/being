@@ -6,6 +6,20 @@ Caution:
     If the block network graph has cycles it is not possible to resolve a
     *proper* execution order. In this case blocks will have to work with out of
     date data.
+
+    .. graphviz::
+
+        digraph G {
+            bgcolor="#ffffff00"
+            a -> b -> c;
+            b -> d;
+            d -> b;
+            {rank = same; a; b; c;}
+        }
+
+    This graph has a cycle between *b* and *d* and the resulting execution order
+    is *[a, b, c, d]* (*c* and *d* could be swapped depending on the insertion
+    order).
 """
 import collections
 

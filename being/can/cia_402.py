@@ -13,7 +13,6 @@ import time
 from typing import (
     Any,
     Dict,
-    ForwardRef,
     Iterator,
     List,
     NamedTuple,
@@ -277,6 +276,8 @@ TRANSITION_COMMANDS: Dict[Edge, Command] = {
 }
 """Possible state transitions edges and the corresponding controlword
 command.
+
+:meta hide-value:
 """
 
 POSSIBLE_TRANSITIONS: Dict[State, Set[State]] = collections.defaultdict(set)
@@ -304,7 +305,10 @@ STATUSWORD_2_STATE = [
     (0b1001111, 0b0001111, State.FAULT_REACTION_ACTIVE),
     (0b1001111, 0b0001000, State.FAULT),
 ]
-"""Statusword bit masks for state loopkup."""
+"""Statusword bit masks for state loopkup.
+
+:meta hide-value:
+"""
 
 
 def which_state(statusword: int) -> State:
@@ -441,7 +445,10 @@ HOMING_METHODS: Dict[HomingParam, int] = {
     HomingParam(indexPulse=True, direction=POSITIVE,): 34,
     HomingParam(): 35,  # Todo(atheler): Got replaced with 37 in newer versions
 }
-"""CiA 402 homing method lookup."""
+"""CiA 402 homing method lookup.
+
+:meta hide-value:
+"""
 
 assert len(HOMING_METHODS) == 35, 'Something went wrong with HOMING_METHODS keys! Not enough homing methods anymore.'
 
@@ -632,7 +639,7 @@ class CiA402Node(RemoteNode):
 
         # Note: Default PDO mapping of some motors includes the Control- /
         # Statusword in multiple PDOs. This can lead to unexpected behavior with
-        # our CanOpen stack since for example:
+        # our CANopen stack since for example:
         #
         #     node.pdo['Controlword'] = Command.ENABLE_OPERATION
         #
@@ -673,7 +680,7 @@ class CiA402Node(RemoteNode):
 
         Args:
             nr: TxPDO number (1-4).
-            *variables: CanOpen variables to register to receive from remote
+            *variables: CANopen variables to register to receive from remote
                 node via TxPDO.
             enabled: Enable or disable TxPDO.
             overwrite: Overwrite TxPDO.
@@ -707,7 +714,7 @@ class CiA402Node(RemoteNode):
 
         Args:
             nr: RxPDO number (1-4).
-            *variables: CanOpen variables to register to send to remote node via
+            *variables: CANopen variables to register to send to remote node via
                 RxPDO.
             enabled: Enable or disable RxPDO.
             overwrite: Overwrite RxPDO.

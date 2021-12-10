@@ -7,8 +7,8 @@ and optionally with a *sub-index*. The index is commonly noted in hex.
 
 There are many different standardized communication parameters device profiles.
 For motors of main interest are:
-    - CiA 301 - CANopen application layer and communication profile
-    - CiA 402 - CANopen device profile for drives and motion control
+- CiA 301 - CANopen application layer and communication profile
+- CiA 402 - CANopen device profile for drives and motion control
 
 CiA 301 are some standard addresses. CiA 402 defines a device state machine,
 different operation modes, homing and communication procedure for triggering

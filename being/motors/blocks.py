@@ -1,9 +1,25 @@
 """Motor blocks.
 
-For now homing is implemented as *homing generators*. This might seem overly
-complicated but we do this so that we can move blocking aspects to the caller
-and home multiple motors / nodes in parallel. This results in quasi coroutines.
-We do not use asyncio because we want to keep the core async free for now.
+These blocks represent motors in the being block network. The primary input of a
+motor block accepts *target position* values and the primary output outputs the
+*actual position* values.
+
+.. graphviz::
+
+    digraph G {
+        rankdir="LR"
+        in[shape=none, label=""]
+        motor[label="Motor Block", shape=box]
+        out[shape=none, label=""]
+        in -> motor [label="Target Position"]
+        motor -> out [label="Actual Position"]
+    }
+
+Additionally each motor block offers some helper methods to change its
+state during operation (see :class:`being.motors.definitions.MotorInterface` for
+more details).
+
+Motor blocks operate with SI values at their in- and outputs.
 """
 import abc
 import itertools
@@ -27,19 +43,31 @@ from being.motors.motors import get_motor, Motor
 from being.resources import register_resource
 
 
+# Look before you leap
 INTERVAL = CONFIG['General']['INTERVAL']
-"""General delta t interval."""
 
 CONTROLLER_TYPES: Dict[str, Controller] = {
     'MCLM3002P-CO': Mclm3002,
     'EPOS4': Epos4,
 }
-"""Device name -> Controller type lookup."""
+"""Device name to Controller type lookup."""
 
 
 def create_controller_for_node(node: CiA402Node, *args, **kwargs) -> Controller:
     """Controller factory. Different controllers depending on device name. Wraps
     CanOpen node.
+
+    Args:
+        node: Drive node to wrap in new controller.
+        *args: Variable length argument list for controller.
+        **kwargs: Arbitrary keyword arguments for controller.
+
+    Returns:
+        New controller instance.
+
+    Todo:
+        Move to :class:`Controller`? Second constructor
+        ``Controller.from_node``?
     """
     deviceName = node.manufacturer_device_name()
     if deviceName not in CONTROLLER_TYPES:
@@ -62,8 +90,9 @@ class MotorBlock(Block, MotorInterface):
     FREE_NUMBERS = itertools.count(1)
 
     def __init__(self, name: Optional[str] = None):
-        """Args:
-            name: Block name.
+        """
+        Args:
+            name (optional): Block name.
         """
         if name is None:
             name = 'Motor %d' % next(self.FREE_NUMBERS)
@@ -90,9 +119,10 @@ class DummyMotor(MotorBlock):
     """Dummy motor for testing and standalone usage."""
 
     def __init__(self, length: float = 0.040, name: Optional[str] = None):
-        """Args:
-            length: Length of dummy motor in meters.
-            name: Motor name.
+        """
+        Args:
+            length (optional): Length of dummy motor in meters.
+            name (optional): Motor name.
         """
         super().__init__(name=name)
         self.length = length
@@ -165,28 +195,51 @@ class CanMotor(MotorBlock):
 
     This class initializes all the necessary components for accessing and
     configuring a CAN motor:
-    - network (if non has been initialized yet)
-    - CiA402Node CAN node for given node id.
-    - Controller depending on manufacturer.
+    - :class:`CanBackend` network instance (if non has been initialized yet)
+    - :class:`CiA402Node` CAN node for given node id. Will be passed on to the
+      Controller.
+    - :class:`being.motors.motors.Motor` named tuple with informations regarding
+      motor hardware and default settings.
+    - :class:`Controller` subclass instance, depending on motor controller
+      manufacturer.
 
-    Since most of the time the network will be created implicitly always use
-    this class within `manage_resources` context manager so the that the
-    necessary cleanup can take place at the end. E.g.
+    Components needed for each CAN motor.
 
-    >>> with manage_resources():
-    ...     motor = CanMotor(nodeId=1, 'DC 22')
+    .. graphviz::
 
-    This class also relays publications (PubSub) from the underlying controller
-    instance to the outside.
+        digraph G {
+            node [shape=box];
+            subgraph cluster_0 {
+                label = "CanMotor";
+                network[label="Network"]
+                motor[label="Motor"]
+                subgraph cluster_1 {
+                    label = "Controller";
+                    homing[label="Homing"]
+                    node_[label="Node"]
+                }
+            }
+        }
+
+    Important:
+        Since most of the time the network will be created implicitly always use
+        this class within :func:`being.resources.manage_resources` context
+        manager.
+
+        >>> with manage_resources():
+        ...     motor = CanMotor(nodeId=1, 'DC 22')
+
+        Otherwise necessary cleanup can not take place and  the network will not
+        get disconnected at the end. Motors would stay enabled and the CAN
+        interface could become unreachable on subsequent starts of the program.
+
+    This class relays :class:`being.pubsub.PubSub` publications from the
+    underlying controller instance to the outside.
 
     >>> def error_callback(errMsg):
     ...     print('Something went wrong', errMsg)
     ...
     ... motor.subscribe(MotorEvent.ERROR, error_callback)
-
-    Attributes:
-        controller (Controller): Motor controller.
-        logger (Logger): CanMotor logger.
     """
 
     def __init__(self,
@@ -202,27 +255,26 @@ class CanMotor(MotorBlock):
              settings: Optional[Dict[str, Any]] = None,
              **controllerKwargs,
          ):
-        """Args:
+        """
+        Args:
             nodeId: CANopen node id.
             motor: Motor object or motor name.
-            profiled: Use profiled position mode instead of cyclic position
-                mode.
-            name: Block name
-            multiplier: Multiplier factor which can be used to scale target
-                position / actual position values (only for cyclic position
-                mode).
-
-            length: Motor length which will be shown in the web UI.
-            node: CAN node of motor driver / controller. If non given create new
-                one (dependency injection).
-            objectDictionary: Object dictionary for CAN node. If will be tried
-                to identified from known EDS files.
-            network: External CAN network (dependency injection).
-            settings: Motor settings. Dict of EDS variables -> Raw value to set.
-                EDS variable with path syntax (slash '/' separator) for nested
-                settings. Will be forwarded to the controller initialization
-                function.
-            **controllerKwargs: Further Key word arguments for the controller.
+            profiled (optional): Use profiled position mode instead of cyclic position mode.
+            name (optional): Block name.
+            multiplier (optional): Multiplier factor which can be used to scale
+                target position / actual position values (only for cyclic
+                position mode).
+            length (optional): Motor length which will be shown in the web UI.
+            node (optional): CAN node of motor driver / controller. If non given
+                create new one (DI).
+            objectDictionary (optional): Object dictionary for CAN node. If will
+                be tried to identified from known EDS files.
+            network: External CAN network (DI).
+            settings (optional): Motor settings. Dict of EDS variables -> Raw
+                value to set. EDS variable with path syntax (slash '/'
+                separator) for nested settings. Will be forwarded to the
+                controller initialization function.
+            **controllerKwargs: Arbitrary keyword arguments for controller.
         """
         super().__init__(name=name)
         self.add_message_input('positionProfile')
@@ -262,6 +314,8 @@ class CanMotor(MotorBlock):
             settings=settings,
             **controllerKwargs,
         )
+        """Motor controller."""
+
         self.logger = get_logger(str(self))
         for msg in self.controller.error_history_messages():
             self.publish(MotorEvent.ERROR, msg)
@@ -312,10 +366,11 @@ class LinearMotor(CanMotor):
 
 
     def __init__(self, nodeId, motor='LM 1247', **kwargs):
-        """Args:
+        """
+        Args:
             nodeId: CANopen node id.
-            motor: Motor object or motor name.
-            **kwargs: Further kwargs for CanMotor.
+            motor (optional): Motor object or motor name.
+            **kwargs: Arbitrary keyword arguments for :class:`CanMotor`.
         """
         super().__init__(nodeId, motor, **kwargs)
 
@@ -325,11 +380,12 @@ class RotaryMotor(CanMotor):
     """Default rotary Maxon CAN motor."""
 
     def __init__(self, nodeId, motor='DC 22', length=TAU, **kwargs):
-        """Args:
+        """
+        Args:
             nodeId: CANopen node id.
-            motor: Motor object or motor name.
-            length: Length of rotary motor in radian.
-            **kwargs: Further kwargs for CanMotor.
+            motor (optional): Motor object or motor name.
+            length (optional): Length of rotary motor in radian.
+            **kwargs: Arbitrary keyword arguments for :class:`CanMotor`.
         """
         super().__init__(nodeId, motor, length=length, **kwargs)
 
@@ -341,12 +397,13 @@ class BeltDriveMotor(CanMotor):
     """
 
     def __init__(self, nodeId, length: float, diameter: float, motor='DC 22', **kwargs):
-        """Args:
+        """
+        Args:
             nodeId: CANopen node id.
             length: Length of belt in meter
             diameter: Diameter of pinion belt wheel.
-            motor: Motor object or motor name.
-            **kwargs: Further kwargs for CanMotor.
+            motor (optional): Motor object or motor name.
+            **kwargs: Arbitrary keyword arguments for :class:`CanMotor`.
         """
         radius = .5 * diameter
         multiplier = 1 / radius
@@ -358,12 +415,13 @@ class LeadScrewMotor(CanMotor):
     """Default lead screw motor with Maxon controller."""
 
     def __init__(self, nodeId, length: float, threadPitch: float, motor='DC 22', **kwargs):
-        """Args:
+        """
+        Args:
             nodeId: CANopen node id.
             length: Total length of the lead screw in meter.
             threadPitch: Pitch on lead screw thread ("heigth" per revolution) in meter.
-            motor: Motor object or motor name.
-            **kwargs: Further kwargs for CanMotor.
+            motor (optional): Motor object or motor name.
+            **kwargs: Arbitrary keyword arguments for :class:`CanMotor`.
         """
         multiplier = TAU / threadPitch
         super().__init__(nodeId, motor, length=length, multiplier=multiplier, **kwargs)
@@ -384,17 +442,18 @@ class WindupMotor(CanMotor):
             outerDiameter: Optional[float] = None,
             **kwargs,
         ):
-        """Args:
+        """
+        Args:
             nodeId: CANopen node id.
             diameter: Inner diameter of the spool / coil. Filament is completely
                 unwind. In meters.
             length: Length of the filament. Corresponds to the arc length on the coil.
             motor: Motor object or motor name.
-            outerDiameter: Outer diameter of the spool / coil. This is the
-                diameter when the filament is completely windup. Can be used to
-                compensate of the windup effect of thicker filament. Default is
-                the same as `diameter` resulting in a circle.
-            **kwargs: Further kwargs for CanMotor.
+            outerDiameter (optional): Outer diameter of the spool / coil. This
+                is the diameter when the filament is completely windup. Can be
+                used to compensate of the windup effect of thicker filament.
+                Default is the same as `diameter` resulting in a circle.
+            **kwargs: Arbitrary keyword arguments for :class:`CanMotor`.
         """
         if outerDiameter is None:
             outerDiameter = diameter
