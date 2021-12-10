@@ -1,32 +1,60 @@
-"""CAN / CANopen related stuff."""
+"""All things CAN / CANopen.
+
+Quick primer on CanOpen. CanOpen is a communication protocol that builds on top
+of CAN. There are two main ways of communication: *SDO* and *PDO*.  The
+addresses for values are stored in the *Object Dictionary* with an *index* value
+and optionally with a *sub-index*. The index is commonly noted in hex.
+
+There are many different standardized communication parameters device profiles.
+For motors of main interest are:
+    - CiA 301 - CANopen application layer and communication profile
+    - CiA 402 - CANopen device profile for drives and motion control
+
+CiA 301 are some standard addresses. CiA 402 defines a device state machine,
+different operation modes, homing and communication procedure for triggering
+motion on the motors.
+
+See Also:
+    - `CAN bus on Wikipedia <https://en.wikipedia.org/wiki/CAN_bus>`_
+    - `CANopen on Wikipedia <https://en.wikipedia.org/wiki/CANopen>`_
+    - `Python canopen doc <https://canopen.readthedocs.io/en/latest/index.html>`_
+"""
 import pkgutil
 import contextlib
 import io
 import os
+from typing import Dict, Optional, Iterator
 
 from canopen import Network, ObjectDictionary
 from canopen.sdo import SdoClient, SdoCommunicationError, SdoAbortedError
 from canopen.objectdictionary.eds import import_eds
 
-from being.can.definitions import FunctionCode, STORE_EDS
+from being.can.definitions import FunctionCode
 from being.can.cia_301 import DEVICE_TYPE
 
 
-SUPPORTED_DEVICE_TYPES = {
+STORE_EDS: int = 0x1021
+"""Some manufacturer use this for downloading the object dictionary directly
+from the device. :hex:
+"""
+
+SUPPORTED_DEVICE_TYPES: Dict[bytes, str] = {
     b'\x92\x01\x42\x00': 'eds_files/MCLM3002P-CO.eds',
     b'\x92\x01\x02\x00': 'eds_files/maxon_EPOS4_50-5.eds',
 }
-"""Device type: bytes -> local EDS file."""
+"""Device type bytes to local EDS file mapping."""
 
 
 @contextlib.contextmanager
-def sdo_client(network: Network, nodeId: int, od=None):
-    """Temporary SDO client. For accessing SDO data without an object dictionary
-    / EDS.
+def sdo_client(network: Network, nodeId: int, od: Optional[ObjectDictionary] = None) -> Iterator[SdoClient]:
+    """Temporary SDO client connection. Can be used for SDO communication
+    connection without having an object dictionary / EDS at hand. Without object
+    dictionary only integer based addresses are supported.
 
     Args:
         network: Connected CANopen network.
         nodeId: Node ID.
+        od (optional): Object dictionary.
 
     Yields:
         SdoClient instance.
@@ -34,8 +62,6 @@ def sdo_client(network: Network, nodeId: int, od=None):
     Example:
         >>> with sdo_client(network, nodeId=8) as client:
         ...     deviceType = client.upload(0x1000, subindex=0)
-        ...     print('deviceType:', deviceType)
-        deviceType: b'\x92\x01B\x00'
     """
     if od is None:
         od = ObjectDictionary()
@@ -66,7 +92,7 @@ def _load_local_eds(deviceType: bytes) -> io.StringIO:
     return io.StringIO(data.decode())
 
 
-def load_object_dictionary(network, nodeId: int) -> ObjectDictionary:
+def load_object_dictionary(network: Network, nodeId: int) -> ObjectDictionary:
     """Get object dictionary for node. Ping node, try to download EDS from it,
     see if we have a fallback. RuntimeError otherwise.
 

@@ -1,6 +1,11 @@
 being package
 =============
 
+.. automodule:: being
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Subpackages
 -----------
 
@@ -282,14 +287,6 @@ being.utils module
 ------------------
 
 .. automodule:: being.utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: being
    :members:
    :undoc-members:
    :show-inheritance:

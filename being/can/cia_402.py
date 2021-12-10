@@ -14,7 +14,7 @@ from typing import (
     Any,
     Dict,
     ForwardRef,
-    Generator,
+    Iterator,
     List,
     NamedTuple,
     Optional,
@@ -23,7 +23,7 @@ from typing import (
     Union,
 )
 
-from canopen import RemoteNode
+from canopen import RemoteNode, ObjectDictionary, Network
 
 from being.bitmagic import check_bit
 from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
@@ -119,9 +119,6 @@ SUPPORTED_DRIVE_MODES: int = 0x6502
 """Supported operating modes for drive. :hex:"""
 
 
-State = ForwardRef('State')
-StateSwitching = Generator[State, None, None]
-Edge = Tuple[State, State]
 CanOpenRegister = Union[int, str]
 
 
@@ -139,6 +136,10 @@ class State(enum.Enum):
     FAULT_REACTION_ACTIVE = enum.auto()
     FAULT = enum.auto()
     HALT = enum.auto()
+
+
+StateSwitching = Iterator[State]
+Edge = Tuple[State, State]
 
 
 class CW(enum.IntEnum):
@@ -270,16 +271,16 @@ TRANSITION_COMMANDS: Dict[Edge, Command] = {
     # Fault Reset: 15
     (State.FAULT, State.SWITCH_ON_DISABLED):                  Command.FAULT_RESET,
     # Automatic: 0, 1, 14
-    (State.START, State.NOT_READY_TO_SWITCH_ON):              0x0,
-    (State.NOT_READY_TO_SWITCH_ON, State.SWITCH_ON_DISABLED): 0x0,
-    (State.FAULT_REACTION_ACTIVE, State.FAULT):               0x0,
+    (State.START, State.NOT_READY_TO_SWITCH_ON):              Command.DISABLE_VOLTAGE,  # 0x0
+    (State.NOT_READY_TO_SWITCH_ON, State.SWITCH_ON_DISABLED): Command.DISABLE_VOLTAGE,  # 0x0
+    (State.FAULT_REACTION_ACTIVE, State.FAULT):               Command.DISABLE_VOLTAGE,  # 0x0
 }
-"""Possible state transitions and the corresponding controlword command. State
-edge -> command.
+"""Possible state transitions edges and the corresponding controlword
+command.
 """
 
 POSSIBLE_TRANSITIONS: Dict[State, Set[State]] = collections.defaultdict(set)
-"""Reachable states from a given state."""
+"""Reachable states from a given start state."""
 
 for _edge in TRANSITION_COMMANDS:
     _src, _dst = _edge
@@ -307,7 +308,17 @@ STATUSWORD_2_STATE = [
 
 
 def which_state(statusword: int) -> State:
-    """Extract state from statusword."""
+    """Extract state from statusword number.
+
+    Args:
+        statusword: Statusword number.
+
+    Returns:
+        Current state.
+
+    Raises:
+        ValueError: If no valid state was found.
+    """
     for mask, value, state in STATUSWORD_2_STATE:
         if (statusword & mask) == value:
             return state
@@ -315,7 +326,7 @@ def which_state(statusword: int) -> State:
     raise ValueError('Unknown state for statusword {statusword}!')
 
 
-def supported_operation_modes(supportedDriveModes: int) -> Generator[OperationMode, None, None]:
+def supported_operation_modes(supportedDriveModes: int) -> Iterator[OperationMode]:
     """Which operation modes are supported? Extract information from value of
     SUPPORTED_DRIVE_MODES (0x6502).
 
@@ -340,25 +351,57 @@ def supported_operation_modes(supportedDriveModes: int) -> Generator[OperationMo
             yield op
 
 
-POSITIVE = FORWARD
-RISING = FORWARD
-NEGATIVE = BACKWARD
-FALLING = BACKWARD
-UNAVAILABLE = 0.0
-UNDEFINED = 0.0
+# There are 31 official and a couple unofficial CiA 402 homing methods. All have
+# assigned some number. It is hard to keep track of the different effect and
+# parameters. :class:`HomingParam` is an intermediate representation with some
+# more human understandable representation. This can that get mapped to the
+# integer homing method number.
+# The function :func:`determine_homing_method` can than be used to determine the
+# wanted homing method.
+POSITIVE: float = FORWARD
+"""Positive homing direction."""
+
+RISING: float = FORWARD
+"""Rising home switch edge."""
+
+NEGATIVE: float = BACKWARD
+"""Negative direction."""
+
+FALLING: float = BACKWARD
+"""Falling home switch edge."""
+
+UNAVAILABLE: float = 0.0
+"""Unavailable indicator."""
+
+UNDEFINED: float = 0.0
+"""Undefined indicator."""
 
 
 class HomingParam(NamedTuple):
 
-    """Homing parameters to describe different CiA402 homing methods."""
+    """Intermediate homing parameters representation to describe the different
+    CiA 402 homing methods.
+    """
 
-    endSwitch: int = UNAVAILABLE
-    homeSwitch: int = UNAVAILABLE
-    homeSwitchEdge: int = UNDEFINED
+    endSwitch: float = UNAVAILABLE
+    """Do we have an end switch? If so at which end?"""
+
+    homeSwitch: float = UNAVAILABLE
+    """Do we have a home switch? If so at which end?"""
+
+    homeSwitchEdge: float = UNDEFINED
+    """Home switch edge."""
+
     indexPulse: bool = False
+    """Do we have index pulses?"""
 
-    direction: int = UNDEFINED
+    direction: float = UNDEFINED
+    """Which direction to home to."""
+
     hardStop: bool = False
+    """Perform hard stop homing. End / home switch and index pulse do not have
+    an effect then.
+    """
 
 
 HOMING_METHODS: Dict[HomingParam, int] = {
@@ -404,14 +447,41 @@ assert len(HOMING_METHODS) == 35, 'Something went wrong with HOMING_METHODS keys
 
 
 def determine_homing_method(
-        endSwitch: int = UNAVAILABLE,
-        homeSwitch: int = UNAVAILABLE,
-        homeSwitchEdge: int = UNDEFINED,
+        endSwitch: float = UNAVAILABLE,
+        homeSwitch: float = UNAVAILABLE,
+        homeSwitchEdge: float = UNDEFINED,
         indexPulse: bool = False,
-        direction: int = UNDEFINED,
+        direction: float = UNDEFINED,
         hardStop: bool = False,
     ) -> int:
-    """Determine homing method."""
+    """Determine homing method number.
+
+    Args:
+        endSwitch (optional): Do we have an end switch? If so at which end?
+            Default is :const:`UNAVAILABLE`.
+        homeSwitch (optional): Do we have a home switch? If so at which end?
+            Default is :const:`UNAVAILABLE`.
+        homeSwitchEdge (optional): Home switch edge. Default is
+            :const:`UNDEFINED`.
+        indexPulse (optional): Do we have index pulses? Default is False.
+        direction (optional): Which direction to home to. Default is
+            :const:`UNDEFINED`.
+        hardStop (optional): Perform hard stop homing. End / home switch and
+            index pulse do not have an effect then. Default is False.
+
+    Returns:
+        Homing method number.
+
+    Examples:
+        >>> determine_homing_method()  # Home at current position without moving
+        35
+
+        >>> determine_homing_method(direction=1.0, hardStop=True)  # Forward hard stop homing
+        -3
+
+        >>> determine_homing_method(endSwitch=1.0)  # Forward homing until end switch
+        18
+    """
     param = HomingParam(endSwitch, homeSwitch, homeSwitchEdge, indexPulse, direction, hardStop)
     return HOMING_METHODS[param]
 
@@ -421,16 +491,28 @@ assert determine_homing_method(hardStop=True, direction=BACKWARD) == -4
 
 
 def find_shortest_state_path(start: State, end: State) -> List[State]:
-    """Find shortest path from start to end state. Start node is also included
-    in returned path.
+    """Find shortest path from `start` to `end` state. Start node is also
+    included in returned path.
 
     Args:
         start: Start state.
         end: Target end state.
 
     Returns:
-        Path from start -> end. Empty list if the does not exist a path from
-        start -> end.
+        Path from start to end. Empty list for impossible transitions.
+
+    Examples:
+        >>> find_shortest_state_path(State.SWITCH_ON_DISABLED, State.OPERATION_ENABLED)
+        [<State.SWITCH_ON_DISABLED: 3>,
+         <State.READY_TO_SWITCH_ON: 4>,
+         <State.SWITCHED_ON: 5>,
+         <State.OPERATION_ENABLED: 6>]
+
+        >>> find_shortest_state_path(State.OPERATION_ENABLED, State.SWITCH_ON_DISABLED)
+        [<State.OPERATION_ENABLED: 6>, <State.SWITCH_ON_DISABLED: 3>]
+
+        >>> find_shortest_state_path(State.OPERATION_ENABLED, State.NOT_READY_TO_SWITCH_ON)
+        []  # Not possible to get to NOT_READY_TO_SWITCH_ON!
     """
     if start is end:
         return []
@@ -506,13 +588,40 @@ for _src in State:
 
 class CiA402Node(RemoteNode):
 
-    """Alternative / simplified implementation of canopen.BaseNode402.
+    """Remote CiA 402 node. Communicates with and controls remote drive. Default
+    PDO configuration. State switching helpers. Controlword & statusword
+    communication can happen via SDO or PDO (how argument, ``'sdo'`` and
+    ``'pdo'``).
 
-    Since CanOpen node should be configured during initialization connected CAN
-    network instance is mandatory.
+    Caution:
+        Using SDO and PDO for state switching at the same time can lead to
+        problems. E.g. only sending a command via SDO but not setting the same
+        command in the PDO. The outdated PDO value will then interfere when send
+        the next time.
+
+    Hint:
+        If the node is constantly in :attr:`State.NOT_READY_TO_SWITCH_ON`, this
+        could indicate deactivated PDO communication. (Default statusword value
+        in PDO is zero which maps to :attr:`State.NOT_READY_TO_SWITCH_ON`).
+
+    Note:
+        :mod:`canopen` also has a CiA 402 node implementation
+        (:class:`canopen.profiles.p402.BaseNode402`).
+        Implemented our own because we wanted more control over SDO / PDO
+        communication and at the time of writing
+        :attr:`OperationMode.CYCLIC_SYNCHRONOUS_POSITION` was not fully
+        supported.
     """
 
-    def __init__(self, nodeId, objectDictionary, network):
+    def __init__(self, nodeId: int, objectDictionary: ObjectDictionary, network: Network):
+        """
+        Args:
+            nodeId: CAN node id to connect to.
+            objectDictionary: Object dictionary for the remote drive.
+            network: Connected network. Mandatory for configuring PDOs during
+                initialization.
+        """
+
         super().__init__(nodeId, objectDictionary, load_od=False)
         self.logger = get_logger(str(self))
 
@@ -619,8 +728,8 @@ class CiA402Node(RemoteNode):
         """Get current node state.
 
         Args:
-            how (optional): Which communication channel to use. Either via 'sdo'
-                or 'pdo'.  'sdo' by default.
+            how (optional): Which communication channel to use. Either via
+                ``'sdo'`` or ``'pdo'``.  ``'sdo'`` by default.
 
         Returns:
             Current CiA 402 state.
@@ -638,7 +747,7 @@ class CiA402Node(RemoteNode):
 
         Args:
             target: Target state to switch to.
-            how (optional): Communication channel. 'sdo' (default) or 'pdo'.
+            how (optional): Communication channel. ``'sdo'`` (default) or ``'pdo'``.
         """
         self.logger.debug('Setting state to %s (%s)', target, how)
         current = self.get_state(how)
@@ -670,7 +779,7 @@ class CiA402Node(RemoteNode):
 
         Args:
             target: Target state to switch to.
-            how (optional): Communication channel. 'sdo' (default) or 'pdo'.
+            how (optional): Communication channel. ``'sdo'`` (default) or ``'pdo'``.
             timeout (optional): Optional timeout value in seconds. 1.0 second by default.
 
         Yields:
@@ -708,7 +817,7 @@ class CiA402Node(RemoteNode):
 
         Args:
             target: Target state to switch to.
-            how (optional): Communication channel. 'sdo' (default) or 'pdo'.
+            how (optional): Communication channel. ``'sdo'`` (default) or ``'pdo'``.
             timeout (optional): Optional timeout value in seconds. 1.0 second by default.
 
         Returns:
@@ -754,14 +863,16 @@ class CiA402Node(RemoteNode):
         context manager.
 
         Args:
-            how (optional): Which communication channel to use. Either via 'sdo'
-                or 'pdo'.  'sdo' by default.
+            how (optional): Communication channel. ``'sdo'`` (default) or ``'pdo'``.
             timeout (optional): Timeout duration.
 
         Example:
             >>> with node.restore_states_and_operation_mode():
             ...     # Do something fancy with the states
             ...     pass
+
+        Warning:
+            Deprecated. Led to more problems than it solved...
         """
         oldOp = self.get_operation_mode()
         oldState = self.get_state(how)
@@ -823,7 +934,7 @@ class CiA402Node(RemoteNode):
             acceleration: Optional[int] = None,
             immediately: bool = True,
         ):
-        """Move to position. For OperationMode.PROFILED_POSITION.
+        """Move to position. For :attr:`OperationMode.PROFILED_POSITION`.
 
         Args:
             position: Target position.
@@ -851,7 +962,7 @@ class CiA402Node(RemoteNode):
             acceleration: Optional[int] = None,
             immediately: bool = True,
         ):
-        """Move with velocity. For OperationMode.PROFILE_VELOCITY.
+        """Move with velocity. For :attr:`OperationMode.PROFILE_VELOCITY`.
 
         Args:
             velocity: Target velocity.
@@ -871,7 +982,7 @@ class CiA402Node(RemoteNode):
             self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
 
     def _get_info(self) -> dict:
-        """Get the current states."""
+        """Get the current drive informations."""
         return {
             'nmt': self.nmt.state,
             'state': self.get_state(),
@@ -883,11 +994,19 @@ class CiA402Node(RemoteNode):
         return self.sdo[MANUFACTURER_DEVICE_NAME].raw
 
     def apply_settings(self, settings: Dict[str, Any]):
-        """Apply settings to CANopen node.
+        """Apply multiple settings to CANopen node. Path syntax for nested
+        entries but it is also possible to use numbers, bin and hex notation for
+        path entries. E.g. ``someName/0x00`` (see :func:`maybe_int`).
 
         Args:
-            settings: Settings to apply. Addresses (path syntax) -> value
-                entries.
+            settings: Settings to apply. Addresses (path syntax) -> value entries.
+
+        Example:
+            >>> settings = {
+            ...     'Software Position Limit/Minimum Position Limit': 0,
+            ...     'Software Position Limit/Maximum Position Limit': 10000,
+            ... }
+            ... node.apply_settings(settings)
         """
         for name, value in settings.items():
             *path, last = map(maybe_int, name.split('/'))

@@ -1,6 +1,11 @@
 being.can package
 =================
 
+.. automodule:: being.can
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Submodules
 ----------
 
@@ -40,14 +45,6 @@ being.can.pcan\_darwin\_patch module
 ------------------------------------
 
 .. automodule:: being.can.pcan_darwin_patch
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: being.can
    :members:
    :undoc-members:
    :show-inheritance:

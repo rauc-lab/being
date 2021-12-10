@@ -1,6 +1,11 @@
 being.web package
 =================
 
+.. automodule:: being.web
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Submodules
 ----------
 
@@ -32,14 +37,6 @@ being.web.web\_socket module
 ----------------------------
 
 .. automodule:: being.web.web_socket
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: being.web
    :members:
    :undoc-members:
    :show-inheritance:

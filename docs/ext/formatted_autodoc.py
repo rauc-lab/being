@@ -16,6 +16,7 @@ from sphinx.ext.autodoc import separate_metadata, Documenter, DataDocumenter, At
 class FormattedDocumenter(Documenter):
 
     """Documenter mixin class with patched methods."""
+
     FORMATTERS = {
         ':bin:': bin,
         ':hex:': hex,

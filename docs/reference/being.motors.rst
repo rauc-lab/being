@@ -1,6 +1,11 @@
 being.motors package
 ====================
 
+.. automodule:: being.motors
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Submodules
 ----------
 
@@ -48,14 +53,6 @@ being.motors.vendor module
 --------------------------
 
 .. automodule:: being.motors.vendor
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: being.motors
    :members:
    :undoc-members:
    :show-inheritance:
