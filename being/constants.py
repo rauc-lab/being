@@ -17,7 +17,7 @@ ONE_D: int = 1
 TWO_D: int = 2
 """Two dimensional."""
 
-EOT = chr(4)
+EOT: str = chr(4)
 """End of transmission character."""
 
 BYTE: int = 8
@@ -29,16 +29,16 @@ KB: int = 1024 * BYTE
 MB: int = 1024 * KB
 """One mega byte."""
 
-UP = 1.
+UP: float = 1.
 """Up direction."""
 
-FORWARD = 1.
+FORWARD: float = 1.
 """Forward direction."""
 
-DOWN = -1.
+DOWN: float = -1.
 """Down direction."""
 
-BACKWARD = -1.
+BACKWARD: float = -1.
 """Backward direction."""
 
 YOTTA = Y = 1e24

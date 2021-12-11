@@ -30,7 +30,7 @@ def stripext(p: str) -> str:
     Returns:
         Input path without extension part.
 
-    Usage:
+    Example:
         >>> stripext('this/is/a_file.ext')
         'this/is/a_file'
     """

@@ -7,15 +7,17 @@ Caution:
     *proper* execution order. In this case blocks will have to work with out of
     date data.
 
-    .. graphviz::
+    .. digraph:: cycle
+        :align: center
+        :alt: Directed graph with cycle
+        :caption: Directed graph with cycle
+        :name: Directed graph with cycle
 
-        digraph G {
-            bgcolor="#ffffff00"
-            a -> b -> c;
-            b -> d;
-            d -> b;
-            {rank = same; a; b; c;}
-        }
+        bgcolor="#ffffff00"
+        a -> b -> c;
+        b -> d;
+        d -> b;
+        {rank = same; a; b; c;}
 
     This graph has a cycle between *b* and *d* and the resulting execution order
     is *[a, b, c, d]* (*c* and *d* could be swapped depending on the insertion

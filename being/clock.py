@@ -19,7 +19,7 @@ class Clock(SingleInstanceCache):
     Note:
         Uses an :obj:`int` internally to count up. Less jitter due to
         floating-point precision. Pure Python integers are unbounded so overflow
-        is not an issue (See `Arbitrary-precision arithmetic <https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic>`_).
+        is not an issue (see `Arbitrary-precision arithmetic <https://en.wikipedia.org/wiki/Arbitrary-precision_arithmetic>`_).
     """
 
     def __init__(self, interval: float = INTERVAL):

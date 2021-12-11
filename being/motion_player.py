@@ -1,20 +1,22 @@
 """Curve / motion player block. Outputs motion samples to the motors.
 
-.. graphviz::
+.. digraph:: motionplayer
+    :align: center
+    :alt: Motion Player steering multiple motors
+    :caption: Motion Player steering multiple motors
+    :name: Motion Player steering multiple motors
 
-   digraph motion_player_diagram {
-      rankdir="LR"
-      dummy [label="", shape=none, height=0, width=0]
-      MP [shape=box, label="Motion Player"];
-      A [shape=box, label="Motor 1"];
-      B [shape=box, label="Motor 2"];
-      C [shape=box, label="Motor 3"];
+    rankdir="LR"
+    dummy [label="", shape=none, height=0, width=0]
+    MP [shape=box, label="Motion Player"];
+    A [shape=box, label="Motor 1"];
+    B [shape=box, label="Motor 2"];
+    C [shape=box, label="Motor 3"];
 
-      dummy -> MP [label="Motion Command"]
-      MP -> A [style=dashed, label="Target Position"]
-      MP -> B [style=dashed]
-      MP -> C [style=dashed]
-   }
+    dummy -> MP [label="Motion Command"]
+    MP -> A [style=dashed, label="Target Position"]
+    MP -> B [style=dashed]
+    MP -> C [style=dashed]
 
 Todo:
   - Changing playback speed on the fly. As separate input? Phasor?

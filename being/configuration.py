@@ -5,6 +5,12 @@ configuration values get updated.
 Todo:
     Rename :obj:`CONFIG` to ``DEFAULT_CONFIG``? Should not overwrite defaults
     but instead update a copy.
+
+Notes:
+  - :attr:`being.configuration.CONFIG` not a :class:`being.configs.Config`
+    instance because read-only
+  - :attr:`being.configuration.CONFIG` not a :class:`being.utils.NestedDict`
+    instance in order to catch :exc:`KeyError` pre-runtime.
 """
 import logging
 import os
@@ -36,13 +42,7 @@ CONFIG: Dict[str, Any] = {
         'FILENAME': 'being.log',
     }
 }
-"""Global being configuration.
-
-Note:
-    - Not a :class:`being.configs.Config` instance because read-only
-    - Not a :class:`being.utils.NestedDict` instance in order to catch
-      :exc:`KeyError` pre-runtime.
-"""
+"""Global being default configuration."""
 
 for fp in [
     os.path.join(os.getcwd(), 'being.ini'),

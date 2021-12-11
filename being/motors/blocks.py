@@ -4,16 +4,18 @@ These blocks represent motors in the being block network. The primary input of a
 motor block accepts *target position* values and the primary output outputs the
 *actual position* values.
 
-.. graphviz::
+.. digraph:: motorblock
+    :align: center
+    :alt: Motor block input and output values.
+    :caption: Motor block input and output values.
+    :name: Motor block input and output values.
 
-    digraph G {
-        rankdir="LR"
-        in[shape=none, label=""]
-        motor[label="Motor Block", shape=box]
-        out[shape=none, label=""]
-        in -> motor [label="Target Position"]
-        motor -> out [label="Actual Position"]
-    }
+    rankdir="LR"
+    in[shape=none, label=""]
+    motor[label="Motor Block", shape=box]
+    out[shape=none, label=""]
+    in -> motor [label="Target Position"]
+    motor -> out [label="Actual Position"]
 
 Additionally each motor block offers some helper methods to change its
 state during operation (see :class:`being.motors.definitions.MotorInterface` for
