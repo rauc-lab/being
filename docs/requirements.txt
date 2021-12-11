@@ -1,1 +1,4 @@
+matplotlib
+graphviz
+setuptools
 being
