@@ -23,14 +23,28 @@ from enum import IntEnum
 import numpy as np
 from numpy import ndarray
 from scipy.interpolate import PPoly, BPoly, splrep, splprep
-import scipy.interpolate.interpolate
 
 from being.constants import ONE_D, TWO_D
 from being.kinematics import optimal_trajectory
 from being.math import clip
 
 
-Spline = NewType('Spline', scipy.interpolate.interpolate._PPolyBase)
+def _find_ppoly_base():
+    """Hack to find _PPolyBase base class."""
+    # Scipy 1.8.0
+    # AttributeError: scipy.interpolate.interpolate is deprecated and has no
+    # attribute _PPolyBase. Try looking in scipy.interpolate instead.
+    for cls in BPoly.mro():
+        if cls.__name__ == '_PPolyBase':
+            return cls
+
+    raise RuntimeError(
+        'Could not find _PPolyBase. Something changed in scipy.interpolate.BPoly'
+        ' implementation!'
+    )
+
+
+Spline = NewType('Spline', _find_ppoly_base())
 """Piecewise spline.
 
 Args:
