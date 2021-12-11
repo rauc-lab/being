@@ -23,14 +23,14 @@ from enum import IntEnum
 import numpy as np
 from numpy import ndarray
 from scipy.interpolate import PPoly, BPoly, splrep, splprep
-from scipy.interpolate.interpolate import _PPolyBase
+import scipy.interpolate.interpolate
 
 from being.constants import ONE_D, TWO_D
 from being.kinematics import optimal_trajectory
 from being.math import clip
 
 
-Spline = NewType('Spline', _PPolyBase)
+Spline = NewType('Spline', scipy.interpolate.interpolate._PPolyBase)
 """Piecewise spline.
 
 Args:
