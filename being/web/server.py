@@ -11,6 +11,7 @@ import jinja2
 
 from being import __version__ as BEING_VERSION_NUMBER
 from being.behavior import BEHAVIOR_CHANGED
+from being.being import Being
 from being.configuration import CONFIG
 from being.connectables import MessageInput
 from being.content import CONTENT_CHANGED, Content
@@ -32,6 +33,7 @@ from being.web.api import (
 from being.web.web_socket import WebSocket
 
 
+# Look before you leap
 API_PREFIX = CONFIG['Web']['API_PREFIX']
 WEB_SOCKET_ADDRESS = CONFIG['Web']['WEB_SOCKET_ADDRESS']
 INTERVAL = CONFIG['General']['INTERVAL']
@@ -39,7 +41,6 @@ WEB_INTERVAL = CONFIG['Web']['INTERVAL']
 
 
 LOGGER = get_logger(name=__name__, parent=None)
-"""Server module logger."""
 
 
 def wire_being_loggers_to_web_socket(ws: WebSocket):
@@ -77,8 +78,17 @@ def patch_sensor_to_web_socket(sensor, ws: WebSocket):
     sensor.output.connect(dummy)
 
 
-def init_api(being, ws: WebSocket) -> web.Application:
-    """Initialize and setup Rest-like API sub-app."""
+def init_api(being: Being, ws: WebSocket) -> web.Application:
+    """Initialize and setup sub-app for API. Some actions affect other
+    components which get updated via the web socket.
+
+    Args:
+        being: Being instance.
+        ws: Web socket.
+
+    Returns:
+        aiohttp API sub.application.
+    """
     content = Content.single_instance_setdefault()
     api = web.Application()
 
@@ -172,8 +182,12 @@ def which_year_is_it() -> int:
     return datetime.date.today().year
 
 
-def init_web_server(being, ws) -> web.Application:
+def init_web_server(being: Being, ws: WebSocket) -> web.Application:
     """Initialize aiohttp web server application and setup some routes.
+
+    Args:
+        being: Being instance.
+        ws: Web socket
 
     Returns:
         app: Application instance.
@@ -225,7 +239,10 @@ async def run_web_server(app: web.Application):
     """Run aiohttp web server app asynchronously (new in version 3.0.0).
 
     Args:
-        app (?): Aiohttp web application.
+        app: Aiohttp web application to run.
+
+    References:
+        `Application runners <https://docs.aiohttp.org/en/stable/web_advanced.html#aiohttp-web-app-runners>`_
     """
     runner = web.AppRunner(app, handle_signals=True)
     LOGGER.info('Setting up runner')

@@ -1,8 +1,4 @@
-"""API calls and routes. View / controller hybrids.
-
-
-/ controller for communication between front end and being components.
-"""
+"""API calls  and routes for communication with front-end."""
 import collections
 import functools
 import glob
@@ -40,6 +36,8 @@ LOGGER = get_logger(name=__name__, parent=None)
 
 def messageify(obj) -> collections.OrderedDict:
     """Serialize being objects and wrap them inside a message object.
+    In order to differentiate between the message about an `object` and the
+    `object` itself.
 
     Args:
         obj: Some being object to send.
@@ -227,10 +225,12 @@ def serialize_elk_graph(being: Being, skipParamBlocks: bool = True):
 
     Returns:
         Dict based graph representation compatible with ELK JS lib.
+
+    Note:
+        Why yet another graph serialization? Because of edge connection type and
+        double edges. These things do not matter for the execOrder, but they do
+        for the block diagram.
     """
-    # Why yet another graph serialization? Because of edge connection type and
-    # double edges. For execOrder double edges do not matter, but they do for
-    # the block diagram
     # ELK style graph object
     elkGraph = collections.OrderedDict([
         ('id', 'root'),
@@ -554,7 +554,14 @@ def misc_routes() -> web.RouteTableDef:
 
 
 def params_routes(params) -> web.RouteTableDef:
-    """Parameter block controller / view."""
+    """Dynamic routes for all Parameter blocks.
+
+    Args:
+        params: Parameter blocks.
+
+    Returns:
+        API routes.
+    """
     # Same params ordering as in the config file(s).
     config = Config()
     for p in params:
@@ -566,7 +573,7 @@ def params_routes(params) -> web.RouteTableDef:
 
     @routes.get('/params')
     def get_params(request):
-        """Get all parameter blocks."""
+        """Get all parameter config entries."""
         LOGGER.debug('confg.data: %r', config.data)
         return json_response(config.data)
 
@@ -583,8 +590,9 @@ def params_routes(params) -> web.RouteTableDef:
         return json_response()
 
     for param in params:
-        # functools.partial to capture param reference while looping
         url = '/params/' + param.fullname
+
+        # Important! functools.partial to capture param reference while looping
         routes.get(url)(functools.partial(get_param, param=param))
         routes.put(url)(functools.partial(set_param, param=param))
 

@@ -23,7 +23,12 @@ export function setattr(ele, name, value) {
     ele.setAttributeNS(null, name, value);
 }
 
-
+/**
+ * 
+ * @param {SVGElement} ele SVG element.
+ * @param {String} name Attribute name.
+ * @returns Attribute value.
+ */
 export function getattr(ele, name) {
     return ele.getAttributeNS(null, name);
 }

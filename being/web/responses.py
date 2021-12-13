@@ -1,23 +1,33 @@
+"""Some web response short forms."""
 from aiohttp import web
+from aiohttp.web_response import Response
 
 from being.serialization import dumps
 
 
-def respond_ok():
-    """Return with status ok."""
+def respond_ok() -> Response:
+    """Return with status ok.
+
+    Returns:
+        Empty ok response.
+    """
     return web.Response()
 
 
-def json_response(obj=None):
+def json_response(obj=None) -> Response:
     """aiohttp web.json_response but with our custom JSON serialization dumps.
 
     Args:
         obj: Object to JSON serialize and pack in a response.
+
+    Returns:
+        Response with JSON payload.
     """
     if obj is None:
         obj = {}
 
     return web.json_response(obj, dumps=dumps)
+
 
 # Note: Do not use lambda function as response factories! Leads to errors under Windows because the
 # IocpProactor proactor does not accept non-async lambda functions.

@@ -16,15 +16,15 @@ class WebSocket:
     """WebSocket connections. Interfaces with aiohttp web socket requests. Can
     hold multiple open web socket connections simultaneously. Also has a message
     queue / broker functionality to send messages from non-asyncio world.
-
-    Attributes:
-        sockets: Active web socket connections
-        queue: Message queue for synchronous senders.
     """
 
     def __init__(self):
         self.sockets = weakref.WeakSet()
+        """sockets: Active web socket connections."""
+
         self.queue = collections.deque(maxlen=100)
+        """queue: Message queue for synchronous senders."""
+
         self.logger = get_logger('WebSocket')
         self.brokerTask = None
 
@@ -43,8 +43,8 @@ class WebSocket:
                 self.logger.exception(err)
 
     def send_json_buffered(self, data):
-        """Synchronous send_json(). Data goes into buffered and send at a later
-        stage (if broker task is running).
+        """Synchronous send_json(). Data goes into message queue and send at a
+        later stage (if broker task is running).
 
         Args:
             data: Data to send as JSON.
