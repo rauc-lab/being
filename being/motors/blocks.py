@@ -45,6 +45,16 @@ from being.motors.motors import get_motor, Motor
 from being.resources import register_resource
 
 
+__all__ = [
+    'DummyMotor',
+    'LinearMotor',
+    'RotaryMotor',
+    'BeltDriveMotor',
+    'LeadScrewMotor',
+    'WindupMotor',
+]
+
+
 # Look before you leap
 INTERVAL = CONFIG['General']['INTERVAL']
 
@@ -53,6 +63,8 @@ CONTROLLER_TYPES: Dict[str, Controller] = {
     'EPOS4': Epos4,
 }
 """Device name to Controller type lookup."""
+
+
 
 
 def create_controller_for_node(node: CiA402Node, *args, **kwargs) -> Controller:

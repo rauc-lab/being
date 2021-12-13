@@ -12,12 +12,19 @@ from canopen import RemoteNode
 from canopen.emcy import EmcyError
 
 from being.bitmagic import clear_bit, set_bit
-from being.can.cia_402 import CiA402Node, HOMING_METHOD, OperationMode, State, StateSwitching
+from being.can.cia_402 import CiA402Node, HOMING_METHOD, OperationMode, State
 from being.configuration import CONFIG
 from being.constants import FORWARD
 from being.logging import get_logger
 from being.math import clip
-from being.motors.definitions import MotorInterface, MotorState, MotorEvent, PositionProfile, VelocityProfile, HomingState
+from being.motors.definitions import (
+    HomingState,
+    MotorEvent,
+    MotorInterface,
+    MotorState,
+    PositionProfile,
+    VelocityProfile,
+)
 from being.motors.homing import CiA402Homing, CrudeHoming, default_homing_method
 from being.motors.motors import Motor
 from being.motors.vendor import (
@@ -28,6 +35,9 @@ from being.motors.vendor import (
     MaxonDigitalInput,
 )
 from being.utils import merge_dicts
+
+
+__all__ = [ 'Mclm3002', 'Epos4', ]
 
 
 INTERVAL = CONFIG['General']['INTERVAL']
