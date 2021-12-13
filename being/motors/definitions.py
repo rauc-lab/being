@@ -13,8 +13,13 @@ class MotorEvent(enum.Enum):
     """Motor / controller events."""
 
     STATE_CHANGED = enum.auto()
+    """The motor state has changed."""
+
     HOMING_CHANGED = enum.auto()
+    """The homing state has changed."""
+
     ERROR = enum.auto()
+    """An error occurred."""
 
 
 register_enum(MotorEvent)
@@ -25,12 +30,18 @@ class MotorState(enum.Enum):
     """Simplified motor state."""
 
     FAULT = 0
+    """Motor in fault state."""
+
     DISABLED = 1
+    """Motor is disabled."""
+
     ENABLED = 2
+    """Motor is enabled and working normally."""
 
 
 register_enum(MotorState)
 
+# TODO: Rename velocity -> maxVelocity, acceleration -> maxAcceleration?
 
 class PositionProfile(NamedTuple):
 
@@ -38,9 +49,15 @@ class PositionProfile(NamedTuple):
 
     Units are assumed to be SI. Controller has to convert to device units.
     """
+
     position: float
+    """Profiled target position value."""
+
     velocity: Optional[float] = None
+    """Maximum profile velocity value."""
+
     acceleration: Optional[float] = None
+    """Maximum profile acceleration (and deceleration)."""
 
 
 class VelocityProfile(NamedTuple):
@@ -49,8 +66,12 @@ class VelocityProfile(NamedTuple):
 
     Units are assumed to be SI. Controller has to convert to device units.
     """
+
     velocity: float
+    """Profiled target velocity."""
+
     acceleration: Optional[float] = None
+    """Maximum profile acceleration (and deceleration)."""
 
 
 class MotorInterface(PubSub, abc.ABC):
@@ -65,7 +86,7 @@ class MotorInterface(PubSub, abc.ABC):
         """Disable motor (no power).
 
         Args:
-            publish: If to publish motor changes.
+            publish (optional): If to publish motor changes.
         """
         if publish:
             self.publish(MotorEvent.STATE_CHANGED)
@@ -75,7 +96,7 @@ class MotorInterface(PubSub, abc.ABC):
         """Enable motor (power on).
 
         Args:
-            publish: If to publish motor changes.
+            publish (optional): If to publish motor changes.
         """
         if publish:
             self.publish(MotorEvent.STATE_CHANGED)

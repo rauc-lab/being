@@ -1,9 +1,10 @@
-"""Vendor specific definitions / helpers."""
+"""Vendor specific definitions / helpers for the different controllers. Error
+codes, emergency descriptions, supported homing method.
+"""
 import enum
 from typing import Dict, Set, NamedTuple
 
 from being.bitmagic import bit_mask
-from being.constants import MICRO, MILLI, TAU, DECI
 
 
 def _to_int(self) -> int:

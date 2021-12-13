@@ -1,8 +1,8 @@
-"""Motor definitions for the actual hardware motor types. Different motor
-parameters / settings.
+"""Effective hardware motors. Represents the effective motor itself. Different
+default settings.
 """
 import collections
-from typing import NamedTuple
+from typing import NamedTuple, Sequence
 from fractions import Fraction
 
 from being.constants import TAU, INF, MICRO, MILLI
@@ -20,9 +20,22 @@ INTERVAL = CONFIG['General']['INTERVAL']
 
 
 class DeviceUnits(NamedTuple):
+
+    """Motor device units factor. Gear factor not included.
+
+    Todo:
+        Should this move to to :class:`being.motors.controllers.Controller`? Is
+        it motor or controller dependent?
+    """
+
     position: float = 1.0
+    """Position factor."""
+
     velocity: float = 1.0
+    """Velocity factor."""
+
     acceleration: float = 1.0
+    """Acceleration factor."""
 
 
 class Motor(NamedTuple):
@@ -50,9 +63,9 @@ class Motor(NamedTuple):
     defaultSettings: dict = {}
     """Default settings for this motor."""
 
-
     def si_2_device_units(self, which: str) -> float:
-        """Get SI -> device units conversion factor.
+        """Determines the conversion factor from SI units to unit units. The
+        gear ratio is also taken into account.
 
         Args:
             which: Which factor? Either 'position', 'velocity' or 'acceleration'.
@@ -174,18 +187,42 @@ MOTORS = {
 }
 
 
-def get_motor(name) -> Motor:
+def orify(things: Sequence) -> str:
+    """Comma separate sequence with final 'or'.
+
+    Example:
+        >>> orify(['a', 'b', 'c'])
+        'a, b or c'
+    """
+    *pre, last = things
+    if len(pre) == 0:
+        return str(last)
+
+    return f'{", ".join(pre)} or {last}'
+
+
+def get_motor(name: str) -> Motor:
     """Lookup motor by name.
 
     Args:
-        name: Motor name. Can be lowercase and spaces get deleted for easy
-            lookup.
+        name: Motor name. Can be lowercase and spaces get deleted for easy lookup.
 
     Returns:
-        Motor
+        Motor informations.
+
+    Raises:
+        KeyError: If motor could not be found.
+
+    Example:
+        >>> motor = get_motor('LM 1247')
+        ... motor.name
+        'LM 1247'
+
+        >>> get_motor('R2D2')
+        KeyError: 'Unknown motor R2D2! Try one of LM1247, LM0830, LM1483, LM2070, EC45 or DC22'
     """
     key = name.replace(' ', '').upper()
     if key not in MOTORS:
-        raise KeyError(f'Unknown motor {name}!')
+        raise KeyError(f'Unknown motor {name}! Try one of {orify(MOTORS)}')
 
     return MOTORS[key]

@@ -1,4 +1,8 @@
-"""Homing procedures and definitions."""
+"""Homing procedures and definitions.
+
+Todo:
+    Documentation. Waiting for feature branch merge.
+"""
 import abc
 import enum
 import itertools
