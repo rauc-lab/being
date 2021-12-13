@@ -20,14 +20,14 @@ from being.params import MotionSelection
 from being.sensors import Sensor
 from being.utils import filter_by_type
 from being.web.api import (
-    behavior_controllers,
-    being_controller,
-    content_controller,
+    behavior_routes,
+    being_routes,
+    content_routes,
     messageify,
-    misc_controller,
-    motion_player_controllers,
-    motor_controllers,
-    params_controller,
+    misc_routes,
+    motion_player_routes,
+    motor_routes,
+    params_routes,
 )
 from being.web.web_socket import WebSocket
 
@@ -115,13 +115,13 @@ def init_api(being, ws: WebSocket) -> web.Application:
         return lambda: ws.send_json_buffered(messageify(obj))
 
     # Being
-    api.add_routes(being_controller(being))
+    api.add_routes(being_routes(being))
 
     # Misc functionality
-    api.add_routes(misc_controller())
+    api.add_routes(misc_routes())
 
     # Content
-    api.add_routes(content_controller(content))
+    api.add_routes(content_routes(content))
     content.subscribe(CONTENT_CHANGED, lambda: ws.send_json_buffered(content.forge_message()))
     for motionSelection in filter_by_type(being.params, MotionSelection):
         content.subscribe(CONTENT_CHANGED, motionSelection.on_content_changed)
@@ -133,16 +133,16 @@ def init_api(being, ws: WebSocket) -> web.Application:
         patch_sensor_to_web_socket(sensor, ws)
 
     # Behaviors
-    api.add_routes(behavior_controllers(being.behaviors))
+    api.add_routes(behavior_routes(being.behaviors))
     for behavior in being.behaviors:
         behavior.subscribe(BEHAVIOR_CHANGED, ws_emit(behavior))
         content.subscribe(CONTENT_CHANGED, behavior._purge_params)
 
     # Motion players
-    api.add_routes(motion_player_controllers(being.motionPlayers, being.behaviors))
+    api.add_routes(motion_player_routes(being.motionPlayers, being.behaviors))
 
     # Motors
-    api.add_routes(motor_controllers(being))
+    api.add_routes(motor_routes(being))
 
     def ws_motor_error_notification(motor):
         return lambda msg: ws.send_json_buffered({
@@ -156,7 +156,7 @@ def init_api(being, ws: WebSocket) -> web.Application:
         motor.subscribe(MotorEvent.HOMING_CHANGED, ws_emit(motor))
         motor.subscribe(MotorEvent.ERROR, ws_motor_error_notification(motor))
 
-    api.add_routes(params_controller(being.params))
+    api.add_routes(params_routes(being.params))
 
     wire_being_loggers_to_web_socket(ws)
 

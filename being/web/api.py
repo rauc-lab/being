@@ -1,4 +1,8 @@
-"""API calls / controller for communication between front end and being components."""
+"""API calls and routes. View / controller hybrids.
+
+
+/ controller for communication between front end and being components.
+"""
 import collections
 import functools
 import glob
@@ -16,7 +20,7 @@ from aiohttp.typedefs import MultiDictProxy
 
 from being.behavior import State as BehaviorState, Behavior
 from being.being import Being
-from being.configs import SEP, Config
+from being.configs import Config
 from being.configuration import CONFIG
 from being.connectables import ValueOutput, _ValueContainer
 from being.content import CONTENT_CHANGED, Content
@@ -24,15 +28,14 @@ from being.curve import Curve
 from being.logging import get_logger
 from being.motors.blocks import MotorBlock
 from being.params import Parameter
-from being.serialization import loads, spline_from_dict
+from being.serialization import loads
 from being.spline import fit_spline
 from being.typing import Spline
-from being.utils import NestedDict, filter_by_type, update_dict_recursively
+from being.utils import filter_by_type, update_dict_recursively
 from being.web.responses import respond_ok, json_response
 
 
 LOGGER = get_logger(name=__name__, parent=None)
-"""API module logger."""
 
 
 def messageify(obj) -> collections.OrderedDict:
@@ -62,15 +65,15 @@ def messageify(obj) -> collections.OrderedDict:
             ('motors', obj),
         ])
 
-    raise ValueError(f'Do not know how to messagiy {obj}!')
+    raise ValueError(f'Do not know how to create message for {obj}!')
 
 
-def content_controller(content: Content) -> web.RouteTableDef:
+def content_routes(content: Content) -> web.RouteTableDef:
     """Controller for content model. Build Rest API routes. Wrap content
     instance in API.
 
     Args:
-        content: Content model.
+        content: Being content instance.
 
     Returns:
         Routes table for API app.
@@ -213,8 +216,18 @@ def content_controller(content: Content) -> web.RouteTableDef:
     return routes
 
 
-def serialize_elk_graph(being, skipParameters=True):
-    """Serialize blocks to ELK style graph dict serialization."""
+def serialize_elk_graph(being: Being, skipParamBlocks: bool = True):
+    """Serialize being blocks to ELK style graph dict serialization. Used in UI
+    for block network visualization.
+
+    Args:
+        being: Being instance.
+        skipParamBlocks (optional): If to skip all Params blocks to reduce
+            clutter. True by default.
+
+    Returns:
+        Dict based graph representation compatible with ELK JS lib.
+    """
     # Why yet another graph serialization? Because of edge connection type and
     # double edges. For execOrder double edges do not matter, but they do for
     # the block diagram
@@ -232,7 +245,7 @@ def serialize_elk_graph(being, skipParameters=True):
         if block in visited:
             continue
 
-        if skipParameters and isinstance(block, Parameter):
+        if skipParamBlocks and isinstance(block, Parameter):
             continue
 
         visited.add(block)
@@ -262,7 +275,7 @@ def serialize_elk_graph(being, skipParameters=True):
     return elkGraph
 
 
-def being_controller(being: Being) -> web.RouteTableDef:
+def being_routes(being: Being) -> web.RouteTableDef:
     """API routes for being object.
 
     Args:
@@ -314,7 +327,7 @@ def being_controller(being: Being) -> web.RouteTableDef:
     return routes
 
 
-def behavior_controllers(behaviors) -> web.RouteTableDef:
+def behavior_routes(behaviors) -> web.RouteTableDef:
     """API routes for being behaviors.
 
     Args:
@@ -377,7 +390,7 @@ def behavior_controllers(behaviors) -> web.RouteTableDef:
     return routes
 
 
-def motion_player_controllers(motionPlayers, behaviors) -> web.RouteTableDef:
+def motion_player_routes(motionPlayers, behaviors) -> web.RouteTableDef:
     """API routes for motion players. Also needs to know about behaviors. To
     pause them on some actions.
 
@@ -471,7 +484,7 @@ def motion_player_controllers(motionPlayers, behaviors) -> web.RouteTableDef:
     return routes
 
 
-def motor_controllers(being)  -> web.RouteTableDef:
+def motor_routes(being)  -> web.RouteTableDef:
     """API routes for motors. Also needs to know about behaviors. To pause them
     on some actions.
 
@@ -515,7 +528,7 @@ def motor_controllers(being)  -> web.RouteTableDef:
     return routes
 
 
-def misc_controller() -> web.RouteTableDef:
+def misc_routes() -> web.RouteTableDef:
     """All other APIs which are not directly related to being, content,
     etc...
     """
@@ -540,13 +553,12 @@ def misc_controller() -> web.RouteTableDef:
     return routes
 
 
-def params_controller(params) -> web.RouteTableDef:
+def params_routes(params) -> web.RouteTableDef:
     """Parameter block controller / view."""
-    # Params ordering as in the config file(s)
+    # Same params ordering as in the config file(s).
     config = Config()
     for p in params:
         update_dict_recursively(config, p.configFile, default_factory=dict)
-
     for p in params:
         config.store(p.fullname, p)
 
