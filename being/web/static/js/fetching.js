@@ -1,5 +1,6 @@
 /**
- * @module fetching Wrapper verbs around standard fetch.
+ * Wrapper verbs around standard fetch.
+ * @module js/fetching
  */
 
 

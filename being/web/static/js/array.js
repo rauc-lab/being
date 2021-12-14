@@ -1,14 +1,15 @@
 /**
- * @module array Numpy style array helpers.
+ * Numpy style array helpers.
+ * @module js/array
  */
 import {assert, arrays_equal} from "/static/js/utils.js";
 
 
 /**
- * Shape of an array.
- *
- * @param {Array} array to determine shape from.
- * @returns {Array} Shape of array.
+ * Determine shape of array.
+ * 
+ * @param {array} array Input array.
+ * @returns {array} Shape of array.
  */
 export function array_shape(array) {
     let shape = [];

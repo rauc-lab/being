@@ -1,5 +1,6 @@
 /**
- * @module drawer Component for drawing the actual curves / splines inside editor.
+ * Curve drawing and editing.
+ * @module components/editor/drawer
  */
 import { Plotter } from "/static/components/plotter.js";
 import { add_arrays, arange, multiply_scalar, subtract_arrays, } from "/static/js/array.js";

@@ -1,6 +1,6 @@
 /**
- * @module widget Base class for HTML web component. Simple HTMLElement with a
- * toolbar div.
+ * Base class for HTML web component. Simple HTMLElement with a toolbar div.
+ * @module js/widget
  */
 import { add_option } from "/static/js/utils.js";
 import { create_button } from "/static/js/button.js";
@@ -9,7 +9,7 @@ import { create_button } from "/static/js/button.js";
 /**
  * Render template, clone it and append it to a target HTMLElement.
  *
- * @param {object or string} template Element or string
+ * @param {object} template Element or string
  * @param {*} target Target HTMLElement to append rendered template to.
  */
  export function append_template_to(template, target) {

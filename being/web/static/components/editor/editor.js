@@ -1,5 +1,6 @@
 /**
- * @module spline_editor Spline editor custom HTML element.
+ * Curve editor.
+ * @module components/editor/editor
  */
 import { Drawer } from "/static/components/editor/drawer.js"; // Needs to be imported. Otherwise component does not load in time and SVG is not ready!
 import { as_curve } from "/static/components/editor/list.js";

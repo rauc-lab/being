@@ -1,5 +1,6 @@
 /**
- * @module draggable Manage mouse events for draggable actions.
+ * Make something draggable. Manage mouse events for draggable actions.
+ * @module js/draggable
  */
 import { LEFT_MOUSE_BUTTON } from "/static/js/constants.js";
 

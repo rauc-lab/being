@@ -1,5 +1,6 @@
 /**
- * @module spline Spline stuff. Some constants and BPoly wrapper. Spline data container.
+ * Spline stuff. Some constants and BPoly wrapper. Spline data container.
+ * @module js/spline
  */
 import {
     array_shape, array_min, array_max, array_ndims, arange, zeros, array_full,
@@ -11,10 +12,15 @@ import {assert, searchsorted, insert_in_array, remove_from_array} from "/static/
 import {clip, floor_division} from "/static/js/math.js";
 
 
-/** @const {number} - Named indices for BPoly coefficents matrix */
+/** @const {number} - First knot index for BPoly coefficent matrix. */
 export const KNOT = 0;
+
+/** @const {number} - First control point index for BPoly coefficent matrix. */
 export const FIRST_CP = 1;
+
+/** @const {number} - Second control point index for BPoly coefficent matrix. */
 export const SECOND_CP = 2;
+
 
 /** @const {object} - Spline order enum. */
 export const Order = Object.freeze({
@@ -38,11 +44,15 @@ export const LEFT = "left";
 /** @const {string} - Right side of knot string literal. */
 export const RIGHT = "right";
 
-/** @const {Number} - Depth of coefficients tensor. */
+/** @const {number} - Depth of coefficients tensor. */
 export const COEFFICIENTS_DEPTH = 3;
+
 
 /**
  * Get order of spline.
+ *
+ * @param {BPoly} spline Spline to check.
+ * @returns {number} Order of spline.
  */
 export function spline_order(spline) {
     const shape = array_shape(spline.coefficients);
@@ -61,7 +71,7 @@ export function spline_degree(spline) {
 /**
  * Create zero spline for a given number of dimensions.
  *
- * @param {Number} ndim Number of spline dimensions
+ * @param {number} ndim Number of spline dimensions
  * @returns {BPoly} Zero spline.
  */
 export function zero_spline(ndim=1) {
@@ -71,8 +81,9 @@ export function zero_spline(ndim=1) {
 
 /**
  * Duplicate entry in array at index.
+ *
  * @param {Array} array 
- * @param {Number} index 
+ * @param {number} index 
  */
 function duplicate_entry_in_array(array, index) {
     index = clip(index, 0, array.length - 1);
@@ -84,7 +95,7 @@ function duplicate_entry_in_array(array, index) {
 /**
  * Duplicate column in matrix.
  * @param {Array} mtrx At least 2d array.
- * @param {Number} col Column number.
+ * @param {number} col Column number.
  */
 function duplicate_column_in_matrix(mtrx, col) {
     mtrx.forEach(row => {
@@ -215,7 +226,7 @@ export class BPoly {
     /**
      * Get first derative value at knot position.
      *
-     * @param {Number} nr Knot number.
+     * @param {number} nr Knot number.
      * @param {String} side Which side of the knot.
      */
     get_derivative_at_knot(nr, side=RIGHT, dim=0) {
@@ -244,8 +255,8 @@ export class BPoly {
     /**
      * Adjust control points for a given derivative value.
      *
-     * @param {Number} nr Knot number.
-     * @param {Number} value Derivative value to ensure.
+     * @param {number} nr Knot number.
+     * @param {number} value Derivative value to ensure.
      * @param {String} side Which side of the knot.
      */
     set_derivative_at_knot(nr, value, side=RIGHT, dim=0) {
@@ -264,7 +275,7 @@ export class BPoly {
     /**
      * Move knot to another position.
      *
-     * @param {Number} nr Knot number.
+     * @param {number} nr Knot number.
      * @param {Array} pos New knot position.
      * @param {Bool} c1 C1 continuity (move surrounding control points as well)
      */
@@ -315,9 +326,9 @@ export class BPoly {
     /**
      * Move control point around (only vertically).
      *
-     * @param {Number} seg Segment number.
-     * @param {Number} nr Knot / control point number.
-     * @param {Number} y New y position of control point.
+     * @param {number} seg Segment number.
+     * @param {number} nr Knot / control point number.
+     * @param {number} y New y position of control point.
      * @param {Bool} c1 Ensure C1 continuity.
      */
     position_control_point(seg, nr, y, c1 = false, dim = 0) {
@@ -342,8 +353,8 @@ export class BPoly {
     /**
      * Bézier control point.
      *
-     * @param {Number} seg Segment index.
-     * @param {Number} nr Control point index. E.g. for cubic 0 -> left knot, 1
+     * @param {number} seg Segment index.
+     * @param {number} nr Control point index. E.g. for cubic 0 -> left knot, 1
      *     -> First control point, etc...
      */
     point(seg, nr=0, dim=0) {
@@ -398,7 +409,7 @@ export class BPoly {
     /**
      * Check if we are dealing with the last spline knot.
      *
-     * @param {Number} knotNr Knot number.
+     * @param {number} knotNr Knot number.
      * @returns If we are dealing with the last knot of the spline.
      */
     _is_last_knot(knotNr) {
@@ -408,7 +419,7 @@ export class BPoly {
     /**
      * Remove knot from spline.
      *
-     * @param {Number} knotNr Knot number to remove.
+     * @param {number} knotNr Knot number to remove.
      */
     remove_knot(knotNr) {
         if (this._is_last_knot(knotNr)) {

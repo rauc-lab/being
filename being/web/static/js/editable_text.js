@@ -1,5 +1,6 @@
 /**
  * Make text field editable by double clicking it.
+ * @module js/editable_text
  * 
  * @param {*} ele Element to make editable.
  * @param {*} on_change On change event callback.

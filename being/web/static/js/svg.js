@@ -1,5 +1,6 @@
 /**
- * @module svg Working with SVG element helpers.
+ * Working with SVG element helpers.
+ * @module js/svg
  */
 import {Order} from "/static/js/spline.js";
 

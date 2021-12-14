@@ -1,5 +1,5 @@
 /**
- * @module bbox Bounding box class.
+ * Bounding box class.
  */
 import { clip } from "/static/js/math.js";
 
@@ -15,6 +15,7 @@ export class BBox {
 
     /**
      * Bounding box size.
+     * @type {array}
      */
     get size() {
         return [
@@ -25,6 +26,7 @@ export class BBox {
 
     /**
      * Bounding box width.
+     * @type {number}
      */
     get width() {
         return this.ur[0] - this.ll[0];
@@ -32,35 +34,32 @@ export class BBox {
 
     /**
      * Bounding box height.
+     * @type {number}
      */
     get height() {
         return this.ur[1] - this.ll[1];
     }
 
     /**
-     * Get leftmost x value.
+     * Get / set leftmost x value.
+     * @type {number}
      */
     get left() {
         return this.ll[0];
     }
 
-    /**
-     * Set leftmost x value.
-     */
     set left(pos) {
         this.ll[0] = pos;
     }
 
     /**
-     * Get rightmost x value.
+     * Get / set rightmost x value.
+     * @type {number}
      */
     get right() {
         return this.ur[0];
     }
 
-    /**
-     * Set rightmost x value.
-     */
     set right(value) {
         this.ur[0] = value;
     }

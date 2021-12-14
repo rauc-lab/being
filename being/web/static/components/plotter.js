@@ -1,6 +1,6 @@
-/** @module plotter
- *
+/** 
  * Plotter widget.
+ * @module components/plotter
  */
 import { tick_space, } from "/static/js/layout.js";
 import { array_min, array_max } from "/static/js/array.js";
@@ -39,12 +39,15 @@ export class Line {
     }
 
     /**
-     * Get maxlen of buffer.
+     * Get / set maxlen of buffer.
      */
     get maxlen() {
         return this.data.maxlen;
     }
 
+    set maxlen(maxlen) {
+        this.data.maxlen = maxlen;
+    }
 
     /**
      * Number of data points.
@@ -53,14 +56,6 @@ export class Line {
         return this.data.length;
     }
 
-    /**
-     * Set maxlen of buffer and discard excess values.
-     *
-     * @param maxlen - New max length value.
-     */
-    set maxlen(maxlen) {
-        this.data.maxlen = maxlen;
-    }
 
     /**
      * First data column.
@@ -201,15 +196,12 @@ export class Plotter extends WidgetBase {
     // Public
 
     /**
-     * Get current maxlen value.
+     * Get / set maxlen for all current and future lines.
      */
     get maxlen() {
         return this._maxlen;
     }
 
-    /**
-     * Set maxlen for all current and future lines.
-     */
     set maxlen(value) {
         this._maxlen = value;
         this.lines.forEach(line => {

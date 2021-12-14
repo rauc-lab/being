@@ -1,17 +1,24 @@
 /**
- *  @module api Back end API definitions.
+ * API definitions for communication with back-end.
+ * @module js/api
  */
 import {objectify, anthropomorphify} from "/static/js/serialization.js";
 import {API} from "/static/js/config.js";
 import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js/fetching.js";
 
 
+/**
+ * Bla bla bla.
+ */
+export function some_function() {
+    return 42;
+}
+
+
+/**
+ * Being web API.
+ */
 export class Api {
-
-
-    /** General being and misc API */
-
-
     async get_blocks() {
         return get_json(API + "/blocks");
     }

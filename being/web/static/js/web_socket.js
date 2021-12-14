@@ -1,5 +1,6 @@
 /**
- * @module web_socket Small web socket wrapper.
+ * Small web socket wrapper.
+ * @module js/web_socket
  */
 import {MS} from "/static/js/constants.js";
 import {defaultdict} from "/static/js/utils.js";

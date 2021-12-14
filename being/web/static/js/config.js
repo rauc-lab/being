@@ -1,5 +1,5 @@
 /**
- * @module config Some basic configurations.
+ * Some basic configurations.
  */
 
 

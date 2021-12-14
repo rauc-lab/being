@@ -1,5 +1,6 @@
 /**
  * Notification central.
+ * @module js/notification_center
  */
 import { defaultdict } from "/static/js/utils.js";
 

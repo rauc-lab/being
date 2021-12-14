@@ -1,5 +1,5 @@
 /**
- * @module Spline / motion list for editor.
+ * Spline / motion list for editor.
  */
 import { Api } from "/static/js/api.js";
 import { Curve } from "/static/js/curve.js";

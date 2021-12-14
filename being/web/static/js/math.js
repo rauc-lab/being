@@ -1,5 +1,6 @@
 /**
- * @module math All kinds of math helpers.
+ * All kinds of math helpers.
+ * @module js/math
  */
 import { TAU } from "/static/js/constants.js";
 

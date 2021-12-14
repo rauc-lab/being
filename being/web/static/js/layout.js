@@ -1,6 +1,8 @@
 /**
- * @module layout Graphical layout helpers. Only finding nice tick labels for now. Taken from here:
- *     https://stackoverflow.com/questions/8506881/nice-label-algorithm-for-charts-with-minimum-ticks/16363437
+ * Graphical layout helpers. Only finding nice tick labels for now. Taken from
+ * here:
+ * https://stackoverflow.com/questions/8506881/nice-label-algorithm-for-charts-with-minimum-ticks/16363437
+ * @module js/layout
  */
 
 

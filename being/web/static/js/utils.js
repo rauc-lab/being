@@ -1,5 +1,6 @@
 /**
- * @module utils All kinds of util. Lots from http://youmightnotneedjquery.com.
+ * All kinds of util. Lots from http://youmightnotneedjquery.com.
+ * @module js/utils
  */
 
 

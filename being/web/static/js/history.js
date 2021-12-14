@@ -1,5 +1,6 @@
 /**
- * @module history Edit history class.
+ * Edit history class.
+ * @module js/history
  */
 import { Deque } from "/static/js/deque.js";
 import { last_element } from "/static/js/utils.js";

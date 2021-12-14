@@ -1,5 +1,5 @@
 /**
- * @module transport Component for spline editor which manages transport state.
+ * Playback transport state.
  */
 import { create_element, setattr } from "/static/js/svg.js";
 import { mod } from "/static/js/math.js";

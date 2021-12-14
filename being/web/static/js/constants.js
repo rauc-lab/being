@@ -1,5 +1,5 @@
 /**
- * @module constants All kind of constants.
+ * All kind of constants.
  */
 
 
