@@ -42,6 +42,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'matplotlib.sphinxext.plot_directive',
     'formatted_autodoc',
+    'sphinx_js',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -117,6 +118,16 @@ plot_rcparams = {
     'axes.spines.bottom': False,
     'axes.spines.left': False,
 }
+
+# sphinx-js configuration
+#js_source_path = '../being/web/static/js'
+js_source_path = [
+    '../being/web/static/js',
+    '../being/web/static/components',
+]
+root_for_relative_js_paths = '../being/web/static'
+jsdoc_config_path = 'conf.json'
+
 
 
 # -- Misc --------------------------------------------------------------------
