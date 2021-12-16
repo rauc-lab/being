@@ -37,7 +37,7 @@ def bus_params():
 
 if __name__ == '__main__':
     LOGGER = logging.getLogger('Motor Configurator')
-    logging.basicConfig(level=0)
+    logging.basicConfig(level=logging.INFO)
     args = cli()
     network = canopen.Network()
 
@@ -48,9 +48,30 @@ if __name__ == '__main__':
         LOGGER.info('CONFIGURATION_STATE')
         network.lss.send_switch_state_global(network.lss.CONFIGURATION_STATE)
 
-        #LOGGER.info('LSS Scanning')
-        #scan = network.lss.fast_scan()
-        #print('Result:', scan)
+        configure_pdos = ''
+        while (not [True for sel in ('Y', 'N') if sel in configure_pdos]):
+            configure_pdos = input(
+                'Reset PDO\'s and emergency object? [Y/N]').upper()
+
+        if configure_pdos == 'Y':
+            LOGGER.info('Reset node')
+
+            network.lss.configure_node_id(255)
+            idx = POSSIBLE_BIT_RATES.index(args.bitrate)
+            network.lss.configure_bit_timing(idx)
+
+            time.sleep(3.)
+
+            LOGGER.info('Storing configuration')
+            network.lss.store_configuration()
+
+            time.sleep(1.)
+            scan = network.lss.fast_scan()
+
+            if not scan:
+                raise Exception('Resetting node failed')
+
+            LOGGER.info('Node is now in unconfigured state')
 
         LOGGER.info('Configuring node')
         network.lss.configure_node_id(args.nodeId)
