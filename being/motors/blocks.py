@@ -22,6 +22,14 @@ state during operation (see :class:`being.motors.definitions.MotorInterface` for
 more details).
 
 Motor blocks operate with SI values at their in- and outputs.
+
+Available motor blocks are:
+  - :class:`DummyMotor`
+  - :class:`LinearMotor`
+  - :class:`RotaryMotor`
+  - :class:`BeltDriveMotor`
+  - :class:`LeadScrewMotor`
+  - :class:`WindupMotor`
 """
 import abc
 import itertools
