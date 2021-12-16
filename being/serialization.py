@@ -251,7 +251,7 @@ def named_tuple_from_dict(dct: dict):
         raise RuntimeError(f'Do not know type of named tuple {msgType!r}!')
 
     type_ = NAMED_TUPLE_LOOKUP[msgType]
-    kwargs = type_._field_defaults.copy()
+    kwargs = getattr(type_, '_field_defaults', {}).copy()
     kwargs.update(**dct)
     return type_(**kwargs)
 
