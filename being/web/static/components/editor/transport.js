@@ -1,5 +1,7 @@
 /**
  * Playback transport state.
+ *
+ * @module components/editor/transport
  */
 import { create_element, setattr } from "/static/js/svg.js";
 import { mod } from "/static/js/math.js";

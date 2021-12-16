@@ -3,6 +3,8 @@
  *
  * The HTML <being-behavior> widget needs to know its behavior id, so that we
  * can map the API requests correctly (via an instance of BehaviorApi).
+ *
+ * @module components/behavior/behavior
  */
 import { API } from "/static/js/config.js";
 import { Api } from "/static/js/api.js";
@@ -26,6 +28,9 @@ const BEHAVIOR_TEMPLATE = `
 `;
 
 
+/**
+ * Behavior API for a given behavior ID.
+ */
 class BehaviorApi extends Api {
     constructor(id) {
         super();
@@ -50,6 +55,9 @@ class BehaviorApi extends Api {
 }
 
 
+/**
+ * Behavior widget.
+ */
 export class Behavior extends Widget {
     constructor() {
         super();

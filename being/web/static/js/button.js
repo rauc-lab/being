@@ -1,6 +1,6 @@
 /**
  * Button helper stuff. Helper functions for using buttons as toggle buttons.
- * @module js/buttons
+ * @module js/button
  */
 
 

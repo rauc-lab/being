@@ -1,5 +1,6 @@
 /**
  * Curve editor.
+ *
  * @module components/editor/editor
  */
 import { Drawer } from "/static/components/editor/drawer.js"; // Needs to be imported. Otherwise component does not load in time and SVG is not ready!

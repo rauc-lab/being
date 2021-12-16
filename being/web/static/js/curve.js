@@ -1,3 +1,6 @@
+/**
+ * @module js/curve
+ */
 import { array_min, array_max } from "/static/js/array.js";
 import { BBox } from "/static/js/bbox.js";
 import { BPoly } from "/static/js/spline.js";

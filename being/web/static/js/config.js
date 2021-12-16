@@ -1,5 +1,6 @@
 /**
  * Some basic configurations.
+ * @module js/config
  */
 
 

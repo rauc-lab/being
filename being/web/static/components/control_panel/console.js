@@ -1,5 +1,7 @@
 /**
  * Console functionality for control panel.
+ *
+ * @module components/control_panel/console
  */
 import {get_color} from "/static/js/color_map.js";
 

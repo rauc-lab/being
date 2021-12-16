@@ -1,5 +1,7 @@
 /**
  * Control panel widget with console.
+ *
+ * @module components/control_panel/control_panel
  */
 import { draw_block_diagram } from "/static/components/control_panel/block_diagram.js";
 import { Console } from "/static/components/control_panel/console.js";

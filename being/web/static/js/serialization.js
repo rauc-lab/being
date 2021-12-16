@@ -1,3 +1,6 @@
+/**
+ * @module js/serialization
+ */
 import { BPoly } from "/static/js/spline.js";
 import { Curve } from "/static/js/curve.js";
 

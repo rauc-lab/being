@@ -1,5 +1,6 @@
 /**
  * Bounding box class.
+ * @module js/bbox
  */
 import { clip } from "/static/js/math.js";
 

@@ -1,5 +1,6 @@
 /**
  * Curve drawing and editing.
+ *
  * @module components/editor/drawer
  */
 import { Plotter } from "/static/components/plotter.js";

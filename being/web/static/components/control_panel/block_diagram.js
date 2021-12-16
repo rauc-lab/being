@@ -2,6 +2,8 @@
  * Block diagram functionality for control panel. Assumes the following
  * third-party Javascript libraries are loaded:
  *   - ELK
+ *
+ * @module components/control_panel/block_diagram
  */
 
 import {deep_copy, remove_all_children} from "/static/js/utils.js";

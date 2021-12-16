@@ -1,5 +1,6 @@
 /**
  * All kind of constants.
+ * @module js/constants
  */
 
 

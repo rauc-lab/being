@@ -1,3 +1,6 @@
+/**
+ * @module js/color_map
+ */
 import { clip } from "/static/js/math.js";
 
 const COLOR_MAPS = {
