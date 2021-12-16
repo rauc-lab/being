@@ -80,6 +80,7 @@ FAULHABER_DEFAULT_SETTINGS = collections.OrderedDict([
     ('Max Profile Velocity', 1000),  # milli
     ('Profile Acceleration', 1000),  # milli
     ('Profile Deceleration', 1000),  # milli
+    ('Polarity', 0), # Changing the Polarity affects the position limits, change later
     ('Software Position Limit/Minimum Position Limit', -1e7),
     ('Software Position Limit/Maximum Position Limit', 1e7),
 ])

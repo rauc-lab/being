@@ -160,8 +160,8 @@ class Controller(MotorInterface):
         self.lastState = node.get_state(how='sdo')
 
         # Configure node
-        self.apply_motor_direction(direction)
         self.node.apply_settings(self.settings)
+        self.apply_motor_direction(direction)
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 
