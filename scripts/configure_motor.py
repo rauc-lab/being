@@ -24,6 +24,8 @@ def cli():
     parser.add_argument('nodeId', type=int, help='Desired node id for motor')
     parser.add_argument('bitrate', type=int, help='Desired bit / baud rate',
                         nargs='?', choices=POSSIBLE_BIT_RATES, default=1000000)
+    parser.add_argument('-r', '--reset', action='store_true',
+                        help='Reset node before configuration (resets PDO mappings)')
     return parser.parse_args()
 
 
@@ -48,12 +50,7 @@ if __name__ == '__main__':
         LOGGER.info('CONFIGURATION_STATE')
         network.lss.send_switch_state_global(network.lss.CONFIGURATION_STATE)
 
-        configure_pdos = ''
-        while (not [True for sel in ('Y', 'N') if sel in configure_pdos]):
-            configure_pdos = input(
-                'Reset PDO\'s and emergency object? [Y/N]').upper()
-
-        if configure_pdos == 'Y':
+        if args.reset:
             LOGGER.info('Reset node')
 
             network.lss.configure_node_id(255)
