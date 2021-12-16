@@ -129,7 +129,6 @@ root_for_relative_js_paths = '../being/web/static'
 jsdoc_config_path = 'conf.json'
 
 
-
 # -- Misc --------------------------------------------------------------------
 # RST prolog for global href links
 rst_prolog = """
