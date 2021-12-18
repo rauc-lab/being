@@ -3,8 +3,9 @@
 
 # Generate API doc from source code
 rm -r reference
-sphinx-apidoc --force --module-first --output-dir reference ../being
-# TODO: sphinx-js for JavaScript code
+#sphinx-apidoc --force --module-first --output-dir reference ../being
+sphinx-apidoc --force --module-first --output-dir "reference" "../being"
+python3 js-apidoc.py --output-dir "web api" "../being/web/static/js" "../being/web/static/components" 
 
 make html
 

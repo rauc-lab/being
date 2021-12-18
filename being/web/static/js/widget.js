@@ -39,6 +39,10 @@ export function append_link_to(href, target) {
     target.appendChild(link);
 }
 
+
+/**
+ * Create select HTML element.
+ */
 export function create_select(options = [], name = "") {
     //const container = document.createElement("div");
     if (name !== "") {
@@ -59,6 +63,9 @@ export function create_select(options = [], name = "") {
 }
 
 
+/**
+ * Base class for Being widget.
+ */
 export class WidgetBase extends HTMLElement {
     constructor() {
         super();
@@ -84,7 +91,9 @@ export class WidgetBase extends HTMLElement {
     }
 };
 
-
+/**
+ * Custom compoment being widget.
+ */
 export class Widget extends WidgetBase {
     constructor() {
         super();

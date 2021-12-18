@@ -107,6 +107,10 @@ Table of Contents
    guides
    reference/being
 
+   web api/js
+   web api/components
+
+
 Indices and tables
 ==================
 
