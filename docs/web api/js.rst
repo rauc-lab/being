@@ -10,6 +10,8 @@ js/api
 ------
 
 
+API definitions for communication with back-end.
+
 .. js:autofunction:: api.some_function
 
 
@@ -20,6 +22,8 @@ js/api
 js/array
 --------
 
+
+Numpy style array helpers.
 
 .. js:autofunction:: array.array_shape
 
@@ -64,6 +68,8 @@ js/bbox
 -------
 
 
+Bounding box class.
+
 .. js:autoclass:: BBox
    :members:
 
@@ -71,6 +77,8 @@ js/bbox
 js/button
 ---------
 
+
+Button helper stuff. Helper functions for using buttons as toggle buttons.
 
 .. js:autofunction:: button.create_button
 
@@ -96,9 +104,16 @@ js/button
 .. js:autofunction:: button.disable_button
 
 
+js/color_map
+------------
+
+
+
 js/config
 ---------
 
+
+Some basic configurations.
 
 .. js:autoattribute:: INTERVAL
 
@@ -112,6 +127,8 @@ js/config
 js/constants
 ------------
 
+
+All kind of constants.
 
 .. js:autoattribute:: MS
 
@@ -135,20 +152,38 @@ js/curve
 --------
 
 
+
 .. js:autoclass:: Curve
    :members:
 
+
+js/deque
+--------
+
+
+Deque array type with maxlen and better clearer naming (from Pythons
+ collections.deque).
 
 js/draggable
 ------------
 
 
+Make something draggable. Manage mouse events for draggable actions.
+
 .. js:autofunction:: draggable.make_draggable
 
+
+js/editable_text
+----------------
+
+
+Make text field editable by double clicking it.
 
 js/fetching
 -----------
 
+
+Wrapper verbs around standard fetch.
 
 .. js:autofunction:: fetching.fetch_json
 
@@ -157,6 +192,8 @@ js/history
 ----------
 
 
+Edit history class.
+
 .. js:autoclass:: History
    :members:
 
@@ -164,6 +201,10 @@ js/history
 js/layout
 ---------
 
+
+Graphical layout helpers. Only finding nice tick labels for now. Taken from
+ here:
+ https://stackoverflow.com/questions/8506881/nice-label-algorithm-for-charts-with-minimum-ticks/16363437
 
 .. js:autofunction:: layout.nice_number
 
@@ -174,6 +215,8 @@ js/layout
 js/math
 -------
 
+
+All kinds of math helpers.
 
 .. js:autofunction:: math.clip
 
@@ -197,6 +240,8 @@ js/notification_center
 ----------------------
 
 
+Notification central.
+
 .. js:autofunction:: notification_center.remodel_notification
 
 
@@ -208,12 +253,15 @@ js/serialization
 ----------------
 
 
+
 .. js:autofunction:: serialization.objectify
 
 
 js/spline
 ---------
 
+
+Spline stuff. Some constants and BPoly wrapper. Spline data container.
 
 .. js:autoattribute:: KNOT
 
@@ -259,6 +307,8 @@ js/svg
 ------
 
 
+Working with SVG element helpers.
+
 .. js:autofunction:: svg.create_element
 
 
@@ -283,6 +333,8 @@ js/svg
 js/utils
 --------
 
+
+All kinds of util. Lots from http://youmightnotneedjquery.com.
 
 .. js:autofunction:: utils.ready
 
@@ -345,6 +397,8 @@ js/web_socket
 -------------
 
 
+Small web socket wrapper.
+
 .. js:autoclass:: WebSocketCentral
    :members:
 
@@ -352,6 +406,8 @@ js/web_socket
 js/widget
 ---------
 
+
+Base class for HTML web component. Simple HTMLElement with a toolbar div.
 
 .. js:autofunction:: widget.append_template_to
 

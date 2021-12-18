@@ -22,6 +22,8 @@ components/plotter
 ------------------
 
 
+Plotter widget.
+
 .. js:autoclass:: Line
    :members:
 

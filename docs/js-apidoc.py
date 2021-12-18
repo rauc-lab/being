@@ -1,9 +1,10 @@
 """Auto apidoc for JS."""
-import collections
-import shutil
 import argparse
+import collections
 import json
 import os
+import re
+import shutil
 import subprocess
 
 
@@ -43,7 +44,9 @@ def filter_doclets(doclets):
     """Filter doclets of interest."""
     seen = set()
     for doc in doclets:
-        if doc['kind'] not in [ 'constant', 'function', 'class' ]:
+        # Available kinds are ['class', 'function', 'constant', 'member',
+        # 'module', 'package']
+        if doc['kind'] not in [ 'module', 'constant', 'function', 'class' ]:
             continue
 
         if is_undocumented(doc):
@@ -66,15 +69,14 @@ def filter_doclets(doclets):
         yield doc
 
 
-def split_longname(longname):
-    """Splint doclet longname to module and object name."""
+def module_name(longname):
+    """Full module name from longname."""
     if not 'module:' in longname:
         raise RuntimeError(f'Unknown module for {longname!r}!')
 
-
     fullname = longname.removeprefix('module:')
-    modulename, objectname = fullname.split('.', maxsplit=1)
-    return modulename, objectname
+    modname = fullname.split('.', maxsplit=1)[0]
+    return modname
 
 
 def remove_prefix(text, prefix):
@@ -123,12 +125,18 @@ def format_rst_toctree(entries, maxdepth=4):
     )
 
 
+def parse_comment(comment):
+    starless = re.sub('\n\s*?\*\s*?', '\n', comment[3:-2]).strip()
+    atless = re.sub(r'(?m)^\s*@.*\n?', '', starless)
+    return atless
+
+
 def assign_doclets_to_packages(doclets):
     root = Rst('')
 
-    def resolve_module(modulename):
+    def resolve_module(modname):
         node = root
-        for name in modulename.split('/'):
+        for name in modname.split('/'):
             if name not in node.children:
                 Rst(name, parent=node)
 
@@ -137,9 +145,14 @@ def assign_doclets_to_packages(doclets):
         return node
 
     for doc in doclets:
-        modulename, _ = split_longname(doc['longname'])
-        module = resolve_module(modulename)
-        module.doclets.append(doc)
+        modname = module_name(doc['longname'])
+        module = resolve_module(modname)
+        if doc['kind'] in ['constant', 'function', 'class']:
+            module.doclets.append(doc)
+        elif doc['kind'] == 'module':
+            module.comment = doc['comment']
+        #elif doc['kind'] == 'package':
+        #    print(modname, doc['comment'])
 
     return [
         node
@@ -199,6 +212,7 @@ class Rst(Node):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.doclets = []
+        self.comment = ''
 
     @property
     def is_package(self):
@@ -212,10 +226,13 @@ class Rst(Node):
 
     def render_module(self):
         lines = [format_rst_section(self.fullname, level=2)]
+        if self.comment:
+            lines.append(parse_comment(self.comment))
+
         for doc in self.doclets:
             lines.append(format_rst_doclet(doc))
 
-        return '\n'.join(lines)
+        return lines
 
     def render_package(self):
         subpackages = []
@@ -240,13 +257,15 @@ class Rst(Node):
             for mod in submodules:
                 lines.append(mod.render())
 
-        return '\n'.join(lines)
+        return lines
 
     def render(self):
         if self.is_package:
-            return self.render_package()
+            lines = self.render_package()
         else:
-            return self.render_module()
+            lines = self.render_module()
+
+        return '\n'.join(lines)
 
 
 
