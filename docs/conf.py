@@ -131,7 +131,7 @@ plot_rcparams = {
 if shutil.which('jsdoc') is None:
     print('jsdoc is not install')
     print('Trying to install it')
-    subprocess.run(['npm', 'install', 'jsdoc'], check=True)
+    subprocess.run(['npm', 'install', '-g', 'jsdoc'], check=True)
 
 #js_source_path = '../being/web/static/js'
 js_source_path = [
