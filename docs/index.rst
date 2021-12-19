@@ -105,10 +105,10 @@ Table of Contents
    concepts
    tutorials
    guides
-   reference/being
 
-   web api/js
-   web api/components
+   being core/being
+   being web/js
+   being web/components
 
 
 Indices and tables
