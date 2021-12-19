@@ -2,10 +2,10 @@
 #rm -r _build
 
 # Generate API doc from source code
-rm -r reference
-#sphinx-apidoc --force --module-first --output-dir reference ../being
-sphinx-apidoc --force --module-first --output-dir "reference" "../being"
-python3 js-apidoc.py --output-dir "web api" "../being/web/static/js" "../being/web/static/components" 
+rm -r "being core"
+sphinx-apidoc --force --module-first --output-dir "being core" "../being"
+rm -r "being web"
+python3 js-apidoc.py --output-dir "being web" "../being/web/static/js" "../being/web/static/components"
 
 make html
 
