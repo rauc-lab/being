@@ -11,6 +11,8 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
 import os
+import shutil
+import subprocess
 import sys
 #sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('..'))
@@ -126,6 +128,11 @@ plot_rcparams = {
 }
 
 # sphinx-js configuration
+if shutil.which('jsdoc') is None:
+    print('jsdoc is not install')
+    print('Trying to install it')
+    subprocess.run(['npm', 'install', 'jsdoc'], check=True)
+
 #js_source_path = '../being/web/static/js'
 js_source_path = [
     '../being/web/static/js',
