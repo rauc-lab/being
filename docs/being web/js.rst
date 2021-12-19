@@ -12,9 +12,6 @@ js/api
 
 API definitions for communication with back-end.
 
-.. js:autofunction:: api.some_function
-
-
 .. js:autoclass:: Api
    :members:
 
