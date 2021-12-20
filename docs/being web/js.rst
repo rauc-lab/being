@@ -180,8 +180,11 @@ js/deque
 --------
 
 
-Deque array type with maxlen and better clearer naming (from Pythons
- collections.deque).
+Double ended queue.
+
+.. js:autoclass:: Deque
+   :members:
+
 
 js/draggable
 ------------

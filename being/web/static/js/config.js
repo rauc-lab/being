@@ -9,7 +9,7 @@
  */
 export const INTERVAL = 0.010;
 
-/** @const {string} - API address. */
+/** @const {string} - API url base address. */
 export const API = location.origin + "/api";
 
 /** @const {string} - Websocket address. */

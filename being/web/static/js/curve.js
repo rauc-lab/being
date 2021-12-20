@@ -12,7 +12,7 @@ export const ALL_CHANNELS = new Object();
 
 
 /**
- * Curve container.
+ * Curve container. A curve contains multiple individual splines (channels).
  * @param {array} splines - Individual curve splines.
  */
 export class Curve {
