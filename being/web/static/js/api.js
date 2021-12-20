@@ -151,16 +151,14 @@ export class Api {
      * tuples (most recently modified order).
      *
      * @example
-     * ```js
      * {
      *      type: "motions",
      *      curves: [
      *          ["some name", {"type": "Curve", ...}],
      *          ["other name", {"type": "Curve", ...}],
-     *          ...
+     *          // ...
      *      ]
      * }
-     * ```
      * 
      * @returns {object} Motions message object.
      */

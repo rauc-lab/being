@@ -20,7 +20,8 @@ js/array
 --------
 
 
-Numpy style array helpers.
+Numpy style array helpers. Most of these functions operate on standard and
+ nested JS arrays (like [0, 1, 2, 3] or [[0, 1, 2], [3, 4, 5]]).
 
 .. js:autofunction:: array.array_shape
 
@@ -59,6 +60,12 @@ Numpy style array helpers.
 
 
 .. js:autofunction:: array.transpose_array
+
+
+.. js:autofunction:: array.array_full
+
+
+.. js:autofunction:: array.diff_array
 
 
 js/bbox
