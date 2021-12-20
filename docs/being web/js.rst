@@ -72,7 +72,7 @@ js/bbox
 -------
 
 
-Bounding box class.
+Bounding box. Progressively expand 2d region.
 
 .. js:autoclass:: BBox
    :members:

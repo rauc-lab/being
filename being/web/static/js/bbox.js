@@ -1,5 +1,5 @@
 /**
- * Bounding box class.
+ * Bounding box. Progressively expand 2d region.
  * @module js/bbox
  */
 import { clip } from "/static/js/math.js";
@@ -7,6 +7,15 @@ import { clip } from "/static/js/math.js";
 
 /**
  * Two dimensional bounding box.
+ * @param {array} [ll=[Infinity, Infinity] - Lower left point.
+ * @param {array} [ur=[-Infinity, -Infinity] - Upper right point.
+ *
+ * @example
+ * bbox = new BBox();
+ * bbox.expand_by_point([1, 1]);
+ * bbox.expand_by_point([3, 2]);
+ * // outputs [2, 1]
+ * console.log(bbox.size);
  */
 export class BBox {
     constructor(ll=[Infinity, Infinity], ur=[-Infinity, -Infinity]) {
@@ -75,6 +84,7 @@ export class BBox {
 
     /**
      * Expand bounding box region.
+     * @param {array} pt - Point to add to bounding box.
      */
     expand_by_point(pt) {
         this.ll[0] = Math.min(this.ll[0], pt[0]);
@@ -85,6 +95,7 @@ export class BBox {
 
     /**
      * Expand bounding box region for some point.
+     * @param {array} pts - Points to add to bounding box.
      */
     expand_by_points(pts) {
         pts.forEach(pt => this.expand_by_point(pt));
@@ -92,7 +103,6 @@ export class BBox {
 
     /**
      * Expand bounding box region for another bounding box.
-     *
      * @param {BBox} bbox - Bounding box to expand this bounding box with.
      */
     expand_by_bbox(bbox) {
@@ -102,8 +112,8 @@ export class BBox {
 
     /**
      * Clip point inside bounding box.
-     *
      * @param {Array} pt - 2D point to clip.
+     * @returns {Array} Clipped point.
      */
     clip_point(pt) {
         return [
@@ -114,13 +124,15 @@ export class BBox {
 
     /**
      * Copy bounding box.
+     * @returns {BBox} New bounding box copy.
      */
     copy() {
         return new BBox([...this.ll], [...this.ur]);
     }
 
     /**
-     * Check if finite bounding box.
+     * Check if bounding box is finite.
+     * @returns {boolean} If finite.
      */
     is_finite() {
         const numbers = [this.ll, this.ur].flat();
