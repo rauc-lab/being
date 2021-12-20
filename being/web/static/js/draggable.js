@@ -1,5 +1,5 @@
 /**
- * Make something draggable. Manage mouse events for draggable actions.
+ * Make something draggable.
  * @module js/draggable
  */
 import { LEFT_MOUSE_BUTTON } from "/static/js/constants.js";
@@ -7,12 +7,14 @@ import { LEFT_MOUSE_BUTTON } from "/static/js/constants.js";
 
 /**
  * Dummy event listener.
+ * @param {MouseEvent} evt - Some mouse event.
  */
 function NO_ACTION(evt) {}
 
 
 /**
- * Stop event propagation.
+ * Stop event propagation callback. See `explanation <https://www.youtube.com/watch?v=HgzGwKwLmgM>`_.
+ * @param {Event} evt - Some event to stop.
  */
 function stop_propagation(evt) {
     evt.stopPropagation();
@@ -20,16 +22,22 @@ function stop_propagation(evt) {
 
 
 /**
+ * Make some element react to click and drag movements. User can provide his /
+ * her own event listeners for:
+ *   - Start of the drag motion (`start_drag`)
+ *   - During the drag motion (`drag`)
+ *   - End of drag motion  (`end_drag`)
  * 
- * @param {HTMLElement} ele HTML element to make draggable.
- * @param {Object} callbacks Drag event callbacks:
- *     {Function} start_drag
- *     {Function} drag
- *     {Function} end_drag
- * @param {Object} options Drag options:
- *     mouseButton {Number}: Which mouse button to react to (default is left mouse button).
- *     escapable {Boolean}: End drag by pressing ESC key (default is true).
- *     suppressClicks {Boolean}: End drag by pressing ESC key (default is true).
+ * Further options are:
+ *   - `mouseButton` {number}: Which mouse button to react to. Default is left
+ *     mouse button.
+ *   - `escapable` {boolean}: End drag by pressing ESC key. Default is true.
+ *   - `suppressClicks` {boolean}: Suppress normal mouse clicks when dragging
+ *     (only normal and double clicks). Default is true.
+ *
+ * @param {HTMLElement} ele - HTML element to make draggable.
+ * @param {Object} callbacks - Drag event callbacks (`start_drag`, `drag` and `end_drag`).
+ * @param {Object} options - Additional options.
  */
 export function make_draggable(ele, callbacks={}, options={}) {
     callbacks = Object.assign({
@@ -47,7 +55,7 @@ export function make_draggable(ele, callbacks={}, options={}) {
 
     /**
      * Start drag movement.
-     * @param {MouseEvent} evt Mouse event.
+     * @param {MouseEvent} evt - Mouse event.
      */
     function start_drag_internal(evt) {
         if (evt.which !== options.mouseButton) {
@@ -63,7 +71,7 @@ export function make_draggable(ele, callbacks={}, options={}) {
 
     /**
      * Drag element.
-     * @param {MouseEvent} evt Mouse event.
+     * @param {MouseEvent} evt - Mouse event.
      */
     function drag_internal(evt) {
         evt.preventDefault();
@@ -73,7 +81,7 @@ export function make_draggable(ele, callbacks={}, options={}) {
 
     /**
      * End dragging of element.
-     * @param {MouseEvent} evt Mouse event.
+     * @param {MouseEvent} evt - Mouse event.
      */
     function end_drag_internal(evt) {
         const moved = (evt.clientX !== startPos[0] || evt.clientY !== startPos[1]);
@@ -122,7 +130,7 @@ export function make_draggable(ele, callbacks={}, options={}) {
 
     /**
      * Escape drag by hitting escape key.
-     * @param {MouseEvent} evt Mouse event.
+     * @param {MouseEvent} evt - Mouse event.
      */
     function escape_drag_internal(evt) {
         if (evt.key === "Escape") {

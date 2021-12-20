@@ -20,10 +20,7 @@
  * // returns Deque(3) [2, 3, 4, _maxlen: 3]
  * console.log(queue);
  */
-export 
-
-
-class Deque extends Array {
+export class Deque extends Array {
     constructor(iterable=0, maxlen=Infinity) {
         super(iterable);
         this._maxlen = maxlen;
