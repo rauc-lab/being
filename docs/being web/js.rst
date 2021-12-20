@@ -82,7 +82,11 @@ js/button
 ---------
 
 
-Button helper stuff. Helper functions for using buttons as toggle buttons.
+Button helpers. Wrappers around material icons. Button icon can be specified
+ with the `iconName` string (see `Google Material Design Icon Gallery <https://fonts.google.com/icons>`_
+ for available icons).
+
+ Toggle buttons are normal buttons with the checked attribute set.
 
 .. js:autofunction:: button.create_button
 
@@ -112,12 +116,16 @@ js/color_map
 ------------
 
 
+Color maps. Currently only batlowK color map is available (see website of `Fabio Crameri <https://www.fabiocrameri.ch/batlow/>`_).
+
+.. js:autofunction:: color_map.get_color
+
 
 js/config
 ---------
 
 
-Some basic configurations.
+Some configuration values / definitions.
 
 .. js:autoattribute:: INTERVAL
 
@@ -156,9 +164,16 @@ js/curve
 --------
 
 
+Curve container.
+
+.. js:autoattribute:: ALL_CHANNELS
+
 
 .. js:autoclass:: Curve
    :members:
+
+
+.. js:autofunction:: curve.Curve.from_dict
 
 
 js/deque

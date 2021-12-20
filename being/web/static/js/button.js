@@ -1,19 +1,23 @@
 /**
- * Button helper stuff. Helper functions for using buttons as toggle buttons.
+ * Button helpers. Wrappers around material icons. Button icon can be specified
+ * with the `iconName` string (see `Google Material Design Icon Gallery <https://fonts.google.com/icons>`_
+ * for available icons).
+ *
+ * Toggle buttons are normal buttons with the checked attribute set.
+ *
  * @module js/button
  */
 
 
-/** Checked string literal */
+/** @const {string} - Checked string literal */
 const CHECKED = "checked";
 
 
 /**
- * Create new HTML button (material-icons class).
- *
- * @param {String} iconName Icon name string identifier.
- * @param {String} title Tooltip for button
- * @returns HTMLButton
+ * Create new material HTML button.
+ * @param {string} iconName - Icon name string identifier.
+ * @param {string} title - Tooltip for button
+ * @returns {HTMLButtonElement} New HTML button.
  */
 export function create_button(iconName, title="") {
     const btn = document.createElement("button");
@@ -41,9 +45,8 @@ export function create_button(iconName, title="") {
 
 
 /**
- * Toggle checked attribute of HTML button.
- *
- * @param {object} btn Button to toggle.
+ * Toggle button (toggle checked attribute of HTML button).
+ * @param {HTMLButtonElement} btn - Button to toggle.
  */
 export function toggle_button(btn) {
     btn.toggleAttribute(CHECKED);
@@ -51,9 +54,8 @@ export function toggle_button(btn) {
 
 
 /**
- * Switch toggle HTML button off.
- *
- * @param {object} btn Button to switch off.
+ * Switch off toggle button.
+ * @param {HTMLButtonElement} btn - Button to switch off.
  */
 export function switch_button_off(btn) {
     btn.removeAttribute(CHECKED);
@@ -61,9 +63,8 @@ export function switch_button_off(btn) {
 
 
 /**
- * Switch toggle HTML button on.
- *
- * @param {object} btn Button to switch on.
+ * Switch on toggle button.
+ * @param {HTMLButtonElement} btn - Button to switch on.
  */
 export function switch_button_on(btn) {
     btn.setAttribute(CHECKED, "");
@@ -71,10 +72,9 @@ export function switch_button_on(btn) {
 
 
 /**
- * Switch button to given state.
- * 
- * @param {HtmlElement} btn Button to switch.
- * @param {Boolean} state Target state.
+ * Switch toggle button to given state.
+ * @param {HTMLButtonElement} btn - Button to switch.
+ * @param {boolean} state - Target state.
  */
 export function switch_button_to(btn, state) {
     if (state) {
@@ -86,9 +86,9 @@ export function switch_button_to(btn, state) {
 
 
 /**
- * Check if button has checked attribute / is turned on.
- *
- * @param {object} btn HTML button.
+ * Check if button is toggled (if checked attribute is set).
+ * @param {HTMLButtonElement} btn - Button to check.
+ * @returns {boolean} If button is checked.
  */
 export function is_checked(btn) {
     return btn.hasAttribute(CHECKED);
@@ -97,8 +97,7 @@ export function is_checked(btn) {
 
 /**
  * Enable button.
- *
- * @param {object} btn HTML button.
+ * @param {HTMLButtonElement} btn - Button to enable.
  */
 export function enable_button(btn) {
     btn.disabled = false;
@@ -107,8 +106,7 @@ export function enable_button(btn) {
 
 /**
  * Disable button.
- *
- * @param {object} btn HTML button.
+ * @param {HTMLButtonElement} btn - Button to disable.
  */
 export function disable_button(btn) {
     btn.disabled = true;

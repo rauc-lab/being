@@ -1,10 +1,12 @@
 /**
- * Some basic configurations.
+ * Some configuration values / definitions.
  * @module js/config
  */
 
 
-/** @const {number} - Main loop interval of being block network. */
+/** @const {number} - Main loop interval of being block network.
+ * @deprecated Should be loaded from backend via API.
+ */
 export const INTERVAL = 0.010;
 
 /** @const {string} - API address. */

@@ -1,8 +1,12 @@
 /**
+ * Color maps. Currently only batlowK color map is available (see website of `Fabio Crameri <https://www.fabiocrameri.ch/batlow/>`_).
+ *
  * @module js/color_map
  */
 import { clip } from "/static/js/math.js";
 
+
+/** @const {object} - Color map definitions */
 const COLOR_MAPS = {
     "batlowK": [
         "#020305", "#030507", "#04070a", "#05090c", "#060b0f", "#070d11",
@@ -51,6 +55,18 @@ const COLOR_MAPS = {
     ],
 }
 
+
+/**
+ * Lookup color value for some alpha in [0.0, 1.0]. Returned color value is
+ * `not` interpolated! Simply the next lower color value is picked.
+ * @param {number} alpha - Normalized number value.
+ * @param {string} [name=batlowK] - Color map name.
+ * @returns {string} Color value.
+ *
+ * @example
+ * // returns "#8e7f32"
+ * get_color(.5);
+ */
 export function get_color(alpha, name="batlowK") {
     if (!(name in COLOR_MAPS)) {
         throw "Unknown color map '" + name + "'";
