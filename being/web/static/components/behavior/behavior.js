@@ -1,8 +1,5 @@
 /**
- * behavior Behavior web component widget.
- *
- * The HTML <being-behavior> widget needs to know its behavior id, so that we
- * can map the API requests correctly (via an instance of BehaviorApi).
+ * Behavior widget web component.
  *
  * @module components/behavior/behavior
  */
@@ -14,14 +11,14 @@ import { remove_all_children } from "/static/js/utils.js";
 import { round } from "/static/js/math.js";
 
 
-/** Maximum attnetion span in seconds */
-const MAX_ATTENTION_SPAN = 30.;
+/** @constant {number} - Maximum attention span in seconds */
+const MAX_ATTENTION_SPAN = 30.0;
 
-/** Number of tick of attention span slider. */
+/** @constant {number} - Number of tick of attention span slider. */
 const N_TICKS = 1000;
 
-/** @const {HTMLElement} - Main template for behavior widget. */
-const BEHAVIOR_TEMPLATE = `
+/** @constant {string} - Template string for behavior widget. */
+export const BEHAVIOR_TEMPLATE = `
 <div class="container">
     <div id="statesDiv" class="states"></div>
 </div>
@@ -30,25 +27,51 @@ const BEHAVIOR_TEMPLATE = `
 
 /**
  * Behavior API for a given behavior ID.
+ *
+ * @param {number} id - Behavior block id.
  */
-class BehaviorApi extends Api {
+export class BehaviorApi extends Api {
     constructor(id) {
         super();
         this.id = id;
     }
 
+    /**
+     * Load behavior block for a given block id.
+     *
+     * @returns {Promise} Behavior block.
+     */
     async load_behavior() {
         return get_json(API + "/behaviors/" + this.id);
     }
 
+    /**
+     * Load available behavior states.
+     *
+     * @todo Block id is superfluous here and should be removed (also in backend).
+     *
+     * @returns {Promise} Behavior states.
+     */
     async load_behavior_states() {
         return get_json(API + "/behaviors/" + this.id + "/states");
     }
 
+    /**
+     * Toggle behavior playback.
+     *
+     * @returns {Promise} Updated behavior block.
+     */
     async toggle_behavior_playback() {
         return put_json(API + "/behaviors/" + this.id + "/toggle_playback");
     }
 
+    /**
+     * Send behavior params to backend.
+     *
+     * @params {object} params - Behavior params object.
+     *
+     * @returns {Promise} Updated behavior block.
+     */
     async send_behavior_params(params) {
         return put_json(API + "/behaviors/" + this.id + "/params", params);
     }
@@ -56,7 +79,13 @@ class BehaviorApi extends Api {
 
 
 /**
- * Behavior widget.
+ * Behavior widget web component (``<being-behavior>``). This widget shows the
+ * different behavior states and the selected curves for each state.
+ * Additionally there is the attention span slider for the second state.
+ *
+ * Important! Behavior id has to be set via a HTML attribute ``<being-behavior
+ * behaviorId=42></being-behavior>`` so that API requests can be mapped
+ * correctly.
  */
 export class Behavior extends Widget {
     constructor() {
@@ -74,6 +103,8 @@ export class Behavior extends Widget {
     /**
      * Get behavior id for this widget from "behaviorId" HTML attribute as int.
      * Return -1 if not set.
+     *
+     * @returns {number} Behavior id.
      */
     get id() {
         const attr = this.getAttribute("behaviorId");
@@ -149,7 +180,7 @@ export class Behavior extends Widget {
     /**
      * Populate box for each state.
      *
-     * @param {Array} stateNames Array of state names.
+     * @param {array} stateNames - Array of state names.
      */
     populate_states(stateNames) {
         remove_all_children(this.statesDiv);
@@ -195,7 +226,7 @@ export class Behavior extends Widget {
     /**
      * Update motion name lists.
      *
-     * @param {Array} names Motion names.
+     * @param {array} names - Motion names.
      */
     populate_motions(names) {
         /** Counter for id number prefix in order to distinguish between the
@@ -231,7 +262,7 @@ export class Behavior extends Widget {
     /**
      * Mark active state.
      *
-     * @param {Number} nr State number (enum value).
+     * @param {number} nr - State number. Currently 0, 1 or 2.
      */
     mark_active_state(nr) {
         this.statesDiv.childNodes.forEach((child, i) => {
@@ -243,6 +274,11 @@ export class Behavior extends Widget {
         });
     }
 
+    /**
+     * Update content of attention span label.
+     *
+     * @param {number} duration - Duration value.
+     */
     update_attention_span_label(duration) {
         this.attentionSpanSpan.innerHTML = round(duration, 1) + " sec";
     }
@@ -250,7 +286,7 @@ export class Behavior extends Widget {
     /**
      * Update attention span elements.
      *
-     * @param {Number} duration Attention span time duration in seconds.
+     * @param {number} duration - Attention span time duration in seconds.
      */
     update_attention_span_slider(duration) {
         const value = duration / MAX_ATTENTION_SPAN * N_TICKS;
@@ -273,7 +309,7 @@ export class Behavior extends Widget {
     /**
      * Update all UI elements from a behavior message.
      *
-     * @param {Object} behavior Behavior info object.
+     * @param {Object} behavior - Behavior info object.
      */
     update(behavior) {
         if (behavior.id !== this.id) {
@@ -321,18 +357,20 @@ export class Behavior extends Widget {
     }
 
     /**
-     * New behavior message callback for web socket.
+     * Process new behavior message from backend. Callback for for web socket
+     * (:class:`js/web_socket.WebSocketCentral`).
      *
-     * @param {Object} msg Received message to process.
+     * @param {Object} msg - Behavior message.
      */
     async new_behavior_message(msg) {
         this.update(msg.behavior);
     }
 
     /**
-     * New content changed message callback for web socket.
+     * Process new content changed message from backend. Callback for web
+     * socket (:class:`js/web_socket.WebSocketCentral`).
      *
-     * @param {Object} msg ?
+     * @param {Object} msg - Content changed message.
      */
     async content_message(msg) {
         const names = msg.curves.map(curvename => curvename[0]);

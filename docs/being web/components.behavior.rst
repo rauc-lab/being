@@ -2,6 +2,12 @@ components/behavior
 ===================
 
 
+Behavior widget.
+
+.. image:: ../images/behavior\ widget.png
+   :alt: Behavior widget screenshot.
+   :align: center
+
 Submodules
 ----------
 
@@ -10,10 +16,14 @@ components/behavior/behavior
 ----------------------------
 
 
-behavior Behavior web component widget.
+Behavior widget web component.
 
-The HTML <being-behavior> widget needs to know its behavior id, so that we
-can map the API requests correctly (via an instance of BehaviorApi).
+.. js:autoattribute:: BEHAVIOR_TEMPLATE
+
+
+.. js:autoclass:: BehaviorApi
+   :members:
+
 
 .. js:autoclass:: Behavior
    :members:

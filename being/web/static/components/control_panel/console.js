@@ -1,17 +1,24 @@
 /**
  * Console functionality for control panel.
  *
+ * .. image:: ../images/console.png
+ *    :width: 50%
+ *    :align: center
+ *    :alt: Console part of control panel widget.
+ *
  * @module components/control_panel/console
  */
-import {get_color} from "/static/js/color_map.js";
+import { get_color } from "/static/js/color_map.js";
 
 
-/** Maximum log level. */
+/** @constant {number} Maximum log level. */
 const MAX_LOG_LEVEL = 50;
 
 
 /**
  * Get current time in seconds.
+ *
+ * @returns {number} Seconds timestamp.
  */
 function time() {
     return Date.now() / 1000;
@@ -19,9 +26,12 @@ function time() {
 
 
 /**
- * Console logic. Feeds new log messages in an associated ul list element. Has
- * *block auto scrolling* functionality -> Turn off auto scrolling when cursor
- * is over ul list element.
+ * Console logic. Feeds new log messages in an associated `ul` list element.
+ * Has `block auto scrolling` functionality -> Turn off auto scrolling when
+ * cursor is over ul list element.
+ *
+ * @param {HTMLUListElement} list - HTML ul list to populate.
+ * @param {number} [maxlen=50] - Maximum number of log entries.
  */
 export class Console {
     constructor(list, maxlen=50) {
@@ -39,6 +49,7 @@ export class Console {
 
     /**
      * Check if auto scrolling enabled.
+     * @type {boolean}
      */
     get auto_scrolling() {
         const now = time();
@@ -54,7 +65,7 @@ export class Console {
     }
 
     /**
-     * Scroll to bottom.
+     * Scroll to the bottom.
      */
     scroll_all_the_way_down() {
         this.list.scrollTop = this.list.scrollHeight;
@@ -62,8 +73,11 @@ export class Console {
 
     /**
      * Process new log record.
+     *
+     * @param {object} record - New log record.
      */
     new_log_message(record) {
+        console.log("record:", record);
         while (this.list.childNodes.length > this.maxlen) {
             this.remove_oldest_log();
         }
@@ -81,7 +95,7 @@ export class Console {
     }
 
     /**
-     * Copy current log messages to clipboard.
+     * Copy all of the current log messages to the clipboard.
      */
     copy_log_records_to_clipboard() {
         // Copy record texts to clipboard via dummy input element.
@@ -98,4 +112,3 @@ export class Console {
         document.body.removeChild(input);
     }
 }
-

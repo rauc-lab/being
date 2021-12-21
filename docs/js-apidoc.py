@@ -224,8 +224,8 @@ class Rst(Node):
         fullname = '/'.join(reversed(names))
         return remove_prefix(fullname, '/')
 
-    def render_module(self):
-        lines = [format_rst_section(self.fullname, level=2)]
+    def comment_lines(self):
+        lines = []
         if self.comment:
             parsed = parse_comment(self.comment)
 
@@ -239,6 +239,12 @@ class Rst(Node):
                 lines.append(l)
 
             lines.append('')
+
+        return lines
+
+    def render_module(self):
+        lines = [format_rst_section(self.fullname, level=2)]
+        lines.extend(self.comment_lines())
 
         for doc in self.doclets:
             lines.append(format_rst_doclet(doc))
@@ -255,6 +261,7 @@ class Rst(Node):
                 submodules.append(child)
 
         lines = [format_rst_section(self.fullname, level=1)]
+        lines.extend(self.comment_lines())
         if subpackages:
             lines.append(format_rst_section('Submodules', level=2))
             entries = [

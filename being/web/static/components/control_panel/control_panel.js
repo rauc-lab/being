@@ -1,5 +1,5 @@
 /**
- * Control panel widget with console.
+ * Control panel widget web component.
  *
  * @module components/control_panel/control_panel
  */
@@ -11,11 +11,7 @@ import { switch_button_on, switch_button_off, is_checked } from "/static/js/butt
 import { isclose } from "/static/js/math.js";
 
 
-import {API} from "/static/js/config.js";
-import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js/fetching.js";
-
-
-/** Control panel widget template. */
+/** @constant {string} - Control panel widget template. */
 const CONTROL_PANEL_TEMPLATE = `
 <div class="container">
     <svg id="svg" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
@@ -24,6 +20,10 @@ const CONTROL_PANEL_TEMPLATE = `
 `;
 
 
+/**
+ * Control panel web component widget ``<being-control-panel>``. Holds block
+ * network graph and console, animates connection activity.
+ */
 export class ControlPanel extends Widget {
     constructor() {
         super();
@@ -39,10 +39,16 @@ export class ControlPanel extends Widget {
         this.motorState = 3;
     }
 
+    /**
+     * Associate notification center.
+     */
     set_notification_center(notificationCenter) {
         this.notificationCenter = notificationCenter;
     }
 
+    /**
+     * Initialize HTML elements with shadow dom.
+     */
     init_html_elements() {
         this.append_link("static/components/control_panel/control_panel.css");
         this.append_template(CONTROL_PANEL_TEMPLATE);
@@ -133,7 +139,7 @@ export class ControlPanel extends Widget {
     /**
      * For new motor infos update widget.
      *
-     * @param {Array} motors Current motor infos.
+     * @param {array} motors - Current motor infos.
      */
     update(motors) {
         this.motorState = 3;  // MotorState.ENABLED + 1...
@@ -156,7 +162,8 @@ export class ControlPanel extends Widget {
      * Process new motor update messages. These can be of type "motor-update"
      * or "motor-updates" for batch update of all motors.
      * 
-     * @param {Object} msg Motor update message. Either for a single or multiple motors.
+     * @param {Object} msg - Motor update message. Either for a single or
+     *     multiple motors.
      */
     new_motor_message(msg) {
         if (msg.type === "motor-update") {
@@ -170,14 +177,18 @@ export class ControlPanel extends Widget {
 
     /**
      * Process new log message. Relay to console.
+     *
+     * @param {Object} msg - Log message.
      */
     new_log_message(msg) {
         this.console.new_log_message(msg);
     }
 
     /**
-     * Process new being-state messages. Check for new messages and trigger
-     * message connection dot animation.
+     * Process being-state messages. Check for new messages and trigger message
+     * connection dot animation.
+     *
+     * @param {Object} msg - Being state message.
      */
     new_being_state_message(msg) {
         this.messageConnections.forEach(con => {
@@ -202,7 +213,8 @@ export class ControlPanel extends Widget {
 
     /**
      * Set flowing state / animation of value connection.
-     * @param {Bool} - flowing Flow state true / false
+     *
+     * @param {boolean} flowing - Flow state true / false
      */
     set_value_connection_flow(flowing) {
         this.valueConnections.forEach(con => {
@@ -214,4 +226,5 @@ export class ControlPanel extends Widget {
         });
     }
 }
+
 customElements.define("being-control-panel", ControlPanel);

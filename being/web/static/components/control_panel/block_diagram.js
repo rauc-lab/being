@@ -1,17 +1,20 @@
 /**
- * Block diagram functionality for control panel. Assumes the following
- * third-party Javascript libraries are loaded:
- *   - ELK
+ * Block diagram functionality for control panel. Relies on the third-party
+ * library `elkjs <https://github.com/kieler/elkjs>`_. Renders being block
+ * diagram to the :class:`components/control_panel/control_panel.ControlPanel`
+ * widget.
  *
  * @module components/control_panel/block_diagram
  */
+import { deep_copy, remove_all_children, } from "/static/js/utils.js";
+import { create_element, path_d, setattr, } from "/static/js/svg.js";
+import { subtract_arrays, add_arrays, } from "/static/js/array.js";
 
-import {deep_copy, remove_all_children} from "/static/js/utils.js";
-import {create_element, setattr} from "/static/js/svg.js";
-import {subtract_arrays, add_arrays} from "/static/js/array.js";
 
-
-/** The 4x possible incoming / outgoing directions of a connection. */
+/** 
+ * @constant {object} The 4x possible incoming / outgoing directions of a
+ * connection.
+ */
 const Direction = Object.freeze({
     "NORTH": 0,
     "WEST": 1,
@@ -19,7 +22,8 @@ const Direction = Object.freeze({
     "EAST": 3,
 });
 
-/** SVG CSS styling */
+
+/** @constant {string} SVG CSS styling for block diagram. */
 const BLOCK_DIAGRAM_SVG_STYLE = `
     .block rect {
         stroke: black;
@@ -60,10 +64,11 @@ const BLOCK_DIAGRAM_SVG_STYLE = `
 
 
 /**
- * Convert a pont object into a 2d array.
+ * Convert a point object to 2D array.
  *
- * @param {Obect} pt Point object.
- * @returns 2d point array.
+ * @param {Object} pt - Point object.
+ *
+ * @returns {array} 2D array.
  */
 function pt_to_array(pt) {
     return [pt.x, pt.y];
@@ -71,10 +76,10 @@ function pt_to_array(pt) {
 
 
 /**
- * Add marker definition (#arrowhead) to SVG.
+ * Generate marker definition #arrowhead for SVG.
  * Taken from here: http://thenewcode.com/1068/Making-Arrows-in-SVG
  *
- * @param {?} svg SVG HTML element.
+ * @returns {SVGMarkerElement} SVG marker definition.
  */
 function arrow_marker_definition() {
     const marker = create_element("marker");
@@ -96,13 +101,15 @@ function arrow_marker_definition() {
 
 
 /**
- * Draw a ELK layout node on a SVG. Also draw a text with the name.
+ * Draw a ELK layout block node on a SVG. Drawn as rectangle with the node's
+ * name inside.
  *
- * @param {?} svg SVG HTML element.
- * @param {Object} child Node object from ELK layout graph.
- * @returns SVG group element representing the block.
+ * @param {SVGElement} svg - SVG HTML element to draw on.
+ * @param {Object} node - Node object from ELK layout graph.
+ *
+ * @returns SVG group element representing the node.
  */
-function draw_block(svg, block) {
+function draw_block_node(svg, block) {
     const g = create_element("g");
     g.classList.add("block");
 
@@ -127,38 +134,17 @@ function draw_block(svg, block) {
 
 
 /**
- * Draw a staight line on a SVG.
+ * Calculate cubic SVG path d string for a curvy line connecting two points.
  *
- * @param {?} svg SVG HTML element.
- * @param {Array} start 2d start point.
- * @param {Array} end 2d end point.
- * @returns SVG line element.
- */
-function draw_line(svg, start, end) {
-    const [x1, y1] = start;
-    const [x2, y2] = end;
-    const line = create_element("line");
-    line.classList.add("connection");
-    setattr(line, "x1", x1);
-    setattr(line, "y1", y1);
-    setattr(line, "x2", x2);
-    setattr(line, "y2", y2);
-    svg.appendChild(line);
-    return line;
-}
-
-
-/**
- * Generate curvy connection line SVG cubic path string.
+ * @param {array} start - Start point.
+ * @param {Direction} startDir - Start direction.
+ * @param {array} end - 2d end point.
+ * @param {Direction} endDir - End direction.
  *
- * @param {Array} start Start point.
- * @param {Direction} startDir Start direction.
- * @param {Array} end 2d end point.
- * @param {Direction} endDir End direction.
  * @returns SVG cubic path string.
  */
-function curvy_path(start, startDir, end, endDir) {
-    // Offset vectors for each 4x possible connection direction
+function curvy_path_d(start, startDir, end, endDir) {
+    // Offset vectors for each of the 4x possible connection direction
     const offsets = {};
     const [dx, dy] = subtract_arrays(end, start);
     offsets[Direction.NORTH] = [0, -dy];
@@ -173,17 +159,19 @@ function curvy_path(start, startDir, end, endDir) {
         add_arrays(end, offsets[endDir]),
         end,
     ];
-    return "M" + cps[0] + "C" + cps.slice(1).flat();
+    return path_d(cps);
 }
 
 
 /**
  * Attache a moving dot animation to the SVG element. Along a path.
  *
- * @param {SVGElement} svg SVG element.
- * @param {String} d SVG path string.
- * @param {Number} duration Moving dot animation duration.
- * @returns {Object} Object with trigger function to start the animation.
+ * @param {SVGElement} svg - SVG element.
+ * @param {String} d - SVG path string.
+ * @param {Number} duration - Moving dot animation duration.
+ *
+ * @returns {Object} Object with attached trigger function to start the
+ *     animation.
  */
 function attach_moving_dot_animation(svg, d, duration=0.4) {
     const circle = create_element("circle");
@@ -217,12 +205,13 @@ function attach_moving_dot_animation(svg, d, duration=0.4) {
 
 
 /**
- * Determine the connection direction on a ELK block node. Does the connection
- * go NORTH, WEST, SOUTH or EAST?
+ * Given a point on the edge of a ELK block, determine the connection
+ * direction. Does the connection go NORTH, WEST, SOUTH or EAST?
  *
- * @param {Array} pt 2d point.
- * @param {Object} child ELK layout graph node.
- * @returns Connection direction.
+ * @param {array} pt - 2d edge point.
+ * @param {Object} child - ELK layout graph node.
+ *
+ * @returns {Direction} Connection direction.
  */
 function determine_connection_direction(pt, block) {
     // TODO: More sophisticated connection direction which also work for points
@@ -256,15 +245,19 @@ function get_connection_path_from_section(section, lookup) {
     const end = pt_to_array(section.endPoint);
     const outgoing = lookup[section.outgoingShape];
     const endDir = determine_connection_direction(end, outgoing);
-    return curvy_path(start, startDir, end, endDir);
+    return curvy_path_d(start, startDir, end, endDir);
 }
 
 
 /**
- * Draw block diagram on SVG.
+ * Draw block diagram graph on SVG. Also prepares the animations inside.
+ * Returns an array with all value and message connections. These references
+ * can then be used to trigger / steer animations.
  *
- * @param {?} svg SVG element to draw to.
- * @param {Object} graph Block network graph.
+ * @param {SVGElement} svg - SVG element to draw on.
+ * @param {Object} graph - Block network graph.
+ *
+ * @returns {array} All value and message connections.
  */
 export async function draw_block_diagram(svg, graph) {
     const layout = deep_copy(graph);
@@ -306,8 +299,8 @@ export async function draw_block_diagram(svg, graph) {
     svg.appendChild(defs);
 
     // Draw blocks
-    layout.children.forEach(block => {
-        draw_block(svg, block);
+    layout.children.forEach(node => {
+        draw_block_node(svg, node);
     });
 
     // Draw edges / connections lines
