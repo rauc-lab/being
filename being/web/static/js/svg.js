@@ -1,5 +1,6 @@
 /**
  * Working with SVG elements.
+ *
  * @module js/svg
  */
 import {Order} from "/static/js/spline.js";
@@ -11,7 +12,9 @@ const SVG_XML_NS = "http://www.w3.org/2000/svg";
 
 /**
  * Create SVG element.
+ *
  * @param {string} tag - SVG element tag name.
+ *
  * @returns {SVGElement} Freshly created SVG element.
  */
 export function create_element(tag) {
@@ -21,6 +24,7 @@ export function create_element(tag) {
 
 /**
  * Set attribute of SVG element.
+ *
  * @param {SVGElement} ele - SVG element.
  * @param {string} name - Attribute name.
  * @param {number|string} value - Attribute value.
@@ -31,8 +35,10 @@ export function setattr(ele, name, value) {
 
 /**
  * Get attribute of SVG element. 
+ *
  * @param {SVGElement} ele - SVG element.
  * @param {String} name - Attribute name.
+ *
  * @returns {number|string} Attribute value.
  */
 export function getattr(ele, name) {
@@ -45,6 +51,7 @@ export function getattr(ele, name) {
  * 
  * @param {array} cps - Bézier control points for one segment. Number of
  *     control points defines the curve degree.
+ *
  * @returns {string} SVG path d attribute string.
  *
  * @example
@@ -68,10 +75,12 @@ export function path_d(cps) {
 
 /**
  * Draw control points as path onto SVG.
+ *
  * @param {SVGElement} svg - Target SVG element.
  * @param {array} cps - Control points.
  * @param {number} [strokeWidth=1] - Stroke width.
  * @param {string} [color=black] - Stroke color.
+ *
  * @returns {SVGPathElement} New SVG path element.
  */
 export function draw_path(svg, cps, strokeWidth = 1, color = "black") {
@@ -87,10 +96,12 @@ export function draw_path(svg, cps, strokeWidth = 1, color = "black") {
 
 /**
  * Draw circle onto SVG.
+ *
  * @param {SVGElement} svg - Target SVG element.
  * @param {array} center - Circle center.
  * @param {number} [radius=1] - Circle radius.
  * @param {string} [color=red] - Fill color.
+ *
  * @returns {SVGCircleElement} New SVG circle element.
  */
 export function draw_circle(svg, center, radius = 1, color = "red") {
@@ -107,11 +118,13 @@ export function draw_circle(svg, center, radius = 1, color = "red") {
 
 /**
  * Draw line onto SVG.
+ *
  * @param {SVGElement} svg - Target SVG element.
  * @param {array} start - Start point.
  * @param {array} end - End point.
  * @param {number} [strokeWidth=1] - Stroke width.
  * @param {string} [color=black] - Stroke color.
+ *
  * @returns {SVGLineElement} New SVG circle element.
  */
 export function draw_line(svg, start, end, strokeWidth = 1, color = "black") {

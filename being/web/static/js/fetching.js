@@ -1,12 +1,15 @@
 /**
  * Wrapper verbs around standard JS fetch.
+ *
  * @module js/fetching
  */
 
 
 /**
  * HTTP GET request.
+ *
  * @param {string} url - URL parameter.
+ *
  * @returns {Promise} HTTP response.
  */
 export function get(url) {
@@ -16,7 +19,9 @@ export function get(url) {
 
 /**
  * HTTP PUT request.
+ *
  * @param {string} url - URL parameter.
+ *
  * @returns {Promise} HTTP response.
  */
 export function put(url) {
@@ -26,7 +31,9 @@ export function put(url) {
 
 /**
  * HTTP POST request.
+ *
  * @param {string} url - URL parameter.
+ *
  * @returns {Promise} HTTP response.
  */
 export function post(url) {
@@ -37,7 +44,9 @@ export function post(url) {
 /**
  * HTTP DELETE request. The odd one out since delete is a reserved JS
  * keyword...
+ *
  * @param {string} url - URL parameter.
+ *
  * @returns {Promise} HTTP response.
  */
 export function delete_fetch(url) {
@@ -47,6 +56,7 @@ export function delete_fetch(url) {
 
 /**
  * Fetch JSON data from or to url.
+ *
  * @param {string} url - URL parameter.
  * @param {string} method - HTTP method to use.
  * @param {Object} data - JSON data (for PUT and POST methods).
@@ -72,7 +82,9 @@ export async function fetch_json(url, method = "GET", data = {}) {
 
 /**
  * Get JSON data from url.
+ *
  * @param {string} url - URL parameter.
+ *
  * @returns {object} JSON payload.
  */
 export function get_json(url) {
@@ -82,7 +94,9 @@ export function get_json(url) {
 
 /**
  * Post JSON data to url.
+ *
  * @param {string} url - URL parameter.
+ *
  * @param {object} data - Payload.
  */
 export function post_json(url, data) {
@@ -92,7 +106,9 @@ export function post_json(url, data) {
 
 /**
  * Put JSON data to url.
+ *
  * @param {string} url - URL parameter.
+ *
  * @param {object} data - Payload.
  */
 export function put_json(url, data) {

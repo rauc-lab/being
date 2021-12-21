@@ -1,5 +1,6 @@
 /**
  * Editing history.
+ *
  * @module js/history
  */
 import { Deque } from "/static/js/deque.js";
@@ -10,6 +11,7 @@ import { last_element } from "/static/js/utils.js";
  * Editing history container. Keeps track of changes in a `past` and `future`
  * queue. Allows for capturing new states and retrieving the current one. An
  * editing state can be an arbitrary JS object.
+ *
  * @param {number} maxlen - Maximum lengths of past and future queues.
  */
 export class History {
@@ -53,6 +55,7 @@ export class History {
     /**
      * Capture a new state and add it to the history. This will clear the
      * future.
+     *
      * @param {object} state - State to capture / add to history.
      */
     capture(state) {
@@ -62,6 +65,7 @@ export class History {
 
     /**
      * Retrieve current state.
+     *
      * @returns {object | null} current state (if any).
      */
     retrieve() {
@@ -74,6 +78,7 @@ export class History {
 
     /**
      * Wind back one state.
+     *
      * @returns {object} Newly current state.
      */
     undo() {
@@ -88,6 +93,7 @@ export class History {
 
     /**
      * Fast forward one state.
+     *
      * @returns {object} Newly current state.
      */
     redo() {

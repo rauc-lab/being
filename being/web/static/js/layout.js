@@ -9,8 +9,10 @@
 
 /**
  * Find nice number for data range.
+ *
  * @param {number} range - Data space width.
  * @param {boolean} round - Perform number rounding.
+ *
  * @returns {number} Nice number.
  */
 export function nice_number(range, round = false) {
@@ -43,9 +45,11 @@ export function nice_number(range, round = false) {
 
 /**
  * Nice tick numbers for a given data range.
+ *
  * @param {number} lower - Lower limit of data range.
  * @param {number} upper - Upper limit of data range.
  * @param {number} maxTicks - Maximum number of ticks.
+ *
  * @returns {array} Tick number candidates.
  */
 export function tick_space(lower, upper, maxTicks=5) {

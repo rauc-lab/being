@@ -1,5 +1,6 @@
 /**
  * Curve container.
+ *
  * @module js/curve
  */
 import { array_min, array_max } from "/static/js/array.js";
@@ -13,6 +14,7 @@ export const ALL_CHANNELS = new Object();
 
 /**
  * Curve container. A curve contains multiple individual splines (channels).
+ *
  * @param {array} splines - Individual curve splines.
  */
 export class Curve {
@@ -76,6 +78,8 @@ export class Curve {
 
     /**
      * Calculate bounding box of curve.
+     *
+     * @returns {BBox} Curve bounding box.
      */
     bbox() {
         const bbox = new BBox();
@@ -87,6 +91,7 @@ export class Curve {
 
     /**
      * Restrict curve to bounding box (in place).
+     *
      * @param {BBox} bbox - Restricting bounding box.
      */
     restrict_to_bbox(bbox) {
@@ -97,6 +102,7 @@ export class Curve {
 
     /**
      * Copy curve.
+     *
      * @returns {Curve} - New curve copy.
      */
     copy() {
@@ -107,7 +113,9 @@ export class Curve {
 
     /**
      * Build curve from JSON object (deserialization). No checks are performed.
+     *
      * @param {object} dct - JSON object.
+     *
      * @returns {Curve} - Deserialized curve instance.
      */
     static from_dict(dct) {
@@ -117,6 +125,7 @@ export class Curve {
 
     /**
      * Convert curve to JSON object representation (for serialization).
+     *
      * @returns {object} - JSON object.
      */
     to_dict() {
@@ -128,6 +137,7 @@ export class Curve {
 
     /**
      * Scale curve position values by some scalar factor (in place).
+     *
      * @param {number} factor - Scale factor.
      * @param {number} [channel=ALL_CHANNELS] - Target channel.
      */
@@ -141,6 +151,7 @@ export class Curve {
 
     /**
      * Stretch curve in time by some factor (in place).
+     *
      * @param {number} factor - Stretch factor.
      * @param {number} [channel=ALL_CHANNELS] - Target channel.
      */
@@ -154,6 +165,7 @@ export class Curve {
 
     /**
      * Shift curve in time by some offset (in place).
+     *
      * @param {number} offset - Shift offset.
      * @param {number} [channel=ALL_CHANNELS] - Target channel.
      */
@@ -167,6 +179,7 @@ export class Curve {
 
     /**
      * Flip curve horizontally (in place). Mirrored along time axis.
+     *
      * @param {number} [channel=ALL_CHANNELS] - Target channel.
      */
     flip_horizontally(channel=ALL_CHANNELS) {
@@ -179,6 +192,7 @@ export class Curve {
 
     /**
      * Flip curve vertically (in place). Retrograde.
+     *
      * @param {number} [channel=ALL_CHANNELS] - Target channel.
      */
     flip_vertically(channel=ALL_CHANNELS) {

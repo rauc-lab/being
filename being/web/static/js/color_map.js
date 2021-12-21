@@ -60,8 +60,10 @@ const COLOR_MAPS = {
 /**
  * Lookup color value for some alpha in [0.0, 1.0]. Returned color value is
  * `not` interpolated! Simply the next lower color value is picked.
+ *
  * @param {number} alpha - Normalized number value.
  * @param {string} [name=batlowK] - Color map name.
+ *
  * @returns {string} Color value.
  *
  * @example

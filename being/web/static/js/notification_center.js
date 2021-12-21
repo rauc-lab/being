@@ -2,6 +2,7 @@
  * Notification central. Puts notifications to the upper right of the screen.
  * Builds on top of
  * `AlertifyJS <https://alertifyjs.com>`_.
+ *
  * @module js/notification_center
  */
 import { defaultdict } from "/static/js/utils.js";
@@ -9,6 +10,7 @@ import { defaultdict } from "/static/js/utils.js";
 
 /**
  * Remodel alertify notification object after it was created.
+ *
  * @param {object} noti - AlertifyJS notificaiton object.
  * @param {string|null} [msg=null] - New notification message text. Leave as is by default.
  * @param {string|null} [type=null] - New notification type. Either "",
@@ -38,6 +40,7 @@ export function remodel_notification(noti, msg=null, type=null, wait=null) {
  * Notification central. Allows for persistent notifications which can be
  * resolved (with new message, type, wait time) at a later time.
  * Also processes motor information messages.
+ *
  * @param {object} alertify - AlertifyJS instance / module.
  */
 export class NotificationCenter {
@@ -53,10 +56,12 @@ export class NotificationCenter {
 
     /**
      * Notify message.
+     *
      * @param {string} msg - Message text.
      * @param {string} [type=message] - Notification type. Either "",
      *     "message", "success", "error" or "warning".
      * @param {number} [wait=2] - Auto-dismiss wait time.
+     *
      * @returns {object} Notification object.
      */
     notify(msg, type="message", wait=2) {
@@ -71,6 +76,7 @@ export class NotificationCenter {
      *     "message", "success", "error" or "warning".
      * @param {number} [wait=2] - Auto-dismiss wait time.
      * @param {number} [id=0] - Wish id. Will get auto created by default.
+     *
      * @returns {number} Internal id of notification object.
      */
     notify_persistent(msg, type="message", wait=2, id=0) {
@@ -96,6 +102,7 @@ export class NotificationCenter {
 
     /**
      * Process single motor and update notifications.
+     *
      * @param {object} motor - Motor object.
      */
     update_motor_notification(motor) {
@@ -124,6 +131,7 @@ export class NotificationCenter {
 
     /**
      * Process motor update messages.
+     *
      * @param {object} msg - Motor update message object.
      */
     new_motor_message(msg) {

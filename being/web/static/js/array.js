@@ -1,7 +1,9 @@
 /**
  * Numpy style array helpers. Most of these functions operate on standard and
  * nested JS arrays (like [0, 1, 2, 3] or [[0, 1, 2], [3, 4, 5]]).
+ *
  * @module js/array
+ *
  * @todo The whole thing could probabelly be replaced by the math.js library... 
  */
 import {assert, arrays_equal} from "/static/js/utils.js";
@@ -9,7 +11,9 @@ import {assert, arrays_equal} from "/static/js/utils.js";
 
 /**
  * Determine array shape.
+ *
  * @param {array} arr - Input array.
+ *
  * @returns {array} array shape.
  */
 export function array_shape(arr) {
@@ -25,7 +29,9 @@ export function array_shape(arr) {
 
 /**
  * Number of array dimensions.
+ *
  * @param {array} arr - Input array.
+ *
  * @returns Number of array
  */
 export function array_ndims(arr) {
@@ -35,8 +41,10 @@ export function array_ndims(arr) {
 
 /**
  * Reshape an array. (Taken from _reshape function from the math.js library).
+ *
  * @param {array} arr - Input array.
  * @param {array} shape - New array shape.
+ *
  * @returns Reshaped array.
  */
 export function array_reshape(arr, shape) {
@@ -58,7 +66,9 @@ export function array_reshape(arr, shape) {
 
 /**
  * Minimum value in array.
+ *
  * @param {array} arr - Input array.
+ *
  * @returns Minimum value.
  */
 export function array_min(arr) {
@@ -68,7 +78,9 @@ export function array_min(arr) {
 
 /**
  * Maximum value in array.
+ *
  * @param {array} arr - Input array.
+ *
  * @returns Maximum value.
  */
 export function array_max(arr) {
@@ -78,7 +90,9 @@ export function array_max(arr) {
 
 /**
  * Create a new array filled with zeros.
+ *
  * @param {array} shape - Input shape
+ *
  * @returns {array} Zero array of given shape
  */
 export function zeros(shape) {
@@ -93,9 +107,11 @@ export function zeros(shape) {
 
 /**
  * Ascending integer array.
+ *
  * @param {number} start - Start index.
  * @param {number|undefined} [stop=undefined] - Stop index (not included).
  * @param {number} [step=1] - Step size.
+ *
  * @returns Range array.
  *
  * @example
@@ -126,9 +142,11 @@ export function arange(start, stop=undefined, step=1) {
 
 /**
  * Ascending linspace array.
+ *
  * @param {number} [start=0.0] - Start value.
  * @param {number} [stop=1.0] - End value.
  * @param {number} [num=50] - Number of entries.
+ *
  * @returns {array} Linspace array.
  */
 export function linspace(start=0.0, stop=1.0, num=50) {
@@ -138,10 +156,11 @@ export function linspace(start=0.0, stop=1.0, num=50) {
 }
 
 /**
- * Add two arrays 
  * Element wise add two arrays together.
+ *
  * @param {array} augend - First operand.
  * @param {array} addend - Second operand.
+ *
  * @returns {array} Added array.
  *
  * @example
@@ -155,8 +174,10 @@ export function add_arrays(augend, addend) {
 
 /**
  * Multiply scalar factor with array.
+ *
  * @param {number} factor - Scalar factor.
  * @param {array} arr - Array to multiply.
+ *
  * @returns {array} Multiplied array.
  *
  * @example
@@ -170,8 +191,10 @@ export function multiply_scalar(factor, arr) {
 
 /**
  * Element wise divide two arrays.
+ *
  * @param {array} dividend - Left operand.
  * @param {array} divisor - Right operand.
+ *
  * @returns {array} Divided array.
  */
 export function divide_arrays(dividend, divisor) {
@@ -181,8 +204,10 @@ export function divide_arrays(dividend, divisor) {
 
 /**
  * Element wise subtract two array from each other.
+ *
  * @param {array} minuend - Left operand.
  * @param {array} subtrahend - Right operand.
+ *
  * @returns {array} Difference array.
  */
 export function subtract_arrays(minuend, subtrahend) {
@@ -192,7 +217,9 @@ export function subtract_arrays(minuend, subtrahend) {
 
 /**
  * Transpose array. Works only for 2d arrays.
+ *
  * @param {array} arr - Array to transpose.
+ *
  * @returns {array} Transposed array.
  *
  * @example
@@ -209,8 +236,10 @@ assert(arrays_equal( transpose_array([[1], [2], [3]]), [[1, 2, 3]] ));
 
 /**
  * Return a new array of given shape filled with `fillValue`.
+ *
  * @param {array} shape - Desired shape.
  * @param {number} fillValue - Fill value.
+ *
  * @returns {array} Output array.
  */
 export function array_full(shape, fillValue) {
@@ -228,7 +257,9 @@ assert(arrays_equal( array_full([1, 3], 1), [[1, 1, 1]] ));
 
 /**
  * Discrete difference along first axis. Only for 1D arrays.
+ *
  * @param {array} arr - Input array.
+ *
  * @returns {array} Difference. One shorter than input array!
  *
  * @example

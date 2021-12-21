@@ -1,11 +1,13 @@
 /**
  * This and that.
+ *
  * @module js/utils
  */
 
 
 /**
  * Wait until DOM ready (from http://youmightnotneedjquery.com).
+ *
  * @param {function} fn - Callback.
  */
 export function ready(fn) {
@@ -30,6 +32,7 @@ export function remove_all_children(el) {
 
 /**
  * Clear array in place.
+ *
  * @param {array} arr - Array to clear.
  */
 export function clear_array(arr) {
@@ -39,7 +42,9 @@ export function clear_array(arr) {
 
 /**
  * Get last element of array.
+ *
  * @param {array} arr - Input array.
+ *
  * @return {object} Last element.
  */
 export function last_element(arr) {
@@ -50,7 +55,9 @@ export function last_element(arr) {
 /**
  * Deep copy JS array / object. Uses JSON. Not really performant and does not
  * work for Infinity and NaN (get mapped to null).
+ *
  * @param {object} obj - Input object.
+ *
  * @returns {object} Object copy.
  */
 export function deep_copy(obj) {
@@ -60,7 +67,9 @@ export function deep_copy(obj) {
 
 /**
  * Cycle through sequence iterator.
+ *
  * @param {array} sequence - Input sequence.
+ *
  * @returns {object} Next-able object.
  */
 export function cycle(sequence) {
@@ -80,8 +89,10 @@ export function cycle(sequence) {
 
 /**
  * Check if two arrays are equal (deep comparison).
+ *
  * @param {array} a - First array.
  * @param {array} b - Second array.
+ *
  * @returns {boolean} If the two arrays are equal.
  */
 export function arrays_equal(a, b) {
@@ -105,6 +116,7 @@ export function arrays_equal(a, b) {
 
 /**
  * Assert something and throw an error if condition does not hold up.
+ *
  * @param {boolean} condition - Condition to assert.
  * @param {string} [message=""] - Message to alert.
  */
@@ -117,8 +129,10 @@ export function assert(condition, message = "") {
 
 /**
  * Find index to insert item into sorted array so that it stays sorted.
+ *
  * @param {array} arr - Sorted input array.
  * @param {number} val - Value to insert.
+ *
  * @returns {number} Index to insert val to preserve array ordering.
  */
 export function searchsorted(arr, val) {
@@ -139,10 +153,12 @@ export function searchsorted(arr, val) {
 
 /**
  * Add option to select.
+ *
  * @param {HTMLElement} select - Select element to append option to.
  * @param {string} name - Option name.
  * @param {HTMLElement} [after=undefined] - Optional after reference element to
  *     insert new option after.
+ *
  * @returns {HTMLOptionElement} Newly created option element.
  */
 export function add_option(select, name, after=undefined) {
@@ -162,7 +178,9 @@ export function add_option(select, name, after=undefined) {
 
 /**
  * Test if the filename is valid on different operating systems
+ *
  * @param {string} fnm - Filename to validate.
+ *
  * @returns {boolean} If valid filename.
  */
 export function is_valid_filename(fnm) {
@@ -175,6 +193,7 @@ export function is_valid_filename(fnm) {
 
 /**
  * Insert item in array at index.
+ *
  * @param {array} array - Input array.
  * @param {number} index - Target index.
  * @param {object} item - Object to insert.
@@ -186,6 +205,7 @@ export function insert_in_array(array, index, item) {
 
 /**
  * Remove item from array at index.
+ *
  * @param {array} array - Input array.
  * @param {number} index - Index to remove.
  */
@@ -196,7 +216,9 @@ export function remove_from_array(array, index) {
 
 /**
  * Python like defaultdict.
+ *
  * @param {Function} default_factory - Default factory for missing entries. 
+ *
  * @returns {Proxy} Default dict proxy object.
  */
 export function defaultdict(default_factory) {
@@ -216,7 +238,9 @@ export function defaultdict(default_factory) {
 
 /**
  * Sleep for some time (async).
+ *
  * @param {number} duration - Sleep duration in seconds.
+ *
  * @returns {Promise} Awaitable setTimeout promis;
  */
 export function sleep(duration) {
@@ -227,6 +251,7 @@ export function sleep(duration) {
 /**
  * Rename map entry to a new key. No error checking whatsoever, overwrites
  * existing entries.
+ *
  * @param {Map} map - Targeted map instance.
  * @param {object} oldKey - Old key.
  * @param {object} newKey - New key.
@@ -240,8 +265,10 @@ export function rename_map_key(map, oldKey, newKey) {
 
 /**
  * Find key for a value inside a map.
+ *
  * @param {Map} map - Map to search.
  * @param {object} value - Value to find.
+ *
  * @returns {object|undefined} Found value (if any). undefined otherwise.
  */
 export function find_map_key_for_value(map, value) {
@@ -255,8 +282,10 @@ export function find_map_key_for_value(map, value) {
 
 /**
  * Insert HTML node after an existing node (needs to have a parentNode!).
+ *
  * @param {HTMLElement} newNode - New node to insert.
  * @param {HTMLElement} referenceNode - Reference node.
+ *
  * @returns {HTMLElement} Inserted HTML node.
  */
 export function insert_after(newNode, referenceNode) {
@@ -266,6 +295,7 @@ export function insert_after(newNode, referenceNode) {
 
 /**
  * Emit event for HTML element.
+ *
  * @param {HTMLElement} ele - HTML element to emit event from.
  * @param {string} typeArg - Event type.
  * @param {boolean} [bubbles=false] - If to bubble.
@@ -298,6 +328,7 @@ export function emit_event(ele, typeArg, bubbles=false, cancelable=false, compos
 
 /**
  * Emit custom event for HTML element.
+ *
  * @param {HTMLElement} ele - HTML element to emit event from.
  * @param {string} typeArg - Event type.
  * @param {object|null} detail - Optional detail object.

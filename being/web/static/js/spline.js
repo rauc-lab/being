@@ -56,7 +56,9 @@ export const COEFFICIENTS_DEPTH = 3;
 
 /**
  * Determine spline polynom order.
+ *
  * @param {BPoly} spline - Input spline.
+ *
  * @returns {number} Spline order.
  */
 export function spline_order(spline) {
@@ -67,7 +69,9 @@ export function spline_order(spline) {
 
 /**
  * Determine spline polynom degree.
+ *
  * @param {BPoly} spline - Input spline.
+ *
  * @returns {number} Spline degree.
  */
 export function spline_degree(spline) {
@@ -77,7 +81,9 @@ export function spline_degree(spline) {
 
 /**
  * Create all zero spline for a given number of dimensions.
+ *
  * @param {number} [ndim=1] - Number of spline dimensions
+ *
  * @returns {BPoly} Zero spline.
  */
 export function zero_spline(ndim=1) {
@@ -87,6 +93,7 @@ export function zero_spline(ndim=1) {
 
 /**
  * Duplicate entry in array at index.
+ *
  * @param {array} arr - Input array.
  * @param {number} index - Target index.
  */
@@ -99,6 +106,7 @@ function duplicate_entry_in_array(arr, index) {
 
 /**
  * Duplicate column in matrix.
+ *
  * @param {array} mtrx - Input matrix (at least 2D array).
  * @param {number} col - Column number.
  */
@@ -137,6 +145,7 @@ function _vectorize_coefficients(c) {
  * BPoly is used by scipys interpolate package in Python. We do not need to
  * sample the spline but rather the extract the Bézier control points. And we
  * need a data structure for storing and manipulating the spline.
+ *
  * @param {array} c - Spline coefficients.
  * @param {array} x - Spline knots.
  * @param {boolean} extrapolate - Extrapolation flag (not really used here but
@@ -160,6 +169,7 @@ export class BPoly {
 
     /**
      * Construct from BPoly object.
+     *
      * @returns {BPoly} New spline instance.
      */
     static from_dict(dct) {
@@ -216,6 +226,7 @@ export class BPoly {
 
     /**
      * Calculate bounding box of spline (approximately).
+     *
      * @returns {BBox} Spline bounding box.
      */
     bbox() {
@@ -224,7 +235,9 @@ export class BPoly {
 
     /**
      * Spline segment width.
+     *
      * @param {number} seg - Spline segment number.
+     *
      * @returns {number} Segment width.
      */
     _dx(seg) {
@@ -234,10 +247,12 @@ export class BPoly {
     /**
      * Time value of a given Bézier control point. Along first axis. The
      * intermediate points are distributed equally between two knots.
+     *
      * @param {number} seg - Segment number.
      * @param {number} nr - Control point number. E.g. for a cubic spline 0 ->
      *     left knot, 1 -> first control point, 2 -> second control point and 3
      *     -> right control point.
+     *
      * @returns {number} Control point time or x value.
      */
     _x(seg, nr=0) {
@@ -247,9 +262,11 @@ export class BPoly {
 
     /**
      * Get first derivative of spline at a knot.
+     *
      * @param {number} nr - Knot number.
      * @param {string} [side=right] - Which side of the knot. Right side by default.
      * @param {number} [dim=0] - Target spline dimension.
+     *
      * @returns {number} Derivative value.
      */
     get_derivative_at_knot(nr, side=RIGHT, dim=0) {
@@ -277,6 +294,7 @@ export class BPoly {
 
     /**
      * Set derivative value at a knot. This will affect adjacent coefficient values.
+     *
      * @param {number} nr - Knot number.
      * @param {number} value - Desired derivative value at knot.
      * @param {string} [side=right] - Which side of the knot. Right side by default.
@@ -297,6 +315,7 @@ export class BPoly {
 
     /**
      * Move knot around.
+     *
      * @param {number} nr - Knot number.
      * @param {array} pos - Target position.
      * @param {boolean} [c1=false] - C1 continuity. If true move surrounding
@@ -349,6 +368,7 @@ export class BPoly {
 
     /**
      * Move control point around (only vertically).
+     *
      * @param {number} seg - Segment number.
      * @param {number} nr - Knot / control point number.
      * @param {number} y - Target vertical y position.
@@ -376,9 +396,11 @@ export class BPoly {
 
     /**
      * Get Bézier control point for SVG paths.
+     *
      * @param {number} seg - Segment number.
      * @param {number} nr - Knot / control point number.
      * @param {number} [dim=0] - Spline dimension.
+     *
      * @returns {array} 2D [x, y] point.
      */
     point(seg, nr=0, dim=0) {
@@ -392,6 +414,7 @@ export class BPoly {
 
     /**
      * Insert new knot into the spline.
+     *
      * @param {array} pos - [x, y] position.
      */
     insert_knot(pos) {
@@ -431,7 +454,9 @@ export class BPoly {
 
     /**
      * Check if we are dealing with the last spline knot.
+     *
      * @param {number} knotNr - Knot number.
+     *
      * @returns {boolean} If we are dealing with the last knot of the spline.
      */
     _is_last_knot(knotNr) {
@@ -440,6 +465,7 @@ export class BPoly {
 
     /**
      * Remove knot from spline.
+     *
      * @param {number} knotNr - Knot number to remove.
      */
     remove_knot(knotNr) {
@@ -475,6 +501,7 @@ export class BPoly {
 
     /**
      * Convert BPoly instance to dict representation.
+     *
      * @returns {object} Dictionary representation for serialization.
      */
     to_dict() {
@@ -489,6 +516,7 @@ export class BPoly {
 
     /**
      * Restrict all knots and control points to a bounding box.
+     *
      * @param {Bbox} bbox - Limiting bounding box.
      */
     restrict_to_bbox(bbox) {
@@ -509,6 +537,7 @@ export class BPoly {
 
     /**
      * Scale position values by some scalar factor (in place).
+     *
      * @param {number} factor - Scale factor.
      */
     scale(factor) {
@@ -518,6 +547,7 @@ export class BPoly {
 
     /**
      * Stretch in time by some factor (in place).
+     *
      * @param {number} factor - Stretch factor.
      */
     stretch(factor) {
@@ -526,6 +556,7 @@ export class BPoly {
 
     /**
      * Shift in time by some offset (in place).
+     *
      * @param {number} offset - Shift offset.
      */
     shift(offset) {

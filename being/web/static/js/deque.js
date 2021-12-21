@@ -1,5 +1,6 @@
 /**
  * Double ended queue.
+ *
  * @module js/deque
  */
 
@@ -8,8 +9,10 @@
  * Deque array type with maxlen and better clearer naming (similar Pythons
  * collections.deque). Note that maxlen only takes effect when using the extra
  * methods but not the build in Array ones!
+ *
  * @param {number} [iterable=0] - Number of initial empty elements.
  * @param {number} [maxlen=Infinity] - Maximum length of deque.
+ *
  * @todo extend() / extendleft() methods?
  * @todo Better constructor signature? Empty length vs. iterable vs. single item?
  *
@@ -60,6 +63,7 @@ export class Deque extends Array {
 
     /**
      * Append items to the right side.
+     *
      * @returns {number} New deque length.
      */
     append(...items) {
@@ -70,6 +74,7 @@ export class Deque extends Array {
 
     /**
      * Append items to the left side.
+     *
      * @returns {number} New deque length.
      */
     appendleft(...items) {
@@ -80,6 +85,7 @@ export class Deque extends Array {
 
     /**
      * Pop item from the left side.
+     *
      * @returns {object} Popped item.
      */
     popleft() {

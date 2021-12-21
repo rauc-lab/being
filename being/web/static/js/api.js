@@ -1,5 +1,6 @@
 /**
  * API definitions for communication with back-end.
+ *
  * @module js/api
  */
 import {objectify, anthropomorphify} from "/static/js/serialization.js";
@@ -14,6 +15,7 @@ export class Api {
 
     /**
      * Get all being blocks by id.
+     *
      * @returns {Promise} Block id -> Being block object.
      */
     async get_blocks() {
@@ -23,7 +25,9 @@ export class Api {
     /**
      * Get output block ids for a given block id. All blocks that are connected
      * via value output connection.
+     *
      * @param {number} id Block id.
+     *
      * @returns {Promise} List of connected block ids. Empty list if no outgoing connections.
      */
     async get_index_of_value_outputs(id) {
@@ -40,6 +44,7 @@ export class Api {
 
     /**
      * Get being configurations.
+     *
      * @returns {Promise} Being CONFIG dictionary.
      */
     async get_config() {
@@ -48,8 +53,10 @@ export class Api {
 
     /**
      * Fit curve from trajectory data.
+     *
      * @param {array} trajectory Recorded trajectory. Row direction is time and
      *     column timestamp and position values [timestamp, x, y, ...].
+     *
      * @returns {Promise} Fitted curve with smoothing splines.
      */
     async fit_curve(trajectory) {
@@ -63,6 +70,7 @@ export class Api {
 
     /**
      * Get motor infos.
+     *
      * @returns {Promise} Array of motor objects.
      */
     async get_motor_infos() {
@@ -71,6 +79,7 @@ export class Api {
 
     /**
      * Disable all motors in backend for motion recording.
+     *
      * @returns {Promise} Array of updated motor infos.
      */
     async disable_motors() {
@@ -79,6 +88,7 @@ export class Api {
 
     /**
      * Enable all motors in backend after motion recording.
+     *
      * @returns {Promise} Array of updated motor infos.
      */
     async enable_motors() {
@@ -87,6 +97,7 @@ export class Api {
 
     /**
      * Trigger homing in all motors.
+     *
      * @returns {Promise} Standard HTTP response. 
      */
     async home_motors() {
@@ -97,6 +108,7 @@ export class Api {
 
     /**
      * Get motion player infos.
+     *
      * @returns {Promise} Array of motion player dictionaries.
      */
     async get_motion_player_infos() {
@@ -105,9 +117,11 @@ export class Api {
     
     /**
      * Play multiple motion curves in backend.
+     *
      * @param {object} armed Armed motion curves per motion player id.
      * @param {bool} loop If to loop motions.
      * @param {number} offset Start time offset in motion curves.
+     *
      * @returns {number} Start timestamp of motion playback.
      */
     async play_multiple_curves(armed, loop = false, offset = 0) {
@@ -125,6 +139,7 @@ export class Api {
 
     /**
      * Stop all spline playback in backend.
+     *
      * @returns {Promise} Standard HTTP response.
      */
     async stop_spline_playback() {
@@ -133,9 +148,11 @@ export class Api {
 
     /**
      * Move motion player / motor to position.
+     *
      * @param {number} position Position value in SI units.
      * @param {number} id Motion player id.
      * @param {number} channel Motion player output channel.
+     *
      * @returns {Promise} Empty JSON object to signalize success.
      */
     async live_preview(position, id, channel = 0) {
@@ -174,7 +191,9 @@ export class Api {
 
     /**
      * Get curve by name.
+     *
      * @param {string} name Curve name.
+     *
      * @returns {Curve} Curve instance.
      */
     async get_curve(name) {
@@ -185,8 +204,10 @@ export class Api {
 
     /**
      * Create a new curve.
+     *
      * @param {string} name Curve name.
      * @param {Curve} curve Curve instance.
+     *
      * @returns {Promise} Empty JSON object to signalize success.
      */
     async create_curve(name, curve) {
@@ -196,8 +217,10 @@ export class Api {
 
     /**
      * Update a curve.
+     *
      * @param {string} name Curve name.
      * @param {Curve} curve Curve instance.
+     *
      * @returns {Promise} Empty JSON object to signalize success.
      */
     async update_curve(name, curve) {
@@ -207,8 +230,10 @@ export class Api {
 
     /**
      * Delete a curve.
+     *
      * @param {string} name Curve name.
      * @param {Curve} curve Curve instance.
+     *
      * @returns {Promise} Empty JSON object to signalize success.
      */
     async delete_curve(name) {
@@ -218,8 +243,10 @@ export class Api {
 
     /**
      * Rename a curve.
+     *
      * @param {string} oldName Old curve name.
      * @param {string} newName New curve name.
+     *
      * @returns {Promise} Empty JSON object to signalize success.
      */
     async rename_curve(oldName, newName) {
@@ -232,9 +259,11 @@ export class Api {
 
     /**
      * Find a free name for a new curve.
+     *
      * @param {string} [wishName=undefined] Wish name (if any). If undefined
      *     backend will use default new-curve-name "Untitled" and append
      *     ascending numbers to it if necessary.
+     *
      * @returns {Promise} Next free curve name.
      */
     async find_free_name(wishName=undefined) {
@@ -248,6 +277,7 @@ export class Api {
 
     /**
      * Download all curves as Zip.
+     *
      * @returns {Promise} Zip file response
      */
     async download_all_curves_as_zip() {

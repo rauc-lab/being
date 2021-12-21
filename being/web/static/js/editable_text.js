@@ -1,5 +1,6 @@
 /**
  * Editable text field.
+ *
  * @module js/editable_text
  */
 
@@ -10,6 +11,7 @@
  * function can be provided to validate newly generated input text. This
  * validator function can either reformat the text or throw an error. For the
  * latter all changes will be reverted.
+ *
  * @param {HTMLElement} ele - Element to make editable.
  * @param {Function} on_change - On change event callback.
  * @param {Function | null} [validator=null] - Text content validator function.

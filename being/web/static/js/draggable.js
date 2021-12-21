@@ -1,5 +1,6 @@
 /**
  * Make something draggable.
+ *
  * @module js/draggable
  */
 import { LEFT_MOUSE_BUTTON } from "/static/js/constants.js";
@@ -7,6 +8,7 @@ import { LEFT_MOUSE_BUTTON } from "/static/js/constants.js";
 
 /**
  * Dummy event listener.
+ *
  * @param {MouseEvent} evt - Some mouse event.
  */
 function NO_ACTION(evt) {}
@@ -14,6 +16,7 @@ function NO_ACTION(evt) {}
 
 /**
  * Stop event propagation callback. See `explanation <https://www.youtube.com/watch?v=HgzGwKwLmgM>`_.
+ *
  * @param {Event} evt - Some event to stop.
  */
 function stop_propagation(evt) {
@@ -55,6 +58,7 @@ export function make_draggable(ele, callbacks={}, options={}) {
 
     /**
      * Start drag movement.
+     *
      * @param {MouseEvent} evt - Mouse event.
      */
     function start_drag_internal(evt) {
@@ -71,6 +75,7 @@ export function make_draggable(ele, callbacks={}, options={}) {
 
     /**
      * Drag element.
+     *
      * @param {MouseEvent} evt - Mouse event.
      */
     function drag_internal(evt) {
@@ -81,6 +86,7 @@ export function make_draggable(ele, callbacks={}, options={}) {
 
     /**
      * End dragging of element.
+     *
      * @param {MouseEvent} evt - Mouse event.
      */
     function end_drag_internal(evt) {
@@ -107,7 +113,7 @@ export function make_draggable(ele, callbacks={}, options={}) {
 
 
     /**
-     * Disable all event listerns of drag action.
+     * Disable all event listeners of drag action.
      */
     function disable_drag_listeners(moved=false) {
         removeEventListener("mousemove", drag_internal);
@@ -130,6 +136,7 @@ export function make_draggable(ele, callbacks={}, options={}) {
 
     /**
      * Escape drag by hitting escape key.
+     *
      * @param {MouseEvent} evt - Mouse event.
      */
     function escape_drag_internal(evt) {

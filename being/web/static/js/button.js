@@ -15,8 +15,10 @@ const CHECKED = "checked";
 
 /**
  * Create new material HTML button.
+ *
  * @param {string} iconName - Icon name string identifier.
  * @param {string} title - Tooltip for button
+ *
  * @returns {HTMLButtonElement} New HTML button.
  */
 export function create_button(iconName, title="") {
@@ -46,6 +48,7 @@ export function create_button(iconName, title="") {
 
 /**
  * Toggle button (toggle checked attribute of HTML button).
+ *
  * @param {HTMLButtonElement} btn - Button to toggle.
  */
 export function toggle_button(btn) {
@@ -55,6 +58,7 @@ export function toggle_button(btn) {
 
 /**
  * Switch off toggle button.
+ *
  * @param {HTMLButtonElement} btn - Button to switch off.
  */
 export function switch_button_off(btn) {
@@ -64,6 +68,7 @@ export function switch_button_off(btn) {
 
 /**
  * Switch on toggle button.
+ *
  * @param {HTMLButtonElement} btn - Button to switch on.
  */
 export function switch_button_on(btn) {
@@ -73,6 +78,7 @@ export function switch_button_on(btn) {
 
 /**
  * Switch toggle button to given state.
+ *
  * @param {HTMLButtonElement} btn - Button to switch.
  * @param {boolean} state - Target state.
  */
@@ -87,7 +93,9 @@ export function switch_button_to(btn, state) {
 
 /**
  * Check if button is toggled (if checked attribute is set).
+ *
  * @param {HTMLButtonElement} btn - Button to check.
+ *
  * @returns {boolean} If button is checked.
  */
 export function is_checked(btn) {
@@ -97,6 +105,7 @@ export function is_checked(btn) {
 
 /**
  * Enable button.
+ *
  * @param {HTMLButtonElement} btn - Button to enable.
  */
 export function enable_button(btn) {
@@ -106,6 +115,7 @@ export function enable_button(btn) {
 
 /**
  * Disable button.
+ *
  * @param {HTMLButtonElement} btn - Button to disable.
  */
 export function disable_button(btn) {
