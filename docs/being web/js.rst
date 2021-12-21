@@ -365,7 +365,7 @@ js/svg
 ------
 
 
-Working with SVG element helpers.
+Working with SVG elements.
 
 .. js:autofunction:: svg.create_element
 
@@ -392,7 +392,7 @@ js/utils
 --------
 
 
-All kinds of util. Lots from http://youmightnotneedjquery.com.
+This and that.
 
 .. js:autofunction:: utils.ready
 
@@ -449,6 +449,9 @@ All kinds of util. Lots from http://youmightnotneedjquery.com.
 
 
 .. js:autofunction:: utils.emit_event
+
+
+.. js:autofunction:: utils.emit_custom_event
 
 
 js/web_socket

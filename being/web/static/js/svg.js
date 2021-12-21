@@ -1,5 +1,5 @@
 /**
- * Working with SVG element helpers.
+ * Working with SVG elements.
  * @module js/svg
  */
 import {Order} from "/static/js/spline.js";
@@ -11,6 +11,8 @@ const SVG_XML_NS = "http://www.w3.org/2000/svg";
 
 /**
  * Create SVG element.
+ * @param {string} tag - SVG element tag name.
+ * @returns {SVGElement} Freshly created SVG element.
  */
 export function create_element(tag) {
     return document.createElementNS(SVG_XML_NS, tag);
@@ -19,16 +21,19 @@ export function create_element(tag) {
 
 /**
  * Set attribute of SVG element.
+ * @param {SVGElement} ele - SVG element.
+ * @param {string} name - Attribute name.
+ * @param {number|string} value - Attribute value.
  */
 export function setattr(ele, name, value) {
     ele.setAttributeNS(null, name, value);
 }
 
 /**
- * 
- * @param {SVGElement} ele SVG element.
- * @param {String} name Attribute name.
- * @returns Attribute value.
+ * Get attribute of SVG element. 
+ * @param {SVGElement} ele - SVG element.
+ * @param {String} name - Attribute name.
+ * @returns {number|string} Attribute value.
  */
 export function getattr(ele, name) {
     return ele.getAttributeNS(null, name);
@@ -38,13 +43,13 @@ export function getattr(ele, name) {
 /**
  * SVG path d attribute string from array of 2d control points.
  * 
- * @param {Array} cps - Bézier control points for one segment. Number of
- * control points defines the curve degree.
+ * @param {array} cps - Bézier control points for one segment. Number of
+ *     control points defines the curve degree.
  * @returns {string} SVG path d attribute string.
  *
- * Usage:
- *     >>> path_d([[0, 1], [2, 3], [4, 5], [6, 7]])
- *     M0 1 C2 3 4 5 6 7
+ * @example
+ * // returns "M0 1 C2 3 4 5 6 7"
+ * path_d([[0, 1], [2, 3], [4, 5], [6, 7]]);
  */
 export function path_d(cps) {
     const order = cps.length;
@@ -62,7 +67,12 @@ export function path_d(cps) {
 
 
 /**
- * Draw path from control points onto SVG.
+ * Draw control points as path onto SVG.
+ * @param {SVGElement} svg - Target SVG element.
+ * @param {array} cps - Control points.
+ * @param {number} [strokeWidth=1] - Stroke width.
+ * @param {string} [color=black] - Stroke color.
+ * @returns {SVGPathElement} New SVG path element.
  */
 export function draw_path(svg, cps, strokeWidth = 1, color = "black") {
     const path = create_element("path");
@@ -77,6 +87,11 @@ export function draw_path(svg, cps, strokeWidth = 1, color = "black") {
 
 /**
  * Draw circle onto SVG.
+ * @param {SVGElement} svg - Target SVG element.
+ * @param {array} center - Circle center.
+ * @param {number} [radius=1] - Circle radius.
+ * @param {string} [color=red] - Fill color.
+ * @returns {SVGCircleElement} New SVG circle element.
  */
 export function draw_circle(svg, center, radius = 1, color = "red") {
     const [cx, cy] = center;
@@ -92,6 +107,12 @@ export function draw_circle(svg, center, radius = 1, color = "red") {
 
 /**
  * Draw line onto SVG.
+ * @param {SVGElement} svg - Target SVG element.
+ * @param {array} start - Start point.
+ * @param {array} end - End point.
+ * @param {number} [strokeWidth=1] - Stroke width.
+ * @param {string} [color=black] - Stroke color.
+ * @returns {SVGLineElement} New SVG circle element.
  */
 export function draw_line(svg, start, end, strokeWidth = 1, color = "black") {
     const [x1, y1] = start;
