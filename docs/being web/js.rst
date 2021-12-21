@@ -287,7 +287,9 @@ js/notification_center
 ----------------------
 
 
-Notification central.
+Notification central. Puts notifications to the upper right of the screen.
+Builds on top of
+`AlertifyJS <https://alertifyjs.com>`_.
 
 .. js:autofunction:: notification_center.remodel_notification
 
@@ -300,15 +302,24 @@ js/serialization
 ----------------
 
 
+Serializing and deserializing splines and curve objects.
 
 .. js:autofunction:: serialization.objectify
+
+
+.. js:autofunction:: serialization.anthropomorphify
 
 
 js/spline
 ---------
 
 
-Spline stuff. Some constants and BPoly wrapper. Spline data container.
+Spline stuff. Some constants and BPoly wrapper. Spline data container. No
+spline evaluation. Sampling splines for plotting is handled by SVG. Helpers
+for manipulating the shape of the spline:
+  - Moving control points around
+  - Changing the derivative at a given knot
+  - Inserting / removing knots
 
 .. js:autoattribute:: KNOT
 

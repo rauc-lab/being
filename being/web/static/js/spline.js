@@ -1,5 +1,11 @@
 /**
- * Spline stuff. Some constants and BPoly wrapper. Spline data container.
+ * Spline stuff. Some constants and BPoly wrapper. Spline data container. No
+ * spline evaluation. Sampling splines for plotting is handled by SVG. Helpers
+ * for manipulating the shape of the spline:
+ *   - Moving control points around
+ *   - Changing the derivative at a given knot
+ *   - Inserting / removing knots
+ *
  * @module js/spline
  */
 import {
@@ -49,10 +55,9 @@ export const COEFFICIENTS_DEPTH = 3;
 
 
 /**
- * Get order of spline.
- *
- * @param {BPoly} spline Spline to check.
- * @returns {number} Order of spline.
+ * Determine spline polynom order.
+ * @param {BPoly} spline - Input spline.
+ * @returns {number} Spline order.
  */
 export function spline_order(spline) {
     const shape = array_shape(spline.coefficients);
@@ -61,7 +66,9 @@ export function spline_order(spline) {
 
 
 /**
- * Get degree of spline.
+ * Determine spline polynom degree.
+ * @param {BPoly} spline - Input spline.
+ * @returns {number} Spline degree.
  */
 export function spline_degree(spline) {
     return spline_order(spline) - 1;
@@ -69,9 +76,8 @@ export function spline_degree(spline) {
 
 
 /**
- * Create zero spline for a given number of dimensions.
- *
- * @param {number} ndim Number of spline dimensions
+ * Create all zero spline for a given number of dimensions.
+ * @param {number} [ndim=1] - Number of spline dimensions
  * @returns {BPoly} Zero spline.
  */
 export function zero_spline(ndim=1) {
@@ -81,21 +87,20 @@ export function zero_spline(ndim=1) {
 
 /**
  * Duplicate entry in array at index.
- *
- * @param {Array} array 
- * @param {number} index 
+ * @param {array} arr - Input array.
+ * @param {number} index - Target index.
  */
-function duplicate_entry_in_array(array, index) {
-    index = clip(index, 0, array.length - 1);
-    const cpy = deep_copy(array[index]);
-    insert_in_array(array, index, cpy);
+function duplicate_entry_in_array(arr, index) {
+    index = clip(index, 0, arr.length - 1);
+    const cpy = deep_copy(arr[index]);
+    insert_in_array(arr, index, cpy);
 }
 
 
 /**
  * Duplicate column in matrix.
- * @param {Array} mtrx At least 2d array.
- * @param {number} col Column number.
+ * @param {array} mtrx - Input matrix (at least 2D array).
+ * @param {number} col - Column number.
  */
 function duplicate_column_in_matrix(mtrx, col) {
     mtrx.forEach(row => {
@@ -132,6 +137,11 @@ function _vectorize_coefficients(c) {
  * BPoly is used by scipys interpolate package in Python. We do not need to
  * sample the spline but rather the extract the Bézier control points. And we
  * need a data structure for storing and manipulating the spline.
+ * @param {array} c - Spline coefficients.
+ * @param {array} x - Spline knots.
+ * @param {boolean} extrapolate - Extrapolation flag (not really used here but
+ *     for completeness).
+ * @param {number} axis - Spline axis (for completeness but not in use).
  */
 export class BPoly {
     constructor(c, x, extrapolate=false, axis=0) {
@@ -150,6 +160,7 @@ export class BPoly {
 
     /**
      * Construct from BPoly object.
+     * @returns {BPoly} New spline instance.
      */
     static from_dict(dct) {
         return new BPoly(dct.coefficients, dct.knots, dct.extrapolate, dct.axis);
@@ -157,6 +168,7 @@ export class BPoly {
 
     /**
      * Start time of spline.
+     * @type {number}
      */
     get start() {
         return this.x[0];
@@ -164,6 +176,7 @@ export class BPoly {
 
     /**
      * End time of spline.
+     * @type {number}
      */
     get end() {
         return last_element(this.x);
@@ -171,6 +184,7 @@ export class BPoly {
 
     /**
      * Duration of the spline.
+     * @type {number}
      */
     get duration() {
         return this.end - this.start;
@@ -178,6 +192,7 @@ export class BPoly {
 
     /**
      * Number of segments in the spline.
+     * @type {number}
      */
     get n_segments() {
         return this.x.length - 1;
@@ -185,6 +200,7 @@ export class BPoly {
 
     /**
      * Minimum value of the spline. Not the global maximum!
+     * @type {number}
      */
     get min() {
         return array_min(this.c.flat(COEFFICIENTS_DEPTH));
@@ -192,6 +208,7 @@ export class BPoly {
 
     /**
      * Maximum value of the spline. Not the global minimum!
+     * @type {number}
      */
     get max() {
         return array_max(this.c.flat(COEFFICIENTS_DEPTH));
@@ -199,24 +216,29 @@ export class BPoly {
 
     /**
      * Calculate bounding box of spline (approximately).
+     * @returns {BBox} Spline bounding box.
      */
     bbox() {
         return new BBox([this.start, this.min], [this.end, this.max]);
     }
 
     /**
-     * Segment width.
+     * Spline segment width.
+     * @param {number} seg - Spline segment number.
+     * @returns {number} Segment width.
      */
     _dx(seg) {
         return this.x[seg+1] - this.x[seg];
     }
 
     /**
-     * X position of a given Bézier control point.
-     *
-     * @param seg - Segment index.
-     * @param nr - Control point index. E.g. for cubic 0 -> left knot, 1 ->
-     * first control point, 2 -> second control point, 3 -> right knot.
+     * Time value of a given Bézier control point. Along first axis. The
+     * intermediate points are distributed equally between two knots.
+     * @param {number} seg - Segment number.
+     * @param {number} nr - Control point number. E.g. for a cubic spline 0 ->
+     *     left knot, 1 -> first control point, 2 -> second control point and 3
+     *     -> right control point.
+     * @returns {number} Control point time or x value.
      */
     _x(seg, nr=0) {
         const alpha = nr / this.degree;
@@ -224,10 +246,11 @@ export class BPoly {
     }
 
     /**
-     * Get first derative value at knot position.
-     *
-     * @param {number} nr Knot number.
-     * @param {String} side Which side of the knot.
+     * Get first derivative of spline at a knot.
+     * @param {number} nr - Knot number.
+     * @param {string} [side=right] - Which side of the knot. Right side by default.
+     * @param {number} [dim=0] - Target spline dimension.
+     * @returns {number} Derivative value.
      */
     get_derivative_at_knot(nr, side=RIGHT, dim=0) {
         if (side === RIGHT) {
@@ -235,7 +258,7 @@ export class BPoly {
             const seg = nr;
             const dx = this._dx(seg);
             if (dx === 0) {
-                return 0.;
+                return 0.0;
             }
 
             return this.degree * (this.c[FIRST_CP][seg][dim] - this.c[KNOT][seg][dim]) / dx;
@@ -244,7 +267,7 @@ export class BPoly {
             const seg = nr - 1;
             const dx = this._dx(seg);
             if (dx === 0) {
-                return 0.;
+                return 0.0;
             }
 
             const knot = KNOT + this.degree;
@@ -253,11 +276,11 @@ export class BPoly {
     }
 
     /**
-     * Adjust control points for a given derivative value.
-     *
-     * @param {number} nr Knot number.
-     * @param {number} value Derivative value to ensure.
-     * @param {String} side Which side of the knot.
+     * Set derivative value at a knot. This will affect adjacent coefficient values.
+     * @param {number} nr - Knot number.
+     * @param {number} value - Desired derivative value at knot.
+     * @param {string} [side=right] - Which side of the knot. Right side by default.
+     * @param {number} [dim=0] - Target spline dimension.
      */
     set_derivative_at_knot(nr, value, side=RIGHT, dim=0) {
         if (side === RIGHT) {
@@ -273,11 +296,12 @@ export class BPoly {
     }
 
     /**
-     * Move knot to another position.
-     *
-     * @param {number} nr Knot number.
-     * @param {Array} pos New knot position.
-     * @param {Bool} c1 C1 continuity (move surrounding control points as well)
+     * Move knot around.
+     * @param {number} nr - Knot number.
+     * @param {array} pos - Target position.
+     * @param {boolean} [c1=false] - C1 continuity. If true move surrounding
+     *     control points as well.
+     * @param {number} [dim=0] - Target spline dimension.
      */
     position_knot(nr, pos, c1 = false, dim = 0) {
         let left = -Infinity;
@@ -325,11 +349,11 @@ export class BPoly {
 
     /**
      * Move control point around (only vertically).
-     *
-     * @param {number} seg Segment number.
-     * @param {number} nr Knot / control point number.
-     * @param {number} y New y position of control point.
-     * @param {Bool} c1 Ensure C1 continuity.
+     * @param {number} seg - Segment number.
+     * @param {number} nr - Knot / control point number.
+     * @param {number} y - Target vertical y position.
+     * @param {boolean} [c1=false] - Ensure C1 continuity.
+     * @param {number} [dim=0] - Target spline dimension.
      */
     position_control_point(seg, nr, y, c1 = false, dim = 0) {
         const leftMost = (nr === FIRST_CP) && (seg === 0);
@@ -351,11 +375,11 @@ export class BPoly {
     }
 
     /**
-     * Bézier control point.
-     *
-     * @param {number} seg Segment index.
-     * @param {number} nr Control point index. E.g. for cubic 0 -> left knot, 1
-     *     -> First control point, etc...
+     * Get Bézier control point for SVG paths.
+     * @param {number} seg - Segment number.
+     * @param {number} nr - Knot / control point number.
+     * @param {number} [dim=0] - Spline dimension.
+     * @returns {array} 2D [x, y] point.
      */
     point(seg, nr=0, dim=0) {
         if (seg === this.n_segments) {
@@ -368,8 +392,7 @@ export class BPoly {
 
     /**
      * Insert new knot into the spline.
-     *
-     * @param {Array} pos Knot x, y position.
+     * @param {array} pos - [x, y] position.
      */
     insert_knot(pos) {
         const x = this.x;
@@ -408,9 +431,8 @@ export class BPoly {
 
     /**
      * Check if we are dealing with the last spline knot.
-     *
-     * @param {number} knotNr Knot number.
-     * @returns If we are dealing with the last knot of the spline.
+     * @param {number} knotNr - Knot number.
+     * @returns {boolean} If we are dealing with the last knot of the spline.
      */
     _is_last_knot(knotNr) {
         return (knotNr === this.n_segments);
@@ -418,8 +440,7 @@ export class BPoly {
 
     /**
      * Remove knot from spline.
-     *
-     * @param {number} knotNr Knot number to remove.
+     * @param {number} knotNr - Knot number to remove.
      */
     remove_knot(knotNr) {
         if (this._is_last_knot(knotNr)) {
@@ -445,14 +466,16 @@ export class BPoly {
     }
 
     /**
-     * Create a copy for the spline (deep copy).
+     * Create a deep copy of the spline.
      */
     copy() {
+        // TODO: deep_copy(this.x) -> [...this.x]?
         return new BPoly(deep_copy(this.c), deep_copy(this.x), this.extrapolate, this.axis);
     }
 
     /**
      * Convert BPoly instance to dict representation.
+     * @returns {object} Dictionary representation for serialization.
      */
     to_dict() {
         return {
@@ -466,8 +489,7 @@ export class BPoly {
 
     /**
      * Restrict all knots and control points to a bounding box.
-     *
-     * @param {Bbox} bbox Limits bounding box.
+     * @param {Bbox} bbox - Limiting bounding box.
      */
     restrict_to_bbox(bbox) {
         const [xmin, ymin] = bbox.ll;
@@ -485,15 +507,27 @@ export class BPoly {
         });
     }
 
+    /**
+     * Scale position values by some scalar factor (in place).
+     * @param {number} factor - Scale factor.
+     */
     scale(factor) {
         const shape = array_shape(this.c);
         this.c = array_reshape(multiply_scalar(factor, this.c.flat(COEFFICIENTS_DEPTH)), shape);
     }
 
+    /**
+     * Stretch in time by some factor (in place).
+     * @param {number} factor - Stretch factor.
+     */
     stretch(factor) {
         this.x = multiply_scalar(factor, this.x);
     }
 
+    /**
+     * Shift in time by some offset (in place).
+     * @param {number} offset - Shift offset.
+     */
     shift(offset) {
         offset = Math.max(offset, -this.start);
         this.x = this.x.map(pos => {
@@ -501,6 +535,9 @@ export class BPoly {
         });
     }
 
+    /**
+     * Flip horizontally (in place). Mirrored along time axis.
+     */
     flip_horizontally() {
         // Flip knots
         const delta = diff_array(this.x);
@@ -516,6 +553,9 @@ export class BPoly {
         this.c.reverse();
     }
 
+    /**
+     * Flip vertically (in place). Retrograde.
+     */
     flip_vertically() {
         const shape = array_shape(this.c)
         const cvals = this.c.flat(COEFFICIENTS_DEPTH);

@@ -127,7 +127,7 @@ export class Curve {
     }
 
     /**
-     * Scale curve position values by some factor (in place).
+     * Scale curve position values by some scalar factor (in place).
      * @param {number} factor - Scale factor.
      * @param {number} [channel=ALL_CHANNELS] - Target channel.
      */
@@ -141,7 +141,7 @@ export class Curve {
 
     /**
      * Stretch curve in time by some factor (in place).
-     * @param {number} factor - Scale factor.
+     * @param {number} factor - Stretch factor.
      * @param {number} [channel=ALL_CHANNELS] - Target channel.
      */
     stretch(factor, channel=ALL_CHANNELS) {
@@ -166,7 +166,7 @@ export class Curve {
     }
 
     /**
-     * Flip curve horizontally in time (in place).
+     * Flip curve horizontally (in place). Mirrored along time axis.
      * @param {number} [channel=ALL_CHANNELS] - Target channel.
      */
     flip_horizontally(channel=ALL_CHANNELS) {
@@ -178,7 +178,7 @@ export class Curve {
     }
 
     /**
-     * Flip curve vertically in time (in place).
+     * Flip curve vertically (in place). Retrograde.
      * @param {number} [channel=ALL_CHANNELS] - Target channel.
      */
     flip_vertically(channel=ALL_CHANNELS) {

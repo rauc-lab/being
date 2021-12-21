@@ -1,5 +1,7 @@
 /**
- * Notification central.
+ * Notification central. Puts notifications to the upper right of the screen.
+ * Builds on top of
+ * `AlertifyJS <https://alertifyjs.com>`_.
  * @module js/notification_center
  */
 import { defaultdict } from "/static/js/utils.js";
@@ -7,11 +9,11 @@ import { defaultdict } from "/static/js/utils.js";
 
 /**
  * Remodel alertify notification object after it was created.
- *
- * @param {Object} noti Notificaiton object.
- * @param {String} msg New notification message text.
- * @param {String} type New notification type.
- * @param {Number} wait New notification wait time.
+ * @param {object} noti - AlertifyJS notificaiton object.
+ * @param {string|null} [msg=null] - New notification message text. Leave as is by default.
+ * @param {string|null} [type=null] - New notification type. Either "",
+ *     "message", "success", "error" or "warning". Leave as is by default.
+ * @param {number|null} [wait=null] - New notification wait time. Leave as is by default.
  */
 export function remodel_notification(noti, msg=null, type=null, wait=null) {
     if (msg !== null) {
@@ -33,23 +35,10 @@ export function remodel_notification(noti, msg=null, type=null, wait=null) {
 
 
 /**
- * Number of items in an object.
- */
-function object_size(obj) {
-    let size = 0, key;
-    for (key in obj) {
-        if (obj.hasOwnProperty(key)) {
-            size++;
-        }
-    }
-
-    return size;
-}
-
-
-/**
- * Notification central. Wrapper around alertify. Allows for persistent
- * notifications which can be resolved (with new message, type, wait time).
+ * Notification central. Allows for persistent notifications which can be
+ * resolved (with new message, type, wait time) at a later time.
+ * Also processes motor information messages.
+ * @param {object} alertify - AlertifyJS instance / module.
  */
 export class NotificationCenter {
     constructor(alertify) {
@@ -64,11 +53,11 @@ export class NotificationCenter {
 
     /**
      * Notify message.
-     *
-     * @param {String} msg Message.
-     * @param {String} type Notification type.
-     * @param {Number} wait Auto-dismiss wait time.
-     * @returns {Object} Notification object.
+     * @param {string} msg - Message text.
+     * @param {string} [type=message] - Notification type. Either "",
+     *     "message", "success", "error" or "warning".
+     * @param {number} [wait=2] - Auto-dismiss wait time.
+     * @returns {object} Notification object.
      */
     notify(msg, type="message", wait=2) {
         return this.alertify.notify(msg, type, wait);
@@ -77,10 +66,12 @@ export class NotificationCenter {
     /**
      * Notify persistent message.
      *
-     * @param {String} msg Message.
-     * @param {String} type Notification type.
-     * @param {Number} wait Auto-dismiss wait time.
-     * @returns {Number} Internal id of notification object.
+     * @param {string} msg - Message text.
+     * @param {string} [type=message] - Notification type. Either "",
+     *     "message", "success", "error" or "warning".
+     * @param {number} [wait=2] - Auto-dismiss wait time.
+     * @param {number} [id=0] - Wish id. Will get auto created by default.
+     * @returns {number} Internal id of notification object.
      */
     notify_persistent(msg, type="message", wait=2, id=0) {
         if (msg in this.beenSaid) {
@@ -104,9 +95,8 @@ export class NotificationCenter {
     }
 
     /**
-     * Process single motor message and update notifications.
-     *
-     * @param {Object} motor Motor object.
+     * Process single motor and update notifications.
+     * @param {object} motor - Motor object.
      */
     update_motor_notification(motor) {
         const homing = motor.homing.value;
@@ -132,6 +122,10 @@ export class NotificationCenter {
         }
     }
 
+    /**
+     * Process motor update messages.
+     * @param {object} msg - Motor update message object.
+     */
     new_motor_message(msg) {
         if (msg.type === "motor-update") {
             this.update_motor_notification(msg.motor);
