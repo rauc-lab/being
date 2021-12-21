@@ -1,5 +1,6 @@
 /**
- * Color maps. Currently only batlowK color map is available (see website of `Fabio Crameri <https://www.fabiocrameri.ch/batlow/>`_).
+ * Color maps. Currently only batlowK color map is available (see website of
+ * `Fabio Crameri <https://www.fabiocrameri.ch/batlow/>`_).
  *
  * @module js/color_map
  */

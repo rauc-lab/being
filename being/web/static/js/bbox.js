@@ -1,5 +1,5 @@
 /**
- * Bounding box. Progressively expand 2d region.
+ * Bounding box. Progressively expand a 2D region.
  * @module js/bbox
  */
 import { clip } from "/static/js/math.js";

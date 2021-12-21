@@ -1,15 +1,16 @@
 /**
  * Graphical layout helpers. Only finding nice tick labels for now. Taken from
- * here:
- * https://stackoverflow.com/questions/8506881/nice-label-algorithm-for-charts-with-minimum-ticks/16363437
+ * here: `Nice label Algorithm For Charts With Minimum Ticks
+ * <https://stackoverflow.com/questions/8506881/nice-label-algorithm-for-charts-with-minimum-ticks/16363437>`_.
+ *
  * @module js/layout
  */
 
 
 /**
  * Find nice number for data range.
- * @param {number} range Data space width.
- * @param {boolean} round Perform number rounding.
+ * @param {number} range - Data space width.
+ * @param {boolean} round - Perform number rounding.
  * @returns {number} Nice number.
  */
 export function nice_number(range, round = false) {
@@ -42,9 +43,9 @@ export function nice_number(range, round = false) {
 
 /**
  * Nice tick numbers for a given data range.
- * @param {number} lower Lower limit of data range.
- * @param {number} upper Upper limit of data range.
- * @param {number} maxTicks Maximum number of ticks.
+ * @param {number} lower - Lower limit of data range.
+ * @param {number} upper - Upper limit of data range.
+ * @param {number} maxTicks - Maximum number of ticks.
  * @returns {array} Tick number candidates.
  */
 export function tick_space(lower, upper, maxTicks=5) {

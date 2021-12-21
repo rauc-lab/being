@@ -11,8 +11,8 @@ components/control_panel/block_diagram
 
 
 Block diagram functionality for control panel. Assumes the following
- third-party Javascript libraries are loaded:
-   - ELK
+third-party Javascript libraries are loaded:
+  - ELK
 
 .. js:autofunction:: block_diagram.draw_block_diagram
 

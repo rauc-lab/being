@@ -227,7 +227,18 @@ class Rst(Node):
     def render_module(self):
         lines = [format_rst_section(self.fullname, level=2)]
         if self.comment:
-            lines.append(parse_comment(self.comment))
+            parsed = parse_comment(self.comment)
+
+            # parse_comment() does a good job removing the stars but also leaves
+            # the first white space character for all but the first line, which
+            # messes up the RST layouting.
+            for nr, l in enumerate(parsed.splitlines()):
+                if nr > 0 and l:
+                    l = l[1:]
+
+                lines.append(l)
+
+            lines.append('')
 
         for doc in self.doclets:
             lines.append(format_rst_doclet(doc))

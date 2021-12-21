@@ -21,7 +21,7 @@ js/array
 
 
 Numpy style array helpers. Most of these functions operate on standard and
- nested JS arrays (like [0, 1, 2, 3] or [[0, 1, 2], [3, 4, 5]]).
+nested JS arrays (like [0, 1, 2, 3] or [[0, 1, 2], [3, 4, 5]]).
 
 .. js:autofunction:: array.array_shape
 
@@ -72,7 +72,7 @@ js/bbox
 -------
 
 
-Bounding box. Progressively expand 2d region.
+Bounding box. Progressively expand a 2D region.
 
 .. js:autoclass:: BBox
    :members:
@@ -83,10 +83,10 @@ js/button
 
 
 Button helpers. Wrappers around material icons. Button icon can be specified
- with the `iconName` string (see `Google Material Design Icon Gallery <https://fonts.google.com/icons>`_
- for available icons).
+with the `iconName` string (see `Google Material Design Icon Gallery <https://fonts.google.com/icons>`_
+for available icons).
 
- Toggle buttons are normal buttons with the checked attribute set.
+Toggle buttons are normal buttons with the checked attribute set.
 
 .. js:autofunction:: button.create_button
 
@@ -116,7 +116,8 @@ js/color_map
 ------------
 
 
-Color maps. Currently only batlowK color map is available (see website of `Fabio Crameri <https://www.fabiocrameri.ch/batlow/>`_).
+Color maps. Currently only batlowK color map is available (see website of
+`Fabio Crameri <https://www.fabiocrameri.ch/batlow/>`_).
 
 .. js:autofunction:: color_map.get_color
 
@@ -249,8 +250,8 @@ js/layout
 
 
 Graphical layout helpers. Only finding nice tick labels for now. Taken from
- here:
- https://stackoverflow.com/questions/8506881/nice-label-algorithm-for-charts-with-minimum-ticks/16363437
+here: `Nice label Algorithm For Charts With Minimum Ticks
+<https://stackoverflow.com/questions/8506881/nice-label-algorithm-for-charts-with-minimum-ticks/16363437>`_.
 
 .. js:autofunction:: layout.nice_number
 
