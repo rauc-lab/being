@@ -23,7 +23,7 @@ const Direction = Object.freeze({
 });
 
 
-/** @constant {string} SVG CSS styling for block diagram. */
+/** @constant {string} - SVG CSS styling for block diagram. */
 const BLOCK_DIAGRAM_SVG_STYLE = `
     .block rect {
         stroke: black;

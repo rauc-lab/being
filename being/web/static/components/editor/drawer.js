@@ -18,6 +18,12 @@ import {
 
 /**
  * Nice float formatting with max precision and "0" for small numbers.
+ *
+ * @param {number} number - Input number.
+ * @param {number} [precision=3] - Decimal place.
+ * @param {number} [smallest=3] - Absolute lower bound for zero.
+ *
+ * @returns {string} Formatted number.
  */
 function format_number(number, precision = 3, smallest = 1e-10) {
     if (Math.abs(number) < smallest) {
@@ -31,9 +37,10 @@ function format_number(number, precision = 3, smallest = 1e-10) {
 /**
  * Clip point so that it lies within bounding box.
  *
- * @param {Array} pt 2D point to clip.
- * @param {BBox} bbox Bounding box to use to restrict the point.
- * @returns Clipped point.
+ * @param {array} pt - 2D point to clip.
+ * @param {BBox} bbox - Bounding box to use to restrict the point.
+ *
+ * @returns {array} Clipped point.
  */
 function clip_point(pt, bbox) {
     return [
@@ -46,9 +53,10 @@ function clip_point(pt, bbox) {
 /**
  * Find index where to insert value in sorted array. Left sided.
  *
- * @param {Array} arr Array to search
- * @param {Number} value Search value.
- * @returns Index where to insert value to preserve order.
+ * @param {array} arr - Sorted array to search.
+ * @param {number} value - Search value.
+ *
+ * @returns {number} Index where to insert value to preserve order.
  */
 function searchsorted_left(arr, value) {
     let left = 0;
@@ -69,9 +77,10 @@ function searchsorted_left(arr, value) {
 /**
  * Find index where to insert value in sorted array. Right sided.
  *
- * @param {Array} arr Array to search
- * @param {Number} value Search value.
- * @returns Index where to insert value to preserve order.
+ * @param {array} arr - Sorted array to search
+ * @param {number} value - Search value.
+ *
+ * @returns {number} Index where to insert value to preserve order.
  */
 function searchsorted_right(arr, value) {
     let left = 0;
@@ -90,9 +99,13 @@ function searchsorted_right(arr, value) {
 
 
 /**
- * Return a sorted number copy of array.
+ * Sort number array the right way. Will not work for Infinity and Nan values.
+ *
+ * @param {array} arr - Input array.
+ *
+ * @returns {array} Sorted copy of array.
  */
-function sorted_numbers(arr) {
+export function sorted_numbers(arr) {
     const ret = [...arr];
     // Mozilla compare function for sorting number arrays without Infinity or NaN
     // https://developer.mozilla.org/de/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
@@ -102,11 +115,12 @@ function sorted_numbers(arr) {
 
 
 /**
- * Data container for snapping to horizontal grid.
+ * Data container for snapping positions to horizontal grid (snap to grid
+ * feature).
  */
-class Grid {
+export class Grid {
     /**
-     * @param {Number} abs_tol Absolute tolerance.
+     * @param {number} [abs_tol=0.001] - Absolute tolerance.
      */
     constructor(abs_tol = 0.001) {
         this.abs_tol = abs_tol;
@@ -139,8 +153,9 @@ class Grid {
     /**
      * Snap y value to grid.
      *
-     * @param {Number} y Horizontal value to snap.
-     * @returns {Number} Snapped y value.
+     * @param {number} y - Horizontal value to snap.
+     *
+     * @returns {number} Snapped y value.
      */
     _snap_y_value(y) {
         if (this.yValues.length > 0) {
@@ -160,8 +175,9 @@ class Grid {
     /**
      * Snap point to grid.
      *
-     * @param {Array} pt 2D point.
-     * @returns {Array} Snapped 2D point.
+     * @param {array} pt - 2D point.
+     *
+     * @returns {array} Snapped 2D point.
      */
     snap_point(pt) {
         return [pt[0], this._snap_y_value(pt[1])];
@@ -169,6 +185,8 @@ class Grid {
 
     /**
      * Update grid values from spline.
+     *
+     * @param {BPoly} spline - Input spline.
      */
     update_from_spline(spline) {
         arange(spline.n_segments + 1).forEach(knotNr => {
@@ -180,12 +198,12 @@ class Grid {
 
 
 /**
- * Annotation wrapper.
+ * Annotation wrapper. Manages single HTML span element for overlaying
+ * informations while dragging.
+ *
+ * @param {Drawer} drawer - Parent drawer instance.
  */
-class Annotation {
-    /**
-     * @param {Drawer} drawer Parent drawer instance.
-     */
+export class Annotation {
     constructor(drawer) {
         this.drawer = drawer;
         this.span = document.createElement("span");
@@ -196,8 +214,8 @@ class Annotation {
     /**
      * Move annotate label around.
      *
-     * @param {Array} pos Position to move to (data space).
-     * @param {Number} offset Offset value.
+     * @param {array} pos - Position to move to (data space).
+     * @param {number} offset - Offset value.
      */
     move(pos, offset = 10) {
         const [x, y] = this.drawer.transform_point(pos);
@@ -211,7 +229,7 @@ class Annotation {
     /**
      * Set inner HTML of annotation label.
      *
-     * @param {String} text Annotation text.
+     * @param {string} text - Annotation text.
      */
     annotate(text) {
         this.span.innerHTML = text;
@@ -234,9 +252,9 @@ class Annotation {
 
 
 /**
- * Data container for selected indices.
+ * Data container for selected knot indices.
  */
-class Selection {
+export class Selection {
     constructor() {
         this.set = new Set();
     }
@@ -244,8 +262,9 @@ class Selection {
     /**
      * Check if number is selected.
      *
-     * @param {Number} nr Number to check.
-     * @returns If number is selected.
+     * @param {number} nr - Number to check.
+     *
+     * @returns {boolean} If number is selected.
      */
     is_selected(nr) {
         return this.set.has(nr);
@@ -254,7 +273,7 @@ class Selection {
     /**
      * If nothing is selected.
      *
-     * @returns If nothing is selected.
+     * @returns {boolean} If nothing is selected.
      */
     is_empty() {
         return this.set.size === 0
@@ -263,8 +282,9 @@ class Selection {
     /**
      * Select new number.
      *
-     * @param {Number} nr Number to select.
-     * @returns If selection changed.
+     * @param {number} nr - Number to select.
+     *
+     * @returns {boolean} If selection has changed.
      */
     select(nr) {
         return this.set.add(nr);
@@ -273,8 +293,9 @@ class Selection {
     /**
      * Deselect number.
      *
-     * @param {Number} nr Number to deselect.
-     * @returns If selection changed.
+     * @param {number} nr - Number to deselect.
+     *
+     * @returns {boolean} If selection has changed.
      */
     deselect(nr) {
         return this.set.delete(nr);
@@ -283,7 +304,7 @@ class Selection {
     /**
      * Clear selection.
      *
-     * @returns If selection changed.
+     * @returns {boolean} If selection has changed.
      */
     deselect_all() {
         if (this.is_empty()) {
@@ -297,7 +318,7 @@ class Selection {
     /**
      * Get frozen sorted selection.
      *
-     * @returns Sorted array copy of selection.
+     * @returns {array} Sorted array copy of selection.
      */
     sorted() {
         return sorted_numbers(this.set);
@@ -306,12 +327,12 @@ class Selection {
 
 
 /**
- * Selection rectangle wrapper.
+ * Selection rectangle wrapper. Manages the blue shimmering selection box which
+ * can be drawn with the mouse.  
+ *
+ * @param {Drawer} drawer - Parent drawer instance.
  */
-class SelectionRectangle {
-    /**
-     * @param {Drawer} drawer Parent drawer instance.
-     */
+export class SelectionRectangle {
     constructor(drawer) {
         this.drawer = drawer;
         this.rect = create_element("rect");
@@ -323,8 +344,10 @@ class SelectionRectangle {
     /**
      * Move selection box.
      *
-     * @param {Number} left Left side of selection box in data space coordinates.
-     * @param {Number} right Right side of selection box in data space coordinates.
+     * @param {number} left - Left side of selection box in data space
+     *     coordinates.
+     * @param {number} right - Right side of selection box in data space
+     *     coordinates.
      */
     move(left, right) {
         const [a, _] = this.drawer.transform_point([left, 0]);
@@ -351,7 +374,7 @@ class SelectionRectangle {
 }
 
 
-
+/** @constant {string} - Drawer template. */
 const DRAWER_STYLE = `
 <style>
 :host {
@@ -443,6 +466,17 @@ path.selected {
 `
 
 
+/**
+ * Curve drawer widget web component. Based on simple value plotter adds curve
+ * drawing and editing functionalities.
+ *
+ * Key features:
+ *   - Foreground / background curves.
+ *   - Drag mouse motions
+ *   - Snapping to grid.
+ *   - Multiple knot selection.
+ *   - Drag navigation.
+ */
 export class Drawer extends Plotter {
     constructor() {
         super();
@@ -494,7 +528,7 @@ export class Drawer extends Plotter {
     }
 
     /**
-     * Clear foreground curve and SVG elements but remember selection .
+     * Clear foreground curve and SVG elements but remember selection.
      */
     clear() {
         this.foregroundCurve = null;
@@ -672,9 +706,9 @@ export class Drawer extends Plotter {
     /**
      * Remove knots from curve channel spline.
      *
-     * @param {Curve} curve Curve in question.
-     * @param {Number} channel Spline number.
-     * @param {Array} knotNumbers Knut indices to remove.
+     * @param {Curve} curve - Curve in question.
+     * @param {number} channel - Spline number.
+     * @param {array} knotNumbers - Knot indices to remove.
      */
     remove_knots(curve, channel, knotNumbers) {
         const wc = curve.copy()
@@ -706,7 +740,11 @@ export class Drawer extends Plotter {
 
     /**
      * Move all selected knots by some offset.
-     * remember_selected_knot_positions() has to be called before!
+     * :func:`Drawer.remember_selected_knot_positions()` has to be called
+     * before!
+     *
+     * @param {number} offset - Horizontal offset.
+     * @param {boolean} [snap=false] - Snap to grid.
      */
     move_selected_knots(offset, snap = false) {
         const spline = this.foregroundCurve.splines[this.foregroundChannel];
@@ -723,11 +761,14 @@ export class Drawer extends Plotter {
     }
 
     /**
-     * Process click on selected element.
-     *   - If already selected continue
-     *   - If not selected:
-     *       - Without shift key: Overwrite selection
-     *       - With shift key: Add to selection.
+     * Process click on selected element:
+     *   1) If already selected continue
+     *   2) If not selected:
+     *     a) Without shift key: Overwrite selection
+     *     b) With shift key: Add to selection.
+     *
+     * @param {array} knotNumbers - Knot numbers which got clicked.
+     * @param {boolean} shiftKey - If shift key was held.
      */
     click_select_knots(knotNumbers, shiftKey) {
         const somethingSelected = !this.selection.is_empty();
@@ -744,7 +785,9 @@ export class Drawer extends Plotter {
      * Initialize an SVG path element and adds it to the SVG parent element.
      * data_source callback needs to deliver the 2-4 Bézier control points.
      *
-     * @param {Function} data_source Callable data source returning the control points.
+     * @param {function} data_source - Callable data source returning the
+     *     control points.
+     *
      * @returns {SVGPathElement} SVG path element.
      */
     create_svg_path(data_source) {
@@ -760,8 +803,10 @@ export class Drawer extends Plotter {
      * Initialize an SVG circle element and adds it to the SVG parent element.
      * data_source callback needs to deliver the center point of the circle.
      *
-     * @param {Function} data_source Callable data source returning the center point.
-     * @param {Number} radius Circle radius.
+     * @param {function} data_source - Callable data source returning the
+     *     center point.
+     * @param {number} radius - Circle radius.
+     *
      * @returns {SVGCircleElement} SVG circle element.
      */
     create_svg_circle(data_source, radius) {
@@ -781,8 +826,9 @@ export class Drawer extends Plotter {
      * data_source callback needs to deliver the start end and point of the
      * line.
      *
-     * @param {function} data_source Callable data source which spits out the
-     * current start and end point of the line.
+     * @param {function} data_source - Callable data source which spits out the
+     *     current start and end point of the line.
+     *
      * @returns {SVGLineElement} SVG line instance.
      */
     create_svg_line(data_source) {
@@ -799,9 +845,10 @@ export class Drawer extends Plotter {
     }
 
     /**
-     * Emit custom curvechanging event.
+     * Emit custom `curvechanging` event.
      *
-     * @param {Array} position Optional position value to trigger live preview.
+     * @param {array} [position=null] - Optional position value to trigger live
+     *     preview.
      */
     emit_curve_changing(position = null) {
         emit_custom_event(this, "curvechanging", {
@@ -810,9 +857,9 @@ export class Drawer extends Plotter {
     }
 
     /**
-     * Emit custom curvechanged event.
+     * Emit custom `curvechanged` event.
      *
-     * @param {Curve} newCurve New final curve.
+     * @param {Curve} newCurve - New final curve.
      */
     emit_curve_changed(newCurve) {
         emit_custom_event(this, "curvechanged", {
@@ -821,10 +868,10 @@ export class Drawer extends Plotter {
     }
 
     /**
-     * Emit custom channelchanged event. When user clicks on another channel of
-     * the foreground curve.
+     * Emit custom `channelchanged` event. When user clicks on another channel
+     * of the foreground curve.
      *
-     * @param {Number} channel Channel number.
+     * @param {number} channel - Channel number.
      */
     emit_channel_changed(channel) {
         emit_custom_event(this, "channelchanged", {
@@ -838,11 +885,10 @@ export class Drawer extends Plotter {
      * transformation, calculates delta offset, triggers redraws. Mostly used
      * to drag SVG elements around.
      *
-     * @param {Element} ele Element to make draggable.
-     * @param {Curve} curve working copy of the curve.
-     * @param {Number} channel Active curve channel number.
-     * @param {Function} on_drag On drag motion callback. Will be called with a relative
-     * delta array.
+     * @param {SVGElement} ele - Element to make draggable.
+     * @param {Curve} curve - working copy of the curve.
+     * @param {number} channel - Active curve channel number.
+     * @param {object} callbacks - Drag event callbacks (start_drag, drag, end_drag).
      */
     make_draggable(ele, curve, channel, callbacks = {}) {
         const no_action = (evt, pos) => {};
@@ -922,9 +968,9 @@ export class Drawer extends Plotter {
     /**
      * Plot spline path of curve. This is non-interactive.
      *
-     * @param {Curve} curve Curve to draw path for.
-     * @param {Number} channel Active curve channel number.
-     * @param {String} className CSS class name to assigne to path.
+     * @param {Curve} curve - Curve to draw path for.
+     * @param {number} channel - Active curve channel number.
+     * @param {string} className - CSS class name to assigne to path.
      */
     plot_curve_path(curve, channel, className) {
         const spline = curve.splines[channel];
@@ -981,8 +1027,9 @@ export class Drawer extends Plotter {
     /**
      * Plot interactive control points with helper lines of spline.
      *
-     * @param {Curve} curve Curve to draw control points / helper lines for.
-     * @param {Number} channel Active curve channel number.
+     * @param {Curve} curve - Curve to draw control points / helper lines for.
+     * @param {number} channel - Active curve channel number.
+     *
      * @returns {SVGGroupElement} Group containing all control point elements.
      */
     plot_control_point(curve, channel, knotNr, radius) {
@@ -1044,10 +1091,11 @@ export class Drawer extends Plotter {
     /**
      * Plot interactive spline knots.
      *
-     * @param {Curve} curve Curve to draw knots from.
-     * @param {Number} channel Active curve channel number.
-     * @param {Number} knotNr Knot number.
-     * @param {Number} radius Radius of knot circle.
+     * @param {Curve} curve - Curve to draw knots from.
+     * @param {number} channel - Active curve channel number.
+     * @param {number} knotNr - Knot number.
+     * @param {number} radius - Radius of knot circle.
+     *
      * @returns {SVGCircleElement} Circle knot.
      */
     plot_knot(curve, channel, knotNr, radius) {
@@ -1090,10 +1138,10 @@ export class Drawer extends Plotter {
     /**
      * Plot single curve channel.
      *
-     * @param {Curve} curve Curve to plot.
-     * @param {Number} channel Active curve channel number.
-     * @param {String} className CSS class name to assigne to path.
-     * @param {Number} radius Circle radius.
+     * @param {Curve} curve - Curve to plot.
+     * @param {number} channel - Active curve channel number.
+     * @param {string} className - CSS class name to assign to path.
+     * @param {number} [radius=6] - Circle radius.
      */
     plot_curve_channel(curve, channel, className, radius = 6) {
         const spline = curve.splines[channel];
@@ -1131,7 +1179,7 @@ export class Drawer extends Plotter {
     /**
      * Draw background curve.
      *
-     * @param {Curve} curve Background curve to draw.
+     * @param {Curve} curve - Background curve to draw.
      */
     draw_background_curve(curve) {
         if (curve.n_splines === 0) {
@@ -1147,7 +1195,9 @@ export class Drawer extends Plotter {
     /**
      * Draw foreground curve. Selected channel will be interactive.
      *
-     * @param {Curve} curve Foreground curve to draw.
+     * @param {Curve} curve - Foreground curve to draw.
+     * @param {number} [channel=-1] - Foreground curve to draw. None by
+     *     default.
      */
     draw_foreground_curve(curve, channel = -1) {
         if (curve.n_splines === 0) {
@@ -1182,13 +1232,12 @@ export class Drawer extends Plotter {
     }
 
     /**
-     * Draw everything
+     * Draw everything.
      */
     draw() {
         this.draw_canvas();
         this.draw_svg();
     }
 }
-
 
 customElements.define("being-drawer", Drawer);

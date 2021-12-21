@@ -12,7 +12,7 @@ import { create_button } from "/static/js/button.js";
  * Render template, clone it and append it to a target HTMLElement.
  *
  * @param {HTMLTemplateElement|string} template - Template element or string.
- * @param {*} target - Target HTMLElement to append rendered template to.
+ * @param {HTMLElement} target - Target element to append rendered template to.
  */
  export function append_template_to(template, target) {
     if (typeof template === "string") {
@@ -30,8 +30,8 @@ import { create_button } from "/static/js/button.js";
 /**
  * Append CSS link node to target.
  *
- * @param {*} href - Href link.
- * @param {*} target - Target element to append link to.
+ * @param {string} href - Href link.
+ * @param {HTMLElement} target - Target element to append link to.
  */
 export function append_link_to(href, target) {
     const link = document.createElement("link");
