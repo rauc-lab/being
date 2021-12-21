@@ -342,11 +342,6 @@ def behavior_routes(behaviors) -> web.RouteTableDef:
         for behavior in behaviors
     }
 
-    @routes.get('/behaviors/{id}/states')
-    async def load_behavior_states(request):
-        stateNames = list(BehaviorState.__members__)
-        return json_response(stateNames)
-
     @routes.get('/behaviors/{id}')
     async def load_behavior(request):
         id = int(request.match_info['id'])
@@ -355,6 +350,11 @@ def behavior_routes(behaviors) -> web.RouteTableDef:
         except (ValueError, KeyError):
             msg = f'Behavior with id {id} does not exist!'
             return web.HTTPBadRequest(text=msg)
+
+    @routes.get('/behaviors/{id}/states')
+    async def load_behavior_states(request):
+        stateNames = list(BehaviorState.__members__)
+        return json_response(stateNames)
 
     @routes.put('/behaviors/{id}/toggle_playback')
     async def toggle_behavior_playback(request):
