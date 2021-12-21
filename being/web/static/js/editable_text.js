@@ -1,11 +1,19 @@
 /**
- * Make text field editable by double clicking it.
+ * Editable text field.
  * @module js/editable_text
- * 
- * @param {*} ele Element to make editable.
- * @param {*} on_change On change event callback.
- * @param {*} validator Text content validator function.
- * @param {*} newLines If to accept new lines or not.
+ */
+
+
+/**
+ * Make text field editable by double clicking it. On change callback is called
+ * when user leaves editing mode by hitting enter key. Additionally a validator
+ * function can be provided to validate newly generated input text. This
+ * validator function can either reformat the text or throw an error. For the
+ * latter all changes will be reverted.
+ * @param {HTMLElement} ele - Element to make editable.
+ * @param {Function} on_change - On change event callback.
+ * @param {Function | null} [validator=null] - Text content validator function.
+ * @param {boolean} [newLines=false] - If to accept new lines or not.
  */
 export function make_editable(ele, on_change, validator=null, newLines=false) {
     if (validator === null) {

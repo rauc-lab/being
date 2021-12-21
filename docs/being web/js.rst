@@ -190,7 +190,7 @@ js/draggable
 ------------
 
 
-Make something draggable. Manage mouse events for draggable actions.
+Make something draggable.
 
 .. js:autofunction:: draggable.make_draggable
 
@@ -199,22 +199,46 @@ js/editable_text
 ----------------
 
 
-Make text field editable by double clicking it.
+Editable text field.
+
+.. js:autofunction:: editable_text.make_editable
+
 
 js/fetching
 -----------
 
 
-Wrapper verbs around standard fetch.
+Wrapper verbs around standard JS fetch.
+
+.. js:autofunction:: fetching.get
+
+
+.. js:autofunction:: fetching.put
+
+
+.. js:autofunction:: fetching.post
+
+
+.. js:autofunction:: fetching.delete_fetch
+
 
 .. js:autofunction:: fetching.fetch_json
+
+
+.. js:autofunction:: fetching.get_json
+
+
+.. js:autofunction:: fetching.post_json
+
+
+.. js:autofunction:: fetching.put_json
 
 
 js/history
 ----------
 
 
-Edit history class.
+Editing history.
 
 .. js:autoclass:: History
    :members:

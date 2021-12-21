@@ -1,5 +1,5 @@
 /**
- * Edit history class.
+ * Editing history.
  * @module js/history
  */
 import { Deque } from "/static/js/deque.js";
@@ -7,7 +7,10 @@ import { last_element } from "/static/js/utils.js";
 
 
 /**
- * Edit history container.
+ * Editing history container. Keeps track of changes in a `past` and `future`
+ * queue. Allows for capturing new states and retrieving the current one. An
+ * editing state can be an arbitrary JS object.
+ * @param {number} maxlen - Maximum lengths of past and future queues.
  */
 export class History {
     constructor(maxlen = 20) {
@@ -15,51 +18,51 @@ export class History {
         this.future = new Deque(0, maxlen);
     }
 
-
     /**
-     * History length. Past and future.
+     * History length. Total number of states in past and future.
+     * @type {number}
      */
     get length() {
         return this.past.length + this.future.length;
     }
 
-
     /**
-     * History can be undone.
+     * Can history be made undone?
+     * @type {boolean}
      */
     get undoable() {
         return this.past.length > 1;
     }
 
-
     /**
-     * History can be restored.
+     * Can the wheel of time be turned back?
+     * @type {boolean}
      */
     get redoable() {
         return this.future.length > 0;
     }
 
-
     /**
-     * Do we have unsaved changes?
+     * Are there unsaved changes?
+     * @type {boolean}
      */
     get savable() {
         return this.length > 1;
     }
 
-
     /**
-     * Capture a new state and add it to the history. Will clear off head.
-     * @param {object} state State to caputre / add to history.
+     * Capture a new state and add it to the history. This will clear the
+     * future.
+     * @param {object} state - State to capture / add to history.
      */
     capture(state) {
         this.future.clear();
         this.past.push(state);
     }
 
-
     /**
      * Retrieve current state.
+     * @returns {object | null} current state (if any).
      */
     retrieve() {
         if (this.past.length === 0) {
@@ -69,9 +72,9 @@ export class History {
         return last_element(this.past);
     }
 
-
     /**
      * Wind back one state.
+     * @returns {object} Newly current state.
      */
     undo() {
         if (!this.undoable) {
@@ -83,9 +86,9 @@ export class History {
         return this.retrieve();
     }
 
-
     /**
-     * Rewind one state.
+     * Fast forward one state.
+     * @returns {object} Newly current state.
      */
     redo() {
         if (!this.redoable) {
@@ -97,9 +100,8 @@ export class History {
         return this.retrieve();
     }
 
-
     /**
-     * Clear complete history.
+     * Clear entire history.
      */
     clear() {
         this.past.clear();
