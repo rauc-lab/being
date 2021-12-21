@@ -1,5 +1,7 @@
 /**
- * Base class for HTML web component. Simple HTMLElement with a toolbar div.
+ * Widget base class for being HTML web components. Simple HTMLElement with an
+ * additional toolbar div.
+ *
  * @module js/widget
  */
 import { add_option } from "/static/js/utils.js";
@@ -9,8 +11,8 @@ import { create_button } from "/static/js/button.js";
 /**
  * Render template, clone it and append it to a target HTMLElement.
  *
- * @param {object} template Element or string
- * @param {*} target Target HTMLElement to append rendered template to.
+ * @param {HTMLTemplateElement|string} template - Template element or string.
+ * @param {*} target - Target HTMLElement to append rendered template to.
  */
  export function append_template_to(template, target) {
     if (typeof template === "string") {
@@ -28,8 +30,8 @@ import { create_button } from "/static/js/button.js";
 /**
  * Append CSS link node to target.
  *
- * @param {*} href Href link.
- * @param {*} target Target element to append link to.
+ * @param {*} href - Href link.
+ * @param {*} target - Target element to append link to.
  */
 export function append_link_to(href, target) {
     const link = document.createElement("link");
@@ -42,6 +44,11 @@ export function append_link_to(href, target) {
 
 /**
  * Create select HTML element.
+ *
+ * @param {array} options - Name of initial options to add.
+ * @param {string} name - Optional label string (not supported at the moment).
+ *
+ * @returns {HTMLSelectElement} New select element.
  */
 export function create_select(options = [], name = "") {
     //const container = document.createElement("div");
@@ -65,6 +72,8 @@ export function create_select(options = [], name = "") {
 
 /**
  * Base class for Being widget.
+ *
+ * Simple web component with open shadow root. No toolbar.
  */
 export class WidgetBase extends HTMLElement {
     constructor() {
@@ -75,7 +84,7 @@ export class WidgetBase extends HTMLElement {
     /**
      * Append HTML template to shadow root.
      *
-     * @param {HTMLElement} template to add.
+     * @param {HTMLTemplateElement | string} template - Template to add.
      */
     append_template(template) {
         append_template_to(template, this.shadowRoot);
@@ -84,15 +93,16 @@ export class WidgetBase extends HTMLElement {
     /**
      * Add CSS stylesheet link to shadowroot.
      *
-     * @param {String} href Path to CSS stylesheet.
+     * @param {string} href - Path to CSS stylesheet.
      */
     append_link(href) {
         append_link_to(href, this.shadowRoot);
     }
 };
 
+
 /**
- * Custom compoment being widget.
+ * Custom component being widget. With toolbar.
  */
 export class Widget extends WidgetBase {
     constructor() {
@@ -109,8 +119,10 @@ export class Widget extends WidgetBase {
      * Add a new material icon button to toolbar (or any other parent_
      * element).
      *
-     * @param innerHTML Inner HTML text
-     * @param title Tooltip
+     * @param {string} innerHTML - Inner HTML text
+     * @param {string} [title= ] - Button tooltip.
+     *
+     * @returns {HTMLButton} Button element.
      */
     add_button_to_toolbar(innerHTML, title = "") {
         const btn = create_button(innerHTML, title);
@@ -120,6 +132,8 @@ export class Widget extends WidgetBase {
 
     /**
      * Add a spacing element to the toolbar.
+     *
+     * @returns {HTMLSpanElement} Span element.
      */
     add_space_to_toolbar() {
         const span = document.createElement("span");
@@ -131,8 +145,10 @@ export class Widget extends WidgetBase {
     /**
      * Add a select element to the toolbar. 
      *
-     * @param {String} options Select options.
-     * @param {String} name Select name and label.
+     * @param {string} options - Select options.
+     * @param {string} [name= ] - Select name and label.
+     *
+     * @returns {HTMLSelectElement} Select element.
      */
     add_select_to_toolbar(options = [], name = "") {
         const select = create_select(options, name);

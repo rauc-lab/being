@@ -458,7 +458,6 @@ js/web_socket
 -------------
 
 
-Small web socket wrapper.
 
 .. js:autoclass:: WebSocketCentral
    :members:
@@ -468,7 +467,8 @@ js/widget
 ---------
 
 
-Base class for HTML web component. Simple HTMLElement with a toolbar div.
+Widget base class for being HTML web components. Simple HTMLElement with an
+additional toolbar div.
 
 .. js:autofunction:: widget.append_template_to
 
