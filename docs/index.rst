@@ -103,6 +103,7 @@ Table of Contents
    :caption: Contents:
 
    concepts
+   manuals
    tutorials
    guides
 
