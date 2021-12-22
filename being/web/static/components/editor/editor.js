@@ -27,10 +27,10 @@ const ZOOM_FACTOR_PER_STEP = 1.5;
 /** @const {string} - Folded motion / spline list HTML attribute */
 const FOLDED = "folded";
 
-/** @const {Number} - Default spline knot shift offset amount...  */
+/** @const {number} - Default spline knot shift offset amount...  */
 const DEFAULT_KNOT_SHIFT = 0.5;
 
-/** @const {Number} - HTTP OK.*/
+/** @const {number} - HTTP OK.*/
 const OK = 200;
 
 /** @const {number} - Nothing selected in HTML select yet */
@@ -40,8 +40,10 @@ const NOTHING_SELECTED = -1;
 /**
  * Zoom / scale bounding box.
  *
- * @param {Bbox} bbox Bounding box to scale.
- * @param {Number} factor Zoom factor.
+ * @param {BBox} bbox - Bounding box to scale.
+ * @param {number} factor - Zoom factor.
+ *
+ * @returns {BBox} Modified bounding box copy.
  */
 function zoom_bbox(bbox, factor) {
     const zoomed = bbox.copy();
@@ -55,8 +57,8 @@ function zoom_bbox(bbox, factor) {
 /**
  * Zoom / scale bounding box in place.
  *
- * @param {Bbox} bbox Bounding box to scale.
- * @param {Number} factor Zoom factor.
+ * @param {Bbox} bbox - Bounding box to scale.
+ * @param {number} factor - Zoom factor.
  */
 function zoom_bbox_in_place(bbox, factor) {
     const mid = .5 * (bbox.left + bbox.right);
@@ -66,7 +68,12 @@ function zoom_bbox_in_place(bbox, factor) {
 
 
 /**
- * Purge outdated keys from map (in-place).
+ * Purge outdated keys from map in place.
+ *
+ * @param {Map} map - Input map to cleanup.
+ * @param {array} keys - Current keys. Every key in map which is not in `keys`
+ *     will get discarded.
+ *
  */
 function purge_outdated_map_keys(map, keys) {
     keys = Array.from(keys)
@@ -79,7 +86,11 @@ function purge_outdated_map_keys(map, keys) {
 
 
 /**
- * Create a curve with zero splines.
+ * Create new curve with some zero splines.
+ *
+ * @param {number} nChannels - Number of splines in the curve.
+ *
+ * @returns {Curve} New curve.
  */
 function zero_curve(nChannels) {
     const splines = [];
@@ -101,6 +112,7 @@ export function dont_display_select_when_no_options(select) {
 }
 
 
+/** @const {string} - Editor widget template. */
 const EDITOR_TEMPLATE = `
 <style>
     :host {
@@ -140,7 +152,22 @@ const EDITOR_TEMPLATE = `
 /**
  * Motion editor.
  *
- * Shadow root with canvas and SVG overlay.
+ * This widget holds two web components:
+ *   - ``<being-list>`` for showing the current content.
+ *   - ``<being-drawer>`` for plotting and displaying curves.
+ *
+ * What this class does:
+ *   - Toolbar
+ *   - Most of API connections.
+ *   - One independent editing history per curve
+ *   - Relaying the actual position values of the motors to the drawer.
+ *   - Trajectory recording.
+ *
+ * What else there is:
+ *   - Transport handles the playback line and timestamp calculations.
+ *   - Motion player select controls on which motion player the current curve
+ *     is played.
+ *   - Channel select controls the foreground channel / spline of the curve.
  */
 export class Editor extends Widget {
     constructor() {
@@ -172,7 +199,8 @@ export class Editor extends Widget {
     }
 
     /**
-     * Get editing history for currently selected curve.
+     * Get editing history for the currently selected curve.
+     * @type {History}
      */
     get history() {
         const selected = this.list.selected;
@@ -244,6 +272,10 @@ export class Editor extends Widget {
     /**
      * Curve action decorator. Decorates methods that accept an event an return
      * a new modified curve.
+     *
+     * @param {function} func - Curve action function to decorate.
+     *
+     * @returns {function} Decorated func.
      */
     curve_action(func) {
         return evt => {
@@ -539,7 +571,7 @@ export class Editor extends Widget {
     }
 
     /**
-     * Register key event listeners for shortcuts.
+     * Register key event listeners for keyboard shortcuts.
      */
     setup_keyboard_shortcuts() {
         addEventListener("keydown", evt => {
@@ -637,6 +669,8 @@ export class Editor extends Widget {
 
     /**
      * Do we have at least one motion player?
+     *
+     * @returns {boolean} There is one.
      */
     has_motion_players() {
         return this.motionPlayers.length > 0;
@@ -644,6 +678,9 @@ export class Editor extends Widget {
 
     /**
      * Select (another) motion player.
+     *
+     * @param {object} motionPlayer - Motion player to select (object
+     *     representation).
      */
     select_motion_player(motionPlayer) {
         const idx = this.motionPlayers.findIndex(mp => mp.id === motionPlayer.id);
@@ -666,7 +703,7 @@ export class Editor extends Widget {
     /**
      * Currently selected channel number.
      *
-     * @returns Channel number.
+     * @returns {number} Channel number.
      */
     selected_channel() {
         return this.channelSelect.selectedIndex;
@@ -674,6 +711,8 @@ export class Editor extends Widget {
 
     /**
      * Select another channel.
+     *
+     * @param {number} channel - Channel number to select.
      */
     select_channel(channel) {
         const idx = clip(channel, 0, this.number_of_channels() - 1);
@@ -682,6 +721,8 @@ export class Editor extends Widget {
 
     /**
      * Current number of curves.
+     *
+     * @returns {number} - Number of channels.
      */
     number_of_channels() {
         if (!this.list.selected) {
@@ -716,7 +757,9 @@ export class Editor extends Widget {
     }
 
     /**
-     * TODO
+     * Set number of options in channel select.
+     *
+     * @param {number} nChannels - Desired number of channels.
      */
     update_channel_select(nChannels) {
         const select = this.channelSelect;
@@ -1068,6 +1111,9 @@ export class Editor extends Widget {
     /**
      * Draw a fresh curve. Name has to be provided for initialization of
      * corresponding history.
+     *
+     * @param {string} name - Curve name.
+     * @param {Curve} curve - Curve instance to draw..
      */
     draw_curve(name, curve) {
         if (!this.histories.has(name)) {
@@ -1110,6 +1156,9 @@ export class Editor extends Widget {
      * Notify spline editor that the spline working copy is going to change.
      * Also supply a optional [x, y] position value for the live preview
      * feature (if enabled).
+     *
+     * @param {array | null} [position=null] Optional position array. If live
+     *     preview is selected the y component will be send to the backend.
      */
     curve_changing(position = null) {
         this.stop_motion_playback();
@@ -1131,7 +1180,10 @@ export class Editor extends Widget {
     }
 
     /**
-     * Notify spline editor that with the new current state of the spline.
+     * Notify editor that the curve changed. That there is a new `state` of the
+     * curve.
+     *
+     * @param {Curve} newCurve - New curve state.
      */
     async curve_changed(newCurve) {
         newCurve.restrict_to_bbox(this.drawer.limits);
@@ -1151,7 +1203,10 @@ export class Editor extends Widget {
     // Misc
 
     /**
-     * Check if there are unsaved changes and get confirmation of the user to proceed.
+     * Check if there are unsaved changes and get confirmation of the user to
+     * proceed.
+     *
+     * @returns {boolean} If it is ok to proceed with unsaved changes.
      */
     confirm_unsaved_changes() {
         if (!this.list.selected) {
@@ -1166,8 +1221,8 @@ export class Editor extends Widget {
     }
 
     /**
-     * Update UI elements. Mostly buttons at this time. Disabled state of undo
-     * / redo buttons according to history.
+     * Update UI elements. Mostly button and select elements related at this
+     * point (enabling / disabling buttons, updating channel names).
      */
     update_ui() {
         this.removeChannelBtn.disabled = (this.number_of_channels() === 0);
@@ -1243,6 +1298,11 @@ export class Editor extends Widget {
         switch_button_to(this.c1Btn, !this.drawer.c1);
     }
 
+    /**
+     * Populate with content.
+     *
+     * @param {array} curvenames - Ordered [name, curve] entries.
+     */
     populate(curvenames) {
         // Update histories. Add new histories, remove outdated
         const names = [];
@@ -1263,14 +1323,20 @@ export class Editor extends Widget {
     // Public
 
     /**
-     * Register notification center.
+     * Register notification center so that editor can publish notifications to
+     * the user.
+     *
+     * @param {NotificationCenter} notificationCenter - Running notification
+     *     center.
      */
     set_notification_center(notificationCenter) {
         this.notificationCenter = notificationCenter;
     }
 
     /**
-     * Process new data message from back-end.
+     * Process new data message from backend.
+     *
+     * @param {object} msg - Being state message.
      */
     new_data(msg) {
         const t = this.transport.move(msg.timestamp);
@@ -1301,7 +1367,9 @@ export class Editor extends Widget {
     }
 
     /**
-     * Process new behavior message from back-end.
+     * Process new behavior message from backend.
+     *
+     * @param {object} behavior - Behavior message.
      */
     new_behavior_message(behavior) {
         if (behavior.active) {
@@ -1311,7 +1379,9 @@ export class Editor extends Widget {
     }
 
     /**
-     * Process new motions message (forward to curvelist).
+     * Process new motions / content message.
+     *
+     * @param {object} - Content changed message.
      */
     new_motions_message(msg) {
         this.populate(msg.curves);
