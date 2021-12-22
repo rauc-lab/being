@@ -104,6 +104,10 @@ function searchsorted_right(arr, value) {
  * @param {array} arr - Input array.
  *
  * @returns {array} Sorted copy of array.
+ *
+ * @example
+ * // returns actually [0, 1, 2, 3, 8, 9, 10]
+ * sorted_numbers([10, 9, 8, 3, 2, 1, 0])
  */
 export function sorted_numbers(arr) {
     const ret = [...arr];
@@ -201,10 +205,13 @@ export class Grid {
  * Annotation wrapper. Manages single HTML span element for overlaying
  * informations while dragging.
  *
- * .. image:: ../images/annotation.png
+ * .. figure:: ../images/annotation.png
  *    :width: 50%
- *    :align: center
- *    :alt: Drawer screenshot.
+ *    :alt: Annotation screenshot.
+ *
+ *    Annotation shows the current time / position value when dragging a knot.
+ *    When dragging a control point it will show the derivative at the adjacent
+ *    knot instead.
  *
  * @param {Drawer} drawer - Parent drawer instance.
  */
@@ -259,9 +266,10 @@ export class Annotation {
 /**
  * Data container for selected knot indices.
  *
- * .. image:: ../images/selection.png
- *    :align: center
+ * .. figure:: ../images/selection.png
  *    :alt: Selection screenshot.
+ *
+ *    Knot numbers `1` and `2` are both selected.
  */
 export class Selection {
     constructor() {
@@ -339,9 +347,10 @@ export class Selection {
  * Selection rectangle wrapper. Manages the blue shimmering selection box which
  * can be drawn with the mouse.  
  *
- * .. image:: ../images/selection\ rectangle.png
- *    :align: center
+ * .. figure:: ../images/selection\ rectangle.png
  *    :alt: Drawer screenshot.
+ *
+ *    Active selection rectangle.
  *
  * @param {Drawer} drawer - Parent drawer instance.
  */
@@ -483,9 +492,12 @@ path.selected {
  * Curve drawer widget web component. Based on simple value plotter adds curve
  * drawing and editing functionalities.
  *
- * .. image:: ../images/drawer.png
- *    :align: center
+ * .. figure:: ../images/drawer.png
  *    :alt: Drawer screenshot.
+ *
+ *    Two splines are plotted. For the foreground spline the black circles are
+ *    the knots and the red ones the control points. The thin helper lines
+ *    indicate the slope. Knots and control points can be dragged around.
  *
  * Key features:
  *   - Foreground / background curves.
@@ -897,10 +909,10 @@ export class Drawer extends Plotter {
     }
 
     /**
-     * Make something draggable inside data space. Wraps default
-     * make_draggable. Handles mouse -> image space -> data space
-     * transformation, calculates delta offset, triggers redraws. Mostly used
-     * to drag SVG elements around.
+     * Make something draggable inside data space. Wraps default make_draggable
+     * function. Handles mouse -> image space -> data space transformation,
+     * calculates delta offset, triggers redraws. Mostly used to drag SVG
+     * elements around.
      *
      * @param {SVGElement} ele - Element to make draggable.
      * @param {Curve} curve - working copy of the curve.
