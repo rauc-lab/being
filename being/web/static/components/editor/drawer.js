@@ -201,6 +201,11 @@ export class Grid {
  * Annotation wrapper. Manages single HTML span element for overlaying
  * informations while dragging.
  *
+ * .. image:: ../images/annotation.png
+ *    :width: 50%
+ *    :align: center
+ *    :alt: Drawer screenshot.
+ *
  * @param {Drawer} drawer - Parent drawer instance.
  */
 export class Annotation {
@@ -253,6 +258,10 @@ export class Annotation {
 
 /**
  * Data container for selected knot indices.
+ *
+ * .. image:: ../images/selection.png
+ *    :align: center
+ *    :alt: Selection screenshot.
  */
 export class Selection {
     constructor() {
@@ -329,6 +338,10 @@ export class Selection {
 /**
  * Selection rectangle wrapper. Manages the blue shimmering selection box which
  * can be drawn with the mouse.  
+ *
+ * .. image:: ../images/selection\ rectangle.png
+ *    :align: center
+ *    :alt: Drawer screenshot.
  *
  * @param {Drawer} drawer - Parent drawer instance.
  */
@@ -469,6 +482,10 @@ path.selected {
 /**
  * Curve drawer widget web component. Based on simple value plotter adds curve
  * drawing and editing functionalities.
+ *
+ * .. image:: ../images/drawer.png
+ *    :align: center
+ *    :alt: Drawer screenshot.
  *
  * Key features:
  *   - Foreground / background curves.
