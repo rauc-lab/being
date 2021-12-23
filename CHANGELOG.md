@@ -3,6 +3,20 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6] - 2021-12-23
+
+### Changed
+- Default PDO mapping: `TARGET_POSITION` and `TARGET_VELOCITY` both over PDO 2.
+- `Current Actual Value` via PDO instead of SDO.
+- Controller now tries to restore node's state after homing.
+
+### Removed
+- Homing's capture, restore and teardown methods.
+- Replaced `switch_off_drives` method `CanBackend` with `turn_off_motors` method (which disables drives with a timeout).
+
+### Fixed
+- `CrudeHoming` with timeout during homing
+
 ## [0.3.5] - 2021-12-14
 
 ### Fixed
