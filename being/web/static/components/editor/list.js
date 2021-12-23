@@ -15,6 +15,10 @@ import { WidgetBase } from "/static/js/widget.js";
 
 /**
  * Get first map key (if any). undefined otherwise.
+ *
+ * @param {Map} map - Input map.
+ *
+ * @returns {object | undefined} First map key (if any).
  */
 function first_map_key(map) {
     if (map.size > 0) {
@@ -25,7 +29,11 @@ function first_map_key(map) {
 
 
 /**
- * Assure bpoly object.
+ * Assure object as Curve.
+ *
+ * @param {object | Curve} obj - Input object.
+ *
+ * @returns {Curve} Curve instance.
  */
 export function as_curve(obj) {
     if (obj instanceof Curve) {
@@ -41,18 +49,22 @@ export function as_curve(obj) {
 
 
 /**
- * Remove element from array.
+ * Remove element from array in place.
+ *
+ * @param {array} arr - Input array to modify.
+ * @param {object} element - Element to remove from array.
  */
-function remove_from_array(array, element) {
-    const index = array.indexOf(element);
+function remove_from_array(arr, element) {
+    const index = arr.indexOf(element);
     if (index === -1) {
         throw `ValueError: remove_from_array(array, element): element not in array!`;
     }
 
-    array.splice(index, 1);
+    arr.splice(index, 1);
 }
 
 
+/** @constant {string} - Curve list template. */
 const LIST_TEMPLATE = `
 <style>
     :host {
@@ -126,6 +138,28 @@ const LIST_TEMPLATE = `
 `;
 
 
+/**
+ * Curve / content list web component. 
+ *
+ * Lists all available curves in backend. Allows for selecting, renaming,
+ * creating and erasing curves.
+ *
+ * .. figure:: ../images/curvelist.png
+ *    :alt: Curve list screenshot.
+ *    :align: center
+ *    :scale: 50%
+ *
+ *    Available curves in backend. Click to select and double click to rename.
+ *    Ordered by last modified.
+ *
+ * Manages the curve to motion player association (remembering which motion
+ * player belongs to which curve when clicking on one) and which curves are
+ * armed for playback for each motion player.
+ *
+ * Emits the following custom events:
+ *   - ``selectedchanged`` when the selected curve changed.
+ *   - ``armedchanged`` when the arming changed.
+ */
 export class List extends WidgetBase {
     constructor() {
         super();
@@ -176,6 +210,9 @@ export class List extends WidgetBase {
 
     /**
      * Select curve. This also arms the curve.
+     *
+     * @param {string} name - Curve name.
+     * @param {boolean} [publish=true] - If to emit `selectedchanged` event.
      */
     select(name, publish=true) {
         assert(this.curves.has(name), `Unknown curve ${name}`);
@@ -198,6 +235,9 @@ export class List extends WidgetBase {
 
     /**
      * Deselect curve. This also disarms the curve.
+     *
+     * @param {string} name - Curve name.
+     * @param {boolean} [publish=true] - If to emit `selectedchanged` event.
      */
     deselect(name, publish=true) {
         assert(this.curves.has(name), `Unknown curve ${name}`);
@@ -212,6 +252,9 @@ export class List extends WidgetBase {
 
     /**
      * Associate curve with motion player.
+     *
+     * @param {string} name - Curve name.
+     * @param {object} motionPlayer - Motion player object.
      */
     associate_motion_player(name, motionPlayer) {
         assert(this.curves.has(name), `Unknown curve ${name}`);
@@ -224,6 +267,8 @@ export class List extends WidgetBase {
 
     /**
      * Disassociate curve from motion player.
+     *
+     * @param {string} name - Curve name.
      */
     disassociate_motion_player(name) {
         assert(this.curves.has(name), `Unknown curve ${name}`);
@@ -232,6 +277,10 @@ export class List extends WidgetBase {
 
     /**
      * Get associated motion player for curve (if any).
+     *
+     * @param {string} name - Curve name.
+     *
+     * @returns {object | undefined} Associated motion player object.
      */
     associated_motion_player(name) {
         assert(this.curves.has(name), `Unknown curve ${name}`);
@@ -246,6 +295,10 @@ export class List extends WidgetBase {
     /**
      * Get first best match for curve. Associated or the first known motion
      * player.
+     *
+     * @param {string} name - Curve name.
+     *
+     * @returns {object | undefined} Associated motion player object.
      */
     first_best_motion_player(name) {
         if (this.associations.has(name)) {
@@ -263,6 +316,10 @@ export class List extends WidgetBase {
 
     /**
      * Check if curve is armed.
+     *
+     * @param {string} name - Curve name.
+     *
+     * @returns {boolean} Armed state.
      */
     is_armed(name) {
         assert(this.curves.has(name), `Unknown curve ${name}`);
@@ -270,7 +327,10 @@ export class List extends WidgetBase {
     }
 
     /**
-     * Arm curve.
+     * Arm a curve.
+     *
+     * @param {string} name - Curve name.
+     * @param {boolean} [publish=true] - If to emit `armedchanged` event.
      */
     arm(name, publish=true) {
         assert(this.curves.has(name), `Unknown curve ${name}`);
@@ -287,6 +347,9 @@ export class List extends WidgetBase {
 
     /**
      * Disarm curve.
+     *
+     * @param {string} name - Curve name.
+     * @param {boolean} [publish=true] - If to emit `armedchanged` event.
      */
     disarm(name, publish=true) {
         assert(this.curves.has(name), `Unknown curve ${name}`);
@@ -308,6 +371,12 @@ export class List extends WidgetBase {
     /**
      * Filename validator. Trims white space and checks validity for filename
      * usage. Throws error otherwise. Compatible with make_editable() function.
+     *
+     * @param {string} name - Name to validate.
+     *
+     * @returns {string} Validated name.
+     *
+     * @throws {InvalidName}
      */
     validate_name(name) {
         name = name.trim();
@@ -320,6 +389,11 @@ export class List extends WidgetBase {
 
     /**
      * Create new list curve entry.
+     *
+     * @param {string} name - Curve name.
+     * @param {Curve} curve - Actual curve.
+     *
+     * @returns {HTMLLIElement} New list entry element.
      */
     create_entry(name, curve) {
         const entry = document.createElement("li");
@@ -343,6 +417,9 @@ export class List extends WidgetBase {
 
     /**
      * Rename curve in curve list data.
+     *
+     * @param {string} oldName - Old curve name.
+     * @param {string} newName - New curve name.
      */
     async rename_curve(oldName, newName) {
         const curve = await this.api.get_curve(oldName);
@@ -358,6 +435,8 @@ export class List extends WidgetBase {
      * - Clicking for select
      * - Toggle eye symbol for arming
      * - Double clicking for renaming.
+     *
+     * @param {HTMLLIElement} - List entry.
      */
     attache_event_listeners_to_entry(entry) {
         assert(entry.hasOwnProperty("name"), "entry has no name attribute!");
@@ -406,6 +485,9 @@ export class List extends WidgetBase {
 
     /**
      * Add new curve entry to list.
+     *
+     * @param {string} name - Curve name.
+     * @param {Curve} curve - Actual curve.
      */
     add_entry(name, curve) {
         const entry = this.create_entry(name, curve);
@@ -414,7 +496,9 @@ export class List extends WidgetBase {
     }
 
     /**
-     * Populate curve list with entries.
+     * Populate curve list with entries. Discard all the olds.
+     *
+     * @param {array} namecurves - Array of ordered [name, curve] entries.
      */
     populate(namecurves) {
         remove_all_children(this.curveList);
@@ -452,13 +536,15 @@ export class List extends WidgetBase {
 
     /**
      * Emit a custom event for given event type from this element.
+     *
+     * @param {string} typeArg - Event type name.
      */
     emit_custom_event(typeArg) {
         emit_custom_event(this, typeArg);
     }
 
     /**
-     * Update UI from state.
+     * Update UI from current state.
      */
     update_ui() {
         const nothingSelected = (this.selected === undefined);
@@ -495,6 +581,8 @@ export class List extends WidgetBase {
 
     /**
      * Get the currently selected curve (if any). undefined otherwise.
+     *
+     * @returns {Curve | undefined} Selected curve.
      */
     selected_curve() {
         return this.curves.get(this.selected);
@@ -503,6 +591,8 @@ export class List extends WidgetBase {
     /**
      * Process new content / motions message. Purge the currently displayed
      * curves.
+     *
+     * @param {object} msg - Content changed message.
      */
     new_motions_message(msg) {
         const wasSelected = this.selected;
@@ -522,8 +612,10 @@ export class List extends WidgetBase {
     }
 
     /**
-     * Get an array with all "background" curves. These are curves which are
+     * Get an array with all `background` curves. These are curves which are
      * armed but not the selected one.
+     *
+     * @returns {array} All background curves.
      */
     background_curves() {
         const names = Array.from(this.armed.values());
@@ -541,6 +633,10 @@ export class List extends WidgetBase {
 
     /**
      * Do we have an motion player association for a given curve?
+     *
+     * @param {string} name - Curve name.
+     *
+     * @returns {boolean} If association present.
      */
     has_association(name) {
         return this.associations.has(name);

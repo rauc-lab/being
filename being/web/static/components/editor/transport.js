@@ -9,16 +9,16 @@ import { mod } from "/static/js/math.js";
 
 // Note: We use string literals instead of the Object.freeze() enum trick so
 // that we can use the states inside the Transitions table.
-/** @const {string} Paused state. */
+/** @const {string} - Paused state. */
 export const PAUSED = "PAUSED";
 
-/** @const {string} Playing state. */
+/** @const {string} - Playing state. */
 export const PLAYING = "PLAYING";
 
-/** @const {string} Recording state. */
+/** @const {string} - Recording state. */
 export const RECORDING = "RECORDING";
 
-/** @const {object} Valid / possible state transitions. */
+/** @const {object} - Valid / possible state transitions. */
 const Transitions = {
     PAUSED: [PLAYING, RECORDING],
     PLAYING: [PAUSED],
@@ -29,6 +29,8 @@ const Transitions = {
 /**
  * Transport / playback cursor container. Current playing position, duration,
  * looping, playing, cursor drawing.
+ *
+ * @param {boolean} [looping=true] - Initial looping state.
  */
 export class Transport {
     constructor(drawer, looping = true) {
@@ -43,21 +45,24 @@ export class Transport {
     }
 
     /**
-     * @returns Is paused.
+     * Is paused.
+     * @type {boolean}
      */
     get paused() {
         return this.state === PAUSED;
     }
 
     /**
-     * @returns Is playing.
+     * Is playing.
+     * @type {boolean}
      */
     get playing() {
         return this.state === PLAYING;
     }
 
     /**
-     * @returns Is recording.
+     * Is recording.
+     * @type {boolean}
      */
     get recording() {
         return this.state === RECORDING;
@@ -76,7 +81,8 @@ export class Transport {
 
     /**
      * Change transport state (but only if valid transitions).
-     * @param {string} newState New state.
+     *
+     * @param {string} newState - New state.
      */
     _change_state(newState) {
         if (Transitions[this.state].includes(newState)) {
@@ -142,7 +148,11 @@ export class Transport {
     }
 
     /**
-     * Update transport position.
+     * Update transport position and map timestamp to curve duration.
+     *
+     * @param {number} timestamp - New timestamp value.
+     *
+     * @returns {number} Playing position.
      */
     move(timestamp) {
         this.latestTimestamp = timestamp;

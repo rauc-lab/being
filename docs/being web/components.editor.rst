@@ -63,11 +63,24 @@ Spline / motion list for editor.
 .. js:autofunction:: list.as_curve
 
 
+.. js:autoclass:: List
+   :members:
+
+
 components/editor/transport
 ---------------------------
 
 
 Playback transport state.
+
+.. js:autoattribute:: PAUSED
+
+
+.. js:autoattribute:: PLAYING
+
+
+.. js:autoattribute:: RECORDING
+
 
 .. js:autoclass:: Transport
    :members:

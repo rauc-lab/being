@@ -505,6 +505,15 @@ path.selected {
  *   - Snapping to grid.
  *   - Multiple knot selection.
  *   - Drag navigation.
+ *
+ * The plotter base class is used to plot the `actual values` of the motors
+ * behind the curves.
+ *
+ * Emits the following custom events:
+ *   - ``curvechanging`` when the foreground curve starts to change because of
+ *      user input.
+ *   - ``curvechanged`` when the user is done with editing the curve.
+ *   - ``channelchanged`` when the user clicked on a background curve spline.
  */
 export class Drawer extends Plotter {
     constructor() {
