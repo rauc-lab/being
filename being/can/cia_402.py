@@ -10,6 +10,7 @@ import collections
 import contextlib
 import enum
 import time
+import warnings
 from typing import (
     Any,
     Dict,
@@ -295,7 +296,7 @@ VALID_OP_MODE_CHANGE_STATES: Set[State] = {
 }
 """Not every state support switching of operation mode."""
 
-STATUSWORD_2_STATE = [
+STATUSWORD_2_STATE: List[Tuple[int, int, State]] = [
     (0b1001111, 0b0000000, State.NOT_READY_TO_SWITCH_ON),
     (0b1001111, 0b1000000, State.SWITCH_ON_DISABLED),
     (0b1101111, 0b0100001, State.READY_TO_SWITCH_ON),
@@ -652,18 +653,17 @@ class CiA402Node(RemoteNode):
         # EPOS4 has no PDO mapping for Error Register,
         # thus re-register later txpdo1 if available
         self.setup_txpdo(1, STATUSWORD)
-        self.setup_txpdo(2, POSITION_ACTUAL_VALUE)
-        self.setup_txpdo(3, VELOCITY_ACTUAL_VALUE)
+        self.setup_txpdo(2, POSITION_ACTUAL_VALUE, VELOCITY_ACTUAL_VALUE)
+        self.setup_txpdo(3, enabled=False)
         self.setup_txpdo(4, enabled=False)
 
         self.setup_rxpdo(1, CONTROLWORD)
-        self.setup_rxpdo(2, TARGET_POSITION)
-        self.setup_rxpdo(3, TARGET_VELOCITY)
+        self.setup_rxpdo(2, TARGET_POSITION, TARGET_VELOCITY)
+        self.setup_rxpdo(3, enabled=False)
         self.setup_rxpdo(4, enabled=False)
 
         network.register_rpdo(self.rpdo[1])
         network.register_rpdo(self.rpdo[2])
-        network.register_rpdo(self.rpdo[3])
 
     def setup_txpdo(self,
             nr: int,
@@ -756,7 +756,10 @@ class CiA402Node(RemoteNode):
             target: Target state to switch to.
             how (optional): Communication channel. ``'sdo'`` (default) or ``'pdo'``.
         """
-        self.logger.debug('Setting state to %s (%s)', target, how)
+        self.logger.debug('set_state(%s (how=%r))', target, how)
+        if target in {State.NOT_READY_TO_SWITCH_ON, State.FAULT, State.FAULT_REACTION_ACTIVE}:
+            raise ValueError(f'Can not change to state {target}')
+
         current = self.get_state(how)
         if current is target:
             return
@@ -792,14 +795,16 @@ class CiA402Node(RemoteNode):
         Yields:
             Current states.
         """
-        self.logger.debug('state_switching_job(%s, %s, %s)', target, how, timeout)
+        self.logger.debug('state_switching_job(%s, how=%r, timeout=%s)', target, how, timeout)
         endTime = time.perf_counter() + timeout
         initial = current = self.get_state(how)
+        #self.logger.debug('initial: %s', initial)
         lastPlanned = None
         while True:
             yield current
 
             if current is target:
+                self.logger.debug('Reached target %s', target)
                 return
 
             #self.logger.debug('Still in %s (not in %s)', current.name, target.name)
@@ -830,7 +835,7 @@ class CiA402Node(RemoteNode):
         Returns:
             Final state.
         """
-        self.logger.debug('change_state(%s, %s, %s)', target, how, timeout)
+        self.logger.debug('change_state(%s, how=%r, timeout=%s)', target, how, timeout)
         job = self.state_switching_job(target, how, timeout)
         state = None
         for state in job:
@@ -892,6 +897,8 @@ class CiA402Node(RemoteNode):
     def reset_fault(self):
         """Perform fault reset to SWITCH_ON_DISABLED."""
         self.logger.info('Resetting fault')
+        # TODO: Should we check if in State.FAULT and only then emitting a fault
+        # reset command?
         self.sdo[CONTROLWORD].raw = 0
         self.sdo[CONTROLWORD].raw = CW.FAULT_RESET
 
@@ -901,6 +908,12 @@ class CiA402Node(RemoteNode):
         Args:
             timeout (optional): Timeout duration.
         """
+        message = (
+            'This method is deprecated. This targets SWITCH_ON_DISABLED and'
+            ' some motor controllers have issues getting there when in'
+            ' READY_TO_SWITCH_ON.'
+        )
+        warnings.warn(message, DeprecationWarning, stacklevel=2)
         self.change_state(State.SWITCH_ON_DISABLED, timeout=timeout)
 
     def disable(self, timeout: float = 1.0):

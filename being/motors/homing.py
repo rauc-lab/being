@@ -5,7 +5,6 @@ Todo:
 """
 import abc
 import enum
-import itertools
 import random
 import time
 from typing import Generator, Callable, Optional
@@ -83,11 +82,11 @@ def start_homing(controlword: Variable) -> Generator:
     Args:
         controlword: canopen control word variable.
     """
-    LOGGER.info('start_homing()')
     # Controlword bit 4 has to go from 0 -> 1
     controlword.raw = Command.ENABLE_OPERATION
     yield
     controlword.raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
+    yield
 
 
 def stop_homing(controlword: Variable) -> Generator:
@@ -96,11 +95,11 @@ def stop_homing(controlword: Variable) -> Generator:
     Args:
         controlword: canopen control word variable.
     """
-    LOGGER.info('stop_homing()')
     # Controlword bit has to go from 1 -> 0
     controlword.raw = Command.ENABLE_OPERATION | CW.START_HOMING_OPERATION
     yield
     controlword.raw = Command.ENABLE_OPERATION
+    yield
 
 
 def homing_started(statusword: Variable) -> bool:
@@ -157,24 +156,25 @@ class HomingBase(abc.ABC):
         """True if homing in progress."""
         return self.state is HomingState.HOMED
 
-    def teardown(self) -> Generator:
-        """Tear down logic. Will be used to abort an ongoing homing job."""
-        return
-        yield
+    def cancel_job(self):
+        """Cancel current homing job."""
+        #self.job.close()
+        self.job = None
 
     @abc.abstractmethod
     def homing_job(self) -> Generator:
         """Primary homing job."""
-        return
-        yield
+        raise NotImplementedError
 
     def home(self):
         """Start homing."""
+        self.logger.debug('home()')
+        self.logger.debug('Starting homing')
+        self.state = HomingState.FAILED
         if self.job:
-            self.job = itertools.chain(self.teardown(), self.homing_job())
-        else:
-            self.job = self.homing_job()
+            self.cancel_job()
 
+        self.job = self.homing_job()
         self.state = HomingState.ONGOING
 
     def update(self):
@@ -183,10 +183,10 @@ class HomingBase(abc.ABC):
             try:
                 next(self.job)
             except StopIteration:
-                self.job = None
+                self.cancel_job()
             except TimeoutError as err:
-                self.job = None
                 self.logger.exception(err)
+                self.cancel_job()
 
     def __str__(self):
         return f'{type(self).__name__}({self.state})'
@@ -243,58 +243,43 @@ class CiA402Homing(HomingBase):
         self.logger = get_logger(f'CiA402Homing(nodeId: {node.id})')
         self.statusword = node.pdo[STATUSWORD]
         self.controlword = node.pdo[CONTROLWORD]
-        self.oldState = None
-        self.oldOp = None
         self.endTime = -1
 
-    def change_state(self, target) -> Generator:
-        """Change to node's state job."""
-        return self.node.state_switching_job(target, how='pdo')
-
-    def capture(self):
-        """Capture current node's state and operation mode."""
-        self.logger.debug('capture()')
-        self.oldState = self.node.get_state('pdo')
-        self.oldOp = self.node.get_operation_mode()
-
-    def restore(self):
-        """Restore node's state and operation mode."""
-        self.logger.debug('restore()')
-        if self.oldState is None or self.oldOp is None:
-            return
-
-        self.logger.debug('Restoring oldState: %s, oldOp: %s', self.oldState, self.oldOp)
-        yield from self.change_state(CiA402State.SWITCHED_ON)
-        self.logger.debug('Setting operation mode %s', self.oldOp)
-        self.node.sdo[MODES_OF_OPERATION].raw = self.oldOp
-        yield from self.change_state(self.oldState)
-        self.oldState = self.oldOp = None
-        self.logger.debug('Done with restoring')
+    def start_timeout_clock(self):
+        """Remember when homing needs to end for timeout."""
+        startTime = time.perf_counter()
+        self.endTime = startTime + self.timeout
 
     def timeout_expired(self) -> bool:
         """Check if timeout expired."""
         expired = time.perf_counter() > self.endTime
         if expired:
-            self.logger.warning('Timeout expired')
+            self.logger.error('Homing timeout expired (>%.1f sec)', self.timeout)
 
         return expired
 
-    def teardown(self):
-        yield from stop_homing(self.controlword)
-        yield from self.restore()
+    def change_state(self, target) -> Generator:
+        """Change to node's state job."""
+        return self.node.state_switching_job(target, how='pdo')
+
+    def set_operation_mode(self, op: OperationMode):
+        """Set operation mode of node. No questions asked..."""
+        self.logger.debug('set_operation_mode(op=%s)', op)
+        self.node.sdo[MODES_OF_OPERATION].raw = op
 
     def homing_job(self):
-        """CiA 402 homing routine."""
+        """Standard CiA 402 homing procedure."""
         self.logger.debug('homing_job()')
-        startTime = time.perf_counter()
-        self.endTime = startTime + self.timeout
-        self.capture()
+        self.start_timeout_clock()
+
         yield from self.change_state(CiA402State.SWITCHED_ON)
-        self.logger.debug('Setting operation mode %s', OperationMode.HOMING)
-        self.node.sdo[MODES_OF_OPERATION].raw = OperationMode.HOMING
+
+        self.set_operation_mode(OperationMode.HOMING)
+        self.logger.info('Starting homing reference run')
+
         yield from start_homing(self.controlword)
-        self.final = HomingState.UNHOMED
-        self.logger.debug('homing reference run')
+
+        final = HomingState.UNHOMED
         for _ in homing_reference_run(self.statusword):
             if self.timeout_expired():
                 final = HomingState.FAILED
@@ -302,9 +287,11 @@ class CiA402Homing(HomingBase):
 
             yield
         else:
+            self.logger.error('Homing run finished')
             final = HomingState.HOMED
 
-        yield from self.teardown()
+        yield from self.change_state(CiA402State.READY_TO_SWITCH_ON)
+
         self.state = final
 
     def __str__(self):
@@ -318,12 +305,15 @@ class CrudeHoming(CiA402Homing):
         speed: Speed for homing in device units.
     """
 
-    def __init__(self, node, minWidth, currentLimit, *args, **kwargs):
-        super().__init__(node, *args, **kwargs)
+    def __init__(self, node, minWidth, currentLimit, timeout=10.0, **kwargs):
+        super().__init__(node, timeout=timeout, **kwargs)
         self.minWidth = minWidth
         self.currentLimit = currentLimit
         self.lower = INF
         self.upper = -INF
+
+        self.logger.info('Overwriting TxPDO4 of %s for Current Actual Value', node)
+        node.setup_txpdo(4, 'Current Actual Value')
 
     @property
     def width(self) -> float:
@@ -358,15 +348,12 @@ class CrudeHoming(CiA402Homing):
 
     def on_the_wall(self) -> bool:
         """Check if motor is on the wall."""
-        current = self.node.sdo['Current Actual Value'].raw
+        current = self.node.pdo['Current Actual Value'].raw
         return current > self.currentLimit  # Todo: Add percentage threshold?
-
-    def teardown(self):
-        yield from self.halt_drive()
-        yield from self.restore()
 
     def homing_job(self, speed: int = 100):
         self.logger.debug('homing_job()')
+        self.start_timeout_clock()
         self.lower = INF
         self.upper = -INF
         node = self.node
@@ -378,27 +365,26 @@ class CrudeHoming(CiA402Homing):
             # Backward direction
             velocities = [-speed, speed]
 
-        self.capture()
-
         yield from self.change_state(CiA402State.READY_TO_SWITCH_ON)
+
         sdo['Home Offset'].raw = 0
-        node.set_operation_mode(OperationMode.PROFILE_VELOCITY)
+        self.set_operation_mode(OperationMode.PROFILE_VELOCITY)
 
         for vel in velocities:
             yield from self.halt_drive()
             yield from self.move_drive(vel)
+
             self.logger.debug('Driving towards the wall')
-            while not self.on_the_wall():
+            while not self.on_the_wall() and not self.timeout_expired():
                 self.expand_range(node.get_actual_position())
                 yield
 
             self.logger.debug('Hit the wall')
+
             yield from self.halt_drive()
 
             # Turn off voltage to reset current current value
             yield from self.change_state(CiA402State.READY_TO_SWITCH_ON)
-
-        yield from self.teardown()
 
         width = self.upper - self.lower
         if width < self.minWidth:

@@ -34,7 +34,7 @@ import canopen
 from canopen.pdo.base import Map
 
 from being.can.cia_402 import CiA402Node
-from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL
+from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL, RESET_COMMUNICATION
 from being.configuration import CONFIG
 from being.logging import get_logger
 from being.rpi_gpio import GPIO
@@ -109,10 +109,13 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         """
         return filter_by_type(self.values(), CiA402Node)
 
-    def switch_off_drives(self):
-        """Switch off all registered drive nodes."""
-        for drive in self.drives:
-            drive.switch_off()
+    def turn_off_motors(self):
+        """Turn off all registered drives."""
+        for node in self.drives:
+            try:
+                node.disable()
+            except TimeoutError as err:
+                self.logger.exception(err)
 
     def enable_pdo_communication(self):
         """Enable PDO communication by setting NMT state to OPERATIONAL."""
@@ -123,6 +126,10 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         """Disable PDO communication by setting NMT state to PRE-OPERATIONAL."""
         self.logger.debug('Global NMT -> PRE-OPERATIONAL')
         self.nmt.state = PRE_OPERATIONAL
+
+    def reset_communication(self):
+        """Reset NMT communication."""
+        self.nmt.state = RESET_COMMUNICATION
 
     def send_sync(self):
         """Send SYNC message over CAN network."""
@@ -161,9 +168,11 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.disable_pdo_communication()
-        self.switch_off_drives()
-        self.disconnect()
+        try:
+            self.disable_pdo_communication()
+            self.turn_off_motors()
+        finally:
+            self.disconnect()
 
 
 class AudioBackend(SingleInstanceCache, contextlib.AbstractContextManager):

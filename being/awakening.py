@@ -166,13 +166,19 @@ def awake(
     being = Being(blocks, clock, pacemaker, network)
 
     if network is not None:
+        network.reset_communication()
         network.enable_pdo_communication()
         if usePacemaker:
             pacemaker.start()
             register_resource(pacemaker)
 
+        network.send_sync()  # Update local TXPDOs values
+        time.sleep(0.200)
+
     if enableMotors:
         being.enable_motors()
+    else:
+        being.disable_motors()
 
     if homeMotors:
         being.home_motors()
