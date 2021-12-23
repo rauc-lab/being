@@ -1,5 +1,4 @@
 /** 
- * Plotter widget.
  * @module components/plotter
  */
 import { tick_space, } from "/static/js/layout.js";
@@ -28,7 +27,13 @@ const COLORS = [
 
 
 /**
- * Line artist. Contains data ring buffer and knows how to draw itself.
+ * Line artist. Contains ring buffer for line data and knows how to draw
+ * itself.
+ *
+ * @param {CanvasRenderingContext2D} ctx - Canvas rendering context.
+ * @param {string} [color=#000000] - Line color.
+ * @param {number} [maxlen=100] - Maximum number of data points.
+ * @param {number} [lineWidth=2] - Line width.
  */
 export class Line {
     constructor(ctx, color = "#000000", maxlen = 100, lineWidth = 2) {
@@ -40,6 +45,7 @@ export class Line {
 
     /**
      * Get / set maxlen of buffer.
+     * @type {number}
      */
     get maxlen() {
         return this.data.maxlen;
@@ -51,6 +57,7 @@ export class Line {
 
     /**
      * Number of data points.
+     * @type {number}
      */
     get length() {
         return this.data.length;
@@ -59,6 +66,8 @@ export class Line {
 
     /**
      * First data column.
+     *
+     * @returns {array} All x values.
      */
     get x_data() {
         return this.data.map(pt => pt[0]);
@@ -66,13 +75,15 @@ export class Line {
 
     /**
      * Second data column.
+     *
+     * @returns {array} All y values.
      */
     get y_data() {
         return this.data.map(pt => pt[1]);
     }
 
     /**
-     * Reset line data buffer.
+     * Reset data buffer.
      */
     clear() {
         this.data.clear();
@@ -80,6 +91,8 @@ export class Line {
 
     /**
      * Append new data point to data buffer.
+     *
+     * @param {array} pt - Data point to append.
      */
     append_data(pt) {
         this.data.append(pt);
@@ -87,6 +100,8 @@ export class Line {
 
     /**
      * Calculate line width of Line artist.
+     *
+     * @returns {BBox} Data bounding box.
      */
     calc_bbox() {
         // Data min / max
@@ -170,6 +185,12 @@ const PLOTTER_TEMPLATE = `
 `;
 
 
+/**
+ * Data plotter widget.
+ *
+ * Holds a canvas / SVG with its own viewport bounding box. Manages data space
+ * <-> view space transformations.
+ */
 export class Plotter extends WidgetBase {
     constructor(margin=50, minHeight=0.001) {
         super()
@@ -197,6 +218,7 @@ export class Plotter extends WidgetBase {
 
     /**
      * Get / set maxlen for all current and future lines.
+     * @type {number}
      */
     get maxlen() {
         return this._maxlen;
@@ -210,7 +232,7 @@ export class Plotter extends WidgetBase {
     }
 
     /**
-     * Resize element. Adjust canvas size and recompute transformation
+     * Resize plotter. Adjust canvas size and recompute transformation
      * matrices.
      */
     resize() {
@@ -223,8 +245,9 @@ export class Plotter extends WidgetBase {
     /**
      * Transform a data point to view space.
      *
-     * @param {array} pt 2d data point.
-     * @return {array} Tranformed 2d point.
+     * @param {array} pt - 2d data point.
+     *
+     * @returns {array} Transformed 2d point.
      */
     transform_point(pt) {
         const ptHat = (new DOMPoint(...pt)).matrixTransform(this.trafo);
@@ -234,8 +257,9 @@ export class Plotter extends WidgetBase {
     /**
      * Transform multiple data point into view space.
      *
-     * @param {array} pts Array of 2d data points.
-     * @return {array} Array of 2d transformed points.
+     * @param {array} pts - Array of 2d data points.
+     *
+     * @returns {array} Array of 2d transformed points.
      */
     transform_points(pts) {
         return pts.map(pt => {
@@ -247,8 +271,9 @@ export class Plotter extends WidgetBase {
     /**
      * Coordinates of mouse event inside view space.
      *
-     * @param {MouseEvent} evt Mouse event to transform into data space.
-     * @return {array} Coordinate point.
+     * @param {MouseEvent} evt - Mouse event to transform into data space.
+     *
+     * @returns {array} Coordinate point.
      */
     mouse_coordinates(evt) {
         const rect = this.canvas.getBoundingClientRect();
@@ -260,6 +285,8 @@ export class Plotter extends WidgetBase {
 
     /**
      * Create a new line artist for the given line number.
+     *
+     * @param {number} lineNr - Line number.
      */
     init_new_line(lineNr) {
         const newLine = new Line(this.ctx, this.colorPicker.next())
@@ -270,9 +297,9 @@ export class Plotter extends WidgetBase {
     /**
      * Plot single new value.
      * 
-     * @param {Number} timestamp Timestamp.
-     * @param {Number} value Scalar value.
-     * @param {Number} lineNr Line number to append new values to.
+     * @param {number} timestamp - Timestamp.
+     * @param {number} value - Scalar value.
+     * @param {number} lineNr - Line number to append new values to.
      */
     plot_value(timestamp, value, lineNr=0) {
         if (!this.lines.has(lineNr)) {
@@ -285,8 +312,8 @@ export class Plotter extends WidgetBase {
     /**
      * Plot some new values. Get appended to current lines.
      *
-     * @param {Number} timestamp Timestamp value.
-     * @param {Array} values Values to plot.
+     * @param {number} timestamp - Timestamp value.
+     * @param {array} values - Values to plot.
      */
     plot_values(timestamp, values) {
         values.forEach((value, nr) => {
@@ -297,7 +324,7 @@ export class Plotter extends WidgetBase {
     /**
      * Plot all values across time in a being state message.
      * 
-     * @param {Object} msg Being state message.
+     * @param {object} msg - Being state message.
      */
     plot_being_state_message(msg) {
         this.plot_values(msg.timestamp, msg.values);
@@ -335,6 +362,8 @@ export class Plotter extends WidgetBase {
 
     /**
      * Change viewport and redraw.
+     *
+     * @param {BBox} bbox - New viewport bounding box.
      */
     change_viewport(bbox) {
         if (!bbox.is_finite()) {
@@ -350,8 +379,8 @@ export class Plotter extends WidgetBase {
     /**
      * Expand viewport vertically and redraw.
      *
-     * @param {Number} ymin Lower vertical bound.
-     * @param {Number} ymax Upper vertical bound.
+     * @param {number} ymin - Lower vertical bound.
+     * @param {number} ymax - Upper vertical bound.
      */
     expand_viewport_vertically(ymin, ymax) {
         this.viewport.ll[1] = Math.min(this.viewport.ll[1], ymin);
@@ -362,6 +391,8 @@ export class Plotter extends WidgetBase {
 
     /**
      * Expand viewport by some other bounding box.
+     *
+     * @param {BBox} bbox - Bounding box.
      */
     expand_viewport_by_bbox(bbox) {
         if (!bbox.is_finite()) {
@@ -447,7 +478,7 @@ export class Plotter extends WidgetBase {
     /**
      * Draw axis and tick labels.
      *
-     * @param {string} color Axis and tick label color.
+     * @param {string} color - Axis and tick label color.
      */
     draw_axis_and_tick_labels(color = "silver") {
         const ctx = this.ctx;
@@ -489,4 +520,5 @@ export class Plotter extends WidgetBase {
         ctx.restore();
     }
 }
+
 customElements.define("being-plotter", Plotter);

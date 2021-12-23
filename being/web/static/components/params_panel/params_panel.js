@@ -1,9 +1,19 @@
+/**
+ * @module components/params_panel/params_panel.js
+ */
 import { Slider, SingleSelection, MultiSelection, MotionSelection } from "/static/components/params_panel/components.js";  // Needs to be imported in order to register custom elements
 import { API } from "/static/js/config.js";
 import { get_json } from "/static/js/fetching.js";
 import { Widget } from "/static/js/widget.js";
 
 
+/**
+ * Populate a target container with params widgets. Adds headings for
+ * intermediate / nested entries in config hierarchy.
+ *
+ * @param {HTMLElement} container - HTML element to spawn new elements in.
+ * @param {object} obj - Nested config object.
+ */
 function populate(container, obj, level=1) {
     for (const [key, param] of Object.entries(obj)) {
         if (typeof param !== "object") {
@@ -46,11 +56,20 @@ function populate(container, obj, level=1) {
     }
 }
 
+/**
+ * Initialize parameter elements.
+ *
+ * @param {HTMLElement} container - HTML element to spawn new elements in.
+ * @param {object} obj - Nested config object.
+ */
 function init_parameters_elements(container, params) {
     populate(container, params, 2);
 }
 
 
+/**
+ * Parameter panel widget.
+ */
 export class ParamsPanel extends Widget {
     constructor() {
         super();
@@ -62,6 +81,9 @@ export class ParamsPanel extends Widget {
         init_parameters_elements(this.shadowRoot, params);
     }
 
+    /**
+     * Update displayed values in `MotionSelection` elements.
+     */
     async content_changed() {
         const elements = this.shadowRoot.querySelectorAll("being-motion-selection")
         for (let motionSelection of elements) {

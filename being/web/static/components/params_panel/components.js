@@ -1,3 +1,13 @@
+/**
+ * Parameter components.
+ *
+ * HTML elements equivalents for the different `Param Blocks` in the backend.
+ *
+ * These are small web components wrapping HTML input elements. Each param
+ * represents a single parameter value.
+ *
+ * @module components/params_panel/components.js
+ */
 import { API } from "/static/js/config.js";
 import { make_editable } from "/static/js/editable_text.js";
 import { put_json } from "/static/js/fetching.js";
@@ -6,7 +16,10 @@ import { remove_all_children } from "/static/js/utils.js";
 import { append_template_to } from "/static/js/widget.js";
 
 
+/** @constant {string} - Invalid string literal. */
 const INVALID = "INVALID";
+
+/** @constant {string} - Parameter widget template. */
 const PARAM_STYLE = `
 <style>
     :host {
@@ -18,6 +31,9 @@ const PARAM_STYLE = `
 `;
 
 
+/**
+ * Base class for all parameters.
+ */
 class Param extends HTMLElement {
     constructor() {
         super();
@@ -34,6 +50,10 @@ class Param extends HTMLElement {
         this.shadowRoot.appendChild(this.label);
     }
 
+    /**
+     * Get / set parameter value.
+     * @type {object}
+     */
     get value() {
         return this._value;
     }
@@ -42,6 +62,11 @@ class Param extends HTMLElement {
         this._value = value;
     }
 
+    /**
+     * Populate with parameter data.
+     *
+     * @param {object} param - Parameter object.
+     */
     populate(param) {
         this.fullname = param.fullname;
         this.name = param.name;
@@ -49,6 +74,9 @@ class Param extends HTMLElement {
         this.label.innerHTML = this.name;
     }
 
+    /**
+     * Emit value change to backend.
+     */
     async emit() {
         const url = API + "/params/" + this.fullname;
         await put_json(url, this.value);
@@ -56,6 +84,12 @@ class Param extends HTMLElement {
 }
 
 
+/**
+ * Slider parameter.
+ *
+ * Scalar float value which can be controlled by dragging a slider or double
+ * clicking the number label for entering with keyboard.
+ */
 export class Slider extends Param {
     constructor() {
         super();
@@ -108,6 +142,15 @@ export class Slider extends Param {
         );
     }
 
+    /**
+     * Input text validator.
+     *
+     * @param {string} text - Text to validate.
+     *
+     * @returns {number} Clipped number.
+     *
+     * @throws {error} Invalid number
+     */
     validate(text) {
         const num = parseFloat(text);
         if (isNaN(num)) {
@@ -122,7 +165,10 @@ export class Slider extends Param {
 customElements.define("being-slider", Slider);
 
 
-class Selection extends Param {
+/**
+ * Base class for selection like parameters.
+ */
+class Selective extends Param {
     constructor() {
         super();
         this.form = document.createElement("form");
@@ -145,6 +191,11 @@ class Selection extends Param {
         super.populate(param);
     }
 
+    /**
+     * Base query string for locating input element.
+     *
+     * @returns {string} Query string.
+     */
     base_query() {
         return `input[name="${this.fullname}"]`;
     }
@@ -153,8 +204,19 @@ class Selection extends Param {
 }
 
 
-export class SingleSelection extends Selection {
+/**
+ * Select one thing out of many. Radio buttons.
+ */
+export class SingleSelection extends Selective {
+    /**
+     * Add selection entry.
+     *
+     * @param {string} possibility - Possibility name.
+     * @param {number} index - Possibility name.
+     */
     add_entry(possibility, index) {
+        console.log("possibility:", possibility)
+        console.log("index:", index)
         const id = "single " + index;
 
         const input = document.createElement("input");
@@ -187,7 +249,16 @@ export class SingleSelection extends Selection {
 customElements.define("being-single-selection", SingleSelection);
 
 
-export class MultiSelection extends Selection {
+/**
+ * Select multiple things out of many. Checkboxes.
+ */
+export class MultiSelection extends Selective {
+    /**
+     * Add selection entry.
+     *
+     * @param {string} possibility - Possibility name.
+     * @param {number} index - Possibility name.
+     */
     add_entry(possibility, index) {
         const id = "multi" + index;
 
@@ -231,6 +302,11 @@ export class MultiSelection extends Selection {
 customElements.define("being-multi-selection", MultiSelection);
 
 
+/**
+ * Alias of Basically the same as `MultiSelection`. Has its own class so that
+ * we can query these elements in `ParamsPanel` widget when content changed
+ * messages arrive.
+ */
 export class MotionSelection extends MultiSelection {}
 
 
