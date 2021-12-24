@@ -21,6 +21,7 @@ export function ready(fn) {
 
 /**
  * Remove all children from HTML element (from http://youmightnotneedjquery.com).
+ *
  * @param {HTMLElement} el - HTML element to remove all children from.
  */
 export function remove_all_children(el) {
@@ -45,7 +46,7 @@ export function clear_array(arr) {
  *
  * @param {array} arr - Input array.
  *
- * @return {object} Last element.
+ * @returns {object} Last element.
  */
 export function last_element(arr) {
     return arr[arr.length - 1];

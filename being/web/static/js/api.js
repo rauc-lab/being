@@ -14,21 +14,13 @@ import {put, post, delete_fetch, get_json, post_json, put_json} from "/static/js
 export class Api {
 
     /**
-     * Get all being blocks by id.
-     *
-     * @returns {Promise} Block id -> Being block object.
-     */
-    async get_blocks() {
-        return get_json(API + "/blocks");
-    }
-
-    /**
      * Get output block ids for a given block id. All blocks that are connected
      * via value output connection.
      *
-     * @param {number} id Block id.
+     * @param {number} id - Block id.
      *
-     * @returns {Promise} List of connected block ids. Empty list if no outgoing connections.
+     * @returns {Promise<number[]>} List of connected block ids. Empty list if
+     *     no outgoing connections.
      */
     async get_index_of_value_outputs(id) {
         return get_json(API + "/blocks/" + id + "/index_of_value_outputs");
@@ -36,7 +28,8 @@ export class Api {
 
     /**
      * Get graph of block network (ELK style object).
-     * @returns {Promise} Graph object.
+     *
+     * @returns {Promise<object>} Graph object.
      */
     async get_graph() {
         return get_json(API + "/graph");
@@ -45,7 +38,7 @@ export class Api {
     /**
      * Get being configurations.
      *
-     * @returns {Promise} Being CONFIG dictionary.
+     * @returns {Promise<object>} Being CONFIG dictionary.
      */
     async get_config() {
         return get_json(API + "/config");
@@ -57,7 +50,7 @@ export class Api {
      * @param {array} trajectory Recorded trajectory. Row direction is time and
      *     column timestamp and position values [timestamp, x, y, ...].
      *
-     * @returns {Promise} Fitted curve with smoothing splines.
+     * @returns {Promise<Curve>} Fitted curve with smoothing splines.
      */
     async fit_curve(trajectory) {
         const dct = await post_json(API + "/fit_curve", trajectory);
@@ -71,7 +64,7 @@ export class Api {
     /**
      * Get motor infos.
      *
-     * @returns {Promise} Array of motor objects.
+     * @returns {Promise<Motor[]>} Array of motor objects.
      */
     async get_motor_infos() {
         return get_json(API + "/motors");
@@ -80,7 +73,7 @@ export class Api {
     /**
      * Disable all motors in backend for motion recording.
      *
-     * @returns {Promise} Array of updated motor infos.
+     * @returns {Promise<Motor[]>} Array of updated motor infos.
      */
     async disable_motors() {
         return put_json(API + "/motors/disable");
@@ -89,7 +82,7 @@ export class Api {
     /**
      * Enable all motors in backend after motion recording.
      *
-     * @returns {Promise} Array of updated motor infos.
+     * @returns {Promise<Motor[]>} Array of updated motor infos.
      */
     async enable_motors() {
         return put_json(API + "/motors/enable");
@@ -109,7 +102,7 @@ export class Api {
     /**
      * Get motion player infos.
      *
-     * @returns {Promise} Array of motion player dictionaries.
+     * @returns {Promise<MotionPlayer[]>} Array of motion player dictionaries.
      */
     async get_motion_player_infos() {
         return get_json(API + "/motionPlayers");
@@ -118,9 +111,9 @@ export class Api {
     /**
      * Play multiple motion curves in backend.
      *
-     * @param {object} armed Armed motion curves per motion player id.
-     * @param {bool} loop If to loop motions.
-     * @param {number} offset Start time offset in motion curves.
+     * @param {object} armed - Armed motion curves per motion player id.
+     * @param {bool} loop - If to loop motions.
+     * @param {number} offset - Start time offset in motion curves.
      *
      * @returns {number} Start timestamp of motion playback.
      */
@@ -264,7 +257,7 @@ export class Api {
      *     backend will use default new-curve-name "Untitled" and append
      *     ascending numbers to it if necessary.
      *
-     * @returns {Promise} Next free curve name.
+     * @returns {Promise<string>} Next free curve name.
      */
     async find_free_name(wishName=undefined) {
         let uri = API + "/find-free-name";
