@@ -56,25 +56,30 @@ in the current working directory where the motion curves will be stored.
 
 Now inspect the web-based user interface under `<http://localhost:8080/>`_.
 
+
 Tutorial
 ========
 
 TODO
+
 
 Source Code
 ===========
 
 This project is hosted on GitHub_.
 
+
 Dependencies
 ============
 
 TODO Needed?
 
+
 Communication Channels
 ======================
 
 TODO Needed?
+
 
 Contributing
 ============
@@ -95,6 +100,7 @@ Authors and License
 The ``being`` package is written by Alexander Theler and is licensed under the
 MIT license. Feel free to use and improve this project.
 
+
 Table of Contents
 =================
 
@@ -106,10 +112,7 @@ Table of Contents
    manuals
    tutorials
    guides
-
-   being core/being
-   being web/js
-   being web/components
+   api-reference
 
 
 Indices and tables
