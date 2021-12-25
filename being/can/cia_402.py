@@ -652,6 +652,10 @@ class CiA402Node(RemoteNode):
 
         # EPOS4 has no PDO mapping for Error Register,
         # thus re-register later txpdo1 if available
+
+        # FIXME: use unique COB-IDs which depend on the nodeID from the objectDictionary
+        # (pdo.read() loads values from the nodes which by default are all same and conflict if n(nodes) > 1)
+
         self.setup_txpdo(1, STATUSWORD)
         self.setup_txpdo(2, POSITION_ACTUAL_VALUE, VELOCITY_ACTUAL_VALUE)
         self.setup_txpdo(3, enabled=False)
