@@ -104,31 +104,20 @@ intersphinx_mapping = {
 
 # matplotlib plotting configuration
 plot_include_source = True
-plot_pre_code = """
-import numpy as np
-import matplotlib.pyplot as plt
-
-
-#plt.rcParams['axes.spines.top'] = False
-#plt.rcParams['axes.spines.right'] = False
-#plt.rcParams['axes.spines.bottom'] = False
-#plt.rcParams['axes.spines.left'] = False
-
-
-def prettify_plot(ax=None):
-    if ax is None:
-        ax = plt.gca()
-
-    ax.xaxis.set_ticks_position('none')
-    ax.yaxis.set_ticks_position('none')
-"""
-
 plot_rcparams = {
     'axes.spines.top': False,
     'axes.spines.right': False,
     'axes.spines.bottom': False,
     'axes.spines.left': False,
+    'xtick.minor.width': 0,
+    'xtick.major.width': 0,
+    'ytick.minor.width': 0,
+    'ytick.major.width': 0,
 }
+plot_pre_code = """
+#import numpy as np
+#import matplotlib.pyplot as plt
+"""
 
 # sphinx-js configuration
 if shutil.which('jsdoc') is None:

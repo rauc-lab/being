@@ -1,8 +1,88 @@
 Concepts
 ========
 
-Possible Topics
----------------
+
+Blocks and Connections
+----------------------
+
+Blocks are the main building *blocks* in being (pun intended). Each block
+encapsulates certain functionalities and can pass data to its connected
+neighbors.
+
+.. digraph:: someblocks
+   :align: center
+   :alt: Some connected blocks.
+   :caption: Some connected blocks.
+   :name: Some connected blocks.
+
+   node [shape=box];
+   rankdir="LR"
+   A -> B [style=dashed];
+   B -> A;
+   B -> C;
+   B -> C;
+
+There are two kind of connections:
+
+- *Value* connections are intended for continuous streams of data. Think audio
+  samples or motor position values.
+- *Message* connections send and receive discrete messages.
+
+The blocks together with the connections form a *block network*. This is at the
+core of every being program. Given such a block network being will try to find
+a suitable *execution order* of these blocks and tick every block once per
+cycle.
+
+
+Splines
+-------
+
+Splines are special mathematical functions. They are used to interpolate
+between values.
+
+.. math::
+
+   S: [a,b]\to \mathbb{R}^n
+
+Being deals exclusively with *piecewise polynomial parametric curves*. This is
+a chain of multiple segments where each segment is a cubic polynomial spline in
+the Bernstein basis. Below is a plot with a scalar spline made out of two
+segments.
+
+.. plot::
+
+   import matplotlib.pyplot as plt
+   from scipy.interpolate import BPoly
+   from being.plotting import plot_spline_2
+
+   c = [[0, 2], [0, 2], [2, 1], [2, 1]]
+   x = [0, 1, 3]
+
+   spline = BPoly(c, x)
+
+   plot_spline_2(spline)
+   plt.show()
+
+
+Curves
+------
+
+A :class:`being.curve.Curve` is a container for splines. Each *motion curve*
+has multiple individual splines. These are independent and do not share any
+break points or coefficients. Each of these splines defines a motion channel
+which can be routed to motors.
+
+
+Motion Player
+-------------
+
+- Plays motion curves and outputs their samples
+
+
+
+
+Possible Topics Todo
+--------------------
 
 - Blocks / Connections
 
@@ -27,6 +107,7 @@ Possible Topics
 - Communication SDO / PDO
 - Parallel State Change / Homing
 
+- Being Architecture
 - Pacemaker
 
 - Configs and Parameters
@@ -35,43 +116,3 @@ Possible Topics
 - Logging
 - Packing being application as a service
 - Running the tests
-
-Blocks and Connections
-----------------------
-
-- Interconnected blocks forming the block network.
-- Value and message based connections.
-- Execution order.
-
-Motion Curves
--------------
-
-- A curve consists of multiple splines.
-- Each spline is a piecewise polynomial curve where each segment is Bézier spline.
-
-Motion Player
--------------
-
-- Plays motion curves and outputs their samples
-
-
-Splines
--------
-
-.. plot::
-
-   import matplotlib.pyplot as plt
-
-   from being.plotting import plot_spline_2
-
-   from scipy.interpolate import BPoly
-
-
-   c = [[0, 2], [0, 2], [2, 1], [2, 1]]
-   x = [0, 1, 3]
-
-   spline = BPoly(c, x)
-
-   plot_spline_2(spline)
-   prettify_plot()
-   plt.show()
