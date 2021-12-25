@@ -554,6 +554,6 @@ class Epos4(Controller):
     def update(self):
         super().update()
         if self.recoverRpdoTimeoutError:
-            if self.lastState is State.FAULT and self.rpdoTimeoutOccurred:
+            if self.lastState == State.FAULT and self.rpdoTimeoutOccurred:
                 self.enable()
                 self.rpdoTimeoutOccurred = False
