@@ -9,6 +9,7 @@ Welcome to Being
 
 .. image:: images/pathos\ logo.png
    :alt: PATHOS logo
+   :width: 100%
 
 Robotic middleware library for easy to use robotic projects.
 
@@ -105,6 +106,17 @@ Authors and License
 The ``being`` package is written by Alexander Theler and is licensed under the
 MIT license. Feel free to use and improve this project.
 
+Todo
+====
+
+.. todo::
+   - Behavior
+   - Being Architecture
+   - Communication SDO / PDO
+   - Parallel State Change / Homing
+   - Logging
+   - Packing being application as a service
+   - Running the tests
 
 Table of Contents
 =================

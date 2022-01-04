@@ -204,6 +204,23 @@ to be registered after creation
    # {"type": "Foo", "first": "hello", "second": "tuple"}
 
 
+Web UI and API
+--------------
+
+When running a Being program a web based user interface gets started up. This
+allows the user to interact with the system in real-time. Depending on the used
+blocks some HTML templating is involved for generating the single page. But for
+the most part communication between front- and backend takes place over a HTTP
+based API and a web socket connection to exchange asynchronous messages and
+updates. Everything web related can be found in the :mod:`being.web` package
+together with the static files and the JavaScript code.
+
+The frontend is grouped in different *widgets*. Each widget is its own web `Web
+Components <https://developer.mozilla.org/en-US/docs/Web/Web_Components>`_.
+Most widgets will fetch some initial data and then receive subsequent update
+via the web socket connection.
+
+
 Networking
 ----------
 
@@ -439,7 +456,7 @@ node:
 
 - :meth:`being.cia_402.CiA402Node.change_state`: Blocking with a timeout. This
   is *not* suited for live operation since everything else will be blocked
-  including PDO communication and Sync messages (NMT state operational).
+  including PDO communication and Sync messages (NMT operational).
 - :meth:`being.cia_402.CiA402Node.state_switching_job`: Creates a Python
   Generator which handles the state traversal.  Responsibility for ticking the
   Generator is with the caller. Kind of an pseudo *coroutine* which makes it
@@ -506,21 +523,34 @@ Therefore there is a second homing implementation
 :class:`being.motors.homing.CrudeHoming`.
 
 
-Possible Topics Todo
---------------------
+Pacemaker
+---------
 
-- Behavior
-- Web / API
-  - Components
+Once the NMT state is set to *operational* some motors expect periodic CAN
+messages which are *on time*. Namely RPDO and SYNC messages. Some motors will
+switch off an go into en error state if they do not receive these messages for
+a longer period.
 
-- Being Architecture
+Since Being is written in Python, single threaded (not counting third party
+dependencies) and mostly running on non-real-time operating systems this can
+not be guaranteed. When the work load gets to high e.g. with a complete web
+page reload our main loop drags behind and the critical messages can not be
+send. (Fun fact, on macOS 10.15 it is enough to open the spotlight search and
+every time one enters a character in the search field this will break out the
+being process. Also without a running web server).
 
-- Communication SDO / PDO
-- Parallel State Change / Homing
+To mitigate this a little there is the :class:`being.pacemaker.Pacemaker`
+thread. When activated this thread gets ticked by the main loop. If the main
+loop is not on time (with some margin) the pacemaker will jump in and send out
+the latest messages again to bridge the gap.
 
-- Pacemaker
+However, this only works for a subset of lags and is no guarantee. A
+non-real-time operating system can always pause the being process how it seems
+fit. This is why some controllers in Being have a *auto recovery* for the *RPDO
+Timeout Error*. The motor will jerk but at least it keeps on running.
 
+As an outlook an improvement could be:
 
-- Logging
-- Packing being application as a service
-- Running the tests
+- Operating system with a *Preempt-RT Patch*
+- Move the actual CAN bus / interface to its own, separated RT process and
+  replace it with a proxy to forward communication via IPC
