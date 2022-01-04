@@ -73,8 +73,6 @@ CONTROLLER_TYPES: Dict[str, Controller] = {
 """Device name to Controller type lookup."""
 
 
-
-
 def create_controller_for_node(node: CiA402Node, *args, **kwargs) -> Controller:
     """Controller factory. Different controllers depending on device name. Wraps
     CanOpen node.

@@ -79,11 +79,11 @@ class Curve:
         #return np.array(samples)
         return samples
 
-    def __call__(self, t, nu=0):
-        return np.array([
-            spline(t, nu)
-            for spline in self.splines
-        ]).ravel()
+    def __call__(self, x, nu=0, extrapolate=None) -> np.ndarray:
+        return np.concatenate([
+            s(x, nu, extrapolate)
+            for s in self.splines
+        ], axis=-1)
 
     def __str__(self):
         return f'{type(self).__name__}({self.n_channels} curves)'

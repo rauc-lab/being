@@ -14,14 +14,19 @@ Robotic middleware library for easy to use robotic projects.
 
 .. _GitHub: https://github.com/rauc-lab/being
 
+The goal of being is it, to abstract away most of the low-level heavy lifting
+when working with motors and sensors. Engineers and programmers should be able
+to focus on developing slim, high-level programs which operate on *behavior*
+and *character* to capture the expressive intent of artists.
+
 
 Key Features
 ============
 
-- Block logic
-- Supports CAN based motor controllers
+- Connected block logic
+- CAN based motor controllers
 - Spline based motion curves
-- Web based user interface
+- Adaptive web based user interface
 
 
 Library Installation
