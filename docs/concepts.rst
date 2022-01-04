@@ -112,6 +112,152 @@ function the execution order will be executed indefinitely. The interval
 duration is taken from :mod:`being.configuration`.
 
 
+Configs and Parameters
+----------------------
+
+In order to add new possible user input on the fly being has so called
+*Parameter Blocks*. Each of these blocks outputs a value and appears in the UI
+as widget with which the value can be changed. The state of these parameter
+blocks gets mirrored in a config file on disk so that the parameter stay
+persistent between subsequent runs.
+
+.. code-block:: python
+
+   """Parameter block demo."""
+   from being.awakening import awake
+   from being.block import Block
+   from being.params import Slider, SingleSelection, MultiSelection, MotionSelection
+
+
+   block = Block()
+
+   Slider('Some/Value') | block.add_value_input()
+   SingleSelection('Some/Single', ['first', 'second', 'third']) | block.add_value_input()
+   MultiSelection('Some/Multi', ['first', 'second', 'third']) | block.add_value_input()
+   MotionSelection('Motions') | block.add_value_input()
+
+   awake(block)
+
+In the UI this looks like this:
+
+.. figure:: images/parameters2.png
+   :alt: Parameter panel widget screenshot.
+
+   Parameter panel
+
+And the ``being_params.yaml`` config file
+
+.. code-block:: yaml
+
+   Some:
+     Value: 0.5
+     Single: first
+     Multi:
+     - second
+   Motions:
+   - Excited
+   - Untitled
+
+JSON, INI and TOML are also supported although INI is not suited for the usage
+with parameters blocks (no support for nested mappings and datatypes).
+
+
+Serialization
+-------------
+
+JSON serialization of the different being object is defined in
+:mod:`being.serialization`. Custom types get mapped to and from dictionary
+representation which can be converted to JSON strings.
+
+This conversion is taken care by :func:`being.serialization.dumps` and
+:func:`being.serialization.loads`.
+
+.. digraph:: jsonserialization
+   :align: center
+   :alt: JSON serialization of being objects.
+   :caption: JSON serialization of being objects.
+   :name: JSON serialization of being objects.
+
+   rankdir="LR"
+   Object -> JSON [label="dumps()"];
+   JSON -> Object [label="loads()"];
+
+It is also possible to serialize named tuples and enums. But these types have
+to be registered after creation
+(:func:`being.serialization.register_named_tuple.` and
+:func:`being.serialization.register_enum`).
+
+.. code-block:: python
+
+   from typing import NamedTuple
+   from being.serialization import register_named_tuple, dumps
+
+
+   class Foo(NamedTuple):
+      first: str = 'hello'
+      second: int = 42
+
+
+   register_named_tuple(Foo)
+   foo = Foo(second='tuple')
+   print(dumps(foo))
+   # {"type": "Foo", "first": "hello", "second": "tuple"}
+
+
+Networking
+----------
+
+Basic network functionality is implemented in the
+:class:`being.networking.NetworkOut` and :class:`being.networking.NetworkIn`
+blocks. These blocks send and receive being messages as UDP datagrams. This
+makes it possible to split a being program over multiple computers. The message
+types must be serializable by being. Use standard Python types like a
+dictionary or register your custom types with the being serialization system.
+
+
+Resources
+---------
+
+System resources have limited availability and need to be released when the
+program shuts down. In the context of being this refers to the CAN interface
+and network sockets. These resources are handled by a global
+:class:`contextlib.ExitStack` in :mod:`being.resources`.
+
+When resources are acquired at run-time it is important to use the
+:func:`being.resources.manage_resources` context manager so that the collected
+resources can be released at the end.
+
+.. code-block:: python
+
+   from being.networking import NetworkIn
+   from being.resources import manage_resources
+
+   with manage_resources():
+      # Creates and binds a socket internally
+      incoming = NetworkIn(address=('', 56790))
+
+   # Socket gets released here
+
+The same logic applies to the CAN interface, RPi GPIO, port audio backend...
+
+
+Single Instance Cache
+---------------------
+
+For comforts, some types get instantiated implicitly when needed. For example,
+when creating a :class:`being.motors.blocks.CanMotor` block, by default a
+:class:`being.backend.CanBackend` instance gets created as well. Similarly
+every :class:`being.motion_player.MotionPlayer` block needs a
+:class:`being.clock.Clock` and a :class:`being.content.Content` instance.
+
+The :class:`being.utils.SingleInstanceCache` base class caches all these
+instances. These de-facto global variables are an anti-pattern but opposed to
+the classical singleton pattern single instantiation is not enforced and these
+single instances are only used as *default* values. All classes, which make use
+of single instances, also accept them via their initialize method (dependency
+injection).
+
+
 Splines
 -------
 
@@ -187,48 +333,6 @@ which can be routed to motors.
    plt.show()
 
 
-Serialization
--------------
-
-JSON serialization of the different being object is defined in
-:mod:`being.serialization`. Custom types get mapped to and from dictionary
-representation which can be converted to JSON strings.
-
-This conversion is taken care by :func:`being.serialization.dumps` and
-:func:`being.serialization.loads`.
-
-.. digraph:: jsonserialization
-   :align: center
-   :alt: JSON serialization of being objects.
-   :caption: JSON serialization of being objects.
-   :name: JSON serialization of being objects.
-
-   rankdir="LR"
-   Object -> JSON [label="dumps()"];
-   JSON -> Object [label="loads()"];
-
-It is also possible to serialize named tuples and enums. But these types have
-to be registered after creation
-(:func:`being.serialization.register_named_tuple.` and
-:func:`being.serialization.register_enum`).
-
-.. code-block:: python
-
-   from typing import NamedTuple
-   from being.serialization import register_named_tuple, dumps
-
-
-   class Foo(NamedTuple):
-      first: str = 'hello'
-      second: int = 42
-
-
-   register_named_tuple(Foo)
-   foo = Foo(second='tuple')
-   print(dumps(foo))
-   # {"type": "Foo", "first": "hello", "second": "tuple"}
-
-
 Content
 -------
 
@@ -269,49 +373,6 @@ outputted via the position outputs
    point it was planed to add feedback connection to notify when a motion curve
    had been played succefully or not. `outputs` would then have an addional
    entry.
-
-
-Resources
----------
-
-System resources have limited availability and need to be released when the
-program shuts down. In the context of being this refers to the CAN interface
-and network sockets. These resources are handled by a global
-:class:`contextlib.ExitStack` in :mod:`being.resources`.
-
-When resources are acquired at run-time it is important to use the
-:func:`being.resources.manage_resources` context manager so that the collected
-resources can be released at the end.
-
-.. code-block:: python
-
-   from being.networking import NetworkIn
-   from being.resources import manage_resources
-
-   with manage_resources():
-      # Creates and binds a socket internally
-      incoming = NetworkIn(address=('', 56790))
-
-   # Socket gets released here
-
-The same logic applies to the CAN interface, RPi GPIO, port audio backend...
-
-
-Single Instance Cache
----------------------
-
-For comforts, some types get instantiated implicitly when needed. For example,
-when creating a :class:`being.motors.blocks.CanMotor` block, by default a
-:class:`being.backend.CanBackend` instance gets created as well. Similarly
-every :class:`being.motion_player.MotionPlayer` block needs a
-:class:`being.clock.Clock` and a :class:`being.content.Content` instance.
-
-The :class:`being.utils.SingleInstanceCache` base class caches all these
-instances. These de-facto global variables are an anti-pattern but opposed to
-the classical singleton pattern single instantiation is not enforced and these
-single instances are only used as *default* values. All classes, which make use
-of single instances, also accept them via their initialize method (dependency
-injection).
 
 
 Motors
@@ -459,8 +520,6 @@ Possible Topics Todo
 
 - Pacemaker
 
-- Configs and Parameters
-- Networking
 
 - Logging
 - Packing being application as a service
