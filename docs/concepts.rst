@@ -351,35 +351,98 @@ this case, the target position input is ignored. Instead the motor block
 accepts :class:`being.motors.definitions.PositionProfile` messages which will
 be relayed to the motor.
 
-TODO
+
+Settings
+^^^^^^^^
+
+The *CanMotors* have a *settings* argument which can be used to apply custom
+configurations to the motor. Settings are a dictionary with address to value
+mappings. The address can also be a string with slashes (``/`` path syntax). In
+this case the *EDS object dictionary* is used to resolve the target address.
+Path parts can also be integer numbers (decimal, hexadecimal, ...)
+
+.. note::
+
+   Most motors are sensitive to the order in which settings are applied.
+   Therefore using a :class:`collections.OrderedDict` is advised.
 
 
-CAN Nodes and State Switching
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-A CanOpen CiA 402 node has a standardized state machine which controls the
-device. Different states must be passed through in order to enable the drive.
-
-
-The node state can be changed either via SDO or PDO.
-
-By default both the statusword as well as the controlword are registered for PDO communcation.
-
-
-CAN Controllers
+State Switching
 ^^^^^^^^^^^^^^^
 
+For switching to an arbitrary target state the *CiA 402 State Machine* needs to
+be traversed in the right way. What complicates things is that this can take an
+arbitrary amount of time.
+Two methods exists in the :class:`being.cia_402.CiA402Node` CanOpen remote
+node:
 
-Motor Settings
-^^^^^^^^^^^^^^
+- :meth:`being.cia_402.CiA402Node.change_state`: Blocking with a timeout. This
+  is *not* suited for live operation since everything else will be blocked
+  including PDO communication and Sync messages (NMT state operational).
+- :meth:`being.cia_402.CiA402Node.state_switching_job`: Creates a Python
+  Generator which handles the state traversal.  Responsibility for ticking the
+  Generator is with the caller. Kind of an pseudo *coroutine* which makes it
+  possible to interlace multiple state switchings with the normal operation.
+
+A small example for the latter
+
+.. code-block:: python
+
+   """This example illustrates how the state of multiple nodes can be
+   switched simultaneously.
+   """
+   import time
+   from being.can.cia_402 import State
 
 
-Motor Homing
-^^^^^^^^^^^^
+   NODES = []
+   """List of some connected CiA 402 node instances."""
+
+   jobs = [
+       node.state_switching_job(target=State.OPERATION_ENABLED)
+       for node in NODES
+   ]
+
+   while jobs:
+       for job in jobs.copy():  # Copy because mutating while iterating
+           try:
+               # Ticking state switching job
+               next(job)
+           except StopIteration:
+               # Done with state switching for this job
+               jobs.remove(job)
+
+       time.sleep(0.1)
+
+   # Done with state switching
+
+These state switching jobs are managed by the
+:class:`being.motors.controller.Controller` instances. The calling chain for
+enabling a motor block is the following:
+
+1) Motor block gets enabled
+2) Motor block enables controller
+3) Controllers creates state switching job
+4) Calling the motor blocks update method, ticks the controller, ticks the
+   active state switching job
 
 
-Cyclic Synchronous Position (CSP) vs Profile Position mode
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Homing
+^^^^^^
+
+A motor can be in the following homing states:
+
+- FAILED
+- UNHOMED
+- ONGOING
+- HOMED
+
+Each controller has a homing instance which manages the homing of a motor. For
+most cases the standard CiA 402 homing can be used
+(:class:`being.motors.homing.CiA402Homing`). However some motors do not support
+the unofficial *hard stop homing* which is used in many Pathos projects.
+Therefore there is a second homing implementation
+:class:`being.motors.homing.CrudeHoming`.
 
 
 Possible Topics Todo
