@@ -97,8 +97,8 @@ begin with.
 
        def __init__(self, content=None, clock=None, **kwargs):
 
-           # Fetch currently cached single instances of Content / Clock
-           # or create new ones if necessary
+           # Fetch currently cached single instances of
+           # Content / Clock or create new ones if necessary
            if content is None:
                content = Content.single_instance_setdefault()
 
@@ -114,7 +114,7 @@ begin with.
        def update(self):
            now = self.clock.now()
            if now < self.nextUpd:
-               # Nothing to for now
+               # Nothing to do for now
                return
 
            available = self.content.list_curve_names()
@@ -145,8 +145,86 @@ begin with.
        looper.clock.step()
 
 
+Creating a New Widget / Web Component
+-------------------------------------
 
-Creating a New Web Component
-----------------------------
+Let's create a new frontend widget which displays the currently available
+motion curves in the backend and has a refresh button.
 
-TODO
+- Sub-classing widget Being class and registering custom web component
+- Custom HTML template
+- Toolbar button
+- API call to backend
+
+.. code-block:: javascript
+
+   import {Widget} from "/static/js/widget.js";
+   import {Api} from "/static/js/api.js";
+   import {remove_all_children} from "/static/js/utils.js";
+
+
+   class CurveLister extends Widget {
+       constructor() {
+           super();
+           this.api = new Api();
+
+           // Adding a template to the widget with a single <ul> list
+           // element. This is just the inner part of the widget. Some
+           // other element are already initialized (shadow root,
+           // toolbar div...)
+           this.append_template(`
+             Current motion curves:
+             <ul id="my-list">
+               <li>Nothing to see</li>
+             </ul>
+           `);
+           this.list = this.shadowRoot.querySelector("#my-list");
+
+           // Adding the refresh button to the toolbar
+           this.refreshBtn = this.add_button_to_toolbar("refresh");
+       }
+
+       connectedCallback() {
+           this.refreshBtn.addEventListener("click", evt => {
+               this.refresh();
+           });
+           this.refresh();
+       }
+
+       async refresh() {
+           // Removing all current list elements 
+           remove_all_children(this.list);
+   
+           // Fetching the current motion curves from the backend. The
+           // format is a bit cumbersome: Motions message wraps curves
+           // and the curves them self are [curve name, curve] tuples
+           // ordered in most recently modified order.
+           // 
+           // motionsMsg = {
+           //      type: "motions",
+           //      curves: [
+           //          ["some name", {"type": "Curve", ...}],
+           //          ["other name", {"type": "Curve", ...}],
+           //          // ...
+           //      ]
+           // }
+           const motionsMsg = await this.api.get_curves();
+
+           // Add new <li> element to list for each curve
+           motionsMsg.curves.forEach(namecurve => {
+               const [name, _] = namecurve;
+               const li = document.createElement("li")
+               li.innerText = name;
+               this.list.appendChild(li);
+           });
+       }
+   };
+
+   // Register new widget as web component
+   customElements.define("being-curve-lister", CurveLister);
+
+This widget can now be used with
+
+.. code-block:: html
+
+   <being-curve-lister></being-curve-lister>
