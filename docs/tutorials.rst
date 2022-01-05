@@ -223,7 +223,7 @@ motion curves in the backend and has a refresh button.
    // Register new widget as web component
    customElements.define("being-curve-lister", CurveLister);
 
-This widget can now be used with
+This widget can now be used within HTML with
 
 .. code-block:: html
 
