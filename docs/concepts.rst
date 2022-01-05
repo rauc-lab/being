@@ -29,8 +29,30 @@ There are two kind of connections:
   attributes.
 - *Message* (→) connections ``send`` and ``receive`` discrete messages.
 
-Outputs and inputs can be connected with each other with the *connect* method.
-It is possible to connect an output to many inputs but not the other way round.
+Outputs and inputs can be connected with each other with the ``connect``
+method.  It is possible to connect an output to many inputs but not the other
+way round.  Data can be passed around with the ``value`` attribute and the
+``send`` / ``receive`` methods.
+
+.. code-block:: python
+
+   from being.connectables import ValueOutput, ValueInput, MessageOutput, MessageInput
+
+   valueOut = ValueOutput()
+   valueIn = ValueInput()
+   valueOut.connect(valueIn)
+
+   valueOut.value = 42
+   print(valueIn.value)  # Prints 42
+
+   msgOut = MessageOutput()
+   msgIn = MessageInput()
+   msgOut.connect(msgIn)
+
+   msgOut.send('Hello, world!')
+   for msg in msgIn.receive():
+       print(msg)  # Prints 'Hello, world!'
+
 A small summary of the block attributes:
 
 - :attr:`being.block.Block.inputs`: Input connectables.
