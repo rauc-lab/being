@@ -30,10 +30,8 @@ A Sine block should have an output for the sine values.
 
 This implementation has a couple shortcomings:
 
+- Using system time leads to jitter and different start phases 
 - Frequency can not be set nor change
-- Depends on system time. Different start phase every time.
-- ``update()`` will not be called *exactly* in the same interval. Using system
-  time add jitter.
 
 Let fix this by adding a phase attribute, using the interval duration from the
 configuration and add an additional value input for the frequency.

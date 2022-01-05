@@ -9,8 +9,7 @@ Welcome to Being
 
 .. image:: images/pathos\ logo.png
    :alt: PATHOS logo
-   :align: center
-   :width: 95%
+   :width: 100%
 
 Robotic middleware library for easy to use robotic projects.
 
@@ -64,10 +63,12 @@ in the current working directory where the motion curves will be stored.
 Now inspect the web-based user interface under `<http://localhost:8080/>`_.
 
 
-Tutorial
-========
+Going Further
+=============
 
-TODO
+- Core :doc:`concepts` of Being
+- :doc:`manuals` of the frontend widgets
+- A couple of quick :doc:`tutorials`.
 
 
 Source Code
@@ -107,6 +108,7 @@ Authors and License
 The ``being`` package is written by Alexander Theler and is licensed under the
 MIT license. Feel free to use and improve this project.
 
+
 Todo
 ====
 
@@ -118,6 +120,7 @@ Todo
    - Logging
    - Packing being application as a service
    - Running the tests
+
 
 Table of Contents
 =================
