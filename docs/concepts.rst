@@ -100,6 +100,21 @@ network being will try to find a suitable *execution order* of these blocks and
 tick every block once per cycle by calling its :meth:`being.block.Block.update`
 method.
 
+.. digraph:: cycle
+    :align: center
+    :alt: Directed graph with cycle
+    :caption: Directed graph with cycle
+    :name: Directed graph with cycle
+
+    node [shape=box];
+    bgcolor="#ffffff00"
+    A -> B -> C;
+    B -> D;
+    D -> B;
+    {rank = same; A; B; C;}
+
+Resulting execution order is *[A, B, C, D]* although *C* and *D* could be
+swapped depending on the insertion order.
 
 .. code-block:: python
 

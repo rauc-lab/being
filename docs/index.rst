@@ -9,7 +9,6 @@ Welcome to Being
 
 .. image:: images/pathos\ logo.png
    :alt: PATHOS logo
-   :width: 100%
 
 Robotic middleware library for easy to use robotic projects.
 

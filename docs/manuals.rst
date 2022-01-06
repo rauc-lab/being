@@ -4,30 +4,64 @@ Manuals
 Control Panel
 -------------
 
-- Block diagram
-- Block names
-- Animated value and message connections
-- On/off and homing
-- Console
+.. image:: images/control\ panel\ widget.png
+   :alt: Control panel widget
+
+The control panel shows the block diagram of the running being program. Solid
+lines correspond to *message* and dashed lines to *value* connections. The
+lines are animated and indicate if data is flowing through (moving red dots and
+dash animation).
+
+The block names are defined inside the being program. By default these
+correspond to the block type but can be set to arbitrary names representing the
+installation.
+
+With the *on / off button* the motors can be enabled or disabled. The *home
+button* can be used to re-home the motors. With the *console* button to the
+right some of the log messages can be shown and copied to the clipboard.
+
 
 Behavior
 --------
 
-- Motion repertoire
-- Shadow
-- Attention span
+.. image:: images/behavior\ widget.png
+   :alt: Behavior widget.
+
+This widget corresponds to a behavior block. It shows the 3x behavior states (I
+- III). Each state has its own *motion repertoire*, a subset of all available
+motion curves from the content. These define which motions get played for a
+given state. If a trigger occurs the behavior jumps to the state III and
+traverse back to state II and then I. If no motion is selected a state can also
+get skipped. Only one motion for state III will be played and duration inside
+state II can be controlled with the *minimum duration* slider. The active state
+is highlighted with a black drop shadow.
+
+The behavior can be stopped with the *play / pause button* and the *now
+playing* label indicate the currently playing motion.
+
 
 Editor
 ------
 
-- Dragging knots / control points 
-- Drag for selecting knots
-- Shift + Drag for horizontal scroll / zoom
-- Double click for adding / removing knots
-- Clicking for changing transport
-- Space bar toggles playback
+.. image:: images/editor\ widget.png
+   :alt: Editor widget.
 
-- Double click for renaming
+This widget can be used to create, edit and playback motion curves. All motion
+curves are listed in the left sidebar and can be renamed by double clicking the
+name.
+
+Black circles are *knots* and red circles *control points.*. Both can be
+dragged around with the mouse. By double clicking new knots can be inserted or
+deleted. Multiple knots / control point can be selected and moved at the same
+time.
+
+For navigation hold the shift key and move the canvas around. This can also be
+used to zoom in and out.
+
+Clicking on the canvas relocates the *transport*. The current playback
+position. Playback will be resumed from this position (*play / pause button* or
+hitting the space bar).
+
 
 Toolbar
 ^^^^^^^

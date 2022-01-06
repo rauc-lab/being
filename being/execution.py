@@ -13,6 +13,7 @@ Caution:
         :caption: Directed graph with cycle
         :name: Directed graph with cycle
 
+        node [shape=box];
         bgcolor="#ffffff00"
         a -> b -> c;
         b -> d;
