@@ -30,8 +30,26 @@ There are two kind of connections:
 - *Message* (→) connections ``send`` and ``receive`` discrete messages.
 
 Outputs and inputs can be connected with each other with the ``connect``
-method.  It is possible to connect an output to many inputs but not the other
-way round.  Data can be passed around with the ``value`` attribute and the
+method. It is possible to connect one output to many inputs but not the other
+way round (different outputs to one single input).
+
+.. digraph:: manyinputs
+   :align: center
+   :alt: Output with many inputs.
+   :caption: Output with many inputs.
+   :name: Output with many inputs.
+
+   rankdir="LR"
+
+   a[label="Input"];
+   b[label="Input"];
+   c[label="Input"];
+
+   Output -> a;
+   Output -> b;
+   Output -> c;
+
+Data can be passed around with the ``value`` attribute and the
 ``send`` / ``receive`` methods.
 
 .. code-block:: python
@@ -57,10 +75,10 @@ A small summary of the block attributes:
 
 - :attr:`being.block.Block.inputs`: Input connectables.
 - :attr:`being.block.Block.outputs`: Output connectables.
-- :attr:`being.block.Block.input`: Primary input.
-- :attr:`being.block.Block.output`: Primary output.
+- :attr:`being.block.Block.input`: First / primary input connectable.
+- :attr:`being.block.Block.output`: First /primary output connectable.
 
-The pipe operator ``|`` can be used to chain multiple blocks via there primary
+The pipe operator ``|`` can be used to chain multiple blocks via their primary
 inputs and outputs
 
 .. code-block:: python
@@ -113,7 +131,8 @@ method.
    # Making the connections
    a | b | c
 
-   # Determining the execution order. One initial block of the network suffices
+   # Determining the execution order. One initial block of the network
+   # suffices (vertex discovery)
    execOrder = determine_execution_order([b])
 
    # Executing a single cycle with some data
@@ -153,6 +172,7 @@ persistent between subsequent runs.
 
    block = Block()
 
+   # Creating new ad-hoc value inputs and connecting them the parameter blocks
    Slider('Some/Value') | block.add_value_input()
    SingleSelection('Some/Single', ['first', 'second', 'third']) | block.add_value_input()
    MultiSelection('Some/Multi', ['first', 'second', 'third']) | block.add_value_input()
@@ -221,9 +241,9 @@ to be registered after creation
 
 
    register_named_tuple(Foo)
-   foo = Foo(second='tuple')
+   foo = Foo(second='1234')
    print(dumps(foo))
-   # {"type": "Foo", "first": "hello", "second": "tuple"}
+   # {"type": "Foo", "first": "hello", "second": "1234"}
 
 
 Web UI and API
@@ -351,7 +371,7 @@ Curves
 A :class:`being.curve.Curve` is a container for splines. Each *motion curve*
 has multiple individual splines. These are independent and do not share any
 break points or coefficients. Each of these splines defines a motion channel
-which can be routed to motors.
+which can be routed to motors. A curve should have at least one spline.
 
 .. plot::
 
@@ -481,7 +501,7 @@ node:
   including PDO communication and Sync messages (NMT operational).
 - :meth:`being.cia_402.CiA402Node.state_switching_job`: Creates a Python
   Generator which handles the state traversal.  Responsibility for ticking the
-  Generator is with the caller. Kind of an pseudo *coroutine* which makes it
+  Generator is with the caller. Kind of a pseudo *coroutine* which makes it
   possible to interlace multiple state switchings with the normal operation.
 
 A small example for the latter
@@ -550,7 +570,7 @@ Pacemaker
 
 Once the NMT state is set to *operational* some motors expect periodic CAN
 messages which are *on time*. Namely RPDO and SYNC messages. Some motors will
-switch off an go into en error state if they do not receive these messages for
+switch off and go into an error state if they do not receive these messages for
 a longer period.
 
 Since Being is written in Python, single threaded (not counting third party
