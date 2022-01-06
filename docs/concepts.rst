@@ -241,9 +241,9 @@ to be registered after creation
 
 
    register_named_tuple(Foo)
-   foo = Foo(second='1234')
+   foo = Foo(second=1234)
    print(dumps(foo))
-   # {"type": "Foo", "first": "hello", "second": "1234"}
+   # {"type": "Foo", "first": "hello", "second": 1234}
 
 
 Web UI and API
