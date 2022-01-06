@@ -67,7 +67,7 @@ Going Further
 
 - Core :doc:`concepts` of Being
 - :doc:`manuals` of the frontend widgets
-- A couple of quick :doc:`tutorials`.
+- A couple of quick :doc:`tutorials`
 
 
 Source Code
@@ -79,13 +79,35 @@ This project is hosted on GitHub_.
 Dependencies
 ============
 
-TODO Needed?
+This project uses the usual suspects of the scientific Python stack. Some
+additional third party libraries for HTTP server, CAN/CanOpen and different
+configuration formats with round trip preservation.
+
+The Python Raspberry Pi library `RPi.GPIO
+<https://pypi.org/project/RPi.GPIO/>`_ is an optional dependency. That Being
+can also be used on non Raspberry Pi platforms. When used on a RPI and GPIOs
+need to be accessed needs to be installed manually.
+
+The frontend uses pure JavaScript and is directly hosted by an aiohttp web
+server from within Being. No JavaScript framework. Static folder is directly
+served.
 
 
-Communication Channels
-======================
+Developing
+==========
 
-TODO Needed?
+When downloading the source code it is easiest to install Being as a
+development project.
+
+.. code-block:: bash
+
+   $ python3 setup.py install develop
+
+The tests can then be run with
+
+.. code-block:: bash
+
+   $ python3 setup.py test
 
 
 Contributing
@@ -98,27 +120,12 @@ variables, arguments and attributes.
 `snake_case <https://en.wikipedia.org/wiki/Snake_case>`_ for functions, methods
 and properties.
 
-TODO
-
 
 Authors and License
 ===================
 
 The ``being`` package is written by Alexander Theler and is licensed under the
 MIT license. Feel free to use and improve this project.
-
-
-Todo
-====
-
-.. todo::
-   - Behavior
-   - Being Architecture
-   - Communication SDO / PDO
-   - Parallel State Change / Homing
-   - Logging
-   - Packing being application as a service
-   - Running the tests
 
 
 Table of Contents

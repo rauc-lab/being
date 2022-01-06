@@ -1,10 +1,12 @@
 Guides
 ======
 
+
 Integrating a New Motor Controller
 ----------------------------------
 
 TODO
+
 
 Setup on a RPI
 --------------
@@ -17,10 +19,12 @@ Setup on a RPI
 - CAN setup
 - Motor Settings
 
+
 Position Profile
 ----------------
 
 How to steers the motors
+
 
 How to Mic Block?
 -----------------
@@ -31,3 +35,14 @@ How to Mic Block?
 - Emit events
 
 
+I See No Logs
+-------------
+
+- Logging
+
+
+TODO
+----
+
+.. todo::
+   - Packing being application as a service
