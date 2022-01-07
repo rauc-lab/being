@@ -1,5 +1,5 @@
 """Being configuration and default values. Searches the *current working
-directory* for a ``being.ini`` configuration file. If present default
+directory* for a ``being.yaml`` configuration file. If present default
 configuration values get updated.
 
 Todo:
@@ -45,7 +45,7 @@ CONFIG: Dict[str, Any] = {
 """Global being default configuration."""
 
 for fp in [
-    os.path.join(os.getcwd(), 'being.ini'),
+    os.path.join(os.getcwd(), 'being.yaml'),
 ]:
     if os.path.exists(fp):
         update_dict_recursively(CONFIG, ConfigFile(fp))
