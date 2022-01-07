@@ -22,6 +22,15 @@ BUFFER_SIZE: int = 1024
 """Number of bytes for socket recv call."""
 
 
+def format_address(address: Address) -> str:
+    """Format socket address."""
+    host, port = address
+    if host == '':
+        host = '0.0.0.0'
+
+    return '%s:%d' % (host, port)
+
+
 class NetworkBlock(Block):
 
     """Base class for network / socket blocks. Sockets get registered as
@@ -34,6 +43,7 @@ class NetworkBlock(Block):
         Args:
             address: Network address.
             sock (optional): Socket instance (DI).
+            **kwargs: Arbitrary block keyword arguments.
         """
         super().__init__(**kwargs)
         if sock is None:
@@ -46,6 +56,9 @@ class NetworkBlock(Block):
 
         self.sock: Socket = sock
         """Underlying socket instance."""
+
+    def __str__(self):
+        return '%s(address: %s)' % (type(self).__name__, format_address(self.address))
 
 
 class NetworkOut(NetworkBlock):
