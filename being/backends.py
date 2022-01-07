@@ -20,7 +20,7 @@ import contextlib
 import sys
 import time
 import warnings
-from typing import List, Generator, Set
+from typing import List, Generator, Set, Dict, Union
 from logging import Logger
 
 try:
@@ -29,6 +29,7 @@ except ImportError:
     pyaudio = None
     warnings.warn('PyAudio is not installed!')
 
+import numpy as np
 import can
 import canopen
 from canopen.pdo.base import Map
@@ -37,6 +38,7 @@ from being.can.cia_402 import CiA402Node
 from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL, RESET_COMMUNICATION
 from being.configuration import CONFIG
 from being.logging import get_logger
+from being.math import linear_mapping
 from being.rpi_gpio import GPIO
 from being.utils import SingleInstanceCache, filter_by_type
 
@@ -175,37 +177,114 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
             self.disconnect()
 
 
+def pyaudio_format(dtype: Union[str, np.dtype, type]) -> int:
+    """Determine pyaudio format number for data type.
+
+    Args:
+        dtype: Datatype.
+
+    Returns:
+        Audio format number.
+    """
+    if not pyaudio:
+        raise RuntimeError('pyaudio is not installed!')
+
+    if isinstance(dtype, str):
+        dtype = np.dtype(dtype)
+    if isinstance(dtype, np.dtype):
+        dtype = dtype.type
+
+    return {
+        np.uint8: pyaudio.paUInt8,
+        np.int16: pyaudio.paInt16,
+        np.int32: pyaudio.paInt32,
+        np.float32: pyaudio.paFloat32,
+    }[dtype]
+
+
+class SpectralFlux:
+
+    """Spectral flux filter."""
+
+    def __init__(self, bufferSize):
+        self.bufferSize = bufferSize
+        freqs = np.fft.rfftfreq(bufferSize)
+        self.prevMag = np.ones(len(freqs))
+
+    def __call__(self, samples):
+        X = np.fft.rfft(samples)
+        mag = np.abs(X)
+        delta = mag - self.prevMag
+        self.prevMag = mag
+
+        # Half-wave rectification
+        rectified = (delta + np.abs(delta)) / 2
+
+        # Normalized spectral flux
+        return np.sum(rectified) / self.bufferSize**1.5
+
+
 class AudioBackend(SingleInstanceCache, contextlib.AbstractContextManager):
 
-    """Sound card connection. Collect audio samples with PortAudio / PyAudio.
+    """Sound card connection. Collect audio samples with PortAudio / PyAudio."""
 
-    Warning:
-        Unfinished.
-    """
+    def __init__(self,
+            bufferSize: int = 1024,
+            dtype: Union[type, str] = np.uint8,
+        ):
+        """
+        Args:
+            bufferSize: Audio buffer size.
+            dtype: Datatype for samples. Not all data types are supported for
+                audio. u8, i16 and i32 should work.
+        """
+        dtype = np.dtype(dtype)
+        self.bufferSize = bufferSize
+        self.dtype = dtype
 
-    def __init__(self):
+        # Prepare sample normalization
+        if np.issubdtype(dtype, np.integer):
+            iinfo = np.iinfo(dtype)
+            xRange = (iinfo.min, iinfo.max)
+        else:
+            xRange = (-1.0, 1.0)  # Float samples are already normalized
+
+        self.scale, self.offset = linear_mapping(xRange, yRange=(-1.0, 1.0))
+
         self.pa: pyaudio.PyAudio = pyaudio.PyAudio()
-        """PyAudio instance."""
-
         self.stream = self.pa.open(
-            format=self.pa.get_format_from_width(2),
+            format=pyaudio_format(dtype),
             channels=1,
+            frames_per_buffer=bufferSize,
             rate=44100,
             input=True,
             output=False,
             stream_callback=self.callback,
         )
+        self.flux = SpectralFlux(bufferSize)
+        self.microphones = []
 
     def callback(self, in_data, frame_count, time_info, status):
-        """pyaudio callback function."""
-        #print('callback()', frame_count, time_info, status)
+        """pyaudio audio stream callback function."""
+        samples = np.frombuffer(in_data, dtype=self.dtype)
+        normalized = self.scale * samples + self.offset
+        sf = self.flux(normalized)
+        for mic in self.microphones:
+            mic.new_spectral_flux_value(sf)
+
         return (None, pyaudio.paContinue)
 
+    def subscribe_microphone(self, mic):
+        """Subscribe Mic block to audio backend."""
+        self.microphones.append(mic)
+
     def __enter__(self):
+        print('Entering AudioBackend')
         self.stream.start_stream()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        print('Exiting AudioBackend')
         self.stream.stop_stream()
         self.stream.close()
         self.pa.terminate()

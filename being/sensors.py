@@ -2,7 +2,7 @@
 import collections
 from typing import NamedTuple, Optional
 
-from being.backends import Rpi
+from being.backends import Rpi, AudioBackend
 from being.block import Block
 from being.clock import Clock
 from being.resources import register_resource
@@ -13,11 +13,11 @@ class SensorEvent(NamedTuple):
 
     """Sensor event message."""
 
-    channel: int
-    """Channel over witch event was detected."""
-
     timestamp: float
     """Timestamp of sensor event."""
+
+    meta: dict
+    """Additional informations."""
 
 
 class Sensor(Block):
@@ -67,10 +67,73 @@ class SensorGpio(Sensor):
 
     def callback(self, channel):
         now = self.clock.now()
-        evt = SensorEvent(channel, now)
+        evt = SensorEvent(timestamp=now, meta={
+            'type': 'RPi.GPIO',
+            'channel': channel,
+        })
         self.queue.append(evt)
 
     def update(self):
         while self.queue:
             evt = self.queue.popleft()
             self.output.send(evt)
+
+
+class Mic(Sensor):
+
+    """Listens to audio and emits sound event messages."""
+
+    def __init__(self,
+             threshold=0.01,
+             bouncetime=0.1,
+             audio: Optional[AudioBackend] = None,
+             clock: Optional[Clock] = None,
+             **kwargs,
+         ):
+        """
+        Args:
+            threshold: Spectral flux difference threshold.
+            bouncetime: Blocked duration after emitted sound event.
+            audio: Audio backend instance (DI).
+            audio: Clock instance (DI).
+        """
+        if audio is None:
+            audio = AudioBackend.single_instance_setdefault()
+            register_resource(audio, duplicates=False)
+
+        if clock is None:
+            clock = Clock.single_instance_setdefault()
+
+        super().__init__(**kwargs)
+        self.add_message_output()
+        self.threshold = threshold
+        self.bouncetime = bouncetime
+        self.clock = clock
+
+        self.prevSf = 0.0
+        self.blockedUntil = -1
+
+        audio.subscribe_microphone(self)
+
+    def new_spectral_flux_value(self, sf: float):
+        """Process new spectral flux value and emit SoundEvent if necessary.
+
+        Args:
+            sf: Scalar spectral flux value.
+        """
+        diff = sf - self.prevSf
+        self.prevSf = sf
+        if diff < self.threshold:
+            return
+
+        now = self.clock.now()
+        if now < self.blockedUntil:
+            return
+
+        self.blockedUntil = now + self.bouncetime
+        evt = SensorEvent(timestamp=now, meta={
+            'type': 'Mic Sound',
+            'level': sf,
+        })
+        self.output.send(evt)
+        # TODO: Additional message queue between threads?
