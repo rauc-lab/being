@@ -89,7 +89,7 @@ class Mic(Sensor):
              audio: Optional[AudioBackend] = None,
              clock: Optional[Clock] = None,
              **kwargs,
-         ):
+        ):
         """
         Args:
             threshold: Spectral flux difference threshold.
