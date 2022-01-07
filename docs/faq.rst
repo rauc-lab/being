@@ -11,3 +11,10 @@ Strange Errors in Browser Developers Tools
 
 Try *hard-refreshing* the webpage. When making changes on the code the cached
 JS code in the browser can lead to unexpected errors
+
+
+I See No Logs
+-------------
+
+- Logging
+

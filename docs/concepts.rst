@@ -331,6 +331,21 @@ single instances are only used as *default* values. All classes, which make use
 of single instances, also accept them via their initialize method (dependency
 injection).
 
+.. code-block:: python
+
+   from being.utils import SingleInstanceCache
+
+
+   class Foo(SingleInstanceCache):
+       def __init__(self):
+           print('Foo gets initialized')
+
+
+   print('Initialized:', Foo.single_instance_initialized())  # Initialized: False
+   a = Foo.single_instance_setdefault()  # Foo gets initialized
+   b = Foo.single_instance_setdefault()
+   print('a is b:', a is b)  # a is b: True
+
 
 Splines
 -------
