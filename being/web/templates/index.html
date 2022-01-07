@@ -22,11 +22,18 @@
         <span>Being</span>
         <span class="filler"></span>
         <a href="#control-panel-anchor">Control Panel</a>
+
         {% if hasParams %}
             <a href="#params-anchor">Parameters</a>
         {% endif %}
-        <a href="#behavior-anchor">Behavior</a>
-        <a href="#editor-anchor">Motion Editor</a>
+
+        {% if behaviors %}
+            <a href="#behavior-anchor">Behavior</a>
+        {% endif %}
+
+        {% if motionPlayers %}
+            <a href="#editor-anchor">Motion Editor</a>
+        {% endif %}
     </nav>
     <hr>
 
@@ -48,9 +55,11 @@
         {% endfor %}
     {% endif %}
 
-    <a class="anchor" id="editor-anchor"></a>
-    <h1>Motion Editor</h1>
-    <being-editor id="editor"></being-editor>
+    {% if motionPlayers %}
+        <a class="anchor" id="editor-anchor"></a>
+        <h1>Motion Editor</h1>
+        <being-editor id="editor"></being-editor>
+    {% endif %}
 
     <script type="module">
         import { WS_ADDRESS } from "/static/js/config.js";
