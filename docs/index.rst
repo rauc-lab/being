@@ -36,6 +36,11 @@ Library Installation
 
    $ pip install being
 
+The following third-party libraries are optional:
+
+- `RPi.GPIO <https://pypi.org/project/RPi.GPIO/>`_ for accessing Raspberry Pi GPIO
+- `PyAudio <https://pypi.org/project/PyAudio/>`_ for audio streams. Python
+  bindings for PortAudio which needs to be installed separately
 
 Getting Started
 ===============
