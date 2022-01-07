@@ -27,7 +27,7 @@ def patch_pcan_on_darwin():
         ... # Import can & canopen before patching
         ... patch_pcan_on_darwin()
     """
-    if sys.platform == 'darwin':
+    if sys.platform.startswith('darwin'):
         # Get version number from dylib
         lib = cdll.LoadLibrary('libPCBUSB.dylib')
         buf = create_string_buffer(256)
