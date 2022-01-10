@@ -1,7 +1,7 @@
 """Being application core object. Encapsulates the various blocks for a given
 program and defines the single cycle.
 """
-from typing import List, Optional, Iterable, Generator
+from typing import List, Optional, Iterable, Iterator
 
 from being.backends import CanBackend
 from being.behavior import Behavior
@@ -21,7 +21,7 @@ from being.params import Parameter
 from being.utils import filter_by_type
 
 
-def value_outputs(blocks: Iterable[Block]) -> Generator[ValueOutput, None, None]:
+def value_outputs(blocks: Iterable[Block]) -> Iterator[ValueOutput]:
     """Collect all value outputs from blocks.
 
     Args:
@@ -34,7 +34,7 @@ def value_outputs(blocks: Iterable[Block]) -> Generator[ValueOutput, None, None]
         yield from filter_by_type(block.outputs, ValueOutput)
 
 
-def message_outputs(blocks: Iterable[Block]) -> Generator[MessageOutput, None, None]:
+def message_outputs(blocks: Iterable[Block]) -> Iterator[MessageOutput]:
     """Collect all message outputs from blocks.
 
     Args:

@@ -11,10 +11,6 @@ Example:
 Handling dynamic context managers can be done with
 :class:`contextlib.contextlib.ExitStack`. This functionality accessed in the
 :mod:`being.resources`.
-
-Todo:
-    - Finish Audio Backend.
-    - Video backend?
 """
 import contextlib
 import sys
