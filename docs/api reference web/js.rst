@@ -317,9 +317,10 @@ js/spline
 Spline stuff. Some constants and BPoly wrapper. Spline data container. No
 spline evaluation. Sampling splines for plotting is handled by SVG. Helpers
 for manipulating the shape of the spline:
-  - Moving control points around
-  - Changing the derivative at a given knot
-  - Inserting / removing knots
+
+- Moving control points around
+- Changing the derivative at a given knot
+- Inserting / removing knots
 
 .. js:autoattribute:: KNOT
 

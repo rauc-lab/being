@@ -1,7 +1,7 @@
 """Being logging.
 
-References:
-  - https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything
+See Also:
+    `Python Logging Not Outputting Anything <https://stackoverflow.com/questions/7016056/python-logging-not-outputting-anything>`_
 """
 import logging
 import logging.handlers

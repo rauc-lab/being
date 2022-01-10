@@ -148,7 +148,8 @@ def awake(
     """Run being block network.
 
     Args:
-        blocks: Some blocks of the network.
+        blocks: Some blocks of the network. Remaining blocks will be auto
+            discovered.
         web: Run with web server.
         enableMotors: Enable motors on startup.
         homeMotors: Home motors on startup.

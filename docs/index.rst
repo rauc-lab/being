@@ -34,13 +34,20 @@ Library Installation
 
 .. code-block:: bash
 
-   $ pip install being
+   pip install being
 
 The following third-party libraries are optional:
 
 - `RPi.GPIO <https://pypi.org/project/RPi.GPIO/>`_ for accessing Raspberry Pi GPIO
 - `PyAudio <https://pypi.org/project/PyAudio/>`_ for audio streams. Python
   bindings for PortAudio which needs to be installed separately
+
+These can be installed manually or by using `extras`:
+
+.. code-block:: bash
+
+   pip install being[rpi, audio]
+
 
 Getting Started
 ===============
@@ -73,6 +80,9 @@ Going Further
 - Core :doc:`concepts` of Being
 - :doc:`manuals` of the frontend widgets
 - A couple of quick :doc:`tutorials`
+- Common pitfalls :doc:`faq`
+- Guides for extending being :doc:`guides`
+- Programming reference :doc:`api-reference`
 
 
 Source Code
@@ -143,6 +153,7 @@ Table of Contents
    concepts
    manuals
    tutorials
+   faq
    guides
    api-reference
 
