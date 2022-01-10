@@ -83,6 +83,7 @@ setup(
         'python-can',
         'canopen',
         'aiohttp >= 3.7.0, <= 3.7.4',  # 4.0.0 leads to problems (weakref on WebSocketResponse)
+        'jinja2',
         'aiohttp-jinja2',
         'ruamel.yaml',
         'tomlkit',
