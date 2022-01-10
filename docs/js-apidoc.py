@@ -164,7 +164,7 @@ def assign_doclets_to_packages(doclets):
 def write_package(directory, package):
     fp = os.path.join(directory, package.fullname.replace('/', '.') + '.rst')
     if not package.fullname:
-        print('Skipping empty file name {fp!r}')
+        print(f'Skipping empty file name {fp!r}')
         return
 
     print(f'Writing to {fp!r}')
