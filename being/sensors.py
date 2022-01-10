@@ -1,5 +1,6 @@
-"""All things sensor."""
+"""Sensor blocks."""
 import collections
+import time
 from typing import NamedTuple, Optional
 
 from being.backends import Rpi, AudioBackend
@@ -23,6 +24,35 @@ class SensorEvent(NamedTuple):
 class Sensor(Block):
 
     """Sensor block base class."""
+
+
+class DummySensor(Sensor):
+
+    """Dummy sensor block for testing and standalone usage. Sends a dummy
+    SensorEvent every `interval` seconds.
+    """
+
+    def __init__(self, interval: float = 5.0, **kwargs):
+        """
+        Args:
+            interval: Message send interval in seconds.
+            **kwargs: Arbitrary block keyword arguments.
+        """
+        super().__init__(**kwargs)
+        self.add_message_output()
+        self.interval: float = interval
+        self.nextUpd = -1
+
+    def update(self):
+        now = time.perf_counter()
+        if now < self.nextUpd:
+            return
+
+        self.nextUpd = now + self.interval
+        evt = SensorEvent(timestamp=now, meta={
+            'type': 'DummySensor',
+        })
+        self.output.send(evt)
 
 
 class SensorGpio(Sensor):

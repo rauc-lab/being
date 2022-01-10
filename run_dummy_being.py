@@ -3,13 +3,11 @@ import logging
 
 from being.awakening import awake
 from being.behavior import Behavior
-from being.blocks import DummySensor
 from being.logging import suppress_other_loggers, setup_logging
 from being.motion_player import MotionPlayer
 from being.motors import DummyMotor
 from being.resources import manage_resources
-from being.sensors import Sensor
-
+from being.sensors import Sensor, DummySensor
 
 #logging.basicConfig(level=logging.DEBUG)
 #setup_logging(level=logging.DEBUG)

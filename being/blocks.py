@@ -132,32 +132,6 @@ class Printer(Block):
             print(self.prefix, self.input.value)
 
 
-class DummySensor(Sensor):
-
-    """Dummy sensor block for testing and standalone usage. Every interval
-    output gibberish message.
-    """
-
-    def __init__(self, interval: float = 5.0, **kwargs):
-        """
-        Args:
-            interval: Message send interval in seconds.
-            **kwargs: Arbitrary block keyword arguments.
-        """
-        super().__init__(**kwargs)
-        self.add_message_output()
-        self.interval: float = interval
-        self.nextUpd = -1
-
-    def update(self):
-        now = time.perf_counter()
-        if now < self.nextUpd:
-            return
-
-        self.nextUpd = now + self.interval
-        self.output.send('But hey')
-
-
 def sine_pulse(phase: float) -> float:
     """Cosine pulse from [0., 1.]."""
     return .5 * (1 - math.cos(phase))
