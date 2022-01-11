@@ -16,7 +16,7 @@ import contextlib
 import sys
 import time
 import warnings
-from typing import List, Generator, Set, Dict, Union
+from typing import List, Generator, Set, Union, Optional
 from logging import Logger
 
 try:
@@ -225,22 +225,23 @@ class AudioBackend(SingleInstanceCache, contextlib.AbstractContextManager):
     """Sound card connection. Collect audio samples with PortAudio / PyAudio."""
 
     def __init__(self,
-            bufferSize: int = 1024,
+            input_device_index: Optional[int] = None,
+            frames_per_buffer: int = 1024,
             dtype: Union[type, str] = np.uint8,
         ):
         """
         Args:
-            bufferSize: Audio buffer size.
+            input_device_index: Input device index for given host api.
+                Unspecified (or None) uses default input device.
+            frames_per_buffer: Audio buffer size.
             dtype: Datatype for samples. Not all data types are supported for
-                audio. u8, i16 and i32 should work.
+                audio. uint8, int16, int32 and float32 should works.
         """
-        dtype = np.dtype(dtype)
-        self.bufferSize = bufferSize
-        self.dtype = dtype
+        self.dtype = np.dtype(dtype)
 
         # Prepare sample normalization
-        if np.issubdtype(dtype, np.integer):
-            iinfo = np.iinfo(dtype)
+        if np.issubdtype(self.dtype, np.integer):
+            iinfo = np.iinfo(self.dtype)
             xRange = (iinfo.min, iinfo.max)
         else:
             xRange = (-1.0, 1.0)  # Float samples are already normalized
@@ -248,19 +249,28 @@ class AudioBackend(SingleInstanceCache, contextlib.AbstractContextManager):
         self.scale, self.offset = linear_mapping(xRange, yRange=(-1.0, 1.0))
 
         self.pa: pyaudio.PyAudio = pyaudio.PyAudio()
+
+        # Input device
+        if input_device_index is None:
+            device = self.pa.get_default_input_device_info()
+        else:
+            device = self.pa.get_device_info_by_index(input_device_index)
+        self.deviceName = device['name']
+
         self.stream = self.pa.open(
-            format=pyaudio_format(dtype),
+            rate=int(device['defaultSampleRate']),
             channels=1,
-            frames_per_buffer=bufferSize,
-            rate=44100,
+            format=pyaudio_format(self.dtype),
             input=True,
             output=False,
-            stream_callback=self.callback,
+            input_device_index=input_device_index,
+            frames_per_buffer=frames_per_buffer,
+            stream_callback=self.stream_callback,
         )
-        self.flux = SpectralFlux(bufferSize)
+        self.flux = SpectralFlux(frames_per_buffer)
         self.microphones = []
 
-    def callback(self, in_data, frame_count, time_info, status):
+    def stream_callback(self, in_data, frame_count, time_info, status):
         """pyaudio audio stream callback function."""
         samples = np.frombuffer(in_data, dtype=self.dtype)
         normalized = self.scale * samples + self.offset
@@ -274,13 +284,7 @@ class AudioBackend(SingleInstanceCache, contextlib.AbstractContextManager):
         """Subscribe Mic block to audio backend."""
         self.microphones.append(mic)
 
-    def __enter__(self):
-        print('Entering AudioBackend')
-        self.stream.start_stream()
-        return self
-
     def __exit__(self, exc_type, exc_value, traceback):
-        print('Exiting AudioBackend')
         self.stream.stop_stream()
         self.stream.close()
         self.pa.terminate()

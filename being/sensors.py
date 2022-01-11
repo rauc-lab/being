@@ -1,7 +1,9 @@
 """Sensor blocks."""
 import collections
 import time
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Union
+
+import numpy as np
 
 from being.backends import Rpi, AudioBackend
 from being.block import Block
@@ -111,25 +113,59 @@ class SensorGpio(Sensor):
 
 class Mic(Sensor):
 
-    """Listens to audio and emits sound event messages."""
+    """Listens to audio and emits sound event messages.
+
+    Example:
+        >>> from being.awakening import awake
+        ... from being.block import Block
+        ... from being.resources import manage_resources
+        ... from being.sensors import Mic
+        ... 
+        ... 
+        ... class MessagePrinter(Block):
+        ...     def __init__(self):
+        ...         super().__init__()
+        ...         self.add_message_input()
+        ... 
+        ...     def update(self):
+        ...         for msg in self.input.receive():
+        ...             print(msg)
+        ... 
+        ... 
+        ... with manage_resources():
+        ...     awake(Mic() | MessagePrinter())
+        ...     # Clap your hands
+    """
 
     def __init__(self,
-             threshold=0.01,
-             bouncetime=0.1,
-             audio: Optional[AudioBackend] = None,
-             clock: Optional[Clock] = None,
-             **kwargs,
+            threshold=0.01,
+            bouncetime=0.1,
+            input_device_index: Optional[int] = None,
+            frames_per_buffer: int = 1024,
+            dtype: Union[type, str] = np.uint8,
+            audio: Optional[AudioBackend] = None,
+            clock: Optional[Clock] = None,
+            **kwargs,
         ):
         """
         Args:
             threshold: Spectral flux difference threshold.
             bouncetime: Blocked duration after emitted sound event.
+            input_device_index: Input device index for given host api.
+                Unspecified (or None) uses default input device.
+            frames_per_buffer: Audio buffer size.
+            dtype: Datatype for samples. Not all data types are supported for
+                audio. uint8, int16, int32 and float32 should works.
             audio: Audio backend instance (DI).
-            audio: Clock instance (DI).
+            clock: Clock instance (DI).
         """
         if audio is None:
-            audio = AudioBackend.single_instance_setdefault()
-            register_resource(audio, duplicates=False)
+            self.audio = AudioBackend.single_instance_setdefault(
+                input_device_index=input_device_index,
+                frames_per_buffer=frames_per_buffer,
+                dtype=dtype,
+            )
+            register_resource(self.audio, duplicates=False)
 
         if clock is None:
             clock = Clock.single_instance_setdefault()
@@ -143,7 +179,7 @@ class Mic(Sensor):
         self.prevSf = 0.0
         self.blockedUntil = -1
 
-        audio.subscribe_microphone(self)
+        self.audio.subscribe_microphone(self)
 
     def new_spectral_flux_value(self, sf: float):
         """Process new spectral flux value and emit SoundEvent if necessary.
@@ -164,6 +200,7 @@ class Mic(Sensor):
         evt = SensorEvent(timestamp=now, meta={
             'type': 'Mic Sound',
             'level': sf,
+            'deviceName': self.audio.deviceName,
         })
         self.output.send(evt)
         # TODO: Additional message queue between threads?
