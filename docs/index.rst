@@ -79,7 +79,7 @@ Going Further
 
 - Core :doc:`concepts` of Being
 - :doc:`manuals` of the frontend widgets
-- A couple of quick :doc:`tutorials`
+- A couple of quick :doc:`tutorials` and examples
 - Common pitfalls :doc:`faq`
 - Guides for extending being :doc:`guides`
 - Programming reference :doc:`api-reference`
