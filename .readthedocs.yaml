@@ -29,6 +29,9 @@ sphinx:
 # Optionally declare the Python requirements required to build your docs
 python:
   install:
+    # Order is important because of a dependency conflict!
+    # sphinx-js wants Jinja2<3.0.0 but aiohttp-jinja2 needs Jinja2>=3.0.0
+    # -> Overwriting / upgrading Jinja2 by install being second
     - requirements: docs/requirements.txt
     - method: pip
       path: .
