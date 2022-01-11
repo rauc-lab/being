@@ -142,7 +142,7 @@ class Mic(Sensor):
             bouncetime=0.1,
             input_device_index: Optional[int] = None,
             frames_per_buffer: int = 1024,
-            dtype: Union[type, str] = np.uint8,
+            dtype: Union[str, type, np.dtype] = np.uint8,
             audio: Optional[AudioBackend] = None,
             clock: Optional[Clock] = None,
             **kwargs,
@@ -154,7 +154,7 @@ class Mic(Sensor):
             input_device_index: Input device index for given host api.
                 Unspecified (or None) uses default input device.
             frames_per_buffer: Audio buffer size.
-            dtype: Datatype for samples. Not all data types are supported for
+            dtype: Data type for samples. Not all data types are supported for
                 audio. uint8, int16, int32 and float32 should works.
             audio: Audio backend instance (DI).
             clock: Clock instance (DI).

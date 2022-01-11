@@ -208,8 +208,8 @@ class SpectralFlux:
         self.prevMag = np.ones(len(freqs))
 
     def __call__(self, samples):
-        X = np.fft.rfft(samples)
-        mag = np.abs(X)
+        transformed = np.fft.rfft(samples)
+        mag = np.abs(transformed)
         delta = mag - self.prevMag
         self.prevMag = mag
 
@@ -227,14 +227,14 @@ class AudioBackend(SingleInstanceCache, contextlib.AbstractContextManager):
     def __init__(self,
             input_device_index: Optional[int] = None,
             frames_per_buffer: int = 1024,
-            dtype: Union[type, str] = np.uint8,
+            dtype: Union[str, type, np.dtype] = np.uint8,
         ):
         """
         Args:
             input_device_index: Input device index for given host api.
                 Unspecified (or None) uses default input device.
             frames_per_buffer: Audio buffer size.
-            dtype: Datatype for samples. Not all data types are supported for
+            dtype: Data type for samples. Not all data types are supported for
                 audio. uint8, int16, int32 and float32 should works.
         """
         self.dtype = np.dtype(dtype)
@@ -248,15 +248,14 @@ class AudioBackend(SingleInstanceCache, contextlib.AbstractContextManager):
 
         self.scale, self.offset = linear_mapping(xRange, yRange=(-1.0, 1.0))
 
-        self.pa: pyaudio.PyAudio = pyaudio.PyAudio()
-
         # Input device
+        self.pa: pyaudio.PyAudio = pyaudio.PyAudio()
         if input_device_index is None:
             device = self.pa.get_default_input_device_info()
         else:
             device = self.pa.get_device_info_by_index(input_device_index)
-        self.deviceName = device['name']
 
+        self.deviceName = device['name']
         self.stream = self.pa.open(
             rate=int(device['defaultSampleRate']),
             channels=1,
