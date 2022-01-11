@@ -260,3 +260,11 @@ This widget can now be used within HTML with
 .. code-block:: html
 
    <being-curve-lister></being-curve-lister>
+
+And in action
+
+.. figure:: images/curvelistenerwidget.png
+   :align: center
+   :alt: Screenshot of custom *Curve Lister* widget.
+
+   Screenshot of custom *Curve Lister* widget.
