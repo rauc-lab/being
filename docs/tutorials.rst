@@ -64,6 +64,40 @@ configuration and add an additional value input for the frequency.
            self.phase %= TAU
 
 
+Pendulum Motor Movement With Printer
+------------------------------------
+
+The following code snippet transforms a sine signal to ``[0, LENGTH]`` so that
+a dummy motor moves back and forth. Additionally the *target position* values
+get printed to the standard output. ``carriageReturn=True`` prepends a
+`Carriage return <https://en.wikipedia.org/wiki/Carriage_return>`_ control
+character to the output so that the cursor stays on the same line.
+
+.. code-block:: python
+
+   """Pendulum motor demo."""
+   from being.awakening import awake
+   from being.blocks import Sine, Trafo, Printer
+   from being.motors import DummyMotor
+   from being.resources import manage_resources
+
+   # Params
+   LENGTH = 0.1
+
+   with manage_resources():
+       # Initialize blocks
+       sine = Sine(frequency=0.1)
+       trafo = Trafo.from_ranges(inRange=(-1, 1), outRange=(0, LENGTH))
+       motor = DummyMotor(length=LENGTH)
+       printer = Printer(prefix='Target Position:', carriageReturn=True)
+
+       # Make connections
+       sine | trafo | motor
+       trafo | printer
+
+       awake(sine)
+
+
 Building a Motion Looper Block
 ------------------------------
 
