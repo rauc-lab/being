@@ -7,7 +7,7 @@ import { draw_block_diagram } from "/static/components/control_panel/block_diagr
 import { Console } from "/static/components/control_panel/console.js";
 import { Api } from "/static/js/api.js";
 import { Widget } from "/static/js/widget.js";
-import { switch_button_on, switch_button_off, is_checked } from "/static/js/button.js";
+import { switch_button_on, switch_button_off, is_checked, enable_button, disable_button } from "/static/js/button.js";
 import { isclose } from "/static/js/math.js";
 
 
@@ -149,13 +149,21 @@ export class ControlPanel extends Widget {
             this.homingState = Math.min(this.homingState, motor.homing.value);
         });
 
-        const stateClasses = ["state-fault", "state-disabled", "state-enabled"];
-        this.powerBtn.classList.remove(...stateClasses);
-        this.powerBtn.classList.add(stateClasses[this.motorState]);
+        const hasMotors = motors.length > 0;
+        if (hasMotors) {
+            enable_button(this.powerBtn);
+            const stateClasses = ["state-fault", "state-disabled", "state-enabled"];
+            this.powerBtn.classList.remove(...stateClasses);
+            this.powerBtn.classList.add(stateClasses[this.motorState]);
 
-        const homingClasses = ["homing-failed", "homing-unhomed", "homing-ongoing", "homing-homed" ];
-        this.homeBtn.classList.remove(...homingClasses);
-        this.homeBtn.classList.add(homingClasses[this.homingState]);
+            enable_button(this.homeBtn);
+            const homingClasses = ["homing-failed", "homing-unhomed", "homing-ongoing", "homing-homed" ];
+            this.homeBtn.classList.remove(...homingClasses);
+            this.homeBtn.classList.add(homingClasses[this.homingState]);
+        } else {
+            disable_button(this.powerBtn);
+            disable_button(this.homeBtn);
+        }
     }
 
     /**
