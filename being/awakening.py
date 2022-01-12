@@ -136,6 +136,17 @@ async def _run_being_with_web_server(being: Being):
     )
 
 
+def _say_hello(nBlocks: int):
+    """Notify user that being is running.
+
+    Args:
+        nBlocks: Number of blocks.
+    """
+    hello = f'Being with {nBlocks} blocks awakens'
+    print(hello)
+    LOGGER.info(hello)
+
+
 def awake(
         *blocks: Iterable[Block],
         web: bool = True,
@@ -183,6 +194,8 @@ def awake(
 
     if homeMotors:
         being.home_motors()
+
+    _say_hello(nBlocks=len(being.execOrder))
 
     try:
         if web:

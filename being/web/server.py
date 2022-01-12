@@ -252,7 +252,9 @@ async def run_web_server(app: web.Application):
         host=CONFIG['Web']['HOST'],
         port=CONFIG['Web']['PORT'],
     )
-    LOGGER.info(f'Starting site at:\n{site.name}')
+    msg = f'Starting web user interface site at:\n{site.name}'
+    print(msg)
+    LOGGER.info(msg)
     await site.start()
 
     try:
