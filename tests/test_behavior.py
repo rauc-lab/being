@@ -51,7 +51,6 @@ class TestBehavior(unittest.TestCase):
         )
         self.behavior = Behavior(params=params, clock=self.clock, content=content)
         self.behavior.change_state = CallCounter(self.behavior.change_state)
-        self.behavior.associate(self.motionPlayer)
         self.drain = MessageInput()
         self.behavior.mcOut.connect(self.drain)
 
