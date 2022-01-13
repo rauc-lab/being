@@ -1386,6 +1386,7 @@ export class Editor extends Widget {
     new_motions_message(msg) {
         this.populate(msg.curves);
         this.list.new_motions_message(msg);
+        this.drawer.resize();
     }
 }
 

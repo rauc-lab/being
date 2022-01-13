@@ -76,6 +76,8 @@ const LIST_TEMPLATE = `
         list-style-type: none;
         margin: 0;
         padding: 0;
+        max-height: 50vh;
+        overflow: scroll;
     }
 
     ul li {
