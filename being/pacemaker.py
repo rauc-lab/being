@@ -74,13 +74,13 @@ class Pacemaker(contextlib.AbstractContextManager):
         while self.running:
             if self.pulseEvent.wait(timeout=self.maxWait):
                 if self.once.changed(True):
-                    self.logger.warning('Off')
+                    self.logger.debug('Off')
 
             else:
                 self.network.transmit_all_rpdos()
                 self.network.send_sync()
                 if self.once.changed(False):
-                    self.logger.warning('On')
+                    self.logger.debug('On')
 
             self.pulseEvent.clear()
 
