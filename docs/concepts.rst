@@ -241,7 +241,7 @@ This conversion is taken care by :func:`being.serialization.dumps` and
 
 It is also possible to serialize named tuples and enums. But these types have
 to be registered after creation
-(:func:`being.serialization.register_named_tuple.` and
+(:func:`being.serialization.register_named_tuple` and
 :func:`being.serialization.register_enum`).
 
 .. code-block:: python
@@ -274,7 +274,7 @@ together with the static files and the JavaScript code.
 
 The frontend is grouped in different *widgets*. Each widget is its own web `Web
 Components <https://developer.mozilla.org/en-US/docs/Web/Web_Components>`_.
-Most widgets will fetch some initial data and then receive subsequent update
+Most widgets will fetch some initial data and then receive subsequent updates
 via the web socket connection.
 
 
@@ -318,7 +318,7 @@ The same logic applies to the CAN interface, RPi GPIO, port audio backend...
 Single Instance Cache
 ---------------------
 
-For comforts, some types get instantiated implicitly when needed. For example,
+For comfort, some types get instantiated implicitly when needed. For example,
 when creating a :class:`being.motors.blocks.CanMotor` block, by default a
 :class:`being.backend.CanBackend` instance gets created as well. Similarly
 every :class:`being.motion_player.MotionPlayer` block needs a
