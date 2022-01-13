@@ -1,7 +1,4 @@
 .. Being documentation master file, created by
-   sphinx-quickstart on Tue Nov 16 14:16:30 2021.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
 ================
 Welcome to Being
@@ -14,10 +11,10 @@ Robotic middleware library for easy to use robotic projects.
 
 .. _GitHub: https://github.com/rauc-lab/being
 
-The goal of being is it, to abstract away most of the low-level heavy lifting
-when working with motors and sensors. Engineers and programmers should be able
-to focus on developing slim, high-level programs which operate on *behavior*
-and *character* to capture the expressive intent of artists.
+The goal of being is to abstract away most of the low-level heavy lifting when
+working with motors and sensors. Engineers and programmers should be able to
+focus on developing slim, high-level programs which operate on *behavior* and
+*character* to capture the expressive intent of artists.
 
 
 Key Features
@@ -81,7 +78,7 @@ Going Further
 - :doc:`manuals` of the frontend widgets
 - A couple of quick :doc:`tutorials` and examples
 - Common pitfalls :doc:`faq`
-- Guides for extending being :doc:`guides`
+- :doc:`guides` for extending being
 - Programming reference :doc:`api-reference`
 
 

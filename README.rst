@@ -68,7 +68,7 @@ Running the tests with
 Platform and Supported Hardware
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Being has mainly be developed on macOs and Linux (Ubuntu, Raspberry Pi OS).
+Being has mainly be developed on macOS and Linux (Ubuntu, Raspberry Pi OS).
 Although untested on Windows it should be possible to be run on there as well.
 Let us know if you encounter any problems.
 
