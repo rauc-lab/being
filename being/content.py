@@ -3,7 +3,7 @@ import collections
 import glob
 import os
 from collections import OrderedDict
-from typing import Generator, Callable, Optional
+from typing import Callable, Iterator, Optional
 
 from being.configuration import CONFIG
 from being.curve import Curve
@@ -36,6 +36,23 @@ def stripext(p: str) -> str:
     """
     root, _ = os.path.splitext(p)
     return root
+
+
+def removeprefix(string: str, prefix: str) -> str:
+    """Remove string prefix for Python < 3.9. If string does not start with
+    prefix leave as is.
+
+    Args:
+        string: Input string.
+        prefix: Prefix to remove.
+
+    Returns:
+        Trimmed string.
+    """
+    if string.startswith(prefix):
+        return string[len(prefix):]
+
+    return string
 
 
 def upgrade_splines_to_curves(directory, logger=None):
@@ -92,16 +109,23 @@ class Files(collections.MutableMapping):
         """Resolve fullpath."""
         return os.path.join(self.directory, path)
 
-    def _recently_modified(self) -> Generator[str, None, None]:
-        """Iterate over most recently modified paths."""
-        filepaths = glob.iglob(self.directory + '/*')
-        mostRecently = sorted(filepaths, key=os.path.getctime, reverse=True)
+    def _remove_directory(self, filepath):
         prefix = self.directory + '/'
-        for fp in mostRecently:
-            _, path = fp.split(prefix, maxsplit=1)
-            yield path
+        return removeprefix(filepath, prefix)
 
-    def __getitem__(self, path: str) -> Generator[str, None, None]:
+    def _recently_modified(self) -> Iterator[str]:
+        """Most recently modified filenames."""
+        filepaths = glob.iglob(self.directory + '/*')
+        mostRecently = sorted(filepaths, key=os.path.getmtime, reverse=True)
+        return map(self._remove_directory, mostRecently)
+
+    def _alphabetically(self) -> Iterator[str]:
+        """Alphabetically ordered filenames."""
+        filepaths = glob.iglob(self.directory + '/*')
+        mostRecently = sorted(filepaths)
+        return map(self._remove_directory, mostRecently)
+
+    def __getitem__(self, path: str) -> Iterator[str]:
         fp = self._fullpath(path)
         return self.loads(read_file(fp))
 
@@ -114,10 +138,10 @@ class Files(collections.MutableMapping):
         os.remove(fp)
 
     def __iter__(self):
-        return iter(self._recently_modified())
+        return iter(self._alphabetically())
 
     def __len__(self):
-        return len(self._recently_modified())
+        return len(self._alphabetically())
 
     def __contains__(self, path: str):
         # Skip __iter__
