@@ -24,7 +24,7 @@ from being.curve import Curve
 from being.logging import get_logger
 from being.motors.blocks import MotorBlock
 from being.params import Parameter
-from being.serialization import loads
+from being.serialization import loads, dumps
 from being.spline import fit_spline
 from being.typing import Spline
 from being.utils import filter_by_type, update_dict_recursively
@@ -197,12 +197,16 @@ def content_routes(content: Content) -> web.RouteTableDef:
 
             try:
                 thing = loads(data)
-                if not isinstance(thing, Spline.__args__):
-                    raise ValueError('is not a spline!')
+                if isinstance(thing, Curve):
+                    pass
+                elif isinstance(thing, Spline.__args__):
+                    thing = Curve(splines=[thing])
+                else:
+                    raise ValueError('is neither a spline nor a curve!')
 
                 fn = os.path.basename(fp)
-                with open(os.path.join(content.directory, fn), 'wb') as f:
-                    f.write(data)
+                with open(os.path.join(content.directory, fn), 'w') as f:
+                    f.write(dumps(thing))
 
                 notificationMessages.append({'type': 'success', 'message': 'Uploaded file %r' % fp})
             except Exception as err:
