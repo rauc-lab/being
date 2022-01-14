@@ -500,20 +500,22 @@ path.selected {
  *    indicate the slope. Knots and control points can be dragged around.
  *
  * Key features:
- *   - Foreground / background curves.
- *   - Drag mouse motions
- *   - Snapping to grid.
- *   - Multiple knot selection.
- *   - Drag navigation.
+ *
+ * - Foreground / background curves.
+ * - Drag mouse motions
+ * - Snapping to grid.
+ * - Multiple knot selection.
+ * - Drag navigation.
  *
  * The plotter base class is used to plot the `actual values` of the motors
  * behind the curves.
  *
  * Emits the following custom events:
- *   - ``curvechanging`` when the foreground curve starts to change because of
- *      user input.
- *   - ``curvechanged`` when the user is done with editing the curve.
- *   - ``channelchanged`` when the user clicked on a background curve spline.
+ *
+ * - ``curvechanging`` when the foreground curve starts to change because of user input.
+ * - ``curvechanged`` when the user is done with editing the curve.
+ * - ``channelchanged`` when the user clicked on a background curve spline.
+ *
  */
 export class Drawer extends Plotter {
     constructor() {
@@ -595,8 +597,9 @@ export class Drawer extends Plotter {
 
     /**
      * Setup drag handlers for SVG. Either:
-     *   a) Draw selection rectangle box
-     *   b) Navigate viewport. Horizontal shifts / vertical zooms around middle focal point.
+     * 
+     * a) Draw selection rectangle box
+     * b) Navigate viewport. Horizontal shifts / vertical zooms around middle focal point.
      */
     setup_global_svg_drag_listeners() {
         let shiftPressed = false; // Remember on mouse down if shift key was pressed
@@ -800,10 +803,12 @@ export class Drawer extends Plotter {
 
     /**
      * Process click on selected element:
-     *   1) If already selected continue
-     *   2) If not selected:
-     *     a) Without shift key: Overwrite selection
-     *     b) With shift key: Add to selection.
+     * 
+     * 1) If already selected continue
+     * 2) If not selected:
+     * 
+     *    a) Without shift key: Overwrite selection
+     *    b) With shift key: Add to selection.
      *
      * @param {array} knotNumbers - Knot numbers which got clicked.
      * @param {boolean} shiftKey - If shift key was held.

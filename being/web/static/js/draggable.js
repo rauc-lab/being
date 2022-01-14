@@ -27,16 +27,16 @@ function stop_propagation(evt) {
 /**
  * Make some element react to click and drag movements. User can provide his /
  * her own event listeners for:
- *   - Start of the drag motion (`start_drag`)
- *   - During the drag motion (`drag`)
- *   - End of drag motion  (`end_drag`)
+ * 
+ * - Start of the drag motion (`start_drag`)
+ * - During the drag motion (`drag`)
+ * - End of drag motion  (`end_drag`)
  * 
  * Further options are:
- *   - `mouseButton` {number}: Which mouse button to react to. Default is left
- *     mouse button.
- *   - `escapable` {boolean}: End drag by pressing ESC key. Default is true.
- *   - `suppressClicks` {boolean}: Suppress normal mouse clicks when dragging
- *     (only normal and double clicks). Default is true.
+ * 
+ * - `mouseButton` {number}: Which mouse button to react to. Default is left mouse button.
+ * - `escapable` {boolean}: End drag by pressing ESC key. Default is true.
+ * - `suppressClicks` {boolean}: Suppress normal mouse clicks when dragging (only normal and double clicks). Default is true.
  *
  * @param {HTMLElement} ele - HTML element to make draggable.
  * @param {Object} callbacks - Drag event callbacks (`start_drag`, `drag` and `end_drag`).

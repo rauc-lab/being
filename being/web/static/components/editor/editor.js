@@ -153,21 +153,24 @@ const EDITOR_TEMPLATE = `
  * Motion editor.
  *
  * This widget holds two web components:
- *   - ``<being-list>`` for showing the current content.
- *   - ``<being-drawer>`` for plotting and displaying curves.
+ * 
+ * - ``<being-list>`` for showing the current content.
+ * - ``<being-drawer>`` for plotting and displaying curves.
  *
  * What this class does:
- *   - Toolbar
- *   - Most of API connections.
- *   - One independent editing history per curve
- *   - Relaying the actual position values of the motors to the drawer.
- *   - Trajectory recording.
+ * 
+ * - Toolbar
+ * - Most of API connections.
+ * - One independent editing history per curve
+ * - Relaying the actual position values of the motors to the drawer.
+ * - Trajectory recording.
  *
  * What else there is:
- *   - Transport handles the playback line and timestamp calculations.
- *   - Motion player select controls on which motion player the current curve
- *     is played.
- *   - Channel select controls the foreground channel / spline of the curve.
+ * 
+ * - Transport handles the playback line and timestamp calculations.
+ * - Motion player select controls on which motion player the current curve is played.
+ * - Channel select controls the foreground channel / spline of the curve.
+ * 
  */
 export class Editor extends Widget {
     constructor() {
@@ -722,7 +725,7 @@ export class Editor extends Widget {
     /**
      * Current number of curves.
      *
-     * @returns {number} - Number of channels.
+     * @returns {number} Number of channels.
      */
     number_of_channels() {
         if (!this.list.selected) {

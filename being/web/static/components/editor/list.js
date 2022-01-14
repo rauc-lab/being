@@ -159,8 +159,9 @@ const LIST_TEMPLATE = `
  * armed for playback for each motion player.
  *
  * Emits the following custom events:
- *   - ``selectedchanged`` when the selected curve changed.
- *   - ``armedchanged`` when the arming changed.
+ * 
+ * - ``selectedchanged`` when the selected curve changed.
+ * - ``armedchanged`` when the arming changed.
  */
 export class List extends WidgetBase {
     constructor() {
@@ -434,6 +435,7 @@ export class List extends WidgetBase {
 
     /**
      * Attache necessary event listeners to list entry.
+     * 
      * - Clicking for select
      * - Toggle eye symbol for arming
      * - Double clicking for renaming.
