@@ -244,9 +244,12 @@ class Controller(MotorInterface):
     def restore(self):
         """Restore captured node state after homing is done."""
         self.node.sdo[MODES_OF_OPERATION].raw = self.operationMode
-        if self.wasEnabled:
+
+        if self.wasEnabled is None:
+            pass
+        elif self.wasEnabled:
             self.enable()
-        elif self.wasEnabled is False:
+        else:
             self.disable()
 
         self.wasEnabled = None
@@ -256,7 +259,14 @@ class Controller(MotorInterface):
         :meth:`Controller.update`.
         """
         self.logger.debug('home()')
-        self.homing.home()
+        if self.homing.ongoing:
+            self.homing.stop()
+            self.wasEnabled = False  # Do not re-enable motor since not homed anymore
+            self.restore()
+        else:
+            self.capture()
+            self.homing.home()
+
         self.publish(MotorEvent.HOMING_CHANGED)
 
     def homing_state(self) -> HomingState:

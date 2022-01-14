@@ -161,6 +161,11 @@ class HomingBase(abc.ABC):
         #self.job.close()
         self.job = None
 
+    def stop(self):
+        """Stop ongoing homing. Motor will be unhomed."""
+        self.cancel_job()
+        self.state = HomingState.UNHOMED
+
     @abc.abstractmethod
     def homing_job(self) -> Generator:
         """Primary homing job."""
