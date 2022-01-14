@@ -17,6 +17,10 @@ Developed at `RAUC <https://asl.ethz.ch/research/rauc.html>`__.
 Makes it possible to steer motors via CAN / CanOpen and process sensor data.
 Controllable via a web user interface.
 
+- **Documentation:** https://being.readthedocs.io
+- **Source code:** https://github.com/rauc-lab/being
+
+
 PATHOS
 ------
 
@@ -34,8 +38,10 @@ The project is currently developed at the Robotics Aesthetics & Usability Center
 PATHOS was initiated by the Indo-Danish art duo Pors & Rao during an artist residency at the `Wyss Zurich <https://www.wysszurich.uzh.ch/projects/outreach-projects/pathos?tx_ogwyssteams_teamlist%5Baction%5D=show&tx_ogwyssteams_teamlist%5Bcontroller%5D=Page&tx_ogwyssteams_teamlist%5Bteamid%5D=266&cHash=309fe1ed2ff78ac4cddd292a3f2b0d2e>`__ in early 2017.
 The frustrations they faced over a period of 19 years while working with lifelike physical animation and response informed the enabling of robotics as a performative medium.
 
+
 Getting Started
 ---------------
+
 
 Prerequisites
 ^^^^^^^^^^^^^
@@ -65,6 +71,7 @@ Running the tests with
 
     python3 setup.py test
 
+
 Platform and Supported Hardware
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -75,8 +82,10 @@ Let us know if you encounter any problems.
 Currently supported motor hardware modules are the *Linear Motion Module*.
 We will integrate more motors from different vendors in the near future.
 
+
 Primer
 ------
+
 
 Block Network
 ^^^^^^^^^^^^^
@@ -100,6 +109,7 @@ Note that the ``|`` operator has been overloaded to make it possible to *chain* 
 
 Once a block network is defined it can be run with the `awake(*blocks)` function.
 This will continuously execute the block network and start up the web server for the web user interface.
+
 
 Example Being
 ^^^^^^^^^^^^^
@@ -131,6 +141,7 @@ Motions are multi dimensional splines which will be stored in a content director
 The `MotionPlayer` blocks samples the currently playing spline and outputs the values to two `Motor` blocks (CAN IDs 1 and 2).
 This will also startup a web UI which can be accessed under `localhost:8080 <http://localhost:8080>`__.
 
+
 Further Being Programs
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -146,10 +157,12 @@ Coding Style
 PEP8 / Google flavored.
 With the one exception for variable and argument names (`camelCase`). Function and in methods are `snake_case()`.
 
+
 Workshops
 ---------
 
 * Tutorial videos for the workshop *Being at ÉCAL* can be found `here <https://pathos.ethz.ch/ecal-workshop-2021.html>`__.
+
 
 Authors
 -------
@@ -163,6 +176,7 @@ Original Idea & User Interface
 
 * Søren Pors
 
+
 Acknowledgments
 ---------------
 
@@ -170,6 +184,7 @@ Acknowledgments
 * Ilia Sergachev
 * Dr. Philipp Reist
 * Prof. Roland Siegwart
+
 
 Supporters
 ----------
