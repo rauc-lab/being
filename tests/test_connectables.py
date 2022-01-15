@@ -3,10 +3,6 @@ therefore some duplicated tests.
 """
 import unittest
 
-"""
-from klang.block import Block
-from klang.composite import Composite
-"""
 from being.connectables import (
     IncompatibleConnection,
     ValueInput,
