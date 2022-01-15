@@ -43,7 +43,7 @@ from being.motors.vendor import (
 from being.utils import merge_dicts
 
 
-__all__ = [ 'Mclm3002', 'Epos4', ]
+__all__ = [ 'Controller', 'Mclm3002', 'Epos4', ]
 
 
 INTERVAL = CONFIG['General']['INTERVAL']

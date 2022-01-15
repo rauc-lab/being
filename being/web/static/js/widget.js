@@ -116,8 +116,7 @@ export class Widget extends WidgetBase {
     }
 
     /**
-     * Add a new material icon button to toolbar (or any other parent_
-     * element).
+     * Add a new material icon button to toolbar.
      *
      * @param {string} innerHTML - Inner HTML text
      * @param {string} [title= ] - Button tooltip.

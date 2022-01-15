@@ -320,7 +320,7 @@ Single Instance Cache
 
 For comfort, some types get instantiated implicitly when needed. For example,
 when creating a :class:`being.motors.blocks.CanMotor` block, by default a
-:class:`being.backend.CanBackend` instance gets created as well. Similarly
+:class:`being.backends.CanBackend` instance gets created as well. Similarly
 every :class:`being.motion_player.MotionPlayer` block needs a
 :class:`being.clock.Clock` and a :class:`being.content.Content` instance.
 
