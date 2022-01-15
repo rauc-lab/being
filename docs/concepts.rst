@@ -489,8 +489,10 @@ represented by the different classes in :mod:`being.motors.blocks`.
 Since many motors have relative encoders they need to be *homed* after turning
 them on so that they can orient them self and find their initial position.
 
+.. _CiA 402: https://www.can-cia.org/can-knowledge/canopen/cia402/
+
 Motor blocks can be *enabled* or *disabled*. This corresponds to the *Operation
-Enabled* and *Ready to Switch On* states of the *CiA 402 State Machine*.
+Enabled* and *Ready to Switch On* states of the `CiA 402`_ State Machine.
 
 By default, CAN motors are run in the *Cyclic Synchronous Position (CSP)*
 operation mode. Every cycle a new target position value is send to the motor
@@ -520,11 +522,10 @@ Path parts can also be integer numbers (decimal, hexadecimal, ...)
 State Switching
 ^^^^^^^^^^^^^^^
 
-For switching to an arbitrary target state the *CiA 402 State Machine* needs to
-be traversed in the right way. What complicates things is that this can take an
-arbitrary amount of time.
-Two methods exists in the :class:`being.cia_402.CiA402Node` CanOpen remote
-node:
+For switching to an arbitrary target state the `CiA 402`_ State Machine needs
+to be traversed in the right way. What complicates things is that this can take
+an arbitrary amount of time. Two methods exists in the
+:class:`being.cia_402.CiA402Node` CanOpen remote node:
 
 - :meth:`being.cia_402.CiA402Node.change_state`: Blocking with a timeout. This
   is *not* suited for live operation since everything else will be blocked
