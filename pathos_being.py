@@ -17,8 +17,8 @@ MOTOR_NAME: str = 'LM1247'
 """Motor name."""
 
 #setup_logging()
-suppress_other_loggers()
-logging.basicConfig(level=10)
+#suppress_other_loggers()
+#logging.basicConfig(level=logging.INFO)
 
 
 with manage_resources():
