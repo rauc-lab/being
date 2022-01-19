@@ -39,28 +39,3 @@ The following steps are needed for integrating a new motor controller in Being.
            direction of the controller.
            """
            pass
-
-
-Setup on a RPI
---------------
-- CAN interface
-- Wifi
-- Clone being
-- systemd service pathos_being.py
-- RPI card ready to download
-- Image
-- CAN setup
-- Motor Settings
-
-
-Position Profile
-----------------
-
-How to steers the motors
-
-
-TODO
-----
-
-.. todo::
-   - Packing being application as a service
