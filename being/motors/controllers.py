@@ -280,8 +280,6 @@ class Controller(MotorInterface):
             self.capture()
             self.homing.pre_home()
 
-        self.publish(MotorEvent.HOMING_CHANGED)
-
     def homing_state(self) -> HomingState:
         return self.homing.state
 

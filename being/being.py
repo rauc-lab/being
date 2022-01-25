@@ -137,7 +137,7 @@ class Being:
         """Home all motors."""
         self.logger.info('home_motors()')
         if self.pre_homing:
-            for motor in self.motors():
+            for motor in self.motors:
                 motor.pre_home()
         elif self.sequential_homing:
             next(self.motors_unhomed).home()
