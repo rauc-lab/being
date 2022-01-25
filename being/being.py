@@ -64,8 +64,8 @@ class Being:
             clock: Clock,
             pacemaker: Pacemaker,
             network: Optional[CanBackend] = None,
-            sequential_homing: bool = True,
-            pre_homing: bool = True,
+            sequential_homing: bool = False,
+            pre_homing: bool = False,
             pre_homing_direction: float = BACKWARD,
         ):
         """
