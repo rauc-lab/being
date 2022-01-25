@@ -22,6 +22,7 @@ from being.block import Block
 from being.clock import Clock
 from being.configuration import CONFIG
 from being.connectables import MessageInput
+from being.constants import FORWARD, BACKWARD
 from being.logging import get_logger
 from being.pacemaker import Pacemaker
 from being.resources import register_resource
