@@ -187,7 +187,7 @@ class HomingBase(abc.ABC):
         self.job = self.homing_job()
         self.state = HomingState.ONGOING
 
-    def pre_home(self):
+    def pre_home(self, direction):
         """Start homing."""
         self.logger.debug('pre_home()')
         self.logger.debug('Starting safe homing')
@@ -195,7 +195,7 @@ class HomingBase(abc.ABC):
         if self.job:
             self.cancel_job()
 
-        self.job = self.pre_homing_job()
+        self.job = self.pre_homing_job(direction)
         self.state = HomingState.ONGOING
 
     def update(self):
@@ -424,14 +424,14 @@ class CrudeHoming(CiA402Homing):
 
         self.state = final
 
-    def pre_homing_job(self, velocity: int = -100):
+    def pre_homing_job(self, direction: float = -1.):
         self.logger.debug('pre_homing_job()')
         
         yield from self.change_state(CiA402State.READY_TO_SWITCH_ON)
         self.set_operation_mode(OperationMode.PROFILE_VELOCITY)
 
         yield from self.halt_drive()
-        yield from self.move_drive(velocity)
+        yield from self.move_drive(direction * 100)
 
         self.logger.debug('Driving towards the wall')
         while not self.on_the_wall(): # and not self.timeout_expired():

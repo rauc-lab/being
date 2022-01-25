@@ -267,7 +267,7 @@ class Controller(MotorInterface):
             self.capture()
             self.homing.home()
 
-    def pre_home(self):
+    def pre_home(self, direction):
         """Start pre-homing for this controller. Will start by the next call of
         :meth:`Controller.update`.
         """
@@ -278,7 +278,7 @@ class Controller(MotorInterface):
             self.restore()
         else:
             self.capture()
-            self.homing.pre_home()
+            self.homing.pre_home(direction)
 
     def homing_state(self) -> HomingState:
         return self.homing.state

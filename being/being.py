@@ -9,6 +9,7 @@ from being.block import Block
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.clock import Clock
 from being.configuration import CONFIG
+from being.constants import FORWARD, BACKWARD
 from being.connectables import ValueOutput, MessageOutput
 from being.execution import execute, block_network_graph
 from being.graph import Graph, topological_sort
@@ -65,6 +66,7 @@ class Being:
             network: Optional[CanBackend] = None,
             sequential_homing: bool = True,
             pre_homing: bool = True,
+            pre_homing_direction: float = BACKWARD,
         ):
         """
         Args:
@@ -114,6 +116,9 @@ class Being:
         self.pre_homing: bool = pre_homing
         """Moves motors to safe position before homing."""
 
+        self.pre_homing_direction: float = pre_homing_direction
+        """Direction for safe homing."""
+
         self.motors_unhomed: Iterator = iter(self.motors)
         """Iterator for sequential homing."""
 
@@ -138,7 +143,7 @@ class Being:
         self.logger.info('home_motors()')
         if self.pre_homing:
             for motor in self.motors:
-                motor.pre_home()
+                motor.pre_home(self.pre_homing_direction)
         elif self.sequential_homing:
             next(self.motors_unhomed).home()
         else:
