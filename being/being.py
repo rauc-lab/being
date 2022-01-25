@@ -16,6 +16,7 @@ from being.logging import get_logger
 from being.motion_player import MotionPlayer
 from being.motors.blocks import MotorBlock
 from being.motors.homing import HomingState
+from being.motors.definitions import MotorEvent
 from being.pacemaker import Pacemaker
 from being.params import Parameter
 from being.utils import filter_by_type
@@ -106,11 +107,15 @@ class Being:
         self.params: List[Parameter] = list(filter_by_type(self.execOrder, Parameter))
         """All parameter blocks."""
 
-        self.motors_unhomed: Iterator = iter(motors)
+        self.sequential_homing: bool = sequential_homing
+        """One by one homing."""
+
+        self.motors_unhomed: Iterator = iter(self.motors)
         """Iterator for sequential homing."""
 
-        for motor in self.motors:
-            motor.controller.subscribe(MotorEvent.HOMING_CHANGED, lambda: self.next_homing())
+        if sequential_homing:
+            for motor in self.motors:
+                motor.controller.subscribe(MotorEvent.HOMING_CHANGED, lambda: self.next_homing())
 
     def enable_motors(self):
         """Enable all motor blocks."""
@@ -128,7 +133,7 @@ class Being:
         """Home all motors."""
         self.logger.info('home_motors()')
         if self.sequential_homing:
-            next(motors_unhomed).home()
+            next(self.motors_unhomed).home()
         else:
             for motor in self.motors:
                 motor.home()
