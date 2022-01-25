@@ -62,6 +62,7 @@ class Being:
             clock: Clock,
             pacemaker: Pacemaker,
             network: Optional[CanBackend] = None,
+            sequential_homing: bool = True,
         ):
         """
         Args:
@@ -105,6 +106,12 @@ class Being:
         self.params: List[Parameter] = list(filter_by_type(self.execOrder, Parameter))
         """All parameter blocks."""
 
+        self.motors_unhomed: Iterator = iter(motors)
+        """Iterator for sequential homing."""
+
+        for motor in self.motors:
+            motor.controller.subscribe(MotorEvent.HOMING_CHANGED, lambda: self.next_homing())
+
     def enable_motors(self):
         """Enable all motor blocks."""
         self.logger.info('enable_motors()')
@@ -120,8 +127,11 @@ class Being:
     def home_motors(self):
         """Home all motors."""
         self.logger.info('home_motors()')
-        for motor in self.motors:
-            motor.home()
+        if self.sequential_homing:
+            next(motors_unhomed).home()
+        else:
+            for motor in self.motors:
+                motor.home()
 
     def start_behaviors(self):
         """Start all behaviors."""
@@ -132,6 +142,16 @@ class Being:
         """Pause all behaviors."""
         for behavior in self.behaviors:
             behavior.pause()
+
+    def next_homing(self):
+        """Controls one by one homing."""
+        if any(motor.homing_state() is HomingState.ONGOING for motor in self.motors):
+            return
+        else:
+            try:
+                next(self.motors_unhomed).home()
+            except StopIteration:
+                self.logger.debug('All motors are homed.')
 
     def single_cycle(self):
         """Execute single being cycle. Network sync, executing block network,
