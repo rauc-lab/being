@@ -442,7 +442,4 @@ class CrudeHoming(CiA402Homing):
 
         yield from self.halt_drive()
 
-        # Turn off voltage to reset current current value
-        yield from self.change_state(CiA402State.READY_TO_SWITCH_ON)
-
         self.state = HomingState.UNHOMED
