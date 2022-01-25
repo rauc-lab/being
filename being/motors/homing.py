@@ -425,6 +425,7 @@ class CrudeHoming(CiA402Homing):
         self.state = final
 
     def pre_homing_job(self, direction: float = -1.):
+        """Moves motor to one end for safe homing."""
         self.logger.debug('pre_homing_job()')
         
         yield from self.change_state(CiA402State.READY_TO_SWITCH_ON)
