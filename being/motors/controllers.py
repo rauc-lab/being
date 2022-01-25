@@ -267,6 +267,19 @@ class Controller(MotorInterface):
             self.capture()
             self.homing.home()
 
+    def pre_home(self):
+        """Start pre-homing for this controller. Will start by the next call of
+        :meth:`Controller.update`.
+        """
+        self.logger.debug('pre_home()')
+        if self.homing.ongoing:
+            self.homing.stop()
+            self.wasEnabled = False  # Do not re-enable motor since not homed anymore
+            self.restore()
+        else:
+            self.capture()
+            self.homing.pre_home()
+
         self.publish(MotorEvent.HOMING_CHANGED)
 
     def homing_state(self) -> HomingState:

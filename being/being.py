@@ -64,6 +64,7 @@ class Being:
             pacemaker: Pacemaker,
             network: Optional[CanBackend] = None,
             sequential_homing: bool = True,
+            pre_homing: bool = True,
         ):
         """
         Args:
@@ -110,6 +111,9 @@ class Being:
         self.sequential_homing: bool = sequential_homing
         """One by one homing."""
 
+        self.pre_homing: bool = pre_homing
+        """Moves motors to safe position before homing."""
+
         self.motors_unhomed: Iterator = iter(self.motors)
         """Iterator for sequential homing."""
 
@@ -132,7 +136,10 @@ class Being:
     def home_motors(self):
         """Home all motors."""
         self.logger.info('home_motors()')
-        if self.sequential_homing:
+        if self.pre_homing:
+            for motor in self.motors():
+                motor.pre_home()
+        elif self.sequential_homing:
             next(self.motors_unhomed).home()
         else:
             for motor in self.motors:
