@@ -1,5 +1,5 @@
 """Content manager. Manages motions inside content directory."""
-import collections
+import collections.abc
 import glob
 import os
 from collections import OrderedDict
@@ -79,7 +79,7 @@ def upgrade_splines_to_curves(directory, logger=None):
             logger.warning('Do not know what to do with obj %r', obj)
 
 
-class Files(collections.MutableMapping):
+class Files(collections.abc.MutableMapping):
 
     """Wrap files inside directory on disk as dictionary. Iteration order is
     most recently modified.
