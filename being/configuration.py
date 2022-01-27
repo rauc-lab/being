@@ -27,7 +27,7 @@ CONFIG: Dict[str, Any] = {
         'PARAMETER_CONFIG_FILEPATH': 'being_params.yaml',  # Filepath for parameter config file
     },
     'Can': {
-        'DEFAULT_CAN_BITRATE': 1000000,  # Default bitrate (bit / sec) for CAN interface.
+        'DEFAULT_CAN_BITRATE': 1_000_000,  # Default bitrate (bit / sec) for CAN interface.
     },
     'Web': {
         'HOST': None,  # Host name of web server

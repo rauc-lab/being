@@ -200,7 +200,7 @@ class Content(PubSub, SingleInstanceCache):
         return name + self.ext in self.data
 
     def load_curve(self, name: str) -> BPoly:
-        """Load miotion curve from disk.
+        """Load motion curve from disk.
 
         Args:
             name: Motion name.
@@ -226,7 +226,7 @@ class Content(PubSub, SingleInstanceCache):
         Args:
             name: Curve name.
         """
-        del self.data[name +  self.ext]
+        del self.data[name + self.ext]
         self.publish(CONTENT_CHANGED)
 
     def rename_curve(self, oldName: str, newName: str):

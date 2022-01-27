@@ -522,7 +522,7 @@ def find_shortest_state_path(start: State, end: State) -> List[State]:
         >>> find_shortest_state_path(State.OPERATION_ENABLED, State.NOT_READY_TO_SWITCH_ON)
         []  # Not possible to get to NOT_READY_TO_SWITCH_ON!
     """
-    if start is end:
+    if start == end:
         return []
 
     # Breadth-first search
@@ -535,7 +535,7 @@ def find_shortest_state_path(start: State, end: State) -> List[State]:
             if suc in path:
                 continue  # Cycle detected
 
-            if suc is end:
+            if suc == end:
                 paths.append(path + [end])
             else:
                 queue.append(path + [suc])
@@ -652,6 +652,10 @@ class CiA402Node(RemoteNode):
 
         # EPOS4 has no PDO mapping for Error Register,
         # thus re-register later txpdo1 if available
+
+        # FIXME: use unique COB-IDs which depend on the nodeID from the objectDictionary
+        # (pdo.read() loads values from the nodes which by default are all same and conflict if n(nodes) > 1)
+
         self.setup_txpdo(1, STATUSWORD)
         self.setup_txpdo(2, POSITION_ACTUAL_VALUE, VELOCITY_ACTUAL_VALUE)
         self.setup_txpdo(3, enabled=False)
@@ -761,7 +765,7 @@ class CiA402Node(RemoteNode):
             raise ValueError(f'Can not change to state {target}')
 
         current = self.get_state(how)
-        if current is target:
+        if current == target:
             return
 
         edge = (current, target)
@@ -803,7 +807,7 @@ class CiA402Node(RemoteNode):
         while True:
             yield current
 
-            if current is target:
+            if current == target:
                 self.logger.debug('Reached target %s', target)
                 return
 
@@ -812,7 +816,7 @@ class CiA402Node(RemoteNode):
             if time.perf_counter() > endTime:
                 raise TimeoutError(f'Could not transition from {initial.name} to {target.name} in {timeout:.3f} sec!')
 
-            if current is not lastPlanned:
+            if current != lastPlanned:
                 lastPlanned = current
                 intermediate = WHERE_TO_GO_NEXT[(current, target)]
                 self.set_state(intermediate, how)
@@ -855,7 +859,7 @@ class CiA402Node(RemoteNode):
         """
         self.logger.debug('Switching to %s', op)
         current = self.get_operation_mode()
-        if current is op:
+        if current == op:
             self.logger.debug('Already %s', op)
             return
 

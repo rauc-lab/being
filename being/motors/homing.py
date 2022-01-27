@@ -292,7 +292,7 @@ class CiA402Homing(HomingBase):
 
             yield
         else:
-            self.logger.error('Homing run finished')
+            self.logger.info('Homing run finished')
             final = HomingState.HOMED
 
         yield from self.change_state(CiA402State.READY_TO_SWITCH_ON)
@@ -393,7 +393,7 @@ class CrudeHoming(CiA402Homing):
 
         width = self.upper - self.lower
         if width < self.minWidth:
-            self.logger.info('Homing failed. Width too narrow %f', width)
+            self.logger.error('Homing failed. Width too narrow %f', width)
             final = HomingState.FAILED
         else:
             self.logger.info('Homing successful')
