@@ -389,7 +389,6 @@ class LinearMotor(CanMotor):
 
     """Default linear Faulhaber CAN motor."""
 
-
     def __init__(self, nodeId, motor='LM 1247', **kwargs):
         """
         Args:
