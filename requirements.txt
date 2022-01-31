@@ -1,5 +1,5 @@
 aiohttp >= 3.7.0, <= 3.7.4
-aiohttp-jinja2>=3.0.0
+aiohttp-jinja2>=1.5
 canopen
 configobj
 matplotlib
@@ -9,3 +9,4 @@ ruamel.yaml
 scipy
 setuptools
 tomlkit
+tox

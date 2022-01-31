@@ -204,10 +204,7 @@ class Controller(MotorInterface):
         """Last receive state of motor controller."""
 
         # Configure node
-        self.apply_motor_direction(direction)
-        self.node.apply_settings(self.settings)
-        for errMsg in self.error_history_messages():
-            self.logger.error(errMsg)
+        self.configure_node()
 
         self.node.set_operation_mode(operationMode)
 
@@ -303,6 +300,11 @@ class Controller(MotorInterface):
     def apply_motor_direction(self, direction: float):
         """Configure direction or orientation of controller / motor."""
         raise NotImplementedError
+
+    @abc.abstractmethod
+    def configure_node(self):
+        """Apply settings to the controller""" 
+        raise NotImplementedError()
 
     def format_emcy(self, emcy: EmcyError) -> str:
         """Get vendor specific description of EMCY error."""
@@ -442,7 +444,20 @@ class Mclm3002(Controller):
         else:
             super().init_homing(homingMethod=method)
 
+    def configure_node(self):
+        self.apply_motor_direction(self.direction)
+        if self.direction < 0:
+            # Swap interpretation of min / max positions
+            minimum = self.settings['Software Position Limit/Minimum Position Limit']
+            maximum = self.settings['Software Position Limit/Maximum Position Limit']
+            self.settings['Software Position Limit/Maximum Position Limit'] = minimum
+            self.settings['Software Position Limit/Minimum Position Limit'] = maximum
+        self.node.apply_settings(self.settings)
+        for errMsg in self.error_history_messages():
+            self.logger.error(errMsg)
+
     def apply_motor_direction(self, direction: float):
+        self.logger.debug(f"Apply motor direction {direction}")
         if direction >= 0:
             positivePolarity = 0
             self.node.sdo['Polarity'].raw = positivePolarity
@@ -455,9 +470,9 @@ class Epos4(Controller):
 
     """Maxon EPOS4 controller.
 
-    This controllers goes into an error state when RPOD / SYNC messages are not
+    This controllers goes into an error state when RPDO / SYNC messages are not
     arriving on time -> recoverRpdoTimeoutError which re-enables the motor when
-    the RPOD timeout error occurs.
+    the RPDO timeout error occurs.
 
     Also a simple, alternative position controller which sends velocity
     commands.
@@ -480,11 +495,11 @@ class Epos4(Controller):
         """
         Args:
             usePositionController: If True use position controller on EPOS4 with
-                operation mode CYCLIC_SYNCHRONOUS_POSITION. Otherwise simple
+                operation mode CYCLIC_SYNCHRONOUS_POSITION. Otherwise, simple
                 custom application side position controller working with the
                 CYCLIC_SYNCHRONOUS_VELOCITY.
             recoverRpdoTimeoutError: Re-enable drive after a FAULT because of a
-                RPOD timeout error.
+                RPDO timeout error.
         """
         if not usePositionController:
             warnings.warn(
@@ -516,6 +531,12 @@ class Epos4(Controller):
         lowWord = 16
         firmwareVersion = revisionNumber >> lowWord
         return firmwareVersion
+
+    def configure_node(self):
+        self.apply_motor_direction(self.direction)
+        self.node.apply_settings(self.settings)
+        for errMsg in self.error_history_messages():
+            self.logger.error(errMsg)
 
     def apply_motor_direction(self, direction: float):
         variable = self.node.sdo['Axis configuration']['Axis configuration miscellaneous']
@@ -565,6 +586,6 @@ class Epos4(Controller):
     def update(self):
         super().update()
         if self.recoverRpdoTimeoutError:
-            if self.lastState is State.FAULT and self.rpdoTimeoutOccurred:
+            if self.lastState == State.FAULT and self.rpdoTimeoutOccurred:
                 self.enable()
                 self.rpdoTimeoutOccurred = False

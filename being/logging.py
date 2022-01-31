@@ -44,7 +44,7 @@ def get_logger(name: Optional[str] = None, parent: Optional[Logger] = BEING_LOGG
 
 
 def suppress_other_loggers(*excludes):
-    """Suppress log messages from some of the other common loggers."""
+    """Suppress log messages from some other common loggers."""
     if len(excludes) == 0:
         excludes = DEFAULT_EXCLUDES
 

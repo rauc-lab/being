@@ -127,6 +127,7 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
 
     def reset_communication(self):
         """Reset NMT communication."""
+        self.logger.debug('Global NMT -> RESET_COMMUNICATION')
         self.nmt.state = RESET_COMMUNICATION
 
     def send_sync(self):

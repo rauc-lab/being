@@ -1,5 +1,5 @@
 """Content manager. Manages motions inside content directory."""
-import collections
+import collections.abc
 import glob
 import os
 from collections import OrderedDict
@@ -79,7 +79,7 @@ def upgrade_splines_to_curves(directory, logger=None):
             logger.warning('Do not know what to do with obj %r', obj)
 
 
-class Files(collections.MutableMapping):
+class Files(collections.abc.MutableMapping):
 
     """Wrap files inside directory on disk as dictionary. Iteration order is
     most recently modified.
@@ -200,7 +200,7 @@ class Content(PubSub, SingleInstanceCache):
         return name + self.ext in self.data
 
     def load_curve(self, name: str) -> BPoly:
-        """Load miotion curve from disk.
+        """Load motion curve from disk.
 
         Args:
             name: Motion name.
@@ -226,7 +226,7 @@ class Content(PubSub, SingleInstanceCache):
         Args:
             name: Curve name.
         """
-        del self.data[name +  self.ext]
+        del self.data[name + self.ext]
         self.publish(CONTENT_CHANGED)
 
     def rename_curve(self, oldName: str, newName: str):

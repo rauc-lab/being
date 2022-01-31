@@ -59,7 +59,7 @@ or via `PyPi <https://pypi.org/project/being/>`__ (check latest version).
 
     pip install being
 
-Development enviroment can be set up with
+Development environment can be set up with
 
 .. code-block:: bash
 
