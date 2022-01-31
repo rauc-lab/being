@@ -204,10 +204,7 @@ class Controller(MotorInterface):
         """Last receive state of motor controller."""
 
         # Configure node
-        self.apply_motor_direction(direction)
-        self.node.apply_settings(self.settings)
-        for errMsg in self.error_history_messages():
-            self.logger.error(errMsg)
+        self.configure_node()
 
         self.node.set_operation_mode(operationMode)
 
@@ -292,6 +289,11 @@ class Controller(MotorInterface):
     def apply_motor_direction(self, direction: float):
         """Configure direction or orientation of controller / motor."""
         raise NotImplementedError
+
+    @abc.abstractmethod
+    def configure_node(self):
+        """Apply settings to the controller""" 
+        raise NotImplementedError()
 
     def format_emcy(self, emcy: EmcyError) -> str:
         """Get vendor specific description of EMCY error."""
@@ -431,7 +433,14 @@ class Mclm3002(Controller):
         else:
             super().init_homing(homingMethod=method)
 
+    def configure_node(self):
+        self.node.apply_settings(self.settings)
+        self.apply_motor_direction(self.direction)
+        for errMsg in self.error_history_messages():
+            self.logger.error(errMsg)
+
     def apply_motor_direction(self, direction: float):
+        self.logger.debug(f"Apply motor direction {direction}")
         if direction >= 0:
             positivePolarity = 0
             self.node.sdo['Polarity'].raw = positivePolarity
@@ -505,6 +514,12 @@ class Epos4(Controller):
         lowWord = 16
         firmwareVersion = revisionNumber >> lowWord
         return firmwareVersion
+
+    def configure_node(self):
+        self.apply_motor_direction(self.direction)
+        self.node.apply_settings(self.settings)
+        for errMsg in self.error_history_messages():
+            self.logger.error(errMsg)
 
     def apply_motor_direction(self, direction: float):
         variable = self.node.sdo['Axis configuration']['Axis configuration miscellaneous']
