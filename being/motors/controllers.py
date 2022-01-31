@@ -434,8 +434,14 @@ class Mclm3002(Controller):
             super().init_homing(homingMethod=method)
 
     def configure_node(self):
-        self.node.apply_settings(self.settings)
         self.apply_motor_direction(self.direction)
+        if self.direction < 0:
+            # Swap interpretation of min / max positions
+            minimum = self.settings['Software Position Limit/Minimum Position Limit']
+            maximum = self.settings['Software Position Limit/Maximum Position Limit']
+            self.settings['Software Position Limit/Maximum Position Limit'] = minimum
+            self.settings['Software Position Limit/Minimum Position Limit'] = maximum
+        self.node.apply_settings(self.settings)
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 
