@@ -9,7 +9,7 @@ from being.logging import setup_logging, suppress_other_loggers
 from being.motion_player import MotionPlayer
 from being.motors import LinearMotor, RotaryMotor
 from being.resources import register_resource, manage_resources
-from being.sensors import SensorGpio
+from being.sensors import SensorGpio, DummySensor
 
 
 # Params
@@ -33,13 +33,13 @@ with manage_resources():
         raise RuntimeError('Found no motors!')
 
     # Initialize remaining being blocks
-    sensor = SensorGpio(channel=6)
-    behavior = Behavior.from_config('behavior.json')
+    #sensor = DummySensor()#SensorGpio(channel=6)
+    #behavior = Behavior.from_config('behavior.json')
     motionPlayer = MotionPlayer(ndim=len(motors))
 
     # Make block connections
-    sensor | behavior | motionPlayer
+    #sensor | behavior | motionPlayer
     for output, motor in zip(motionPlayer.positionOutputs, motors):
         output.connect(motor.input)
 
-    awake(behavior)
+    awake()
