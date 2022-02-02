@@ -18,43 +18,6 @@
 {% endblock %}
 
 {% block body%}
-    <nav>
-        <span>Being</span>
-        <span class="filler"></span>
-        <a href="#control-panel-anchor">Control Panel</a>
-
-        {% if hasParams %}
-            <a href="#params-anchor">Parameters</a>
-        {% endif %}
-
-        {% if behaviors %}
-            <a href="#behavior-anchor">Behavior</a>
-        {% endif %}
-
-        {% if motionPlayers %}
-            <a href="#editor-anchor">Motion Editor</a>
-        {% endif %}
-    </nav>
-    <hr>
-
-    <a class="anchor" id="control-panel-anchor"></a>
-    <h1>Control Panel</h1>
-    <being-control-panel></being-control-panel>
-
-    {% if hasParams %}
-        <a class="anchor" id="params-anchor"></a>
-        <h1>Parameters</h1>
-        <being-params-panel></being-params-panel>
-    {% endif %}
-
-    {% if behaviors %}
-        <a class="anchor" id="behavior-anchor"></a>
-        <h1>Behavior</h1>
-        {% for behavior in behaviors %}
-            <being-behavior behaviorId={{behavior.id}}></being-behavior>
-        {% endfor %}
-    {% endif %}
-
     {% if motionPlayers %}
         <a class="anchor" id="editor-anchor"></a>
         <h1>Motion Editor</h1>
