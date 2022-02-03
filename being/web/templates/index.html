@@ -76,6 +76,15 @@
         }
 
         ws.connect();
+
+        window.addEventListener('load', (event) => {
+            setTimeout(function(){
+                var editor = document.getElementById("editor");
+                editor. toggle_motion_playback();
+            }, 2000);
+
+        });
+
     </script>
 {% endblock %}
 
