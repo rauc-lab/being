@@ -1,9 +1,9 @@
 """Content manager. Manages motions inside content directory."""
-import collections
+import collections.abc
 import glob
 import os
 from collections import OrderedDict
-from typing import Generator, Callable, Optional
+from typing import Callable, Iterator, Optional
 
 from being.configuration import CONFIG
 from being.curve import Curve
@@ -38,6 +38,23 @@ def stripext(p: str) -> str:
     return root
 
 
+def removeprefix(string: str, prefix: str) -> str:
+    """Remove string prefix for Python < 3.9. If string does not start with
+    prefix leave as is.
+
+    Args:
+        string: Input string.
+        prefix: Prefix to remove.
+
+    Returns:
+        Trimmed string.
+    """
+    if string.startswith(prefix):
+        return string[len(prefix):]
+
+    return string
+
+
 def upgrade_splines_to_curves(directory, logger=None):
     """Go through each JSON file inside directory and upgrade every serialized
     spline to a curve.
@@ -62,7 +79,7 @@ def upgrade_splines_to_curves(directory, logger=None):
             logger.warning('Do not know what to do with obj %r', obj)
 
 
-class Files(collections.MutableMapping):
+class Files(collections.abc.MutableMapping):
 
     """Wrap files inside directory on disk as dictionary. Iteration order is
     most recently modified.
@@ -92,16 +109,23 @@ class Files(collections.MutableMapping):
         """Resolve fullpath."""
         return os.path.join(self.directory, path)
 
-    def _recently_modified(self) -> Generator[str, None, None]:
-        """Iterate over most recently modified paths."""
-        filepaths = glob.iglob(self.directory + '/*')
-        mostRecently = sorted(filepaths, key=os.path.getctime, reverse=True)
+    def _remove_directory(self, filepath):
         prefix = self.directory + '/'
-        for fp in mostRecently:
-            _, path = fp.split(prefix, maxsplit=1)
-            yield path
+        return removeprefix(filepath, prefix)
 
-    def __getitem__(self, path: str) -> Generator[str, None, None]:
+    def _recently_modified(self) -> Iterator[str]:
+        """Most recently modified filenames."""
+        filepaths = glob.iglob(self.directory + '/*')
+        mostRecently = sorted(filepaths, key=os.path.getmtime, reverse=True)
+        return map(self._remove_directory, mostRecently)
+
+    def _alphabetically(self) -> Iterator[str]:
+        """Alphabetically ordered filenames."""
+        filepaths = glob.iglob(self.directory + '/*')
+        mostRecently = sorted(filepaths)
+        return map(self._remove_directory, mostRecently)
+
+    def __getitem__(self, path: str) -> Iterator[str]:
         fp = self._fullpath(path)
         return self.loads(read_file(fp))
 
@@ -114,10 +138,10 @@ class Files(collections.MutableMapping):
         os.remove(fp)
 
     def __iter__(self):
-        return iter(self._recently_modified())
+        return iter(self._alphabetically())
 
     def __len__(self):
-        return len(self._recently_modified())
+        return len(self._alphabetically())
 
     def __contains__(self, path: str):
         # Skip __iter__
@@ -176,7 +200,7 @@ class Content(PubSub, SingleInstanceCache):
         return name + self.ext in self.data
 
     def load_curve(self, name: str) -> BPoly:
-        """Load miotion curve from disk.
+        """Load motion curve from disk.
 
         Args:
             name: Motion name.
@@ -202,7 +226,7 @@ class Content(PubSub, SingleInstanceCache):
         Args:
             name: Curve name.
         """
-        del self.data[name +  self.ext]
+        del self.data[name + self.ext]
         self.publish(CONTENT_CHANGED)
 
     def rename_curve(self, oldName: str, newName: str):

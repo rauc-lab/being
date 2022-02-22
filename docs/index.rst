@@ -11,10 +11,12 @@ Robotic middleware library for easy to use robotic projects.
 
 .. _GitHub: https://github.com/rauc-lab/being
 
-The goal of being is to abstract away most of the low-level heavy lifting when
-working with motors and sensors. Engineers and programmers should be able to
-focus on developing slim, high-level programs which operate on *behavior* and
-*character* to capture the expressive intent of artists.
+Being enables engineers and programmers to quickly build robotic programs.
+Abstracting away most of the low-level heavy lifting when working with motors
+and sensors. The emphasis lies with slim, high-level programs which operate on
+*behavior* and *character* to capture the expressive intent of artists. An
+integrated web interface makes the resulting applications accessible and
+formable at runtime.
 
 
 Key Features
@@ -23,7 +25,7 @@ Key Features
 - Connected block logic
 - CAN based motor controllers
 - Spline based motion curves
-- Adaptive web based user interface
+- Web based user interface
 
 
 Library Installation
@@ -37,7 +39,7 @@ The following third-party libraries are optional:
 
 - `RPi.GPIO <https://pypi.org/project/RPi.GPIO/>`_ for accessing Raspberry Pi GPIO
 - `PyAudio <https://pypi.org/project/PyAudio/>`_ for audio streams. Python
-  bindings for PortAudio which needs to be installed separately
+  bindings for PortAudio which needs to be installed separately.
 
 These can be installed manually or by using `extras`:
 
@@ -95,14 +97,34 @@ This project uses the usual suspects of the scientific Python stack. Some
 additional third party libraries for HTTP server, CAN/CanOpen and different
 configuration formats with round trip preservation.
 
-The Python Raspberry Pi library `RPi.GPIO
-<https://pypi.org/project/RPi.GPIO/>`_ is an optional dependency. That Being
-can also be used on non Raspberry Pi platforms. When used on a RPI and GPIOs
-need to be accessed needs to be installed manually.
+The Python Raspberry Pi library `RPi.GPIO <https://pypi.org/project/RPi.GPIO/>`_ 
+is an optional dependency for accessing the GPIO on a Raspberry Pi which is not
+available on non Raspberry PI platforms.
 
 The frontend uses pure JavaScript and is directly hosted by an aiohttp web
-server from within Being. No JavaScript framework. Static folder is directly
-served.
+server from within Being. No additional JavaScript frameworks needed.
+
+
+Documentation
+-------------
+
+Some *non-Python* dependencies are needed for building the documentation:
+
+- Node.js with the `JSDoc <https://www.npmjs.com/package/jsdoc>`_ package
+- `Graphviz <https://graphviz.org>`_
+
+Python bindings and additional packages can be installed with
+
+.. code-block:: bash
+
+   pip install -r docs/requirements.txt
+
+.. warning::
+
+   The `sphinx-js <https://github.com/mozilla/sphinx-js>`_ package has a pinned
+   version of Jinja2 which is in conflict with the version needed by Being.
+   Upgrade Jinja2 after intalling the documentation requirements or reinstall
+   the Being requirements.
 
 
 Developing

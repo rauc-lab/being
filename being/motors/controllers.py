@@ -43,7 +43,7 @@ from being.motors.vendor import (
 from being.utils import merge_dicts
 
 
-__all__ = [ 'Mclm3002', 'Epos4', ]
+__all__ = [ 'Controller', 'Mclm3002', 'Epos4', ]
 
 
 INTERVAL = CONFIG['General']['INTERVAL']
@@ -244,9 +244,12 @@ class Controller(MotorInterface):
     def restore(self):
         """Restore captured node state after homing is done."""
         self.node.sdo[MODES_OF_OPERATION].raw = self.operationMode
-        if self.wasEnabled:
+
+        if self.wasEnabled is None:
+            pass
+        elif self.wasEnabled:
             self.enable()
-        elif self.wasEnabled is False:
+        else:
             self.disable()
 
         self.wasEnabled = None
@@ -256,7 +259,14 @@ class Controller(MotorInterface):
         :meth:`Controller.update`.
         """
         self.logger.debug('home()')
-        self.homing.home()
+        if self.homing.ongoing:
+            self.homing.stop()
+            self.wasEnabled = False  # Do not re-enable motor since not homed anymore
+            self.restore()
+        else:
+            self.capture()
+            self.homing.home()
+
         self.publish(MotorEvent.HOMING_CHANGED)
 
     def homing_state(self) -> HomingState:
@@ -434,9 +444,9 @@ class Epos4(Controller):
 
     """Maxon EPOS4 controller.
 
-    This controllers goes into an error state when RPOD / SYNC messages are not
+    This controllers goes into an error state when RPDO / SYNC messages are not
     arriving on time -> recoverRpdoTimeoutError which re-enables the motor when
-    the RPOD timeout error occurs.
+    the RPDO timeout error occurs.
 
     Also a simple, alternative position controller which sends velocity
     commands.
@@ -459,11 +469,11 @@ class Epos4(Controller):
         """
         Args:
             usePositionController: If True use position controller on EPOS4 with
-                operation mode CYCLIC_SYNCHRONOUS_POSITION. Otherwise simple
+                operation mode CYCLIC_SYNCHRONOUS_POSITION. Otherwise, simple
                 custom application side position controller working with the
                 CYCLIC_SYNCHRONOUS_VELOCITY.
             recoverRpdoTimeoutError: Re-enable drive after a FAULT because of a
-                RPOD timeout error.
+                RPDO timeout error.
         """
         if not usePositionController:
             warnings.warn(
@@ -544,6 +554,6 @@ class Epos4(Controller):
     def update(self):
         super().update()
         if self.recoverRpdoTimeoutError:
-            if self.lastState is State.FAULT and self.rpdoTimeoutOccurred:
+            if self.lastState == State.FAULT and self.rpdoTimeoutOccurred:
                 self.enable()
                 self.rpdoTimeoutOccurred = False

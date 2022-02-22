@@ -2,4 +2,5 @@ include README.rst
 include MANIFEST.in
 include LICENSE
 include being/can/eds_files/*.eds
+include being/web/templates/*.html
 graft being/web/static

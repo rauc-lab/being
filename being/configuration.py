@@ -27,10 +27,10 @@ CONFIG: Dict[str, Any] = {
         'PARAMETER_CONFIG_FILEPATH': 'being_params.yaml',  # Filepath for parameter config file
     },
     'Can': {
-        'DEFAULT_CAN_BITRATE': 1000000,  # Default bitrate (bit / sec) for CAN interface.
+        'DEFAULT_CAN_BITRATE': 1_000_000,  # Default bitrate (bit / sec) for CAN interface.
     },
     'Web': {
-        'HOST': 'localhost',  # Host name of web server
+        'HOST': None,  # Host name of web server
         'PORT': 8080,  # Port number of web server
         'API_PREFIX': '/api',  # API route prefix.
         'WEB_SOCKET_ADDRESS': '/stream',  # Web socket URL.

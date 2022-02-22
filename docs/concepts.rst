@@ -5,9 +5,8 @@ Concepts
 Blocks and Connections
 ----------------------
 
-Blocks are the main building *blocks* in being (pun intended). Each block
-encapsulates certain functionalities and can pass data to its connected
-neighbors.
+Blocks are the main building *blocks* in being (pun intended).
+Each block encapsulates certain functionalities and can pass data to and from its neighbors.
 
 .. digraph:: someblocks
    :align: center
@@ -22,22 +21,32 @@ neighbors.
    B -> C [style=dashed];
    B -> C [style=dashed];
 
-There are two kind of connections:
+Connecting blocks takes place by connecting their output & input *connectables*.
+There are two types of connections:
 
 - *Value* (⇢) connections are intended for continuous streams of data. Think
   audio samples or motor position values. Accessed via the ``value``
   attributes.
 - *Message* (→) connections ``send`` and ``receive`` discrete messages.
 
-Outputs and inputs can be connected with each other with the ``connect``
-method. It is possible to connect one output to many inputs but not the other
-way round (different outputs to one single input).
+This results in 4 different connectable types:
+
++---------+-------------------------------------------+------------------------------------------+
+|         | Output                                    | Input                                    |
++---------+-------------------------------------------+------------------------------------------+
+| Value   | :class:`being.connectables.ValueOutput`   | :class:`being.connectables.ValueInput`   |
++---------+-------------------------------------------+------------------------------------------+
+| Message | :class:`being.connectables.MessageOutput` | :class:`being.connectables.MessageInput` |
++---------+-------------------------------------------+------------------------------------------+
+
+Outputs and inputs can be connected with the ``connect`` method.
+It is possible to connect one output to multiple inputs but not the other way round (multiple outputs to one single input).
 
 .. digraph:: manyinputs
    :align: center
-   :alt: Output with many inputs.
-   :caption: Output with many inputs.
-   :name: Output with many inputs.
+   :alt: Output connectable with multiple inputs.
+   :caption: Output connectable with multiple inputs.
+   :name: Output connectable with multiple inputs.
 
    rankdir="LR"
 
@@ -49,12 +58,13 @@ way round (different outputs to one single input).
    Output -> b;
    Output -> c;
 
-Data can be passed around with the ``value`` attribute and the
-``send`` / ``receive`` methods.
+Data can be passed around with the ``value`` attribute and the ``send`` / ``receive`` methods.
+The following snippets illustrate how data can propagate for *value* and *message* based connections respectively.
 
 .. code-block:: python
 
-   from being.connectables import ValueOutput, ValueInput, MessageOutput, MessageInput
+   """Value connection."""
+   from being.connectables import ValueOutput, ValueInput
 
    valueOut = ValueOutput()
    valueIn = ValueInput()
@@ -62,6 +72,11 @@ Data can be passed around with the ``value`` attribute and the
 
    valueOut.value = 42
    print(valueIn.value)  # Prints 42
+
+.. code-block:: python
+
+   """Message connection."""
+   from being.connectables import MessageOutput, MessageInput
 
    msgOut = MessageOutput()
    msgIn = MessageInput()
@@ -71,10 +86,10 @@ Data can be passed around with the ``value`` attribute and the
    for msg in msgIn.receive():
        print(msg)  # Prints 'Hello, world!'
 
-A small summary of the block attributes:
+Each block has the following connectable attributes:
 
-- :attr:`being.block.Block.inputs`: Input connectables.
-- :attr:`being.block.Block.outputs`: Output connectables.
+- :attr:`being.block.Block.inputs`: All input connectables.
+- :attr:`being.block.Block.outputs`: All output connectables.
 - :attr:`being.block.Block.input`: First / primary input connectable.
 - :attr:`being.block.Block.output`: First /primary output connectable.
 
@@ -86,9 +101,14 @@ inputs and outputs
    # Pipe operator for 3x blocks
    a | b | c
 
-   # Is equivalanet to:
+   # Is equivalent to:
    # >>> a.output.connect(b.input)
    # ... b.output.connect(c.input)
+   #
+   # or
+   #
+   # >>> a.outputs[0].connect(b.inputs[0])
+   # ... b.outputs[0].connect(c.inputs[0])
 
 
 Block Network and Execution Order
@@ -320,7 +340,7 @@ Single Instance Cache
 
 For comfort, some types get instantiated implicitly when needed. For example,
 when creating a :class:`being.motors.blocks.CanMotor` block, by default a
-:class:`being.backend.CanBackend` instance gets created as well. Similarly
+:class:`being.backends.CanBackend` instance gets created as well. Similarly
 every :class:`being.motion_player.MotionPlayer` block needs a
 :class:`being.clock.Clock` and a :class:`being.content.Content` instance.
 
@@ -489,8 +509,10 @@ represented by the different classes in :mod:`being.motors.blocks`.
 Since many motors have relative encoders they need to be *homed* after turning
 them on so that they can orient them self and find their initial position.
 
+.. _CiA 402: https://www.can-cia.org/can-knowledge/canopen/cia402/
+
 Motor blocks can be *enabled* or *disabled*. This corresponds to the *Operation
-Enabled* and *Ready to Switch On* states of the *CiA 402 State Machine*.
+Enabled* and *Ready to Switch On* states of the `CiA 402`_ State Machine.
 
 By default, CAN motors are run in the *Cyclic Synchronous Position (CSP)*
 operation mode. Every cycle a new target position value is send to the motor
@@ -520,11 +542,10 @@ Path parts can also be integer numbers (decimal, hexadecimal, ...)
 State Switching
 ^^^^^^^^^^^^^^^
 
-For switching to an arbitrary target state the *CiA 402 State Machine* needs to
-be traversed in the right way. What complicates things is that this can take an
-arbitrary amount of time.
-Two methods exists in the :class:`being.cia_402.CiA402Node` CanOpen remote
-node:
+For switching to an arbitrary target state the `CiA 402`_ State Machine needs
+to be traversed in the right way. What complicates things is that this can take
+an arbitrary amount of time. Two methods exists in the
+:class:`being.cia_402.CiA402Node` CanOpen remote node:
 
 - :meth:`being.cia_402.CiA402Node.change_state`: Blocking with a timeout. This
   is *not* suited for live operation since everything else will be blocked

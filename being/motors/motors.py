@@ -125,7 +125,7 @@ MAXON_DC_22_DEFAULT_SETTINGS = collections.OrderedDict([
     ('Digital incremental encoder 1/Digital incremental encoder 1 number of pulses', 1024),
     ('Digital incremental encoder 1/Digital incremental encoder 1 type', 1),
     ('Digital input properties/Digital inputs polarity', MAXON_INPUT_LOW_ACTIVE),
-    ('Disable operation option code', 0),  # Otherwise we loose to much time when disabling drive (timeout)
+    ('Disable operation option code', 0),  # Otherwise, we loose too much time when disabling drive (timeout)
     ('Following error window', MAXON_FOLLOWING_ERROR_WINDOW_DISABLED),
     ('Gear configuration/Gear reduction denominator', 13),
     ('Gear configuration/Gear reduction numerator', 69),

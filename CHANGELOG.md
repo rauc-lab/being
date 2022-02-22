@@ -1,7 +1,40 @@
-
 # Changelog
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.2] - 2022-01-19
+
+### Fixed
+- Unnecessary PCAN patch causes errors on Darwin
+
+## [1.0.1] - 2022-01-19
+
+### Fixed
+- Missing templates package data
+
+## [1.0.0] - 2022-01-19
+
+### Added
+- Notify user that Being is running when invoking `awake()`
+- `AudioBackend` and `Mic` block for audio onset detection.
+- Stop ongoing homing when pressing homing button again
+- Finalizing documentation
+- `audio` and `rpi` extra requirements
+
+### Changed
+- `DummySensor` now resides in `being.sensors` module.
+- Changed being config file to YAML
+- *Alphabetical* instead of *most recently modified* order for motion curves
+- Max height for behavior and editor widget
+- Deactivate power and homing button when there are no motors
+- Resize editor when new content messages arrive
+- Only display widgets when the corresponding blocks exist
+
+### Removed
+- Relay connectables
+
+### Fixed
+- Installation issue. `patch_pcan_on_darwin()` only when can & canopen are installed.
 
 ## [0.3.6] - 2021-12-23
 

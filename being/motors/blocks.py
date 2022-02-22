@@ -24,12 +24,14 @@ more details).
 Motor blocks operate with SI values at their in- and outputs.
 
 Available motor blocks are:
-  - :class:`DummyMotor`
-  - :class:`LinearMotor`
-  - :class:`RotaryMotor`
-  - :class:`BeltDriveMotor`
-  - :class:`LeadScrewMotor`
-  - :class:`WindupMotor`
+
+- :class:`DummyMotor`
+- :class:`LinearMotor`
+- :class:`RotaryMotor`
+- :class:`BeltDriveMotor`
+- :class:`LeadScrewMotor`
+- :class:`WindupMotor`
+
 """
 import abc
 import itertools
@@ -55,6 +57,7 @@ from being.resources import register_resource
 
 __all__ = [
     'DummyMotor',
+    'CanMotor',
     'LinearMotor',
     'RotaryMotor',
     'BeltDriveMotor',
@@ -215,13 +218,15 @@ class CanMotor(MotorBlock):
 
     This class initializes all the necessary components for accessing and
     configuring a CAN motor:
-    - :class:`CanBackend` network instance (if non has been initialized yet)
-    - :class:`CiA402Node` CAN node for given node id. Will be passed on to the
-      Controller.
+
+    - :class:`being.backends.CanBackend` network instance (if non has been
+      initialized yet)
+    - :class:`being.can.cia_402.CiA402Node` CAN node for given node id. Will be
+      passed on to the Controller.
     - :class:`being.motors.motors.Motor` named tuple with informations regarding
       motor hardware and default settings.
-    - :class:`Controller` subclass instance, depending on motor controller
-      manufacturer.
+    - :class:`being.motors.controllers.Controller` subclass instance, depending
+      on motor controller manufacturer.
 
     Components needed for each CAN motor.
 
@@ -383,7 +388,6 @@ class CanMotor(MotorBlock):
 class LinearMotor(CanMotor):
 
     """Default linear Faulhaber CAN motor."""
-
 
     def __init__(self, nodeId, motor='LM 1247', **kwargs):
         """

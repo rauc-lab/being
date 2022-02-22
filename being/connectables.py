@@ -8,17 +8,8 @@ There are two types of connections:
     (corresponds to continuous data stream).
   - Message: Send discrete messages from an output to all connected inputs.
 
-Relays can be used to pass on data from an output to inputs. They are used as
-the gateway between the outside and the inside world when building composite
-blocks. They work as an output and an input at the same time. E.g. ValueOutput
--> ValueRelay -> ValueInput (note that there can be multiple relays between an
-output and an input).
-
 Note:
-    This code is directly taken from the Klang project. Relays are not used in
-    Being until now but can be used to build *Composite Blocks*. This are blocks
-    which contain their own blocks and maintain their own execution order. Have
-    a look at the Klang_ project.
+    This code is directly taken from the Klang_ project.
 """
 import collections
 import itertools
@@ -29,8 +20,7 @@ from being.error import BeingError
 
 
 __all__ = [
-    'ValueInput', 'ValueOutput', 'ValueRelay', 'MessageInput', 'MessageOutput',
-    'MessageRelay',
+    'ValueInput', 'ValueOutput', 'MessageInput', 'MessageOutput',
 ]
 OutputBase = ForwardRef('OutputBase')
 InputBase = ForwardRef('InputBase')
@@ -57,23 +47,9 @@ def is_valid_connection(output: OutputBase, input_: InputBase) -> bool:
     outputType = type(output)
     inputType = type(input_)
     validConnectionTypes = {
-        # Base classes
-        (OutputBase, RelayBase),
         (OutputBase, InputBase),
-        (RelayBase, RelayBase),
-        (RelayBase, InputBase),
-
-        # Value classes
-        (ValueOutput, ValueRelay),
         (ValueOutput, ValueInput),
-        (ValueRelay, ValueRelay),
-        (ValueRelay, ValueInput),
-
-        # Message classes
-        (MessageOutput, MessageRelay),
         (MessageOutput, MessageInput),
-        (MessageRelay, MessageRelay),
-        (MessageRelay, MessageInput),
     }
 
     return (outputType, inputType) in validConnectionTypes
@@ -251,44 +227,6 @@ class InputBase:
     __str__ = str_function
 
 
-class RelayBase(InputBase, OutputBase):
-
-    """ValueRelay base.
-
-    Connection type for composite blocks. Connects the outside world with the
-    internal composite blocks. Kind of like an input and output at the same time
-    depending on the perspective.
-    """
-
-    def __init__(self, owner: Optional[Block] = None):
-        super().__init__(owner)
-        OutputBase.__init__(self, owner)
-
-    def connect(self, other: Union[OutputBase, InputBase]):
-        """Connect to another connectable.
-
-        Args:
-            other: Connectable instance.
-        """
-        # pylint: disable=arguments-differ
-        if isinstance(other, InputBase):
-            make_connection(self, other)
-        else:
-            make_connection(other, self)
-
-    def disconnect(self, other: Union[OutputBase, InputBase]):
-        """Disconnect from another connectable.
-
-        Args:
-            other: Connectable instance.
-        """
-        # pylint: disable=arguments-differ
-        if isinstance(other, InputBase):
-            break_connection(self, other)
-        else:
-            break_connection(other, self)
-
-
 class _ValueContainer:
 
     """Value attribute mixin class.
@@ -369,13 +307,6 @@ class ValueOutput(OutputBase, _ValueContainer):
         _ValueContainer.__init__(self, value)
 
 
-class ValueRelay(RelayBase, ValueInput):
-
-    """Value relay. Passes value from connected output to all connected
-    inputs.
-    """
-
-
 class _MessageQueue:
 
     """Message queue mixin class."""
@@ -424,12 +355,3 @@ class MessageOutput(OutputBase):
         """Send message to all connected message inputs."""
         for con in self.outgoingConnections:
             con.push(message)
-
-
-class MessageRelay(RelayBase, MessageOutput):
-
-    """Message relay. Passes on all messages from a connected
-    :class:`MessageOutput` to all connected :class:`MessageInputs`.
-    """
-
-    push = MessageOutput.send
