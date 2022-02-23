@@ -507,11 +507,8 @@ export class Editor extends Widget {
         form.setAttribute("enctype", "multipart/form-data");
         //form.setAttribute("accept-charset", "utf-8");
         const templateStr = `
-        <label for="file-upload" class="mdl-button mdl-js-button mdl-button--icon mdl-button--file">
-            <button id="file-upload-button" class="mdc-icon-button" title="Upload some motions. Multiple .json or .zip files.">
-                <div class="mdc-icon-button__ripple"></div>
+            <label for="file-upload" class="mdl-button mdl-js-button mdl-button--icon mdl-button--file">
                 <i class="material-icons mdc-icon-button__icon">file_upload</i>
-            </button>
             <input
                 type="file"
                 id="file-upload"
@@ -520,8 +517,8 @@ export class Editor extends Widget {
                 multiple="multiple"
                 onchange="//this.form.submit();"
                 hidden
-            ></input>
-        </label>
+           ></input>
+           </label>
         `;
         append_template_to(templateStr, form);
         const fileinput = form.querySelector("input[type='file']")

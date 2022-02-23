@@ -21,6 +21,15 @@ div.toolbar > div
     background: white;
 }
 
+div.toolbar label {
+    cursor: pointer;
+}
+
+div.toolbar form {
+    width: 48px;
+    text-align: center;
+}
+
 div.toolbar button {
     font-size: 24px;
     width: 48px;
