@@ -275,7 +275,7 @@ class CanMotor(MotorBlock):
              multiplier: float = 1.0,
              length: Optional[float] = None,
              node: Optional[CiA402Node] = None,
-             objectDictionary=None,
+             objectDictionary = None,
              network: Optional[CanBackend] = None,
              settings: Optional[Dict[str, Any]] = None,
              **controllerKwargs,
