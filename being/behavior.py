@@ -153,7 +153,7 @@ class Behavior(Block, PubSub):
     @classmethod
     def from_config(cls, filepath: str, *args, **kwargs) -> Behavior:
         """
-        Construct behavior instance with an associated parms JSON file.
+        Construct behavior instance with an associated params JSON file.
         Remembers ``filepath`` and save each change of params to disk.
 
         Args:
