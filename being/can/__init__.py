@@ -127,7 +127,6 @@ def load_object_dictionary(network: Network, nodeId: int) -> ObjectDictionary:
             productCode = None
             if deviceType == b'\x92\x01\x02\x00':
                 productCode = client.open(0x1018, subindex=2).read()
-                print(list(map(hex, productCode)))
             filelike = _load_local_eds(deviceType, productCode)
             return import_eds(filelike, nodeId)
 

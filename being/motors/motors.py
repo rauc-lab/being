@@ -110,11 +110,13 @@ MAXON_EC_45_DEFAULT_SETTINGS = collections.OrderedDict([
     ('Interpolation time period/Interpolation time period value', INTERVAL / MILLI),
     ('Digital input properties/Digital inputs polarity', MAXON_INPUT_LOW_ACTIVE),
     ('Following error window', MAXON_FOLLOWING_ERROR_WINDOW_DISABLED),
-    ('Motor data/Nominal current', 3210),  # mA
-    ('Motor data/Output current limit', 2 * 3210),  # mA
-    ('Motor data/Thermal time constant winding', 29.6),
-    ('Motor data/Torque constant', 36900),
-    ('Motor rated torque', 128000),
+    # warning: some values should be corrected if voltage is not nominal!
+    ('Motor data/Nominal current', 1270),  # mA
+    ('Motor data/Output current limit', 2 * 1270),  # mA
+    ('Motor data/Thermal time constant winding', 34.6),
+    ('Motor data/Torque constant', 78600),  # uNm/A
+    ('Current threshold for homing mode', 500),  # mA
+    ('Homing speeds/Speed for switch search', 30),
 ])
 
 
