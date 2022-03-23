@@ -136,10 +136,9 @@ class TestCiA402Node(unittest.TestCase):
                 self.assertEqual(node.get_state(how), state)
 
     def test_impossible_state_transitions_error(self):
-        node = DummyNode(State.SWITCH_ON_DISABLED)
-
-        with self.assertRaises(RuntimeError):
-            node.set_state(State.OPERATION_ENABLED)
+        init_state = State.SWITCH_ON_DISABLED
+        node = DummyNode(init_state)
+        assert init_state == node.set_state(State.OPERATION_ENABLED)
 
     def test_current_is_target_yields_only_once(self):
         node = DummyNode(State.SWITCH_ON_DISABLED, cyclesNeeded=3)
