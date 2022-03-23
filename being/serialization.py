@@ -348,6 +348,10 @@ def dumps(obj: Any, *args, **kwargs) -> str:
         ... dumps(block)
         '{"type": "Block", "blockType": "Block", "name": "My Block", "id": 0, "inputNeighbors": [], "outputNeighbors": []}'
     """
+    if 'indent' not in kwargs:
+        kwargs['indent'] = 4
+    if 'sort_keys' not in kwargs:
+        kwargs['sort_keys'] = True
     return json.dumps(obj, cls=BeingEncoder, *args, **kwargs)
 
 
