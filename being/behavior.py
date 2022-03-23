@@ -68,7 +68,7 @@ def create_params(attentionSpan: float = 10., motions: Optional[list] = None) ->
 
 class Behavior(Block, PubSub):
 
-    """Simple 3x state finite state machine behavior engine. Originally build
+    """Simple 3x state finite state machine behavior engine. Originally built
     for the ÉCAL workshop in March 2021.
 
     There are three states (:class:`being.behavior.State`):

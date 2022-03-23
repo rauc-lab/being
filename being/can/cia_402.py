@@ -689,7 +689,7 @@ class CiA402Node(RemoteNode):
             enabled: Enable or disable TxPDO.
             overwrite: Overwrite TxPDO.
             trans_type: Event based or synchronized transmission
-            event_timer:
+            event_timer: Update period [ms]
         """
         tx = self.tpdo[nr]
         if overwrite:

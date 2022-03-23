@@ -292,8 +292,8 @@ class CanMotor(MotorBlock):
             length (optional): Motor length which will be shown in the web UI.
             node (optional): CAN node of motor driver / controller. If non given
                 create new one (DI).
-            objectDictionary (optional): Object dictionary for CAN node. If will
-                be tried to identified from known EDS files.
+            objectDictionary (optional): Object dictionary for CAN node. It will
+                be tried to get identified from known EDS files.
             network: External CAN network (DI).
             settings (optional): Motor settings. Dict of EDS variables -> Raw
                 value to set. EDS variable with path syntax (slash '/'

@@ -226,9 +226,9 @@ class Controller(MotorInterface):
     def motor_state(self) -> MotorState:
 
         # Map CiA 402 state to simplified MotorState
-        if self.lastState is State.OPERATION_ENABLED:
+        if self.lastState == State.OPERATION_ENABLED:
             return MotorState.ENABLED
-        elif self.lastState is State.FAULT:
+        elif self.lastState == State.FAULT:
             return MotorState.FAULT
         else:
             return MotorState.DISABLED
@@ -344,7 +344,7 @@ class Controller(MotorInterface):
 
     def state_changed(self, state: State) -> bool:
         """Check if node state changed since last call."""
-        if state is self.lastState:
+        if state == self.lastState:
             return False
 
         self.lastState = state
