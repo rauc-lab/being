@@ -214,13 +214,13 @@ class Controller(MotorInterface):
 
         self.node.set_operation_mode(operationMode)
 
-    def disable(self):
+    def disable(self, *args):
         """Disable motor. Schedule a state switching job. Will start by the next
         call of :meth:`Controller.update`.
         """
         self.switchJob = self.node.state_switching_job(State.READY_TO_SWITCH_ON, how='sdo')
 
-    def enable(self):
+    def enable(self, *args):
         """Enable motor. Schedule a state switching job. Will start by the next
         call of :meth:`Controller.update`.
         """
