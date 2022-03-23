@@ -122,6 +122,7 @@ MAXON_DC_22_DEFAULT_SETTINGS = collections.OrderedDict([
     ('Axis configuration/Commutation sensors', 0),
     ('Axis configuration/Control structure', MaxonControlStructure(gear=1).to_int()),
     ('Axis configuration/Sensors configuration', MaxonSensorsConfiguration(sensorType3=0, sensorType2=0, sensorType1=1).to_int()),
+    ('Axis configuration/Axis configuration miscellaneous', 1 << 8),  # disable main sensor supervision
     ('Digital incremental encoder 1/Digital incremental encoder 1 number of pulses', 1024),
     ('Digital incremental encoder 1/Digital incremental encoder 1 type', 1),
     ('Digital input properties/Digital inputs polarity', MAXON_INPUT_LOW_ACTIVE),

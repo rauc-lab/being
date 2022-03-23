@@ -661,12 +661,11 @@ class CiA402Node(RemoteNode):
         self.setup_txpdo(3, enabled=False)
         self.setup_txpdo(4, enabled=False)
 
-        self.setup_rxpdo(1, CONTROLWORD)
+        self.setup_rxpdo(1, enabled=False)
         self.setup_rxpdo(2, TARGET_POSITION, TARGET_VELOCITY)
         self.setup_rxpdo(3, enabled=False)
         self.setup_rxpdo(4, enabled=False)
 
-        network.register_rpdo(self.rpdo[1])
         network.register_rpdo(self.rpdo[2])
 
     def setup_txpdo(self,
@@ -689,7 +688,7 @@ class CiA402Node(RemoteNode):
             enabled: Enable or disable TxPDO.
             overwrite: Overwrite TxPDO.
             trans_type: Event based or synchronized transmission
-            event_timer:
+            event_timer: Update period [ms]
         """
         tx = self.tpdo[nr]
         if overwrite:
@@ -762,15 +761,17 @@ class CiA402Node(RemoteNode):
         """
         self.logger.debug('set_state(%s (how=%r))', target, how)
         if target in {State.NOT_READY_TO_SWITCH_ON, State.FAULT, State.FAULT_REACTION_ACTIVE}:
-            raise ValueError(f'Can not change to state {target}')
+            self.logger.warning(f'Can not change to state {target}')
+            return
 
         current = self.get_state(how)
         if current == target:
-            return
+            return current
 
         edge = (current, target)
         if edge not in TRANSITION_COMMANDS:
-            raise RuntimeError(f'Invalid state transition from {current!r} to {target!r}!')
+            self.logger.warning(f'Invalid state transition from {current!r} to {target!r}!')
+            return current
 
         cw = TRANSITION_COMMANDS[edge]
         if how == 'pdo':
@@ -779,6 +780,8 @@ class CiA402Node(RemoteNode):
             self.sdo[CONTROLWORD].raw = cw
         else:
             raise ValueError(f'Unknown how {how!r}')
+
+        return
 
     def state_switching_job(self,
             target: State,
@@ -819,7 +822,9 @@ class CiA402Node(RemoteNode):
             if current != lastPlanned:
                 lastPlanned = current
                 intermediate = WHERE_TO_GO_NEXT[(current, target)]
-                self.set_state(intermediate, how)
+                current = self.set_state(intermediate, how)
+                if current is not None:
+                    continue
 
             current = self.get_state(how)
 
@@ -900,9 +905,7 @@ class CiA402Node(RemoteNode):
 
     def reset_fault(self):
         """Perform fault reset to SWITCH_ON_DISABLED."""
-        self.logger.info('Resetting fault')
-        # TODO: Should we check if in State.FAULT and only then emitting a fault
-        # reset command?
+        self.logger.warning('Resetting fault')
         self.sdo[CONTROLWORD].raw = 0
         self.sdo[CONTROLWORD].raw = CW.FAULT_RESET
 

@@ -9,4 +9,4 @@ ruamel.yaml
 scipy
 setuptools
 tomlkit
-tox
+coloredlogs

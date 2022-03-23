@@ -10,6 +10,7 @@ import time
 from typing import Generator, Callable, Optional
 
 from canopen.variable import Variable
+from canopen.sdo.exceptions import SdoCommunicationError
 
 from being.bitmagic import check_bit_mask
 from being.can.cia_402 import (
@@ -247,7 +248,7 @@ class CiA402Homing(HomingBase):
 
         self.logger = get_logger(f'CiA402Homing(nodeId: {node.id})')
         self.statusword = node.pdo[STATUSWORD]
-        self.controlword = node.pdo[CONTROLWORD]
+        self.controlword = node.sdo[CONTROLWORD]
         self.endTime = -1
 
     def start_timeout_clock(self):
@@ -259,13 +260,13 @@ class CiA402Homing(HomingBase):
         """Check if timeout expired."""
         expired = time.perf_counter() > self.endTime
         if expired:
-            self.logger.error('Homing timeout expired (>%.1f sec)', self.timeout)
+            self.logger.warning('Homing timeout expired (>%.1f sec)', self.timeout)
 
         return expired
 
     def change_state(self, target) -> Generator:
         """Change to node's state job."""
-        return self.node.state_switching_job(target, how='pdo')
+        return self.node.state_switching_job(target, how='sdo')
 
     def set_operation_mode(self, op: OperationMode):
         """Set operation mode of node. No questions asked..."""
@@ -338,7 +339,12 @@ class CrudeHoming(CiA402Homing):
     def halt_drive(self) -> Generator:
         """Stop drive."""
         self.logger.debug('halt_drive()')
-        self.controlword.raw = Command.ENABLE_OPERATION | CW.HALT
+        # fixme: retry once on SdoCommunicationError
+        try:
+            self.controlword.raw = Command.ENABLE_OPERATION | CW.HALT
+        except SdoCommunicationError as e:
+            self.logger.error(e)
+            self.controlword.raw = Command.ENABLE_OPERATION | CW.HALT
         yield
 
     def move_drive(self, velocity: int) -> Generator:
@@ -388,7 +394,7 @@ class CrudeHoming(CiA402Homing):
 
             yield from self.halt_drive()
 
-            # Turn off voltage to reset current current value
+            # Turn off voltage to reset current value
             yield from self.change_state(CiA402State.READY_TO_SWITCH_ON)
 
         width = self.upper - self.lower

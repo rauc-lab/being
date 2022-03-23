@@ -5,6 +5,7 @@ See Also:
 """
 import logging
 import logging.handlers
+import coloredlogs
 import os
 from typing import Optional
 from logging import Logger
@@ -20,7 +21,9 @@ FILENAME = CONFIG['Logging']['FILENAME']
 BEING_LOGGER = logging.getLogger('being')
 """Being root logger."""
 
-DEFAULT_EXCLUDES = ['parso', 'matplotlib', 'can', 'canopen', 'aiohttp',]
+DEFAULT_EXCLUDES = ['parso', 'matplotlib', 'can.interfaces.socketcan.socketcan', 'aiohttp',
+                    'canopen',
+                    ]
 
 
 def get_logger(name: Optional[str] = None, parent: Optional[Logger] = BEING_LOGGER) -> Logger:
@@ -62,12 +65,12 @@ def setup_logging(level: int = LEVEL):
     """
     # Note using logging.basicConfig(level=level) would route all the other
     # loggers to stdout
-    logging.root.setLevel(level)
 
-    formatter = logging.Formatter(
-        fmt='%(asctime)s.%(msecs)03d - %(levelname)5s - %(name)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-    )
+    fmt = '%(asctime)s.%(msecs)03d - %(levelname)5s - %(name)s - %(message)s'
+    datefmt = '%Y-%m-%d %H:%M:%S'
+    formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
+
+    coloredlogs.install(level=level, logger=logging.root, fmt=fmt, datefmt=datefmt)
 
     if DIRECTORY:
         os.makedirs(DIRECTORY, exist_ok=True)
@@ -78,9 +81,5 @@ def setup_logging(level: int = LEVEL):
             maxBytes=100 * MB,
             backupCount=5,
         )
-    else:
-        handler = logging.StreamHandler()
-
-    handler.setFormatter(formatter)
-    #handler.setLevel(level)
-    logging.root.addHandler(handler)
+        handler.setFormatter(formatter)
+        logging.root.addHandler(handler)

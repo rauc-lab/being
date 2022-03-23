@@ -77,9 +77,8 @@ async def _run_being_async(being: Being):
     while True:
         now = time_func()
         then = cycle * _INTERVAL
-        sleepTime = then - now
-        if sleepTime >= 0:
-            await asyncio.sleep(sleepTime)
+        sleepTime = max(then - now, 0.001)
+        await asyncio.sleep(sleepTime)
 
         being.single_cycle()
         cycle += 1

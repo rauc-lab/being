@@ -87,6 +87,7 @@ setup(
         'ruamel.yaml',
         'tomlkit',
         'configobj',
+        'coloredlogs',
     ],
     extras_require = {
         # portaudio needs to be installed

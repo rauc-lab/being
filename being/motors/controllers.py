@@ -196,7 +196,10 @@ class Controller(MotorInterface):
 
         self.init_homing(**homingKwargs)
 
-        # TODO: Perform fault reset if necessary before applying settings?
+        current_state = self.node.get_state()
+        self.logger.debug(f'current state: {current_state}')
+        if current_state == State.FAULT:
+            self.node.reset_fault()
 
         self.node.disable()  # Blocking SDO
 
@@ -211,24 +214,23 @@ class Controller(MotorInterface):
 
         self.node.set_operation_mode(operationMode)
 
-    def disable(self):
+    def disable(self, *args):
         """Disable motor. Schedule a state switching job. Will start by the next
         call of :meth:`Controller.update`.
         """
-        self.switchJob = self.node.state_switching_job(State.READY_TO_SWITCH_ON, how='pdo')
+        self.switchJob = self.node.state_switching_job(State.READY_TO_SWITCH_ON, how='sdo')
 
-    def enable(self):
+    def enable(self, *args):
         """Enable motor. Schedule a state switching job. Will start by the next
         call of :meth:`Controller.update`.
         """
-        self.switchJob = self.node.state_switching_job(State.OPERATION_ENABLED, how='pdo')
+        self.switchJob = self.node.state_switching_job(State.OPERATION_ENABLED, how='sdo')
 
     def motor_state(self) -> MotorState:
-
         # Map CiA 402 state to simplified MotorState
-        if self.lastState is State.OPERATION_ENABLED:
+        if self.lastState == State.OPERATION_ENABLED:
             return MotorState.ENABLED
-        elif self.lastState is State.FAULT:
+        elif self.lastState == State.FAULT:
             return MotorState.FAULT
         else:
             return MotorState.DISABLED
@@ -344,7 +346,7 @@ class Controller(MotorInterface):
 
     def state_changed(self, state: State) -> bool:
         """Check if node state changed since last call."""
-        if state is self.lastState:
+        if state == self.lastState:
             return False
 
         self.lastState = state
@@ -544,6 +546,14 @@ class Epos4(Controller):
             rpodTimeout = 0x8250
             if emcy.code == rpodTimeout:
                 self.rpdoTimeoutOccurred = True
+
+            if emcy.code == 0x8120:
+                from being.can.nmt import RESET_COMMUNICATION
+                self.node.nmt.state = RESET_COMMUNICATION
+                self.node.reset_fault()
+
+            if emcy.code == 0x81fd:
+                self.node.reset_fault()
 
             msg = self.format_emcy(emcy)
             self.logger.error(msg)

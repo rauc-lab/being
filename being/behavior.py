@@ -68,7 +68,7 @@ def create_params(attentionSpan: float = 10., motions: Optional[list] = None) ->
 
 class Behavior(Block, PubSub):
 
-    """Simple 3x state finite state machine behavior engine. Originally build
+    """Simple 3x state finite state machine behavior engine. Originally built
     for the ÉCAL workshop in March 2021.
 
     There are three states (:class:`being.behavior.State`):
@@ -153,7 +153,7 @@ class Behavior(Block, PubSub):
     @classmethod
     def from_config(cls, filepath: str, *args, **kwargs) -> Behavior:
         """
-        Construct behavior instance with an associated parms JSON file.
+        Construct behavior instance with an associated params JSON file.
         Remembers ``filepath`` and save each change of params to disk.
 
         Args:
