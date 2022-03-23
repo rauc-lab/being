@@ -762,15 +762,17 @@ class CiA402Node(RemoteNode):
         """
         self.logger.debug('set_state(%s (how=%r))', target, how)
         if target in {State.NOT_READY_TO_SWITCH_ON, State.FAULT, State.FAULT_REACTION_ACTIVE}:
-            raise ValueError(f'Can not change to state {target}')
+            self.logger.warning(f'Can not change to state {target}')
+            return
 
         current = self.get_state(how)
         if current == target:
-            return
+            return current
 
         edge = (current, target)
         if edge not in TRANSITION_COMMANDS:
-            raise RuntimeError(f'Invalid state transition from {current!r} to {target!r}!')
+            self.logger.warning(f'Invalid state transition from {current!r} to {target!r}!')
+            return current
 
         cw = TRANSITION_COMMANDS[edge]
         if how == 'pdo':
@@ -779,6 +781,8 @@ class CiA402Node(RemoteNode):
             self.sdo[CONTROLWORD].raw = cw
         else:
             raise ValueError(f'Unknown how {how!r}')
+
+        return
 
     def state_switching_job(self,
             target: State,
@@ -819,7 +823,9 @@ class CiA402Node(RemoteNode):
             if current != lastPlanned:
                 lastPlanned = current
                 intermediate = WHERE_TO_GO_NEXT[(current, target)]
-                self.set_state(intermediate, how)
+                current = self.set_state(intermediate, how)
+                if current is not None:
+                    continue
 
             current = self.get_state(how)
 
