@@ -906,9 +906,7 @@ class CiA402Node(RemoteNode):
 
     def reset_fault(self):
         """Perform fault reset to SWITCH_ON_DISABLED."""
-        self.logger.info('Resetting fault')
-        # TODO: Should we check if in State.FAULT and only then emitting a fault
-        # reset command?
+        self.logger.warning('Resetting fault')
         self.sdo[CONTROLWORD].raw = 0
         self.sdo[CONTROLWORD].raw = CW.FAULT_RESET
 

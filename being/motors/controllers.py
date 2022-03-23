@@ -196,7 +196,10 @@ class Controller(MotorInterface):
 
         self.init_homing(**homingKwargs)
 
-        # TODO: Perform fault reset if necessary before applying settings?
+        current_state = self.node.get_state()
+        self.logger.debug(f'current state: {current_state}')
+        if current_state == State.FAULT:
+            self.node.reset_fault()
 
         self.node.disable()  # Blocking SDO
 
