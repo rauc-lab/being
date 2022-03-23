@@ -195,7 +195,7 @@ class MotionPlayer(Block):
                 f'Motion {mc.name} is not compatible with connected motors'
                 f'({curve.n_channels} != {self.ndim})!'
             )
-            self.logger.error(msg)
+            self.logger.warning(msg)
 
         return self.play_curve(curve, mc.loop)
 

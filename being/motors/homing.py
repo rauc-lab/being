@@ -260,7 +260,7 @@ class CiA402Homing(HomingBase):
         """Check if timeout expired."""
         expired = time.perf_counter() > self.endTime
         if expired:
-            self.logger.error('Homing timeout expired (>%.1f sec)', self.timeout)
+            self.logger.warning('Homing timeout expired (>%.1f sec)', self.timeout)
 
         return expired
 
