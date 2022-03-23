@@ -394,7 +394,7 @@ class CrudeHoming(CiA402Homing):
 
             yield from self.halt_drive()
 
-            # Turn off voltage to reset current current value
+            # Turn off voltage to reset current value
             yield from self.change_state(CiA402State.READY_TO_SWITCH_ON)
 
         width = self.upper - self.lower
