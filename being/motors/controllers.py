@@ -545,6 +545,14 @@ class Epos4(Controller):
             if emcy.code == rpodTimeout:
                 self.rpdoTimeoutOccurred = True
 
+            if emcy.code == 0x8120:
+                from being.can.nmt import RESET_COMMUNICATION
+                self.node.nmt.state = RESET_COMMUNICATION
+                self.node.reset_fault()
+
+            if emcy.code == 0x81fd:
+                self.node.reset_fault()
+
             msg = self.format_emcy(emcy)
             self.logger.error(msg)
             self.publish(MotorEvent.ERROR, msg)
