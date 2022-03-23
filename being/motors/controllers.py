@@ -524,7 +524,12 @@ class Epos4(Controller):
         Reason: Because of settings dictionary it is not possible to have two
         entries. E.g. unset and then set to HOME_SWITCH.
         """
-        for subindex in range(1, 9):
+        productCode = node.sdo['Identity object']['Product code'].raw
+        if productCode == 0x68500000:  # micro version
+            subidx_range = (1, 2, 3, 4, 8)
+        else:
+            subidx_range = range(1, 9)
+        for subindex in subidx_range:
             node.sdo['Configuration of digital inputs'][subindex].raw = MaxonDigitalInput.NONE
 
     def set_target_position(self, targetPosition: float):
