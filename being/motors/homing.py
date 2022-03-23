@@ -248,7 +248,7 @@ class CiA402Homing(HomingBase):
 
         self.logger = get_logger(f'CiA402Homing(nodeId: {node.id})')
         self.statusword = node.pdo[STATUSWORD]
-        self.controlword = node.pdo[CONTROLWORD]
+        self.controlword = node.sdo[CONTROLWORD]
         self.endTime = -1
 
     def start_timeout_clock(self):
@@ -266,7 +266,7 @@ class CiA402Homing(HomingBase):
 
     def change_state(self, target) -> Generator:
         """Change to node's state job."""
-        return self.node.state_switching_job(target, how='pdo')
+        return self.node.state_switching_job(target, how='sdo')
 
     def set_operation_mode(self, op: OperationMode):
         """Set operation mode of node. No questions asked..."""

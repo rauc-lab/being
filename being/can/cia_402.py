@@ -661,12 +661,11 @@ class CiA402Node(RemoteNode):
         self.setup_txpdo(3, enabled=False)
         self.setup_txpdo(4, enabled=False)
 
-        self.setup_rxpdo(1, CONTROLWORD)
+        self.setup_rxpdo(1, enabled=False)
         self.setup_rxpdo(2, TARGET_POSITION, TARGET_VELOCITY)
         self.setup_rxpdo(3, enabled=False)
         self.setup_rxpdo(4, enabled=False)
 
-        network.register_rpdo(self.rpdo[1])
         network.register_rpdo(self.rpdo[2])
 
     def setup_txpdo(self,

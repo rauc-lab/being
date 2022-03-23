@@ -218,16 +218,15 @@ class Controller(MotorInterface):
         """Disable motor. Schedule a state switching job. Will start by the next
         call of :meth:`Controller.update`.
         """
-        self.switchJob = self.node.state_switching_job(State.READY_TO_SWITCH_ON, how='pdo')
+        self.switchJob = self.node.state_switching_job(State.READY_TO_SWITCH_ON, how='sdo')
 
     def enable(self):
         """Enable motor. Schedule a state switching job. Will start by the next
         call of :meth:`Controller.update`.
         """
-        self.switchJob = self.node.state_switching_job(State.OPERATION_ENABLED, how='pdo')
+        self.switchJob = self.node.state_switching_job(State.OPERATION_ENABLED, how='sdo')
 
     def motor_state(self) -> MotorState:
-
         # Map CiA 402 state to simplified MotorState
         if self.lastState == State.OPERATION_ENABLED:
             return MotorState.ENABLED
