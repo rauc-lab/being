@@ -10,6 +10,7 @@ import time
 from typing import Generator, Callable, Optional
 
 from canopen.variable import Variable
+from canopen.sdo.exceptions import SdoCommunicationError
 
 from being.bitmagic import check_bit_mask
 from being.can.cia_402 import (
@@ -338,7 +339,12 @@ class CrudeHoming(CiA402Homing):
     def halt_drive(self) -> Generator:
         """Stop drive."""
         self.logger.debug('halt_drive()')
-        self.controlword.raw = Command.ENABLE_OPERATION | CW.HALT
+        # fixme: retry once on SdoCommunicationError
+        try:
+            self.controlword.raw = Command.ENABLE_OPERATION | CW.HALT
+        except SdoCommunicationError as e:
+            self.logger.error(e)
+            self.controlword.raw = Command.ENABLE_OPERATION | CW.HALT
         yield
 
     def move_drive(self, velocity: int) -> Generator:
