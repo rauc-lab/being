@@ -7,7 +7,7 @@ from being.backends import CanBackend
 from being.behavior import Behavior
 from being.logging import setup_logging, suppress_other_loggers
 from being.motion_player import MotionPlayer
-from being.motors import LinearMotor, RotaryMotor
+from being.motors import LinearMotor
 from being.resources import register_resource, manage_resources
 from being.sensors import SensorGpio
 

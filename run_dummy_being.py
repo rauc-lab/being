@@ -7,7 +7,7 @@ from being.logging import suppress_other_loggers, setup_logging
 from being.motion_player import MotionPlayer
 from being.motors import DummyMotor
 from being.resources import manage_resources
-from being.sensors import Sensor, DummySensor
+from being.sensors import DummySensor
 
 #logging.basicConfig(level=logging.DEBUG)
 #setup_logging(level=logging.DEBUG)
