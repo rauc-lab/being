@@ -101,6 +101,8 @@ class Behavior(Block, PubSub):
             clock: Optional[Clock] = None,
             content: Optional[Content] = None,
             name: Optional[str] = None,
+            active = True,
+            randomMotion = True
         ):
         """
         Args:
@@ -130,8 +132,10 @@ class Behavior(Block, PubSub):
         self.clock = clock
         self.content = content
 
-        self.active: bool = True
+        self.active = active
         """If behavior engine is running."""
+
+        self.randomMotion = randomMotion
 
         self.state: State = State.STATE_I
         """Current behavior state."""
@@ -208,7 +212,6 @@ class Behavior(Block, PubSub):
 
     def reset(self):
         """Reset behavior states and attributes. Jump back to STATE_I."""
-        self.active = True
         self.state = State.STATE_I
         self.lastChanged = 0.
         self.lastPlayed = ''
@@ -255,15 +258,23 @@ class Behavior(Block, PubSub):
         motion = self.content.load_curve(name)
         return motion.end
 
-    def play_random_motion_for_current_state(self):
-        """Pick a random motion name from motions and fire a non-looping motion
+    def play_motion_for_current_state(self):
+        """Pick next or random motion name from motions and fire a non-looping motion
         command.
         """
         names = self._params['motions'][self.state.value]
         if len(names) == 0:
             return
 
-        name = random.choice(names)
+        if self.randomMotion:
+            try:
+                idx = (names.index(self.lastPlayed) + 1) % len(names)
+            except ValueError:
+                idx = 0
+            name = names[idx]
+        else:
+            name = random.choice(names)
+
         self.lastPlayed = name
         self.logger.info('Playing motion %r', name)
         duration = self.motion_duration(name)
@@ -301,12 +312,12 @@ class Behavior(Block, PubSub):
         if self.state is STATE_I:
             if triggered:
                 self.change_state(STATE_III)
-                self.play_random_motion_for_current_state()
+                self.play_motion_for_current_state()
 
         elif self.state is STATE_II:
             if triggered:
                 self.change_state(STATE_III)
-                self.play_random_motion_for_current_state()
+                self.play_motion_for_current_state()
             elif attentionLost and not playing:
                 self.change_state(STATE_I)
 
@@ -320,7 +331,7 @@ class Behavior(Block, PubSub):
                     self.change_state(STATE_I)
 
         if not playing:
-            self.play_random_motion_for_current_state()
+            self.play_motion_for_current_state()
 
     def to_dict(self):
         dct = super().to_dict()
