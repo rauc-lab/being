@@ -674,7 +674,7 @@ class CiA402Node(RemoteNode):
             overwrite: bool = True,
             enabled: bool = True,
             trans_type: TransmissionType = TransmissionType.SYNCHRONOUS_CYCLIC,
-            event_timer: Optional[int] = None,
+            event_timer: Optional[int] = None,  # TODO: set to 100 or so for FH motors to reduce bus load
         ):
         """Setup single transmission PDO of node (receiving PDO messages from
         remote node). Note: Sending / receiving direction always from the remote
