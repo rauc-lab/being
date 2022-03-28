@@ -40,7 +40,10 @@ from the device. :hex:
 
 SUPPORTED_DEVICE_TYPES: Dict[bytes, str] = {
     b'\x92\x01\x42\x00': 'eds_files/MCLM3002P-CO.eds',
-    b'\x92\x01\x02\x00': 'eds_files/maxon_EPOS4_50-5.eds',
+    b'\x92\x01\x02\x00': {
+        b'\x92\x01\x50\x61': 'eds_files/maxon_motor_EPOS4_0170h_6150h_0000h_0000h.eds',
+        b'\x00\x00\x50\x68': 'eds_files/maxon_motor_EPOS4_0170h_6850h_0000h_0000h.eds',
+    }
 }
 """Device type bytes to local EDS file mapping."""
 
@@ -78,7 +81,7 @@ def sdo_client(network: Network, nodeId: int, od: Optional[ObjectDictionary] = N
         network.unsubscribe(txCob)
 
 
-def _load_local_eds(deviceType: bytes) -> io.StringIO:
+def _load_local_eds(deviceType: bytes, productCode=None) -> io.StringIO:
     """Given deviceType try to load local EDS file.
 
     Args:
@@ -88,6 +91,8 @@ def _load_local_eds(deviceType: bytes) -> io.StringIO:
         EDS file content wrapped in StringIO buffer.
     """
     fp = SUPPORTED_DEVICE_TYPES[deviceType]
+    if productCode:
+        fp = fp[productCode]
     data = pkgutil.get_data(__name__, fp)
     return io.StringIO(data.decode())
 
@@ -119,7 +124,10 @@ def load_object_dictionary(network: Network, nodeId: int) -> ObjectDictionary:
 
         # Try to load local object dictionary
         if deviceType in SUPPORTED_DEVICE_TYPES:
-            filelike = _load_local_eds(deviceType)
+            productCode = None
+            if deviceType == b'\x92\x01\x02\x00':
+                productCode = client.open(0x1018, subindex=2).read()
+            filelike = _load_local_eds(deviceType, productCode)
             return import_eds(filelike, nodeId)
 
     raise RuntimeError(f'Unknown CANopen node {nodeId}. Could not load object dictionary!')
