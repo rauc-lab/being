@@ -134,6 +134,7 @@ class Controller(MotorInterface):
             direction: float = FORWARD,
             settings: Optional[dict] = None,
             operationMode: OperationMode = OperationMode.CYCLIC_SYNCHRONOUS_POSITION,
+            preHomingDirection = None,
             **homingKwargs,
         ):
         """
@@ -188,13 +189,13 @@ class Controller(MotorInterface):
         self.switchJob = None
         """Ongoing state switching job."""
 
-        self.wasEnabled: Optional[bool] = None  # None means "has not been set"
-
         # Prepare settings
         self.settings = merge_dicts(self.motor.defaultSettings, settings)
         """Final motor settings (which got applied to the drive."""
 
+        self.homing = None
         self.init_homing(**homingKwargs)
+        self.preHomingDirection = preHomingDirection
 
         current_state = self.node.get_state()
         self.logger.debug(f'current state: {current_state}')
@@ -207,8 +208,8 @@ class Controller(MotorInterface):
         """Last receive state of motor controller."""
 
         # Configure node
-        self.apply_motor_direction(direction)
         self.node.apply_settings(self.settings)
+        self.apply_motor_direction(direction)
         for errMsg in self.error_history_messages():
             self.logger.error(errMsg)
 
@@ -237,24 +238,12 @@ class Controller(MotorInterface):
 
     def capture(self):
         """Capture node state before homing."""
-        # If switchJob ongoing ignore
-        if not self.switchJob and self.wasEnabled is None:
-            self.wasEnabled = self.lastState is State.OPERATION_ENABLED
-        else:
-            self.wasEnabled = None
+        pass
 
     def restore(self):
         """Restore captured node state after homing is done."""
         self.node.sdo[MODES_OF_OPERATION].raw = self.operationMode
-
-        if self.wasEnabled is None:
-            pass
-        elif self.wasEnabled:
-            self.enable()
-        else:
-            self.disable()
-
-        self.wasEnabled = None
+        self.set_target_position(0)
 
     def home(self):
         """Start homing for this controller. Will start by the next call of
@@ -263,13 +252,23 @@ class Controller(MotorInterface):
         self.logger.debug('home()')
         if self.homing.ongoing:
             self.homing.stop()
-            self.wasEnabled = False  # Do not re-enable motor since not homed anymore
             self.restore()
         else:
             self.capture()
             self.homing.home()
 
-        self.publish(MotorEvent.HOMING_CHANGED)
+    def pre_home(self):
+        """Start pre-homing for this controller. Will start by the next call of
+        :meth:`Controller.update`.
+        """
+        if self.preHomingDirection is not None:
+            self.logger.debug('pre_home()')
+            if self.homing.ongoing:
+                self.homing.stop()
+                self.restore()
+            else:
+                self.capture()
+                self.homing.pre_home(self.preHomingDirection)
 
     def homing_state(self) -> HomingState:
         return self.homing.state
@@ -282,11 +281,11 @@ class Controller(MotorInterface):
         Args:
             **homingKwargs: Arbitrary keyword arguments for Homing.
         """
-        method = default_homing_method(**homingKwargs)
+
+        self.homing = CiA402Homing(self.node, **homingKwargs)
+        method = self.homing.homingMethod
         if method not in self.SUPPORTED_HOMING_METHODS:
             raise ValueError(f'Homing method {method} not supported for controller {self}')
-
-        self.homing = CiA402Homing(self.node)
         self.logger.debug('Setting homing method to %d', method)
         self.node.sdo[HOMING_METHOD].raw = method
 
@@ -411,14 +410,14 @@ class Mclm3002(Controller):
 
     def __init__(self,
             *args,
-            homingMethod: Optional[int] = None,
             homingDirection: float = FORWARD,
+            homeOffset: float = 0,
             operationMode: OperationMode = OperationMode.CYCLIC_SYNCHRONOUS_POSITION,
             **kwargs,
         ):
+        self.homeOffset = homeOffset
         super().__init__(
             *args,
-            homingMethod=homingMethod,
             homingDirection=homingDirection,
             operationMode=operationMode,
             **kwargs,
@@ -429,7 +428,9 @@ class Mclm3002(Controller):
         if method in self.HARD_STOP_HOMING:
             minWidth = self.position_si_2_device * self.length
             currentLimit = self.settings['Current Control Parameter Set/Continuous Current Limit']
-            self.homing = CrudeHoming(self.node, minWidth, homingMethod=method, currentLimit=currentLimit)
+            self.homing = CrudeHoming(self.node, minWidth, homingMethod=method,
+                                      homeOffset=self.homeOffset,
+                                      currentLimit=currentLimit, **homingKwargs)
         else:
             super().init_homing(homingMethod=method)
 

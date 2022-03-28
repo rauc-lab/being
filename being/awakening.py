@@ -22,6 +22,7 @@ from being.block import Block
 from being.clock import Clock
 from being.configuration import CONFIG
 from being.connectables import MessageInput
+from being.constants import FORWARD, BACKWARD
 from being.logging import get_logger
 from being.pacemaker import Pacemaker
 from being.resources import register_resource
@@ -149,11 +150,12 @@ def _say_hello(nBlocks: int):
 def awake(
         *blocks: Iterable[Block],
         web: bool = True,
-        enableMotors: bool = True,
         homeMotors: bool = True,
         usePacemaker: bool = True,
         clock: Optional[Clock] = None,
         network: Optional[CanBackend] = None,
+        sequential_homing: bool = False,
+        pre_homing: bool = False,
     ):
     """Run being block network.
 
@@ -161,7 +163,6 @@ def awake(
         blocks: Some blocks of the network. Remaining blocks will be auto
             discovered.
         web: Run with web server.
-        enableMotors: Enable motors on startup.
         homeMotors: Home motors on startup.
         usePacemaker: If to use an extra pacemaker thread.
         clock: Clock instance.
@@ -174,7 +175,7 @@ def awake(
         network = CanBackend.single_instance_get()
 
     pacemaker = Pacemaker(network)
-    being = Being(blocks, clock, pacemaker, network)
+    being = Being(blocks, clock, pacemaker, network, sequential_homing, pre_homing)
 
     if network is not None:
         network.reset_communication()
@@ -186,10 +187,7 @@ def awake(
         network.send_sync()  # Update local TXPDOs values
         time.sleep(0.200)
 
-    if enableMotors:
-        being.enable_motors()
-    else:
-        being.disable_motors()
+    being.disable_motors()
 
     if homeMotors:
         being.home_motors()
