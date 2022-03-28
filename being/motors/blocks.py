@@ -362,6 +362,9 @@ class CanMotor(MotorBlock):
         self.controller.home()
         super().home()
 
+    def pre_home(self, direction):
+        self.controller.pre_home(direction)    
+
     def homing_state(self):
         return self.controller.homing_state()
 

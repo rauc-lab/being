@@ -207,10 +207,7 @@ class Controller(MotorInterface):
         """Last receive state of motor controller."""
 
         # Configure node
-        self.apply_motor_direction(direction)
-        self.node.apply_settings(self.settings)
-        for errMsg in self.error_history_messages():
-            self.logger.error(errMsg)
+        self.configure_node()
 
         self.node.set_operation_mode(operationMode)
 
@@ -269,7 +266,18 @@ class Controller(MotorInterface):
             self.capture()
             self.homing.home()
 
-        self.publish(MotorEvent.HOMING_CHANGED)
+    def pre_home(self, direction):
+        """Start pre-homing for this controller. Will start by the next call of
+        :meth:`Controller.update`.
+        """
+        self.logger.debug('pre_home()')
+        if self.homing.ongoing:
+            self.homing.stop()
+            self.wasEnabled = False  # Do not re-enable motor since not homed anymore
+            self.restore()
+        else:
+            self.capture()
+            self.homing.pre_home(direction)
 
     def homing_state(self) -> HomingState:
         return self.homing.state
@@ -294,6 +302,11 @@ class Controller(MotorInterface):
     def apply_motor_direction(self, direction: float):
         """Configure direction or orientation of controller / motor."""
         raise NotImplementedError
+
+    @abc.abstractmethod
+    def configure_node(self):
+        """Apply settings to the controller""" 
+        raise NotImplementedError()
 
     def format_emcy(self, emcy: EmcyError) -> str:
         """Get vendor specific description of EMCY error."""
@@ -433,7 +446,20 @@ class Mclm3002(Controller):
         else:
             super().init_homing(homingMethod=method)
 
+    def configure_node(self):
+        self.apply_motor_direction(self.direction)
+        if self.direction < 0:
+            # Swap interpretation of min / max positions
+            minimum = self.settings['Software Position Limit/Minimum Position Limit']
+            maximum = self.settings['Software Position Limit/Maximum Position Limit']
+            self.settings['Software Position Limit/Maximum Position Limit'] = minimum
+            self.settings['Software Position Limit/Minimum Position Limit'] = maximum
+        self.node.apply_settings(self.settings)
+        for errMsg in self.error_history_messages():
+            self.logger.error(errMsg)
+
     def apply_motor_direction(self, direction: float):
+        self.logger.debug(f"Apply motor direction {direction}")
         if direction >= 0:
             positivePolarity = 0
             self.node.sdo['Polarity'].raw = positivePolarity
@@ -507,6 +533,12 @@ class Epos4(Controller):
         lowWord = 16
         firmwareVersion = revisionNumber >> lowWord
         return firmwareVersion
+
+    def configure_node(self):
+        self.apply_motor_direction(self.direction)
+        self.node.apply_settings(self.settings)
+        for errMsg in self.error_history_messages():
+            self.logger.error(errMsg)
 
     def apply_motor_direction(self, direction: float):
         variable = self.node.sdo['Axis configuration']['Axis configuration miscellaneous']

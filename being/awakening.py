@@ -22,6 +22,7 @@ from being.block import Block
 from being.clock import Clock
 from being.configuration import CONFIG
 from being.connectables import MessageInput
+from being.constants import FORWARD, BACKWARD
 from being.logging import get_logger
 from being.pacemaker import Pacemaker
 from being.resources import register_resource
@@ -154,6 +155,9 @@ def awake(
         usePacemaker: bool = True,
         clock: Optional[Clock] = None,
         network: Optional[CanBackend] = None,
+        sequential_homing: bool = False,
+        pre_homing: bool = False,
+        pre_homing_direction: float = BACKWARD,
     ):
     """Run being block network.
 
@@ -174,7 +178,7 @@ def awake(
         network = CanBackend.single_instance_get()
 
     pacemaker = Pacemaker(network)
-    being = Being(blocks, clock, pacemaker, network)
+    being = Being(blocks, clock, pacemaker, network, sequential_homing, pre_homing, pre_homing_direction)
 
     if network is not None:
         network.reset_communication()

@@ -9,6 +9,7 @@ from being.block import Block
 from being.can.nmt import OPERATIONAL, PRE_OPERATIONAL
 from being.clock import Clock
 from being.configuration import CONFIG
+from being.constants import FORWARD, BACKWARD
 from being.connectables import ValueOutput, MessageOutput
 from being.execution import execute, block_network_graph
 from being.graph import Graph, topological_sort
@@ -16,6 +17,7 @@ from being.logging import get_logger
 from being.motion_player import MotionPlayer
 from being.motors.blocks import MotorBlock
 from being.motors.homing import HomingState
+from being.motors.definitions import MotorEvent
 from being.pacemaker import Pacemaker
 from being.params import Parameter
 from being.utils import filter_by_type
@@ -62,6 +64,9 @@ class Being:
             clock: Clock,
             pacemaker: Pacemaker,
             network: Optional[CanBackend] = None,
+            sequential_homing: bool = False,
+            pre_homing: bool = False,
+            pre_homing_direction: float = BACKWARD,
         ):
         """
         Args:
@@ -105,6 +110,22 @@ class Being:
         self.params: List[Parameter] = list(filter_by_type(self.execOrder, Parameter))
         """All parameter blocks."""
 
+        self.sequential_homing: bool = sequential_homing
+        """One by one homing."""
+
+        self.pre_homing: bool = pre_homing
+        """Moves motors to safe position before homing."""
+
+        self.pre_homing_direction: float = pre_homing_direction
+        """Direction for safe homing."""
+
+        self.motors_unhomed: Iterator = iter(self.motors)
+        """Iterator for sequential homing."""
+
+        if sequential_homing:
+            for motor in self.motors:
+                motor.controller.subscribe(MotorEvent.HOMING_CHANGED, lambda: self.next_homing())
+
     def enable_motors(self):
         """Enable all motor blocks."""
         self.logger.info('enable_motors()')
@@ -120,8 +141,14 @@ class Being:
     def home_motors(self):
         """Home all motors."""
         self.logger.info('home_motors()')
-        for motor in self.motors:
-            motor.home()
+        if self.pre_homing:
+            for motor in self.motors:
+                motor.pre_home(self.pre_homing_direction)
+        elif self.sequential_homing:
+            next(self.motors_unhomed).home()
+        else:
+            for motor in self.motors:
+                motor.home()
 
     def start_behaviors(self):
         """Start all behaviors."""
@@ -132,6 +159,16 @@ class Being:
         """Pause all behaviors."""
         for behavior in self.behaviors:
             behavior.pause()
+
+    def next_homing(self):
+        """Controls one by one homing."""
+        if any(motor.homing_state() is HomingState.ONGOING for motor in self.motors):
+            return
+        else:
+            try:
+                next(self.motors_unhomed).home()
+            except StopIteration:
+                self.logger.debug('All motors are homed.')
 
     def single_cycle(self):
         """Execute single being cycle. Network sync, executing block network,
