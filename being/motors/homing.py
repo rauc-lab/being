@@ -139,6 +139,16 @@ def homing_reference_run(statusword: Variable) -> Generator:
         yield
 
 
+def write_controlword(controlword, value, logger):
+    # fixme: retry on SdoCommunicationError
+    while True:
+        try:
+            controlword.raw = value
+            return
+        except SdoCommunicationError as e:
+            logger.error(e)
+
+
 class HomingBase(abc.ABC):
 
     """Abstract homing base class."""
@@ -356,22 +366,17 @@ class CrudeHoming(CiA402Homing):
     def halt_drive(self) -> Generator:
         """Stop drive."""
         self.logger.debug('halt_drive()')
-        # fixme: retry once on SdoCommunicationError
-        try:
-            self.controlword.raw = Command.ENABLE_OPERATION | CW.HALT
-        except SdoCommunicationError as e:
-            self.logger.error(e)
-            self.controlword.raw = Command.ENABLE_OPERATION | CW.HALT
+        write_controlword(self.controlword, Command.ENABLE_OPERATION | CW.HALT, self.logger)
         yield
 
     def move_drive(self, velocity: int) -> Generator:
         """Move motor with constant velocity."""
         self.logger.debug('move_drive(%d)', velocity)
-        self.controlword.raw = Command.ENABLE_OPERATION
+        write_controlword(self.controlword, Command.ENABLE_OPERATION, self.logger)
         yield
         self.node.set_target_velocity(velocity)
         yield
-        self.controlword.raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
+        write_controlword(self.controlword, Command.ENABLE_OPERATION | CW.NEW_SET_POINT, self.logger)
         yield
 
     def on_the_wall(self) -> bool:
