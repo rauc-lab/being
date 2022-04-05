@@ -1,10 +1,10 @@
 aiohttp >= 3.7.0, <= 3.7.4
 aiohttp-jinja2>=1.5
-canopen
+canopen==2.0.0
 configobj
 matplotlib
 numpy
-python-can
+python-can==4.0.0
 ruamel.yaml
 scipy
 setuptools
