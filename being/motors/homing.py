@@ -27,7 +27,7 @@ from being.can.cia_402 import (
     UNDEFINED,
     determine_homing_method
 )
-from being.constants import INF
+from being.constants import INF, BACKWARD
 from being.logging import get_logger
 from being.serialization import register_enum
 from being.utils import toss_coin
@@ -57,6 +57,7 @@ def default_homing_method(
         homingDirection: int = UNDEFINED,
         endSwitches: bool = False,
         indexPulse: bool = False,
+        **kwargs
     ) -> int:
     """Determine homing method from default homing kwargs."""
     if homingMethod is not None:
@@ -172,6 +173,11 @@ class HomingBase(abc.ABC):
         """Primary homing job."""
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def pre_homing_job(self, direction) -> Generator:
+        """Primary homing job."""
+        raise NotImplementedError
+
     def home(self):
         """Start homing."""
         self.logger.debug('home()')
@@ -181,6 +187,17 @@ class HomingBase(abc.ABC):
             self.cancel_job()
 
         self.job = self.homing_job()
+        self.state = HomingState.ONGOING
+
+    def pre_home(self, direction):
+        """Start pre-homing."""
+        self.logger.debug('pre_home()')
+        self.logger.debug('Starting pre-homing')
+        self.state = HomingState.UNHOMED
+        if self.job:
+            self.cancel_job()
+
+        self.job = self.pre_homing_job(direction)
         self.state = HomingState.ONGOING
 
     def update(self):
@@ -240,10 +257,10 @@ class CiA402Homing(HomingBase):
 
     """CiA 402 by the book."""
 
-    def __init__(self, node, timeout=10.0, **kwargs):
+    def __init__(self, node, homingTimeout=10.0, **kwargs):
         super().__init__()
         self.node = node
-        self.timeout = timeout
+        self.timeout = homingTimeout
         self.homingMethod = default_homing_method(**kwargs)
 
         self.logger = get_logger(f'CiA402Homing(nodeId: {node.id})')
@@ -303,23 +320,23 @@ class CiA402Homing(HomingBase):
     def __str__(self):
         return f'{type(self).__name__}({self.node}, {self.state})'
 
+    def pre_homing_job(self, direction):
+        pass
+
 
 class CrudeHoming(CiA402Homing):
     """Crude hard stop homing for Faulhaber linear motors.
-
-    Args:
-        speed: Speed for homing in device units.
     """
 
-    def __init__(self, node, minWidth, currentLimit, timeout=10.0, **kwargs):
-        super().__init__(node, timeout=timeout, **kwargs)
+    def __init__(self, node, minWidth, homeOffset, currentLimit,
+                 homingTimeout=10.0, homingSpeed=100, **kwargs):
+        super().__init__(node, homingTimeout=homingTimeout, **kwargs)
+        self.speed = homingSpeed
         self.minWidth = minWidth
+        self.homeOffset = homeOffset
         self.currentLimit = currentLimit
         self.lower = INF
         self.upper = -INF
-
-        self.logger.info('Overwriting TxPDO4 of %s for Current Actual Value', node)
-        node.setup_txpdo(4, 'Current Actual Value')
 
     @property
     def width(self) -> float:
@@ -362,7 +379,8 @@ class CrudeHoming(CiA402Homing):
         current = self.node.pdo['Current Actual Value'].raw
         return current > self.currentLimit  # Todo: Add percentage threshold?
 
-    def homing_job(self, speed: int = 100):
+    def homing_job(self):
+        speed = self.speed
         self.logger.debug('homing_job()')
         self.start_timeout_clock()
         self.lower = INF
@@ -380,6 +398,9 @@ class CrudeHoming(CiA402Homing):
 
         sdo['Home Offset'].raw = 0
         self.set_operation_mode(OperationMode.PROFILE_VELOCITY)
+
+        self.logger.debug('Overwriting TxPDO4 of %s for "Current Actual Value"', node)
+        node.setup_txpdo(4, 'Current Actual Value')
 
         for vel in velocities:
             yield from self.halt_drive()
@@ -409,7 +430,39 @@ class CrudeHoming(CiA402Homing):
             margin = .5 * (width - self.minWidth)
             self.lower += margin
             self.upper -= margin
+            self.logger.debug(f'{self.lower} {self.upper}')
+            sdo['Home Offset'].raw = self.lower + self.homeOffset
 
-            sdo['Home Offset'].raw = self.lower
+            self.node.enable()
+
+        self.logger.debug('Disabling TxPDO4 of %s', node)
+        node.setup_txpdo(4, enabled=False)
 
         self.state = final
+
+    def pre_homing_job(self, direction: float = BACKWARD):
+        """Moves motor to one end for safe homing."""
+        self.logger.debug('pre_homing_job()')
+        node = self.node
+
+        self.logger.debug('Overwriting TxPDO4 of %s for "Current Actual Value"', node)
+        node.setup_txpdo(4, 'Current Actual Value')
+
+        yield from self.change_state(CiA402State.READY_TO_SWITCH_ON)
+        self.set_operation_mode(OperationMode.PROFILE_VELOCITY)
+
+        yield from self.halt_drive()
+        yield from self.move_drive(direction * 100)
+
+        self.logger.debug('Driving towards the wall')
+        while not self.on_the_wall(): # and not self.timeout_expired():
+            yield
+
+        self.logger.debug('Hit the wall')
+
+        yield from self.halt_drive()
+
+        self.logger.debug('Disabling TxPDO4 of %s', node)
+        node.setup_txpdo(4, enabled=False)
+
+        self.state = HomingState.UNHOMED
