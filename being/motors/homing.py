@@ -235,6 +235,9 @@ class DummyHoming(HomingBase):
     def __str__(self):
         return f'{type(self).__name__}({self.state})'
 
+    def pre_homing_job(self, *args, **kwargs):
+        pass
+
 
 class CiA402Homing(HomingBase):
 
