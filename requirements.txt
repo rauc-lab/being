@@ -10,3 +10,4 @@ scipy
 setuptools
 tomlkit
 coloredlogs
+uptime
