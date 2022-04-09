@@ -19,7 +19,7 @@ const N_TICKS = 1000;
 
 /** @constant {string} - Template string for behavior widget. */
 export const BEHAVIOR_TEMPLATE = `
-<div class="container">
+<div class="container" id="behavior_container">
     <div id="statesDiv" class="states"></div>
 </div>
 `;
@@ -129,9 +129,13 @@ export class Behavior extends Widget {
         this.append_template(BEHAVIOR_TEMPLATE);
 
         this.statesDiv = this.shadowRoot.getElementById("statesDiv");
+        this.container = this.shadowRoot.getElementById("behavior_container");
 
         const label = document.createElement("label");
         this.toolbar.appendChild(label);
+        this.toolbar.addEventListener("click", () => {
+            this.container.classList.toggle('hide');
+        });
         label.innerHTML = "Now playing: ";
         label.style.marginLeft = "0.5em";
         label.style.marginRight = "0.5em";
@@ -163,7 +167,8 @@ export class Behavior extends Widget {
         const behavior = await this.api.load_behavior();
         this.update(behavior);
 
-        this.playPauseBtn.addEventListener("click", async () => {
+        this.playPauseBtn.addEventListener("click", async (event) => {
+            event.stopPropagation();
             const behavior = await this.api.toggle_behavior_playback();
             this.update(behavior);
         });
