@@ -124,7 +124,7 @@ const EDITOR_TEMPLATE = `
     .container {
         display: flex;
         flex-flow: row;
-        align-items: strech;
+        align-items: stretch;
         flex-grow: 1;
         border-top: 2px solid black;
     }
