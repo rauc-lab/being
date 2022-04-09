@@ -236,7 +236,7 @@ export class Editor extends Widget {
             this.assign_channel_names();
         });
 
-        this.toggle_limits();  // Enable by default. Can only happens once we have selected a motion player!
+        this.toggle_limits();  // Enable by default. Can only happen once we have selected a motion player!
 
         // Channel select
         this.setup_channel_select();
@@ -273,7 +273,7 @@ export class Editor extends Widget {
     }
 
     /**
-     * Curve action decorator. Decorates methods that accept an event an return
+     * Curve action decorator. Decorates methods that accept an event a return
      * a new modified curve.
      *
      * @param {function} func - Curve action function to decorate.
@@ -410,7 +410,7 @@ export class Editor extends Widget {
         this.snapBtn = this.add_button_to_toolbar("grid_3x3", "Snap to grid");  // TODO: Or vertical_align_center?
         this.snapBtn.addEventListener("click", () => this.toggle_snap_to_grid());
 
-        this.c1Btn = this.add_button_to_toolbar("timeline", "Break continous knot transitions");
+        this.c1Btn = this.add_button_to_toolbar("timeline", "Break continuous knot transitions");
         this.c1Btn.addEventListener("click", () => this.toggle_c1());
 
         this.limitBtn = this.add_button_to_toolbar("fence", "Limit motion to selected motor");
@@ -474,7 +474,7 @@ export class Editor extends Widget {
             newCurve.shift(DEFAULT_KNOT_SHIFT, channel);
             return newCurve;
         }));
-        this.add_button_to_toolbar("flip", "Flip curve horiztonally")
+        this.add_button_to_toolbar("flip", "Flip curve horizontally")
         .addEventListener("click", this.curve_action(evt => {
             const newCurve = this.history.retrieve().copy();
             const channel = evt.shiftKey ? ALL_CHANNELS : this.selected_channel();
@@ -901,7 +901,7 @@ export class Editor extends Widget {
             this.assure_limits();
         } else {
             this.no_limits()
-        };
+        }
 
         switch_button_to(this.limitBtn, opposite);
     }
@@ -1113,7 +1113,7 @@ export class Editor extends Widget {
      * corresponding history.
      *
      * @param {string} name - Curve name.
-     * @param {Curve} curve - Curve instance to draw..
+     * @param {Curve} curve - Curve instance to draw.
      */
     draw_curve(name, curve) {
         if (!this.histories.has(name)) {
@@ -1158,7 +1158,7 @@ export class Editor extends Widget {
      * feature (if enabled).
      *
      * @param {array | null} [position=null] Optional position array. If live
-     *     preview is selected the y component will be send to the backend.
+     *     preview is selected the y component will be sent to the backend.
      */
     curve_changing(position = null) {
         this.stop_motion_playback();
@@ -1381,7 +1381,7 @@ export class Editor extends Widget {
     /**
      * Process new motions / content message.
      *
-     * @param {object} - Content changed message.
+     * @param {object} msg - Content changed message.
      */
     new_motions_message(msg) {
         this.populate(msg.curves);
