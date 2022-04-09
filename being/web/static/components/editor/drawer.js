@@ -203,7 +203,7 @@ export class Grid {
 
 /**
  * Annotation wrapper. Manages single HTML span element for overlaying
- * informations while dragging.
+ * information while dragging.
  *
  * .. figure:: ../images/annotation.png
  *    :width: 50%
@@ -790,7 +790,7 @@ export class Drawer extends Plotter {
     move_selected_knots(offset, snap = false) {
         const spline = this.foregroundCurve.splines[this.foregroundChannel];
         const numbers = this.selection.sorted();
-        assert(numbers.length === this.initialPositions.length, "Rembered knot positions not up to date!");
+        assert(numbers.length === this.initialPositions.length, "Remembered knot positions not up to date!");
         numbers.forEach((knotNr, i) => {
             let target = add_arrays(this.initialPositions[i], offset);
             if (snap) {
@@ -1013,7 +1013,7 @@ export class Drawer extends Plotter {
      *
      * @param {Curve} curve - Curve to draw path for.
      * @param {number} channel - Active curve channel number.
-     * @param {string} className - CSS class name to assigne to path.
+     * @param {string} className - CSS class name to assigned to path.
      */
     plot_curve_path(curve, channel, className) {
         const spline = curve.splines[channel];
