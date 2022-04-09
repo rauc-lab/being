@@ -13,7 +13,7 @@ import { isclose } from "/static/js/math.js";
 
 /** @constant {string} - Control panel widget template. */
 const CONTROL_PANEL_TEMPLATE = `
-<div class="container">
+<div class="container" id="control_panel_container">
     <svg id="svg" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
     <ul id="console" class="console"></ul>
 </div>
@@ -54,12 +54,16 @@ export class ControlPanel extends Widget {
         this.append_template(CONTROL_PANEL_TEMPLATE);
         this.svg = this.shadowRoot.getElementById("svg");
         this.parametersContainer = this.shadowRoot.getElementById("parameters");
+        this.container = this.shadowRoot.getElementById("control_panel_container");
 
         // Toolbar
         this.powerBtn = this.add_button_to_toolbar("power_settings_new", "Turn motors on / off");
         this.homeBtn = this.add_button_to_toolbar("home", "Home motors");
         const space = this.add_space_to_toolbar();
         space.style.flexGrow = 1;
+        space.addEventListener("click", () => {
+            this.container.classList.toggle('hide');
+        });
         this.copyLogsToClipboardBtn = this.add_button_to_toolbar("content_copy", "Copy console messages to clipboard");
         this.consoleBtn = this.add_button_to_toolbar("dehaze", "Toggle console");
         this.consoleBtn.style.marginRight = "-2px";
