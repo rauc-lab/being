@@ -136,6 +136,7 @@ const EDITOR_TEMPLATE = `
     being-drawer {
         flex-grow: 1;
         border: none;
+        max-height: 70vh;
     }
 
     [folded] {
