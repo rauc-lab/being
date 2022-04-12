@@ -24,6 +24,8 @@ import { Widget, append_template_to, create_select, } from "/static/js/widget.js
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
 const ZOOM_FACTOR_PER_STEP = 1.5;
 
+const PAN_FACTOR_PER_STEP = .1;
+
 // in X axis units
 const MIN_WIDTH = .1;
 const MAX_WIDTH = 60;
@@ -56,6 +58,14 @@ function zoom_bbox(bbox, factor) {
     zoomed.left = mid - width / 2;
     zoomed.right = mid + width / 2;
     return zoomed;
+}
+
+
+function shift_bbox(bbox, factor) {
+    const shifted = bbox.copy();
+    shifted.left -= bbox.width * factor;
+    shifted.right -= bbox.width * factor;
+    return shifted;
 }
 
 
@@ -348,6 +358,14 @@ export class Editor extends Widget {
             const current = this.history.retrieve();
             const bbox = current.bbox();
             this.drawer.change_viewport(bbox);
+        });
+        this.add_button_to_toolbar("west", "Pan left").addEventListener("click", () => {
+            const panned = shift_bbox(this.drawer.viewport, PAN_FACTOR_PER_STEP);
+            this.drawer.change_viewport(panned);
+        });
+        this.add_button_to_toolbar("east", "Pan right").addEventListener("click", () => {
+            const panned = shift_bbox(this.drawer.viewport, -PAN_FACTOR_PER_STEP);
+            this.drawer.change_viewport(panned);
         });
         this.add_space_to_toolbar();
 
