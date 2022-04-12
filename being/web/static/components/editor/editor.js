@@ -1178,7 +1178,7 @@ export class Editor extends Widget {
 
     /**
      * Notify spline editor that the spline working copy is going to change.
-     * Also supply a optional [x, y] position value for the live preview
+     * Also supply an optional [x, y] position value for the live preview
      * feature (if enabled).
      *
      * @param {array | null} [position=null] Optional position array. If live
