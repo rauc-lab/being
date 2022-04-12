@@ -24,6 +24,10 @@ import { Widget, append_template_to, create_select, } from "/static/js/widget.js
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
 const ZOOM_FACTOR_PER_STEP = 1.5;
 
+// in X axis units
+const MIN_WIDTH = .1;
+const MAX_WIDTH = 60;
+
 /** @const {string} - Folded motion / spline list HTML attribute */
 const FOLDED = "folded";
 
@@ -48,8 +52,9 @@ const NOTHING_SELECTED = -1;
 function zoom_bbox(bbox, factor) {
     const zoomed = bbox.copy();
     const mid = .5 * (bbox.left + bbox.right);
-    zoomed.left = 1 / factor * (bbox.left - mid) + mid;
-    zoomed.right = 1 / factor * (bbox.right - mid) + mid;
+    let width = clip(bbox.width / factor, MIN_WIDTH, MAX_WIDTH);
+    zoomed.left = mid - width / 2;
+    zoomed.right = mid + width / 2;
     return zoomed;
 }
 
