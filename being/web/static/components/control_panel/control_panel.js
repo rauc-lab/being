@@ -61,13 +61,14 @@ export class ControlPanel extends Widget {
         this.homeBtn = this.add_button_to_toolbar("home", "Home motors");
         const space = this.add_space_to_toolbar();
         space.style.flexGrow = 1;
-        space.addEventListener("click", () => {
+        this.consoleBtn = this.add_button_to_toolbar("text_snippet", "Toggle console");
+        switch_button_on(this.consoleBtn);
+        this.copyLogsToClipboardBtn = this.add_button_to_toolbar("content_copy", "Copy console messages to clipboard");
+        this.minimizeBtn = this.add_button_to_toolbar("dehaze", "Minimize panel");
+        this.minimizeBtn.style.marginRight = "-2px";
+        this.minimizeBtn.addEventListener("click", () => {
             this.container.classList.toggle('hide');
         });
-        this.copyLogsToClipboardBtn = this.add_button_to_toolbar("content_copy", "Copy console messages to clipboard");
-        this.consoleBtn = this.add_button_to_toolbar("dehaze", "Toggle console");
-        this.consoleBtn.style.marginRight = "-2px";
-        switch_button_on(this.consoleBtn);
 
         // Console
         this.consoleList = this.shadowRoot.getElementById("console");

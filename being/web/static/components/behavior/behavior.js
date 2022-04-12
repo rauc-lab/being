@@ -133,15 +133,19 @@ export class Behavior extends Widget {
 
         const label = document.createElement("label");
         this.toolbar.appendChild(label);
-        this.toolbar.addEventListener("click", () => {
-            this.container.classList.toggle('hide');
-        });
         label.innerHTML = "Now playing: ";
         label.style.marginLeft = "0.5em";
         label.style.marginRight = "0.5em";
         this.nowPlayingSpan = document.createElement("span");
         this.nowPlayingSpan.classList.add("now-playing");
         this.toolbar.appendChild(this.nowPlayingSpan);
+        const space = this.add_space_to_toolbar();
+        space.style.flexGrow = 1;
+        this.minimizeBtn = this.add_button_to_toolbar("dehaze", "Minimize panel");
+        this.minimizeBtn.style.marginRight = "-2px";
+        this.minimizeBtn.addEventListener("click", () => {
+            this.container.classList.toggle('hide');
+        });
         this.attentionSpanSlider = document.createElement("input");
         this.attentionSpanSlider.setAttribute("type", "range");
         this.attentionSpanSlider.setAttribute("min", 0);
