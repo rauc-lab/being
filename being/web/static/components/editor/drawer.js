@@ -563,6 +563,7 @@ export class Drawer extends Plotter {
             this.emit_curve_changing();
             const pos = this.mouse_coordinates(evt);
             spline.insert_knot(pos);
+            this.forget_selection();
             this.emit_curve_changed(wc);
         });
     }
