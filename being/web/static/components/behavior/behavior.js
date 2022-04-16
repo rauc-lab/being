@@ -120,11 +120,11 @@ export class Behavior extends Widget {
         this.load();
     }
 
-    set_minimized(minimized) {
-        if (minimized)
-            this.container.classList.add('hide');
-        else
+    set_visible(visible) {
+        if (visible)
             this.container.classList.remove('hide');
+        else
+            this.container.classList.add('hide');
     }
 
     /**
@@ -151,11 +151,11 @@ export class Behavior extends Widget {
         this.minimizeBtn = this.add_button_to_toolbar("dehaze", "Minimize panel");
         this.minimizeBtn.style.marginRight = "-2px";
         this.minimizeBtn.addEventListener("click", () => {
-            let minimized = localStorage.getItem('behavior_panel_minimized') !== 'true';
-            localStorage.setItem('behavior_panel_minimized', minimized.toString());
-            this.set_minimized(minimized);
+            let visible = localStorage.getItem('behavior_panel_visible') === 'true';
+            localStorage.setItem('behavior_panel_visible', (!visible).toString());
+            this.set_visible(!visible);
         });
-        this.set_minimized(localStorage.getItem('behavior_panel_minimized') === 'true');
+        this.set_visible(localStorage.getItem('behavior_panel_visible') === 'true');
         this.attentionSpanSlider = document.createElement("input");
         this.attentionSpanSlider.setAttribute("type", "range");
         this.attentionSpanSlider.setAttribute("min", 0);
