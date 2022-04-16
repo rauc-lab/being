@@ -33,7 +33,7 @@ const Transitions = {
  * @param {boolean} [looping=true] - Initial looping state.
  */
 export class Transport {
-    constructor(drawer, looping = true) {
+    constructor(drawer, looping = false) {
         this.drawer = drawer;
         this.state = PAUSED;
         this.looping = looping;
