@@ -527,7 +527,7 @@ export class Drawer extends Plotter {
 
         // Attributes which will be overwritten by editor
         this.c1 = true;
-        this.snapping_to_grid = true;
+        this.snapping_to_grid = false;
         this.limits = new BBox([0, -Infinity], [Infinity, Infinity]);
 
         // SVG drawing elements
