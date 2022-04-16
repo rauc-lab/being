@@ -176,12 +176,17 @@ const PLOTTER_TEMPLATE = `
         height: 100%;
     }
 </style>
+<div>
 <canvas id="canvas">
     Your browser doesn't support the HTML5 canvas tag.
 </canvas>
 <svg id="svg" xmlns="http://www.w3.org/2000/svg">
     Your browser doesn't support inline SVG.
 </svg>
+<span style="padding-left:1em">
+<i>Double click anywhere to create new points. Hold shift down to side-scroll or scale.</i>
+</span>
+</div>
 `;
 
 
