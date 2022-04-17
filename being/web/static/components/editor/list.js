@@ -434,11 +434,11 @@ export class List extends WidgetBase {
     }
 
     /**
-     * Attache necessary event listeners to list entry.
+     * Attach necessary event listeners to list entry.
      * 
      * - Clicking for select
      * - Toggle eye symbol for arming
-     * - Double clicking for renaming.
+     * - Double-clicking for renaming.
      *
      * @param {HTMLLIElement} - List entry.
      */
@@ -636,7 +636,7 @@ export class List extends WidgetBase {
     }
 
     /**
-     * Do we have an motion player association for a given curve?
+     * Do we have a motion player association for a given curve?
      *
      * @param {string} name - Curve name.
      *
