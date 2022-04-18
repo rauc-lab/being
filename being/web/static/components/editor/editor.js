@@ -200,6 +200,8 @@ export class Editor extends Widget {
         this.drawer = this.shadowRoot.querySelector("being-drawer");
         this.transport = new Transport(this.drawer);
         this.interval = null;
+        this.renderInterval = null;
+        this.lastRenderTimestamp = -Infinity;
         this.notificationCenter = null;
 
         this.motionPlayers = [];
@@ -239,6 +241,7 @@ export class Editor extends Widget {
     async connectedCallback() {
         const config = await this.api.get_config();
         this.interval = config["Web"]["INTERVAL"];
+        this.renderInterval = config["Web"]["RENDER_INTERVAL"];
 
         // Motion player selection
         this.motionPlayers = await this.api.get_motion_player_infos();
@@ -1387,7 +1390,10 @@ export class Editor extends Widget {
             this.drawer.auto_scale();
         }
 
-        this.drawer.draw_canvas();
+        if (msg.timestamp - this.lastRenderTimestamp >= this.renderInterval) {
+            this.drawer.draw_canvas();
+            this.lastRenderTimestamp = msg.timestamp;
+        }
     }
 
     /**
