@@ -478,6 +478,9 @@ export class Plotter extends WidgetBase {
         // Image view space -> Data space
         this.trafoInv = this.trafo.inverse();
         this.ctx.setTransform(this.trafo);
+
+        this.tick_space_x = tick_space(this.viewport.ll[0], this.viewport.ur[0]);
+        this.tick_space_y = tick_space(this.viewport.ll[1], this.viewport.ur[1]);
     }
 
     /**
@@ -511,13 +514,13 @@ export class Plotter extends WidgetBase {
         ctx.font = ".8em Helvetica";
         ctx.textAlign = "center";
         ctx.textBaseline = "top";   // top, middle, bottom
-        tick_space(this.viewport.ll[0], this.viewport.ur[0]).forEach(x => {
+        this.tick_space_x.forEach(x => {
             const pt = (new DOMPoint(x, 0)).matrixTransform(this.trafo);
             ctx.fillText(x, pt.x, clip(pt.y + offset, 0, this.canvas.height - this.margin));
         });
         ctx.textAlign = "right";
         ctx.textBaseline = "middle";   // top, middle, bottom
-        tick_space(this.viewport.ll[1], this.viewport.ur[1]).forEach(y => {
+        this.tick_space_y.forEach(y => {
             const pt = (new DOMPoint(0, y)).matrixTransform(this.trafo);
             ctx.fillText(y, clip(pt.x - offset, this.margin, this.canvas.width), pt.y);
         });
