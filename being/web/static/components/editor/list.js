@@ -414,7 +414,7 @@ export class List extends WidgetBase {
         const sup = entry.appendChild(document.createElement("sup"));
         sup.innerText = curve.n_channels;
 
-        this.attache_event_listeners_to_entry(entry);
+        this.attach_event_listeners_to_entry(entry);
         return entry;
     }
 
@@ -442,7 +442,7 @@ export class List extends WidgetBase {
      *
      * @param {HTMLLIElement} - List entry.
      */
-    attache_event_listeners_to_entry(entry) {
+    attach_event_listeners_to_entry(entry) {
         assert(entry.hasOwnProperty("name"), "entry has no name attribute!");
 
         make_editable(
