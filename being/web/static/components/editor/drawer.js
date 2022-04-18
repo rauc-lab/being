@@ -232,8 +232,7 @@ export class Annotation {
     move(pos, offset = 10) {
         const [x, y] = this.drawer.transform_point(pos);
         const bbox = this.span.getBoundingClientRect();
-        const width = this.drawer.canvas.width;
-        const height = this.drawer.canvas.height;
+        const width = this.drawer.canvas_axes.width;
         this.span.style.left = Math.min(x + offset, width - bbox.width) + "px";
         this.span.style.top = Math.max(y - offset - bbox.height, 0) + "px";
     }
@@ -637,7 +636,7 @@ export class Drawer extends Plotter {
                     // Affine transform viewport around focal point
                     const clientPos = [evt.clientX, evt.clientY];
                     const delta = subtract_arrays(clientPos, clientStartPos);
-                    const shift = -delta[0] / this.canvas.width * original.width;
+                    const shift = -delta[0] / this.canvas_axes.width * original.width;
                     const factor = Math.exp(-0.01 * delta[1]);
                     this.viewport.left = factor * (original.left - focal + shift) + focal;
                     this.viewport.right = factor * (original.right - focal + shift) + focal;
@@ -1192,7 +1191,6 @@ export class Drawer extends Plotter {
         assert(spline.degree <= Degree.CUBIC, `Spline degree ${spline.degree} not supported!`);
         this.plot_curve_path(curve, channel, className);
         if (className === "foreground") {
-            const knotCircles = [];
             const knotNumbers = arange(spline.n_segments + 1);
             knotNumbers.forEach(knotNr => {
                 // Plot control points and helper lines
@@ -1215,7 +1213,6 @@ export class Drawer extends Plotter {
                 knotCircle.addEventListener("mouseleave", evt => {
                     cpGroup.classList.remove("fade-in");
                 });
-                knotCircles.push(knotCircle)
             });
         }
     }
