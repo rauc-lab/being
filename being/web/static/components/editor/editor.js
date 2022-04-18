@@ -1374,7 +1374,7 @@ export class Editor extends Widget {
         } else {
             this.outputIndices.forEach(idx => {
                 const actualValue = msg.values[idx];
-                this.drawer.plot_value(t, actualValue, idx);
+                this.drawer.plot_values(t, [actualValue], idx);
             });
         }
 

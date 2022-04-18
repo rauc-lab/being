@@ -294,46 +294,25 @@ export class Plotter extends WidgetBase {
      * @param {number} lineNr - Line number.
      */
     init_new_line(lineNr) {
-        const newLine = new Line(this.ctx, this.colorPicker.next())
-        newLine.maxlen = this._maxlen;
+        const newLine = new Line(this.ctx, this.colorPicker.next(), this._maxlen);
         this.lines.set(lineNr, newLine);
     }
 
     /**
-     * Plot single new value.
+     * Plot new values.
      * 
      * @param {number} timestamp - Timestamp.
-     * @param {number} value - Scalar value.
+     * @param {array} values - Scalar values.
      * @param {number} lineNr - Line number to append new values to.
      */
-    plot_value(timestamp, value, lineNr=0) {
+    plot_values(timestamp, values, lineNr=0) {
         if (!this.lines.has(lineNr)) {
             this.init_new_line(lineNr);
         }
 
-        this.lines.get(lineNr).append_data([timestamp, value]);
-    }
-
-    /**
-     * Plot some new values. Get appended to current lines.
-     *
-     * @param {number} timestamp - Timestamp value.
-     * @param {array} values - Values to plot.
-     */
-    plot_values(timestamp, values) {
-        values.forEach((value, nr) => {
-            this.plot_value(timestamp, value, nr);
+        values.forEach(value => {
+            this.lines.get(lineNr).append_data([timestamp, value]);
         });
-    }
-
-    /**
-     * Plot all values across time in a being state message.
-     * 
-     * @param {object} msg - Being state message.
-     */
-    plot_being_state_message(msg) {
-        this.plot_values(msg.timestamp, msg.values);
-        this.draw();
     }
 
     /**
