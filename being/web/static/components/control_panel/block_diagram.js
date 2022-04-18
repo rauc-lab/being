@@ -47,6 +47,7 @@ const BLOCK_DIAGRAM_SVG_STYLE = `
     path.connection.value {
         stroke-dasharray: 5;
         animation: dash 1.7s infinite linear;
+        animation-play-state: paused;
     }
 
     @keyframes dash {
