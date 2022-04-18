@@ -214,24 +214,24 @@ export class ControlPanel extends Widget {
      * @param {Object} msg - Being state message.
      */
     new_being_state_message(msg) {
-        this.messageConnections.forEach(con => {
-            const ms = msg.messages[con.index];
-            if (ms.length) {
-                con.trigger();
-            }
-        });
-
-        if (this.lastValues !== []) {
-            this.valueConnections.forEach(con => {
-                if (isclose(msg.values[con.index], this.lastValues[con.index], 1e-3)) {
-                    con.pause();
-                } else {
-                    con.play();
-                }
-            });
-        }
-
-        this.lastValues = msg.values;
+        // this.messageConnections.forEach(con => {
+        //     const ms = msg.messages[con.index];
+        //     if (ms.length) {
+        //         con.trigger();
+        //     }
+        // });
+        //
+        // if (this.lastValues !== []) {
+        //     this.valueConnections.forEach(con => {
+        //         if (isclose(msg.values[con.index], this.lastValues[con.index], 1e-3)) {
+        //             con.pause();
+        //         } else {
+        //             con.play();
+        //         }
+        //     });
+        // }
+        //
+        // this.lastValues = msg.values;
     }
 
     /**
