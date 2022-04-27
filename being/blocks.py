@@ -1,4 +1,5 @@
 """Collection of miscellaneous blocks."""
+import collections
 import math
 import sys
 import time
@@ -173,3 +174,29 @@ class Pendulum(Block):
     def update(self):
         phase = TAU * self.frequency * self.clock.now()
         self.output.value = ranged_sine_pulse(phase, self.lower, self.upper)
+
+
+class MessagePipe(Block):
+
+    """Pipes an arbitrary number of message inputs to an single output."""
+
+    def __init__(self, ndim: int = 2, **kwargs):
+        """
+        Args:
+            ndim (optional): number of message inputs.
+        """
+        super().__init__(**kwargs)
+        self.add_message_output()
+        self.queue = collections.deque(maxlen=50)
+
+        for _ in range(ndim):
+            self.add_message_input()
+
+    def update(self):
+        for input in self.inputs:
+           evt =  input.receive()
+           self.queue.append(evt)
+
+        while self.queue:
+            evt = self.queue.popleft()
+            self.output.send(evt)
