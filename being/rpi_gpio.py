@@ -5,7 +5,7 @@ The package `RPi.GPIO` is not available on non Raspberry Pi platform. Dummy
 """
 try:
     import RPi.GPIO as GPIO
-except ImportError:
+except (RuntimeError, ImportError):
     from being.logging import get_logger
 
 
