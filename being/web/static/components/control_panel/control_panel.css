@@ -79,3 +79,7 @@ div.toolbar button.homing-ongoing {
 div.toolbar button.homing-homed {
     animation: pulse-green 2s 1;
 }
+
+.hide {
+    display: none;
+}

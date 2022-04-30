@@ -13,7 +13,7 @@ import { isclose } from "/static/js/math.js";
 
 /** @constant {string} - Control panel widget template. */
 const CONTROL_PANEL_TEMPLATE = `
-<div class="container">
+<div class="container" id="control_panel_container">
     <svg id="svg" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
     <ul id="console" class="console"></ul>
 </div>
@@ -46,6 +46,13 @@ export class ControlPanel extends Widget {
         this.notificationCenter = notificationCenter;
     }
 
+    set_visible(visible) {
+        if (visible)
+            this.container.classList.remove('hide');
+        else
+            this.container.classList.add('hide');
+    }
+
     /**
      * Initialize HTML elements with shadow dom.
      */
@@ -54,16 +61,24 @@ export class ControlPanel extends Widget {
         this.append_template(CONTROL_PANEL_TEMPLATE);
         this.svg = this.shadowRoot.getElementById("svg");
         this.parametersContainer = this.shadowRoot.getElementById("parameters");
+        this.container = this.shadowRoot.getElementById("control_panel_container");
 
         // Toolbar
         this.powerBtn = this.add_button_to_toolbar("power_settings_new", "Turn motors on / off");
         this.homeBtn = this.add_button_to_toolbar("home", "Home motors");
         const space = this.add_space_to_toolbar();
         space.style.flexGrow = 1;
-        this.copyLogsToClipboardBtn = this.add_button_to_toolbar("content_copy", "Copy console messages to clipboard");
-        this.consoleBtn = this.add_button_to_toolbar("dehaze", "Toggle console");
-        this.consoleBtn.style.marginRight = "-2px";
+        this.consoleBtn = this.add_button_to_toolbar("text_snippet", "Toggle console");
         switch_button_on(this.consoleBtn);
+        this.copyLogsToClipboardBtn = this.add_button_to_toolbar("content_copy", "Copy console messages to clipboard");
+        this.minimizeBtn = this.add_button_to_toolbar("dehaze", "Minimize panel");
+        this.minimizeBtn.style.marginRight = "-2px";
+        this.minimizeBtn.addEventListener("click", () => {
+            let visible = localStorage.getItem('control_panel_visible') === 'true';
+            localStorage.setItem('control_panel_visible', (!visible).toString());
+            this.set_visible(!visible);
+        });
+        this.set_visible(localStorage.getItem('control_panel_visible') === 'true');
 
         // Console
         this.consoleList = this.shadowRoot.getElementById("console");
@@ -199,24 +214,24 @@ export class ControlPanel extends Widget {
      * @param {Object} msg - Being state message.
      */
     new_being_state_message(msg) {
-        this.messageConnections.forEach(con => {
-            const ms = msg.messages[con.index];
-            if (ms.length) {
-                con.trigger();
-            }
-        });
-
-        if (this.lastValues !== []) {
-            this.valueConnections.forEach(con => {
-                if (isclose(msg.values[con.index], this.lastValues[con.index], 1e-3)) {
-                    con.pause();
-                } else {
-                    con.play();
-                }
-            });
-        }
-
-        this.lastValues = msg.values;
+        // this.messageConnections.forEach(con => {
+        //     const ms = msg.messages[con.index];
+        //     if (ms.length) {
+        //         con.trigger();
+        //     }
+        // });
+        //
+        // if (this.lastValues !== []) {
+        //     this.valueConnections.forEach(con => {
+        //         if (isclose(msg.values[con.index], this.lastValues[con.index], 1e-3)) {
+        //             con.pause();
+        //         } else {
+        //             con.play();
+        //         }
+        //     });
+        // }
+        //
+        // this.lastValues = msg.values;
     }
 
     /**

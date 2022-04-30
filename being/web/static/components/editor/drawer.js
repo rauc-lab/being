@@ -203,7 +203,7 @@ export class Grid {
 
 /**
  * Annotation wrapper. Manages single HTML span element for overlaying
- * informations while dragging.
+ * information while dragging.
  *
  * .. figure:: ../images/annotation.png
  *    :width: 50%
@@ -233,7 +233,6 @@ export class Annotation {
         const [x, y] = this.drawer.transform_point(pos);
         const bbox = this.span.getBoundingClientRect();
         const width = this.drawer.canvas.width;
-        const height = this.drawer.canvas.height;
         this.span.style.left = Math.min(x + offset, width - bbox.width) + "px";
         this.span.style.top = Math.max(y - offset - bbox.height, 0) + "px";
     }
@@ -527,7 +526,7 @@ export class Drawer extends Plotter {
 
         // Attributes which will be overwritten by editor
         this.c1 = true;
-        this.snapping_to_grid = true;
+        this.snapping_to_grid = false;
         this.limits = new BBox([0, -Infinity], [Infinity, Infinity]);
 
         // SVG drawing elements
@@ -563,6 +562,7 @@ export class Drawer extends Plotter {
             this.emit_curve_changing();
             const pos = this.mouse_coordinates(evt);
             spline.insert_knot(pos);
+            this.forget_selection();
             this.emit_curve_changed(wc);
         });
     }
@@ -790,7 +790,7 @@ export class Drawer extends Plotter {
     move_selected_knots(offset, snap = false) {
         const spline = this.foregroundCurve.splines[this.foregroundChannel];
         const numbers = this.selection.sorted();
-        assert(numbers.length === this.initialPositions.length, "Rembered knot positions not up to date!");
+        assert(numbers.length === this.initialPositions.length, "Remembered knot positions not up to date!");
         numbers.forEach((knotNr, i) => {
             let target = add_arrays(this.initialPositions[i], offset);
             if (snap) {
@@ -1013,7 +1013,7 @@ export class Drawer extends Plotter {
      *
      * @param {Curve} curve - Curve to draw path for.
      * @param {number} channel - Active curve channel number.
-     * @param {string} className - CSS class name to assigne to path.
+     * @param {string} className - CSS class name to assigned to path.
      */
     plot_curve_path(curve, channel, className) {
         const spline = curve.splines[channel];
@@ -1191,7 +1191,6 @@ export class Drawer extends Plotter {
         assert(spline.degree <= Degree.CUBIC, `Spline degree ${spline.degree} not supported!`);
         this.plot_curve_path(curve, channel, className);
         if (className === "foreground") {
-            const knotCircles = [];
             const knotNumbers = arange(spline.n_segments + 1);
             knotNumbers.forEach(knotNr => {
                 // Plot control points and helper lines
@@ -1214,7 +1213,6 @@ export class Drawer extends Plotter {
                 knotCircle.addEventListener("mouseleave", evt => {
                     cpGroup.classList.remove("fade-in");
                 });
-                knotCircles.push(knotCircle)
             });
         }
     }

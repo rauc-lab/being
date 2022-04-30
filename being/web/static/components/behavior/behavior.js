@@ -19,7 +19,7 @@ const N_TICKS = 1000;
 
 /** @constant {string} - Template string for behavior widget. */
 export const BEHAVIOR_TEMPLATE = `
-<div class="container">
+<div class="container" id="behavior_container">
     <div id="statesDiv" class="states"></div>
 </div>
 `;
@@ -120,6 +120,13 @@ export class Behavior extends Widget {
         this.load();
     }
 
+    set_visible(visible) {
+        if (visible)
+            this.container.classList.remove('hide');
+        else
+            this.container.classList.add('hide');
+    }
+
     /**
      * Build DOM elements.
      */
@@ -129,6 +136,7 @@ export class Behavior extends Widget {
         this.append_template(BEHAVIOR_TEMPLATE);
 
         this.statesDiv = this.shadowRoot.getElementById("statesDiv");
+        this.container = this.shadowRoot.getElementById("behavior_container");
 
         const label = document.createElement("label");
         this.toolbar.appendChild(label);
@@ -138,6 +146,16 @@ export class Behavior extends Widget {
         this.nowPlayingSpan = document.createElement("span");
         this.nowPlayingSpan.classList.add("now-playing");
         this.toolbar.appendChild(this.nowPlayingSpan);
+        const space = this.add_space_to_toolbar();
+        space.style.flexGrow = 1;
+        this.minimizeBtn = this.add_button_to_toolbar("dehaze", "Minimize panel");
+        this.minimizeBtn.style.marginRight = "-2px";
+        this.minimizeBtn.addEventListener("click", () => {
+            let visible = localStorage.getItem('behavior_panel_visible') === 'true';
+            localStorage.setItem('behavior_panel_visible', (!visible).toString());
+            this.set_visible(!visible);
+        });
+        this.set_visible(localStorage.getItem('behavior_panel_visible') === 'true');
         this.attentionSpanSlider = document.createElement("input");
         this.attentionSpanSlider.setAttribute("type", "range");
         this.attentionSpanSlider.setAttribute("min", 0);
@@ -163,7 +181,8 @@ export class Behavior extends Widget {
         const behavior = await this.api.load_behavior();
         this.update(behavior);
 
-        this.playPauseBtn.addEventListener("click", async () => {
+        this.playPauseBtn.addEventListener("click", async (event) => {
+            event.stopPropagation();
             const behavior = await this.api.toggle_behavior_playback();
             this.update(behavior);
         });

@@ -24,6 +24,12 @@ import { Widget, append_template_to, create_select, } from "/static/js/widget.js
 /** @const {number} - Magnification factor for one single click on the zoom buttons */
 const ZOOM_FACTOR_PER_STEP = 1.5;
 
+const PAN_FACTOR_PER_STEP = .1;
+
+// in X axis units
+const MIN_WIDTH = .1;
+const MAX_WIDTH = 60;
+
 /** @const {string} - Folded motion / spline list HTML attribute */
 const FOLDED = "folded";
 
@@ -48,9 +54,18 @@ const NOTHING_SELECTED = -1;
 function zoom_bbox(bbox, factor) {
     const zoomed = bbox.copy();
     const mid = .5 * (bbox.left + bbox.right);
-    zoomed.left = 1 / factor * (bbox.left - mid) + mid;
-    zoomed.right = 1 / factor * (bbox.right - mid) + mid;
+    let width = clip(bbox.width / factor, MIN_WIDTH, MAX_WIDTH);
+    zoomed.left = mid - width / 2;
+    zoomed.right = mid + width / 2;
     return zoomed;
+}
+
+
+function shift_bbox(bbox, factor) {
+    const shifted = bbox.copy();
+    shifted.left -= bbox.width * factor;
+    shifted.right -= bbox.width * factor;
+    return shifted;
 }
 
 
@@ -124,7 +139,7 @@ const EDITOR_TEMPLATE = `
     .container {
         display: flex;
         flex-flow: row;
-        align-items: strech;
+        align-items: stretch;
         flex-grow: 1;
         border-top: 2px solid black;
     }
@@ -136,6 +151,7 @@ const EDITOR_TEMPLATE = `
     being-drawer {
         flex-grow: 1;
         border: none;
+        max-height: 70vh;
     }
 
     [folded] {
@@ -184,6 +200,8 @@ export class Editor extends Widget {
         this.drawer = this.shadowRoot.querySelector("being-drawer");
         this.transport = new Transport(this.drawer);
         this.interval = null;
+        this.renderInterval = null;
+        this.lastRenderTimestamp = -Infinity;
         this.notificationCenter = null;
 
         this.motionPlayers = [];
@@ -223,6 +241,7 @@ export class Editor extends Widget {
     async connectedCallback() {
         const config = await this.api.get_config();
         this.interval = config["Web"]["INTERVAL"];
+        this.renderInterval = config["Web"]["RENDER_INTERVAL"];
 
         // Motion player selection
         this.motionPlayers = await this.api.get_motion_player_infos();
@@ -236,7 +255,7 @@ export class Editor extends Widget {
             this.assign_channel_names();
         });
 
-        this.toggle_limits();  // Enable by default. Can only happens once we have selected a motion player!
+        this.toggle_limits();  // Enable by default. Can only happen once we have selected a motion player!
 
         // Channel select
         this.setup_channel_select();
@@ -273,7 +292,7 @@ export class Editor extends Widget {
     }
 
     /**
-     * Curve action decorator. Decorates methods that accept an event an return
+     * Curve action decorator. Decorates methods that accept an event a return
      * a new modified curve.
      *
      * @param {function} func - Curve action function to decorate.
@@ -343,6 +362,14 @@ export class Editor extends Widget {
             const bbox = current.bbox();
             this.drawer.change_viewport(bbox);
         });
+        this.add_button_to_toolbar("west", "Pan left").addEventListener("click", () => {
+            const panned = shift_bbox(this.drawer.viewport, PAN_FACTOR_PER_STEP);
+            this.drawer.change_viewport(panned);
+        });
+        this.add_button_to_toolbar("east", "Pan right").addEventListener("click", () => {
+            const panned = shift_bbox(this.drawer.viewport, -PAN_FACTOR_PER_STEP);
+            this.drawer.change_viewport(panned);
+        });
         this.add_space_to_toolbar();
 
 
@@ -410,7 +437,7 @@ export class Editor extends Widget {
         this.snapBtn = this.add_button_to_toolbar("grid_3x3", "Snap to grid");  // TODO: Or vertical_align_center?
         this.snapBtn.addEventListener("click", () => this.toggle_snap_to_grid());
 
-        this.c1Btn = this.add_button_to_toolbar("timeline", "Break continous knot transitions");
+        this.c1Btn = this.add_button_to_toolbar("timeline", "Break continuous knot transitions");
         this.c1Btn.addEventListener("click", () => this.toggle_c1());
 
         this.limitBtn = this.add_button_to_toolbar("fence", "Limit motion to selected motor");
@@ -474,7 +501,7 @@ export class Editor extends Widget {
             newCurve.shift(DEFAULT_KNOT_SHIFT, channel);
             return newCurve;
         }));
-        this.add_button_to_toolbar("flip", "Flip curve horiztonally")
+        this.add_button_to_toolbar("flip", "Flip curve horizontally")
         .addEventListener("click", this.curve_action(evt => {
             const newCurve = this.history.retrieve().copy();
             const channel = evt.shiftKey ? ALL_CHANNELS : this.selected_channel();
@@ -901,7 +928,7 @@ export class Editor extends Widget {
             this.assure_limits();
         } else {
             this.no_limits()
-        };
+        }
 
         switch_button_to(this.limitBtn, opposite);
     }
@@ -1113,7 +1140,7 @@ export class Editor extends Widget {
      * corresponding history.
      *
      * @param {string} name - Curve name.
-     * @param {Curve} curve - Curve instance to draw..
+     * @param {Curve} curve - Curve instance to draw.
      */
     draw_curve(name, curve) {
         if (!this.histories.has(name)) {
@@ -1154,11 +1181,11 @@ export class Editor extends Widget {
 
     /**
      * Notify spline editor that the spline working copy is going to change.
-     * Also supply a optional [x, y] position value for the live preview
+     * Also supply an optional [x, y] position value for the live preview
      * feature (if enabled).
      *
      * @param {array | null} [position=null] Optional position array. If live
-     *     preview is selected the y component will be send to the backend.
+     *     preview is selected the y component will be sent to the backend.
      */
     curve_changing(position = null) {
         this.stop_motion_playback();
@@ -1350,7 +1377,7 @@ export class Editor extends Widget {
         } else {
             this.outputIndices.forEach(idx => {
                 const actualValue = msg.values[idx];
-                this.drawer.plot_value(t, actualValue, idx);
+                this.drawer.plot_values(t, [actualValue], idx);
             });
         }
 
@@ -1363,7 +1390,10 @@ export class Editor extends Widget {
             this.drawer.auto_scale();
         }
 
-        this.drawer.draw_canvas();
+        if (msg.timestamp - this.lastRenderTimestamp >= this.renderInterval) {
+            this.drawer.draw_canvas();
+            this.lastRenderTimestamp = msg.timestamp;
+        }
     }
 
     /**
@@ -1381,7 +1411,7 @@ export class Editor extends Widget {
     /**
      * Process new motions / content message.
      *
-     * @param {object} - Content changed message.
+     * @param {object} msg - Content changed message.
      */
     new_motions_message(msg) {
         this.populate(msg.curves);

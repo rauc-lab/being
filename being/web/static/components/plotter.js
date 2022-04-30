@@ -176,12 +176,17 @@ const PLOTTER_TEMPLATE = `
         height: 100%;
     }
 </style>
+<div>
 <canvas id="canvas">
     Your browser doesn't support the HTML5 canvas tag.
 </canvas>
 <svg id="svg" xmlns="http://www.w3.org/2000/svg">
     Your browser doesn't support inline SVG.
 </svg>
+<span style="padding-left:1em">
+<i>Double click anywhere to create new points. Hold shift down to side-scroll or scale.</i>
+</span>
+</div>
 `;
 
 
@@ -289,46 +294,25 @@ export class Plotter extends WidgetBase {
      * @param {number} lineNr - Line number.
      */
     init_new_line(lineNr) {
-        const newLine = new Line(this.ctx, this.colorPicker.next())
-        newLine.maxlen = this._maxlen;
+        const newLine = new Line(this.ctx, this.colorPicker.next(), this._maxlen);
         this.lines.set(lineNr, newLine);
     }
 
     /**
-     * Plot single new value.
+     * Plot new values.
      * 
      * @param {number} timestamp - Timestamp.
-     * @param {number} value - Scalar value.
+     * @param {array} values - Scalar values.
      * @param {number} lineNr - Line number to append new values to.
      */
-    plot_value(timestamp, value, lineNr=0) {
+    plot_values(timestamp, values, lineNr=0) {
         if (!this.lines.has(lineNr)) {
             this.init_new_line(lineNr);
         }
 
-        this.lines.get(lineNr).append_data([timestamp, value]);
-    }
-
-    /**
-     * Plot some new values. Get appended to current lines.
-     *
-     * @param {number} timestamp - Timestamp value.
-     * @param {array} values - Values to plot.
-     */
-    plot_values(timestamp, values) {
-        values.forEach((value, nr) => {
-            this.plot_value(timestamp, value, nr);
+        values.forEach(value => {
+            this.lines.get(lineNr).append_data([timestamp, value]);
         });
-    }
-
-    /**
-     * Plot all values across time in a being state message.
-     * 
-     * @param {object} msg - Being state message.
-     */
-    plot_being_state_message(msg) {
-        this.plot_values(msg.timestamp, msg.values);
-        this.draw();
     }
 
     /**
@@ -473,6 +457,9 @@ export class Plotter extends WidgetBase {
         // Image view space -> Data space
         this.trafoInv = this.trafo.inverse();
         this.ctx.setTransform(this.trafo);
+
+        this.tick_space_x = tick_space(this.viewport.ll[0], this.viewport.ur[0]);
+        this.tick_space_y = tick_space(this.viewport.ll[1], this.viewport.ur[1]);
     }
 
     /**
@@ -506,13 +493,13 @@ export class Plotter extends WidgetBase {
         ctx.font = ".8em Helvetica";
         ctx.textAlign = "center";
         ctx.textBaseline = "top";   // top, middle, bottom
-        tick_space(this.viewport.ll[0], this.viewport.ur[0]).forEach(x => {
+        this.tick_space_x.forEach(x => {
             const pt = (new DOMPoint(x, 0)).matrixTransform(this.trafo);
             ctx.fillText(x, pt.x, clip(pt.y + offset, 0, this.canvas.height - this.margin));
         });
         ctx.textAlign = "right";
         ctx.textBaseline = "middle";   // top, middle, bottom
-        tick_space(this.viewport.ll[1], this.viewport.ur[1]).forEach(y => {
+        this.tick_space_y.forEach(y => {
             const pt = (new DOMPoint(0, y)).matrixTransform(this.trafo);
             ctx.fillText(y, clip(pt.x - offset, this.margin, this.canvas.width), pt.y);
         });
