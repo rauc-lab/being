@@ -104,7 +104,6 @@ MAXON_EC_45_DEFAULT_SETTINGS = collections.OrderedDict([
     ('Axis configuration/Sensors configuration', MaxonSensorsConfiguration().to_int()),
     ('Axis configuration/Control structure', MaxonControlStructure().to_int()),
     ('Axis configuration/Commutation sensors', 0x31),
-    ('Store parameters', 0),
     ('Digital incremental encoder 1/Digital incremental encoder 1 number of pulses', 2048),
     ('Digital incremental encoder 1/Digital incremental encoder 1 type', 0),
     ('Interpolation time period/Interpolation time period value', INTERVAL / MILLI),
@@ -117,6 +116,7 @@ MAXON_EC_45_DEFAULT_SETTINGS = collections.OrderedDict([
     ('Motor data/Torque constant', 78600),  # uNm/A
     ('Current threshold for homing mode', 500),  # mA
     ('Homing speeds/Speed for switch search', 30),
+    ('Store parameters', 0),
 ])
 
 
@@ -173,6 +173,22 @@ MOTORS = {
         length=0.220,
         units=DeviceUnits(position=MICRO, velocity=MILLI, acceleration=MILLI),
         defaultSettings=FAULHABER_DEFAULT_SETTINGS,
+    ),
+    '2214': Motor(
+        'Faulhaber',
+        '2214',
+        units=DeviceUnits(position=TAU / 4 / 4096),
+        defaultSettings=collections.OrderedDict([
+            ('Motor type', MaxonMotorType.SINUSOIDAL_PM_BL_MOTOR),
+            ('Motor data/Number of pole pairs', 7),
+            ('Digital incremental encoder 1/Digital incremental encoder 1 number of pulses', 4096),
+            ('Digital incremental encoder 1/Digital incremental encoder 1 type', 0x0011),
+            ('Motor data/Nominal current', 360),  # mA
+            ('Motor data/Output current limit', 2 * 360),  # mA
+            ('Motor data/Torque constant', 32200),  # uNm/A
+
+            ('Store parameters', 0),
+        ]),
     ),
     'EC45': Motor(
         'Maxon',
