@@ -15,6 +15,7 @@ from being.sensors import Sensor, SensorEvent
 from being.serialization import dumps
 from being.logging import get_logger
 from being.clock import Clock
+from being.connectables import ValueInput
 
 # Look before you leap
 INTERVAL = CONFIG['General']['INTERVAL']
@@ -229,12 +230,21 @@ class SensorIntegrator(Block):
 
         self.collected_events.sort(key=lambda x: x.timestamp)
 
-        start = toc - self.integrationTime
+        if type(self.integrationTime) is int:
+            start = toc - self.integrationTime
+        elif type(self.integrationTime) is ValueInput:
+            start = toc - self.integrationTime.value
+
         for evt in self.collected_events:
             if evt.timestamp < start:
                 self.collected_events.remove(evt)
 
-        if len(self.collected_events) >= self.threshold:
+        if type(self.threshold) is int:
+            threshold = self.threshold
+        elif type(self.threshold) is ValueInput:
+            threshold = self.threshold.value
+
+        if len(self.collected_events) >= threshold:
             self.logger.info("Threshold passed, forward collected events to output")
             for evt in self.collected_events:
                 self.logger.debug(f'Send collected event: {evt}')
