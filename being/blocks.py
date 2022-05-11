@@ -2,7 +2,6 @@
 import collections
 import math
 import sys
-import time
 from typing import ForwardRef, Sequence
 
 from being.backends import AudioBackend
@@ -15,6 +14,7 @@ from being.resources import register_resource
 from being.sensors import Sensor, SensorEvent
 from being.serialization import dumps
 from being.logging import get_logger
+from being.clock import Clock
 
 # Look before you leap
 INTERVAL = CONFIG['General']['INTERVAL']
@@ -218,9 +218,10 @@ class SensorIntegrator(Block):
         self.integrationTime = integrationTime
         self.threshold = threshold
         self.logger = get_logger("SensorIntegratorBlock")
+        self.clock = Clock.single_instance_setdefault()
 
     def update(self):
-        toc = time.perf_counter()
+        toc = self.clock.now()
         for events in list(self.input.receive()):
             if events:
                 for evt in events:
@@ -234,7 +235,7 @@ class SensorIntegrator(Block):
                 self.collected_events.remove(evt)
 
         if len(self.collected_events) >= self.threshold:
-            self.logger.debug("Threshold passed, forward collected events to output")
+            self.logger.info("Threshold passed, forward collected events to output")
             for evt in self.collected_events:
                 self.logger.debug(f'Send collected event: {evt}')
                 self.output.send(evt)
