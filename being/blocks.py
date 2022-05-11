@@ -1,4 +1,5 @@
 """Collection of miscellaneous blocks."""
+import collections
 import math
 import sys
 import time
@@ -11,12 +12,12 @@ from being.configuration import CONFIG
 from being.constants import TAU
 from being.math import linear_mapping
 from being.resources import register_resource
-from being.sensors import Sensor
-
+from being.sensors import Sensor, SensorEvent
+from being.serialization import dumps
+from being.logging import get_logger
 
 # Look before you leap
 INTERVAL = CONFIG['General']['INTERVAL']
-
 
 class Sine(Block):
 
@@ -173,3 +174,69 @@ class Pendulum(Block):
     def update(self):
         phase = TAU * self.frequency * self.clock.now()
         self.output.value = ranged_sine_pulse(phase, self.lower, self.upper)
+
+
+class MessagePipe(Block):
+
+    """Pipes an arbitrary number of message inputs to a single output."""
+
+    def __init__(self, ndim: int = 2, **kwargs):
+        """
+        Args:
+            ndim (optional): Number of message inputs.
+        """
+        super().__init__(**kwargs)
+        self.add_message_output()
+
+        for _ in range(ndim):
+            self.add_message_input()
+
+    def update(self):
+        for input in self.inputs:
+            evts = list(input.receive())
+            if evts:
+                self.output.send(evts)
+
+
+class SensorIntegrator(Block):
+
+    """Integrator for sensor message inputs. Only outputs collected messages if
+    the total number within the integration time is higher than the threshold.
+    Usefull for suppressing events in busy environments."""
+
+    def __init__(self, threshold: int, integrationTime: float = 5.0, **kwargs):
+        """
+        Args:
+            integrationTime (optional): Window time in seconds.
+            threshold: Required number of events during window time to trigger output
+
+        """
+        super().__init__(**kwargs)
+        self.add_message_output()
+        self.add_message_input()
+        self.collected_events = []
+        self.integrationTime = integrationTime
+        self.threshold = threshold
+        self.logger = get_logger("SensorIntegratorBlock")
+
+    def update(self):
+        toc = time.perf_counter()
+        for events in list(self.input.receive()):
+            if events:
+                for evt in events:
+                    self.collected_events.append(evt)
+
+        self.collected_events.sort(key=lambda x: x.timestamp)
+
+        start = toc - self.integrationTime
+        for evt in self.collected_events:
+            if evt.timestamp < start:
+                self.collected_events.remove(evt)
+
+        if len(self.collected_events) >= self.threshold:
+            self.logger.debug("Threshold passed, forward collected events to output")
+            for evt in self.collected_events:
+                self.logger.debug(f'Send collected event: {evt}')
+                self.output.send(evt)
+
+            self.collected_events = []
