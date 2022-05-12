@@ -16,7 +16,7 @@ import contextlib
 import sys
 import time
 import warnings
-from typing import List, Generator, Set, Union, Optional
+from typing import List, Set, Union, Optional
 from logging import Logger
 
 try:
@@ -30,7 +30,6 @@ import can
 import canopen
 from canopen.pdo.base import Map
 
-from being.can.cia_402 import CiA402Node
 from being.can.nmt import PRE_OPERATIONAL, OPERATIONAL, RESET_COMMUNICATION
 from being.configuration import CONFIG
 from being.logging import get_logger
@@ -99,12 +98,13 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
         """All registered RPDO maps."""
 
     @property
-    def drives(self) -> Generator[CiA402Node, None, None]:
+    def drives(self):
         """Iterate over all known drive nodes.
 
         Returns:
             Drives generator.
         """
+        from being.can.cia_402 import CiA402Node
         return filter_by_type(self.values(), CiA402Node)
 
     def turn_off_motors(self):

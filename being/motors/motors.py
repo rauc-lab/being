@@ -203,6 +203,10 @@ MOTORS = {
         gear=Fraction(69, 13),
         defaultSettings=MAXON_DC_22_DEFAULT_SETTINGS,
     ),
+    'PathosStepper': Motor(
+        'Pathos',
+        'Stepper'
+    ),
 }
 
 

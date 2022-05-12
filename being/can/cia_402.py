@@ -23,9 +23,10 @@ from typing import (
     Union,
 )
 
-from canopen import RemoteNode, ObjectDictionary, Network
+from canopen import RemoteNode, ObjectDictionary
 
 from being.bitmagic import check_bit
+from being.backends import CanBackend
 from being.can.cia_301 import MANUFACTURER_DEVICE_NAME
 from being.can.definitions import TransmissionType
 from being.constants import FORWARD, BACKWARD
@@ -621,7 +622,7 @@ class CiA402Node(RemoteNode):
         supported.
     """
 
-    def __init__(self, nodeId: int, objectDictionary: ObjectDictionary, network: Network):
+    def __init__(self, nodeId: int, objectDictionary: ObjectDictionary, network: CanBackend):
         """
         Args:
             nodeId: CAN node id to connect to.
