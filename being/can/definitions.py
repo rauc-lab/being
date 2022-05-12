@@ -59,7 +59,7 @@ class TransmissionType(enum.IntEnum):
 
     SYNCHRONOUS_ACYCLIC = 0
 
-    # 1 - 240 synchronous cyclic. Value = # SYNC objects until PDO is send
+    # 1 - 240 synchronous cyclic. Value = # SYNC objects until PDO is sent
     SYNCHRONOUS_CYCLIC = 1
     ...
 
