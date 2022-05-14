@@ -600,10 +600,16 @@ class Epos4(Controller):
 
 
 class PathosStepper(Controller):
-    SUPPORTED_HOMING_METHODS = [35]
+    SUPPORTED_HOMING_METHODS = [-4, -3, 17, 18, 35]
 
     def configure_node(self):
         pass
 
     def apply_motor_direction(self, direction: float):
         pass
+
+    def init_homing(self, **homingKwargs):
+        # method = default_homing_method(**homingKwargs)
+        # self.homing = CrudeHoming(self.node, minWidth, homingMethod=method, currentLimit=currentLimit)
+        from being.motors.homing import DummyHoming
+        self.homing = DummyHoming()

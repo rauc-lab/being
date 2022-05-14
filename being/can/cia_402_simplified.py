@@ -61,6 +61,7 @@ class RPDONoMap(PdoBase):
 
     def __init__(self, node):
         super(RPDONoMap, self).__init__(node)
+        self.map = Maps()
         # self.map = Maps(0x1400, 0x1600, self, 0x200)
         # logger.debug('RPDO Map as {0}'.format(len(self.map)))
 
@@ -83,8 +84,6 @@ class StepperCiA402Node(BaseNode):
         self.logger = get_logger(str(self))
 
         network.send_message(0, bytes([0x01, self.id]))
-        # from time import sleep
-        # sleep(1)
 
         self.sdo_channels = []
         self.sdo = self.add_sdo(0x600 + self.id, 0x580 + self.id)
@@ -95,7 +94,7 @@ class StepperCiA402Node(BaseNode):
 
         network.add_node(self, objectDictionary)
 
-        rx = Map(self.rpdo, self.sdo[0x1400], 0)
+        rx = Map(self.rpdo, self.sdo[0x1401], 0)
         # rx.read()
         rx.cob_id = 0x200 + nodeId
         # rx.predefined_cob_id = 0x200 + nodeId
@@ -104,12 +103,20 @@ class StepperCiA402Node(BaseNode):
         rx.enabled = True
         rx.trans_type = TransmissionType.SYNCHRONOUS_CYCLIC
         # rx.save()
+        rx.subscribe()
         network.register_rpdo(rx)
+        self.rpdo.map.maps[1] = rx
 
-        mp = Map(self.tpdo, self.sdo[0x1800], 0)
-        self.tpdo.map.maps[1] = mp
-        mp.add_variable(STATUSWORD)
+        tx = Map(self.tpdo, self.sdo[0x1800], 0)
+        tx.cob_id = 0x180 + nodeId
+        tx.add_variable(STATUSWORD)
+        tx.enabled = True
+        tx.trans_type = TransmissionType.ASYNCHRONOUS
+        # tx.save()
+        tx.subscribe()
+        self.tpdo.map.maps[1] = tx
 
+        self.associate_network(network)
         print(self._get_info())
 
     def associate_network(self, network):
@@ -338,7 +345,13 @@ class StepperCiA402Node(BaseNode):
 
     def set_target_position(self, pos):
         """Set target position in device units."""
-        self.rpdo[TARGET_POSITION].raw = pos
+        # print(pos)
+        # print(self.tpdo[STATUSWORD].raw)
+        # self.rpdo[TARGET_POSITION].raw = pos * 10
+        # network.send_message(0, bytes([0x01, self.id]))
+        self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
+        self.sdo[TARGET_POSITION].raw = int(pos * 1000)
+        # print(self.nmt.state)
 
     def get_actual_position(self):
         """Get actual position in device units."""
