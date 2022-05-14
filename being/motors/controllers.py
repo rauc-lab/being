@@ -303,7 +303,11 @@ class Controller(MotorInterface):
 
     def error_history_messages(self):
         """Iterate over current error messages in error history register."""
-        errorHistory = self.node.sdo[0x1003]
+        try:
+            errorHistory = self.node.sdo[0x1003]
+        except KeyError as e:
+            self.logger.warning(f'error history not available: {e}')
+            return
         numErrors = errorHistory[0].raw
         for nr in range(numErrors):
             number = errorHistory[nr + 1].raw
@@ -593,3 +597,13 @@ class Epos4(Controller):
             if self.lastState == State.FAULT and self.rpdoTimeoutOccurred:
                 self.enable()
                 self.rpdoTimeoutOccurred = False
+
+
+class PathosStepper(Controller):
+    SUPPORTED_HOMING_METHODS = [35]
+
+    def configure_node(self):
+        pass
+
+    def apply_motor_direction(self, direction: float):
+        pass

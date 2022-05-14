@@ -1,6 +1,6 @@
 import canopen
 from canopen.node.base import BaseNode
-from canopen.pdo import PdoBase, TPDO, PDO, Maps
+from canopen.pdo import PdoBase, Map
 from canopen.nmt import NmtMaster
 from canopen.emcy import EmcyConsumer
 from canopen.sdo import SdoClient
@@ -41,8 +41,7 @@ class RPDONoMap(PdoBase):
 
     def __init__(self, node):
         super(RPDONoMap, self).__init__(node)
-        # self.map = Maps()
-        self.map = Maps(0x1400, 0x1600, self, 0x200)
+        # self.map = Maps(0x1400, 0x1600, self, 0x200)
         # logger.debug('RPDO Map as {0}'.format(len(self.map)))
 
     def stop(self):
@@ -63,28 +62,37 @@ class StepperCiA402Node(BaseNode):
         super().__init__(nodeId, objectDictionary)
         self.logger = get_logger(str(self))
 
+        network.send_message(0, bytes([0x01, self.id]))
+        from time import sleep
+        sleep(1)
+
         self.sdo_channels = []
         self.sdo = self.add_sdo(0x600 + self.id, 0x580 + self.id)
         self.tpdo = TPDONoMap(self)
         self.rpdo = RPDONoMap(self)
-        # self.pdo = PDO(self, self.rpdo, self.tpdo)
         self.nmt = NmtMaster(self.id)
         self.emcy = EmcyConsumer()
 
         network.add_node(self, objectDictionary)
 
-        rx = self.rpdo[2]
+        rx = Map(self.rpdo, self.sdo[0x1400], 0)
+        # rx.read()
+        rx.cob_id = 0x200 + nodeId
+        # rx.predefined_cob_id = 0x200 + nodeId
         rx.add_variable(CONTROLWORD)
         rx.add_variable(TARGET_POSITION)
         rx.enabled = True
         rx.trans_type = TransmissionType.SYNCHRONOUS_CYCLIC
-        rx.save()
-        network.register_rpdo(self.rpdo[2])
+        # rx.save()
+        network.register_rpdo(rx)
+
+        self.tpdo.map = {1: {STATUSWORD: Map(self.tpdo, self.sdo[0x1800], 0)}}
+
+        print(self._get_info())
 
     def associate_network(self, network):
         self.network = network
         self.sdo.network = network
-        # self.pdo.network = network
         self.tpdo.network = network
         self.rpdo.network = network
         self.nmt.network = network
@@ -124,7 +132,7 @@ class StepperCiA402Node(BaseNode):
             Current CiA 402 state.
         """
         if how == 'pdo':
-            return which_state(self.pdo[STATUSWORD].raw)  # This takes approx. 0.027 ms
+            return which_state(self.tpdo[STATUSWORD].raw)  # This takes approx. 0.027 ms
         elif how == 'sdo':
             return which_state(self.sdo[STATUSWORD].raw)  # This takes approx. 2.713 ms
         else:
@@ -154,7 +162,7 @@ class StepperCiA402Node(BaseNode):
 
         cw = TRANSITION_COMMANDS[edge]
         if how == 'pdo':
-            self.pdo[CONTROLWORD].raw = cw
+            self.rpdo[CONTROLWORD].raw = cw
         elif how == 'sdo':
             self.sdo[CONTROLWORD].raw = cw
         else:
@@ -233,7 +241,7 @@ class StepperCiA402Node(BaseNode):
 
     def get_operation_mode(self) -> OperationMode:
         """Get current operation mode."""
-        return OperationMode(self.sdo[MODES_OF_OPERATION_DISPLAY].raw)
+        return OperationMode(self.sdo[MODES_OF_OPERATION].raw)
 
     def set_operation_mode(self, op: OperationMode):
         """Set operation mode.
@@ -251,8 +259,10 @@ class StepperCiA402Node(BaseNode):
         if state not in VALID_OP_MODE_CHANGE_STATES:
             raise RuntimeError(f'Can not change to {op} when in {state}')
 
-        sdm = self.sdo[SUPPORTED_DRIVE_MODES].raw
-        if op not in supported_operation_modes(sdm):
+        sdm = {OperationMode.PROFILE_POSITION,
+               OperationMode.PROFILE_VELOCITY,
+               OperationMode.HOMING}
+        if op not in sdm:
             raise RuntimeError(f'This drive does not support {op!r}!')
 
         self.sdo[MODES_OF_OPERATION].raw = op
@@ -320,19 +330,19 @@ class StepperCiA402Node(BaseNode):
 
     def set_target_position(self, pos):
         """Set target position in device units."""
-        self.pdo[TARGET_POSITION].raw = pos
+        self.rpdo[TARGET_POSITION].raw = pos
 
     def get_actual_position(self):
         """Get actual position in device units."""
-        return self.pdo[POSITION_ACTUAL_VALUE].raw
+        return self.tpdo[POSITION_ACTUAL_VALUE].raw
 
     def set_target_velocity(self, vel):
         """Set target velocity in device units."""
-        self.pdo[TARGET_VELOCITY].raw = vel
+        self.rpdo[TARGET_VELOCITY].raw = vel
 
     def get_actual_velocity(self):
         """Get actual velocity in device units."""
-        return self.pdo[VELOCITY_ACTUAL_VALUE].raw
+        return self.tpdo[VELOCITY_ACTUAL_VALUE].raw
 
     def move_to(self,
             position: int,
@@ -388,7 +398,7 @@ class StepperCiA402Node(BaseNode):
             self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
 
     def _get_info(self) -> dict:
-        """Get the current drive informations."""
+        """Get the current drive information."""
         return {
             'nmt': self.nmt.state,
             'state': self.get_state(),
@@ -397,7 +407,7 @@ class StepperCiA402Node(BaseNode):
 
     def manufacturer_device_name(self):
         """Get manufacturer device name."""
-        return 'StepperController'
+        return 'PathosStepper'
 
     def apply_settings(self, settings: Dict[str, Any]):
         """Apply multiple settings to CANopen node. Path syntax for nested

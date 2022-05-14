@@ -48,7 +48,7 @@ from being.constants import TAU
 from being.kinematics import kinematic_filter, State as KinematicState
 from being.logging import get_logger
 from being.math import ArchimedeanSpiral
-from being.motors.controllers import Controller, Mclm3002, Epos4
+from being.motors.controllers import Controller, Mclm3002, Epos4, PathosStepper
 from being.motors.definitions import MotorState, MotorEvent, MotorInterface
 from being.motors.homing import DummyHoming, HomingState
 from being.motors.motors import get_motor, Motor
@@ -72,6 +72,7 @@ INTERVAL = CONFIG['General']['INTERVAL']
 CONTROLLER_TYPES: Dict[str, Controller] = {
     'MCLM3002P-CO': Mclm3002,
     'EPOS4': Epos4,
+    'PathosStepper': PathosStepper
 }
 """Device name to Controller type lookup."""
 

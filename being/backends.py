@@ -142,7 +142,7 @@ class CanBackend(canopen.Network, SingleInstanceCache, contextlib.AbstractContex
     def transmit_all_rpdos(self):
         """Transmit all current values of all registered RPDO maps."""
         for rx in self.rpdos:
-            #self.pdo_node.network.send_message(rx.cob_id, rx.data)  # Lock inside
+            #self.rpdo_node.network.send_message(rx.cob_id, rx.data)  # Lock inside
             msg = can.Message(
                 is_extended_id=rx.cob_id > 0x7FF,
                 arbitration_id=rx.cob_id,

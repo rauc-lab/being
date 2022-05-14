@@ -260,7 +260,7 @@ class CiA402Homing(HomingBase):
         self.homingMethod = default_homing_method(**kwargs)
 
         self.logger = get_logger(f'CiA402Homing(nodeId: {node.id})')
-        self.statusword = node.pdo[STATUSWORD]
+        self.statusword = node.tpdo[STATUSWORD]
         self.controlword = node.sdo[CONTROLWORD]
         self.endTime = -1
 
@@ -367,7 +367,7 @@ class CrudeHoming(CiA402Homing):
 
     def on_the_wall(self) -> bool:
         """Check if motor is on the wall."""
-        current = self.node.pdo['Current Actual Value'].raw
+        current = self.node.tpdo['Current Actual Value'].raw
         return current > self.currentLimit  # Todo: Add percentage threshold?
 
     def homing_job(self, speed: int = 100):

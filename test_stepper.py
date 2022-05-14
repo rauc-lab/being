@@ -13,10 +13,10 @@ from being.resources import register_resource, manage_resources
 from being.can.cia_402_simplified import StepperCiA402Node
 from being.can import load_object_dictionary_from_eds
 
-log_level = logging.INFO
+log_level = logging.DEBUG
 logging.basicConfig(level=log_level)
 setup_logging(level=log_level)
-suppress_other_loggers()
+# suppress_other_loggers()
 
 with manage_resources():
     network = CanBackend.single_instance_setdefault()
@@ -26,14 +26,15 @@ with manage_resources():
     mot0 = RotaryMotor(
         nodeId=nodeId,
         node=StepperCiA402Node(nodeId=nodeId,
-                        objectDictionary=load_object_dictionary_from_eds(
-                            'eds_files/pathos_stepper_controller.eds', nodeId),
-                        network=network),
-        motor='Stepper',
+                               objectDictionary=load_object_dictionary_from_eds(
+                                                'eds_files/pathos_stepper_controller.eds',
+                                                nodeId),
+                               network=network),
+        motor='Pathos_Stepper',
+        profiled=True,
         length=TAU/2,
         direction=FORWARD,
-        homingMethod=33,
-        usePositionController=True,
+        homingMethod=None,
         settings={}
     )
 
