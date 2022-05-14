@@ -911,20 +911,6 @@ class CiA402Node(RemoteNode):
         self.sdo[CONTROLWORD].raw = 0
         self.sdo[CONTROLWORD].raw = CW.FAULT_RESET
 
-    def switch_off(self, timeout: float = 1.0):
-        """Switch off drive. Same state as on power-up.
-
-        Args:
-            timeout (optional): Timeout duration.
-        """
-        message = (
-            'This method is deprecated. This targets SWITCH_ON_DISABLED and'
-            ' some motor controllers have issues getting there when in'
-            ' READY_TO_SWITCH_ON.'
-        )
-        warnings.warn(message, DeprecationWarning, stacklevel=2)
-        self.change_state(State.SWITCH_ON_DISABLED, timeout=timeout)
-
     def disable(self, timeout: float = 1.0):
         """Disable drive (no power).
 

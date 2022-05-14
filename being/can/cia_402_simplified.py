@@ -1,3 +1,8 @@
+from typing import Iterable
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
 import canopen
 from canopen.node.base import BaseNode
 from canopen.pdo import PdoBase, Map
@@ -5,6 +10,20 @@ from canopen.nmt import NmtMaster
 from canopen.emcy import EmcyConsumer
 from canopen.sdo import SdoClient
 from .cia_402 import *
+
+
+class Maps(Mapping):
+    def __init__(self):
+        self.maps: Dict[int, "Map"] = {}
+
+    def __getitem__(self, key: int) -> "Map":
+        return self.maps[key]
+
+    def __iter__(self) -> Iterable[int]:
+        return iter(self.maps)
+
+    def __len__(self) -> int:
+        return len(self.maps)
 
 
 class TPDONoMap(PdoBase):
@@ -16,6 +35,7 @@ class TPDONoMap(PdoBase):
 
     def __init__(self, node):
         super(TPDONoMap, self).__init__(node)
+        self.map = Maps()
         # self.map = Maps(0x1800, 0x1A00, self, 0x180)
         # logger.debug('TPDO Map as {0}'.format(len(self.map)))
 
@@ -63,8 +83,8 @@ class StepperCiA402Node(BaseNode):
         self.logger = get_logger(str(self))
 
         network.send_message(0, bytes([0x01, self.id]))
-        from time import sleep
-        sleep(1)
+        # from time import sleep
+        # sleep(1)
 
         self.sdo_channels = []
         self.sdo = self.add_sdo(0x600 + self.id, 0x580 + self.id)
@@ -86,7 +106,9 @@ class StepperCiA402Node(BaseNode):
         # rx.save()
         network.register_rpdo(rx)
 
-        self.tpdo.map = {1: {STATUSWORD: Map(self.tpdo, self.sdo[0x1800], 0)}}
+        mp = Map(self.tpdo, self.sdo[0x1800], 0)
+        self.tpdo.map.maps[1] = mp
+        mp.add_variable(STATUSWORD)
 
         print(self._get_info())
 
@@ -298,20 +320,6 @@ class StepperCiA402Node(BaseNode):
         self.sdo[CONTROLWORD].raw = 0
         self.sdo[CONTROLWORD].raw = CW.FAULT_RESET
 
-    def switch_off(self, timeout: float = 1.0):
-        """Switch off drive. Same state as on power-up.
-
-        Args:
-            timeout (optional): Timeout duration.
-        """
-        message = (
-            'This method is deprecated. This targets SWITCH_ON_DISABLED and'
-            ' some motor controllers have issues getting there when in'
-            ' READY_TO_SWITCH_ON.'
-        )
-        warnings.warn(message, DeprecationWarning, stacklevel=2)
-        self.change_state(State.SWITCH_ON_DISABLED, timeout=timeout)
-
     def disable(self, timeout: float = 1.0):
         """Disable drive (no power).
 
@@ -334,7 +342,7 @@ class StepperCiA402Node(BaseNode):
 
     def get_actual_position(self):
         """Get actual position in device units."""
-        return self.tpdo[POSITION_ACTUAL_VALUE].raw
+        return self.sdo[POSITION_ACTUAL_VALUE].raw
 
     def set_target_velocity(self, vel):
         """Set target velocity in device units."""
