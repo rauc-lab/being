@@ -11,14 +11,10 @@ from being.configuration import CONFIG
 from being.constants import TAU
 from being.math import linear_mapping
 from being.resources import register_resource
-from being.sensors import Sensor, SensorEvent
-from being.serialization import dumps
-from being.logging import get_logger
-from being.clock import Clock
-from being.connectables import ValueInput
 
 # Look before you leap
 INTERVAL = CONFIG['General']['INTERVAL']
+
 
 class Sine(Block):
 
