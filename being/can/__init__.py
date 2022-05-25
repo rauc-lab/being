@@ -41,7 +41,7 @@ from the device. :hex:
 SUPPORTED_DEVICE_TYPES: Dict[bytes, str] = {
     b'\x92\x01\x42\x00': 'eds_files/MCLM3002P-CO.eds',
     b'\x92\x01\x02\x00': {
-        b'\x92\x01\x50\x61': 'eds_files/maxon_motor_EPOS4_0170h_6150h_0000h_0000h.eds',
+        b'\x00\x00\x50\x61': 'eds_files/maxon_motor_EPOS4_0170h_6150h_0000h_0000h.eds',
         b'\x00\x00\x50\x68': 'eds_files/maxon_motor_EPOS4_0170h_6850h_0000h_0000h.eds',
     }
 }
