@@ -621,7 +621,7 @@ class CiA402Node(RemoteNode):
         supported.
     """
 
-    def __init__(self, nodeId: int, objectDictionary: ObjectDictionary, network: Network):
+    def __init__(self, nodeId: int, objectDictionary: ObjectDictionary, network: Network, defaultEventTimer=None):
         """
         Args:
             nodeId: CAN node id to connect to.
@@ -656,6 +656,8 @@ class CiA402Node(RemoteNode):
         # FIXME: use unique COB-IDs which depend on the nodeID from the objectDictionary
         # (pdo.read() loads values from the nodes which by default are all same and conflict if n(nodes) > 1)
 
+        self.defaultEventTimer = defaultEventTimer
+
         self.setup_txpdo(1, STATUSWORD)
         self.setup_txpdo(2, POSITION_ACTUAL_VALUE, VELOCITY_ACTUAL_VALUE)
         self.setup_txpdo(3, enabled=False)
@@ -674,7 +676,7 @@ class CiA402Node(RemoteNode):
             overwrite: bool = True,
             enabled: bool = True,
             trans_type: TransmissionType = TransmissionType.SYNCHRONOUS_CYCLIC,
-            event_timer: Optional[int] = None,  # TODO: set to 100 or so for FH motors to reduce bus load
+            event_timer: Optional[int] = None
         ):
         """Setup single transmission PDO of node (receiving PDO messages from
         remote node). Note: Sending / receiving direction always from the remote
@@ -701,6 +703,8 @@ class CiA402Node(RemoteNode):
         tx.trans_type = trans_type
         if event_timer is not None:
             tx.event_timer = event_timer
+        elif self.defaultEventTimer is not None:
+            tx.event_timer = self.defaultEventTimer
 
         tx.save()
 

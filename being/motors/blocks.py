@@ -312,7 +312,7 @@ class CanMotor(MotorBlock):
             if objectDictionary is None:
                 objectDictionary = load_object_dictionary(network, nodeId)
 
-            node = CiA402Node(nodeId, objectDictionary, network)
+            node = CiA402Node(nodeId, objectDictionary, network, defaultEventTimer=controllerKwargs['defaultEventTimer'])
 
         if isinstance(motor, str):
             motor = get_motor(motor)
@@ -396,6 +396,7 @@ class LinearMotor(CanMotor):
             motor (optional): Motor object or motor name.
             **kwargs: Arbitrary keyword arguments for :class:`CanMotor`.
         """
+        kwargs.setdefault('defaultEventTimer', 100)
         super().__init__(nodeId, motor, **kwargs)
 
 
