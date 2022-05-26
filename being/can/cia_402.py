@@ -636,13 +636,14 @@ class CiA402Node(RemoteNode):
         network.add_node(self, objectDictionary)
 
         # Configure PDOs
-        self.pdo.read()  # Load both node.tpdo and node.rpdo
+        self.tpdo.read()
+        self.rpdo.read()
 
         # Note: Default PDO mapping of some motors includes the Control- /
         # Statusword in multiple PDOs. This can lead to unexpected behavior with
         # our CANopen stack since for example:
         #
-        #     node.pdo['Controlword'] = Command.ENABLE_OPERATION
+        #     node.rpdo['Controlword'] = Command.ENABLE_OPERATION
         #
         # will only set the value in the first PDO with the Controlword but not
         # for the others following. In these, the Controlword will stay zero and
@@ -745,7 +746,7 @@ class CiA402Node(RemoteNode):
             Current CiA 402 state.
         """
         if how == 'pdo':
-            return which_state(self.pdo[STATUSWORD].raw)  # This takes approx. 0.027 ms
+            return which_state(self.tpdo[STATUSWORD].raw)  # This takes approx. 0.027 ms
         elif how == 'sdo':
             return which_state(self.sdo[STATUSWORD].raw)  # This takes approx. 2.713 ms
         else:
@@ -775,7 +776,7 @@ class CiA402Node(RemoteNode):
 
         cw = TRANSITION_COMMANDS[edge]
         if how == 'pdo':
-            self.pdo[CONTROLWORD].raw = cw
+            self.rpdo[CONTROLWORD].raw = cw
         elif how == 'sdo':
             self.sdo[CONTROLWORD].raw = cw
         else:
@@ -941,19 +942,19 @@ class CiA402Node(RemoteNode):
 
     def set_target_position(self, pos):
         """Set target position in device units."""
-        self.pdo[TARGET_POSITION].raw = pos
+        self.rpdo[TARGET_POSITION].raw = pos
 
     def get_actual_position(self):
         """Get actual position in device units."""
-        return self.pdo[POSITION_ACTUAL_VALUE].raw
+        return self.tpdo[POSITION_ACTUAL_VALUE].raw
 
     def set_target_velocity(self, vel):
         """Set target velocity in device units."""
-        self.pdo[TARGET_VELOCITY].raw = vel
+        self.rpdo[TARGET_VELOCITY].raw = vel
 
     def get_actual_velocity(self):
         """Get actual velocity in device units."""
-        return self.pdo[VELOCITY_ACTUAL_VALUE].raw
+        return self.tpdo[VELOCITY_ACTUAL_VALUE].raw
 
     def move_to(self,
             position: int,
