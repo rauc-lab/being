@@ -603,7 +603,8 @@ class PathosStepper(Controller):
     SUPPORTED_HOMING_METHODS = [-4, -3, 17, 18, 35]
 
     def configure_node(self):
-        pass
+        self.apply_motor_direction(self.direction)
+        self.node.apply_settings(self.settings)
 
     def apply_motor_direction(self, direction: float):
         pass

@@ -95,24 +95,20 @@ class StepperCiA402Node(BaseNode):
         network.add_node(self, objectDictionary)
 
         rx = Map(self.rpdo, self.sdo[0x1401], 0)
-        # rx.read()
-        rx.cob_id = 0x200 + nodeId
-        # rx.predefined_cob_id = 0x200 + nodeId
+        rx.cob_id = 0x300 + nodeId
         rx.add_variable(CONTROLWORD)
         rx.add_variable(TARGET_POSITION)
         rx.enabled = True
         rx.trans_type = TransmissionType.SYNCHRONOUS_CYCLIC
-        # rx.save()
         rx.subscribe()
         network.register_rpdo(rx)
-        self.rpdo.map.maps[1] = rx
+        self.rpdo.map.maps[2] = rx
 
         tx = Map(self.tpdo, self.sdo[0x1800], 0)
         tx.cob_id = 0x180 + nodeId
         tx.add_variable(STATUSWORD)
         tx.enabled = True
         tx.trans_type = TransmissionType.ASYNCHRONOUS
-        # tx.save()
         tx.subscribe()
         self.tpdo.map.maps[1] = tx
 
@@ -132,7 +128,7 @@ class StepperCiA402Node(BaseNode):
         network.subscribe(0, self.nmt.on_command)
 
     def add_sdo(self, rx_cobid, tx_cobid):
-        """Add an additional SDO channel.
+        """Add an SDO channel.
 
         The SDO client will be added to :attr:`sdo_channels`.
 
@@ -296,31 +292,6 @@ class StepperCiA402Node(BaseNode):
 
         self.sdo[MODES_OF_OPERATION].raw = op
 
-    @contextlib.contextmanager
-    def restore_states_and_operation_mode(self, how='sdo', timeout: float = 2.0):
-        """Restore NMT state, CiA 402 state and operation mode. Implemented as
-        context manager.
-
-        Args:
-            how (optional): Communication channel. ``'sdo'`` (default) or ``'pdo'``.
-            timeout (optional): Timeout duration.
-
-        Example:
-            >>> with node.restore_states_and_operation_mode():
-            ...     # Do something fancy with the states
-            ...     pass
-
-        Warning:
-            Deprecated. Led to more problems than it solved...
-        """
-        oldOp = self.get_operation_mode()
-        oldState = self.get_state(how)
-
-        yield self
-
-        self.set_operation_mode(oldOp)
-        self.change_state(oldState, how=how, timeout=timeout)
-
     def reset_fault(self):
         """Perform fault reset to SWITCH_ON_DISABLED."""
         self.logger.warning('Resetting fault')
@@ -345,17 +316,15 @@ class StepperCiA402Node(BaseNode):
 
     def set_target_position(self, pos):
         """Set target position in device units."""
-        # print(pos)
-        # print(self.tpdo[STATUSWORD].raw)
-        # self.rpdo[TARGET_POSITION].raw = pos * 10
-        # network.send_message(0, bytes([0x01, self.id]))
-        self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
-        self.sdo[TARGET_POSITION].raw = int(pos * 1000)
-        # print(self.nmt.state)
+        pos = int(pos * 10)
+        self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
+        time.sleep(.1)
+        self.rpdo[TARGET_POSITION].raw = pos
+        self.rpdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
 
     def get_actual_position(self):
         """Get actual position in device units."""
-        return self.sdo[POSITION_ACTUAL_VALUE].raw
+        return self.sdo[POSITION_ACTUAL_VALUE].raw / 10
 
     def set_target_velocity(self, vel):
         """Set target velocity in device units."""
