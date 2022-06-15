@@ -21,8 +21,8 @@ FILENAME = CONFIG['Logging']['FILENAME']
 BEING_LOGGER = logging.getLogger('being')
 """Being root logger."""
 
-DEFAULT_EXCLUDES = ['parso', 'matplotlib', 'can.interfaces.socketcan.socketcan', 'aiohttp',
-                    'canopen',
+DEFAULT_EXCLUDES = ['parso', 'matplotlib', 'can.interfaces.socketcan.socketcan',
+                    'can.interfaces.socketcan.socketcan.tx', 'aiohttp', 'canopen',
                     ]
 
 
@@ -55,6 +55,10 @@ def suppress_other_loggers(*excludes):
         for part in excludes:
             if part in name:
                 logging.getLogger(name).disabled = True
+
+    # some loggers are not found in the dict above - suppress them this way:
+    for e in excludes:
+        logging.getLogger(e).disabled = True
 
 
 def setup_logging(level: int = LEVEL):
