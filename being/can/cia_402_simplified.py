@@ -36,8 +36,6 @@ class TPDONoMap(PdoBase):
     def __init__(self, node):
         super(TPDONoMap, self).__init__(node)
         self.map = Maps()
-        # self.map = Maps(0x1800, 0x1A00, self, 0x180)
-        # logger.debug('TPDO Map as {0}'.format(len(self.map)))
 
     def stop(self):
         """Stop transmission of all TPDOs.
@@ -62,8 +60,6 @@ class RPDONoMap(PdoBase):
     def __init__(self, node):
         super(RPDONoMap, self).__init__(node)
         self.map = Maps()
-        # self.map = Maps(0x1400, 0x1600, self, 0x200)
-        # logger.debug('RPDO Map as {0}'.format(len(self.map)))
 
     def stop(self):
         """Stop transmission of all RPDOs.
@@ -113,7 +109,6 @@ class StepperCiA402Node(BaseNode):
         self.tpdo.map.maps[1] = tx
 
         self.associate_network(network)
-        print(self._get_info())
 
     def associate_network(self, network):
         self.network = network
