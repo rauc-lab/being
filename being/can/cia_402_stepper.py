@@ -1,81 +1,37 @@
-from typing import Iterable
 try:
     from collections.abc import Mapping
 except ImportError:
     from collections import Mapping
-import canopen
-from canopen.pdo import PdoBase, Map, PDO
+
+from canopen.pdo import Map, PDO, TPDO, RPDO
+from canopen.pdo.base import Maps
 from canopen.nmt import NmtMaster
 from canopen.emcy import EmcyConsumer
-from .cia_402 import CiA402Node
-
 from canopen import ObjectDictionary, RemoteNode
+
 from being.backends import CanBackend
 from being.can.definitions import TransmissionType
 from being.logging import get_logger
-from being.can.cia402_definitions import *
+from .cia402_definitions import *
+from .cia_402 import CiA402Node
 
 
-class Maps(Mapping):
+class MapsSimplified(Maps):
     def __init__(self):
+        super(Mapping, self).__init__()
         self.maps: Dict[int, "Map"] = {}
 
-    def __getitem__(self, key: int) -> "Map":
-        return self.maps[key]
 
-    def __iter__(self) -> Iterable[int]:
-        return iter(self.maps)
-
-    def __len__(self) -> int:
-        return len(self.maps)
-
-
-class TPDONoMap(PdoBase):
-    """Transmit PDO to broadcast data from the represented node to the network.
-
-    Properties 0x1800 to 0x1803 | Mapping 0x1A00 to 0x1A03.
-    :param object node: Parent node for this object.
-    """
-
+class TPDOSimplified(TPDO):
     def __init__(self, node):
-        super(TPDONoMap, self).__init__(node)
-        self.map = Maps()
-
-    def stop(self):
-        """Stop transmission of all TPDOs.
-
-        :raise TypeError: Exception is thrown if the node associated with the PDO does not
-        support this function.
-        """
-        if isinstance(self.node, canopen.LocalNode):
-            for pdo in self.map.values():
-                pdo.stop()
-        else:
-            raise TypeError('The node type does not support this function.')
+        super(TPDO, self).__init__(node)
+        self.map = MapsSimplified()
 
 
-class RPDONoMap(PdoBase):
-    """Receive PDO to transfer data from somewhere to the represented node.
-
-    Properties 0x1400 to 0x1403 | Mapping 0x1600 to 0x1603.
-    :param object node: Parent node for this object.
-    """
-
+class RPDOSimplified(RPDO):
     def __init__(self, node):
-        super(RPDONoMap, self).__init__(node)
-        self.map = Maps()
-
-    def stop(self):
-        """Stop transmission of all RPDOs.
-
-        :raise TypeError: Exception is thrown if the node associated with the PDO does not
-        support this function.
-        """
-        if isinstance(self.node, canopen.RemoteNode):
-            for pdo in self.map.values():
-                pdo.stop()
-        else:
-            raise TypeError('The node type does not support this function.')
+        super(RPDO, self).__init__(node)
+        self.map = MapsSimplified()
 
 
 class StepperCiA402Node(CiA402Node):
@@ -86,7 +42,7 @@ class StepperCiA402Node(CiA402Node):
     }
 
     def __init__(self, nodeId: int, objectDictionary: ObjectDictionary, network: CanBackend):
-        # do not use the __init__() of CiA402Node
+        # use only __init__() of BaseNode
         super(RemoteNode, self).__init__(nodeId, objectDictionary)
 
         self.logger = get_logger(str(self))
@@ -95,8 +51,8 @@ class StepperCiA402Node(CiA402Node):
 
         self.sdo_channels = []
         self.sdo = self.add_sdo(0x600 + self.id, 0x580 + self.id)
-        self.tpdo = TPDONoMap(self)
-        self.rpdo = RPDONoMap(self)
+        self.tpdo = TPDOSimplified(self)
+        self.rpdo = RPDOSimplified(self)
         self.pdo = PDO(self, self.rpdo, self.tpdo)
         self.nmt = NmtMaster(self.id)
         self.emcy = EmcyConsumer()
