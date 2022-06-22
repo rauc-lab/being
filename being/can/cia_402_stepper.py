@@ -104,9 +104,9 @@ class StepperCiA402Node(CiA402Node):
 
     def set_target_position(self, pos):
         """Set target position in device units."""
-        self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
         self.rpdo[TARGET_POSITION].raw = pos
-        self.rpdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
+        self.rpdo[CONTROLWORD].write(Command.ENABLE_OPERATION | CW.NEW_SET_POINT)
+        self.sdo[CONTROLWORD].write(Command.ENABLE_OPERATION)
 
     def get_actual_position(self):
         """Get actual position in device units."""
