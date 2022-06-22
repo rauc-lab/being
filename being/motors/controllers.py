@@ -573,8 +573,8 @@ class Epos4(Controller):
 
     def publish_errors(self):
         for emcy in self.node.emcy.active:
-            rpodTimeout = 0x8250
-            if emcy.code == rpodTimeout:
+            rpdoTimeout = 0x8250
+            if emcy.code == rpdoTimeout:
                 self.rpdoTimeoutOccurred = True
 
             if emcy.code == 0x8120:
