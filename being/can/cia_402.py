@@ -749,7 +749,7 @@ class CiA402Node(RemoteNode):
         if how == 'pdo':
             return which_state(self.tpdo[STATUSWORD].raw)  # This takes approx. 0.027 ms
         elif how == 'sdo':
-            return which_state(self.tsdo[STATUSWORD].raw)  # This takes approx. 2.713 ms
+            return which_state(self.sdo[STATUSWORD].raw)  # This takes approx. 2.713 ms
         else:
             raise ValueError(f'Unknown how {how!r}')
 
