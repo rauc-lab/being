@@ -106,16 +106,13 @@ class StepperCiA402Node(CiA402Node):
 
     def set_target_position(self, pos):
         """Set target position in device units."""
-        pos = int(pos * 10)  # TODO: factor!
         self.sdo[CONTROLWORD].raw = Command.ENABLE_OPERATION
-        import time
-        time.sleep(.1)  # FIXME
         self.rpdo[TARGET_POSITION].raw = pos
         self.rpdo[CONTROLWORD].raw = Command.ENABLE_OPERATION | CW.NEW_SET_POINT
 
     def get_actual_position(self):
         """Get actual position in device units."""
-        return self.sdo[POSITION_ACTUAL_VALUE].raw / 10  # TODO: factor!
+        return self.sdo[POSITION_ACTUAL_VALUE].raw
 
     def manufacturer_device_name(self):
         """Get manufacturer device name."""

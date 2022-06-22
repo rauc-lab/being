@@ -203,9 +203,10 @@ MOTORS = {
         gear=Fraction(69, 13),
         defaultSettings=MAXON_DC_22_DEFAULT_SETTINGS,
     ),
-    'PATHOS_STEPPER': Motor(
+    'ST-PM35-15-11C': Motor(
         'Pathos',
-        'Stepper'
+        'Stepper',
+        units=DeviceUnits(position=7.5 * TAU / 360),
     ),
 }
 

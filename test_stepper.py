@@ -31,7 +31,7 @@ with manage_resources():
                                                 'eds_files/pathos_stepper_controller.eds',
                                                 nodeId),
                                ),
-        motor='Pathos_Stepper',
+        motor='ST-PM35-15-11C',
         profiled=True,
         length=TAU,
         direction=FORWARD,
