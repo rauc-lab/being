@@ -10,6 +10,7 @@ from canopen.emcy import EmcyConsumer
 from canopen import ObjectDictionary, RemoteNode
 
 from being.backends import CanBackend
+from being.can.nmt import OPERATIONAL
 from being.can.definitions import TransmissionType
 from being.logging import get_logger
 from .cia402_definitions import *
@@ -47,8 +48,6 @@ class StepperCiA402Node(CiA402Node):
 
         self.logger = get_logger(str(self))
 
-        network.send_message(0, bytes([0x01, self.id]))
-
         self.sdo_channels = []
         self.sdo = self.add_sdo(0x600 + self.id, 0x580 + self.id)
         self.tpdo = TPDOSimplified(self)
@@ -56,8 +55,9 @@ class StepperCiA402Node(CiA402Node):
         self.pdo = PDO(self, self.rpdo, self.tpdo)
         self.nmt = NmtMaster(self.id)
         self.emcy = EmcyConsumer()
-
         network.add_node(self, objectDictionary)
+        self.associate_network(network)
+        self.nmt.state = OPERATIONAL
 
         rx = Map(self.rpdo, self.sdo[0x1401], 0)
         rx.cob_id = 0x300 + nodeId
@@ -76,8 +76,6 @@ class StepperCiA402Node(CiA402Node):
         tx.trans_type = TransmissionType.ASYNCHRONOUS
         tx.subscribe()
         self.tpdo.map.maps[1] = tx
-
-        self.associate_network(network)
 
     def get_operation_mode(self) -> OperationMode:
         """Get current operation mode."""
