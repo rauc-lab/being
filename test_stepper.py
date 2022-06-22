@@ -10,7 +10,7 @@ from being.logging import setup_logging, suppress_other_loggers
 from being.motion_player import MotionPlayer
 from being.motors import RotaryMotor
 from being.resources import register_resource, manage_resources
-from being.can.cia_402_simplified import StepperCiA402Node
+from being.can.cia_402_stepper import StepperCiA402Node
 from being.can import load_object_dictionary_from_eds
 
 log_level = logging.DEBUG
@@ -39,7 +39,6 @@ with manage_resources():
         settings={'vmax': 10000,
                   'acc': 10000,
                   'dec': 10000,
-                  # 'Drive Settings/i_run': 8
                   }
     )
 
