@@ -224,7 +224,7 @@ class CanMotor(MotorBlock):
       initialized yet)
     - :class:`being.can.cia_402.CiA402Node` CAN node for given node id. Will be
       passed on to the Controller.
-    - :class:`being.motors.motors.Motor` named tuple with informations regarding
+    - :class:`being.motors.motors.Motor` named tuple with information regarding
       motor hardware and default settings.
     - :class:`being.motors.controllers.Controller` subclass instance, depending
       on motor controller manufacturer.
