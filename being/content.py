@@ -61,7 +61,7 @@ def upgrade_splines_to_curves(directory, logger=None):
 
     Args:
         directory: Folder to check.
-        logger (optional): Logger to write informations to (e.g. Instance logger
+        logger (optional): Logger to write information to (e.g. Instance logger
             of calling :class:`Content` instance).
     """
     if logger is None:

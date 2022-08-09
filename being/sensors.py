@@ -20,7 +20,7 @@ class SensorEvent(NamedTuple):
     """Timestamp of sensor event."""
 
     meta: dict
-    """Additional informations."""
+    """Additional information."""
 
 
 class Sensor(Block):

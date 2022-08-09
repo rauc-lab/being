@@ -116,7 +116,7 @@ class Controller(MotorInterface):
 
     EMERGENCY_DESCRIPTIONS: List[tuple] = []
     """List of (code (int), mask (int), description (str)) tuples with the error
-    informations.
+    information.
 
     :meta hide-value:
     """

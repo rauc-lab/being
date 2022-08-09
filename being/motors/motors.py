@@ -232,7 +232,7 @@ def get_motor(name: str) -> Motor:
         name: Motor name. Can be lowercase and spaces get deleted for easy lookup.
 
     Returns:
-        Motor informations.
+        Motor information.
 
     Raises:
         KeyError: If motor could not be found.
