@@ -152,7 +152,7 @@ export class ControlPanel extends Widget {
     }
 
     /**
-     * For new motor infos update widget.
+     * For new motor info update widget.
      *
      * @param {array} motors - Current motor infos.
      */

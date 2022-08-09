@@ -287,7 +287,7 @@ STATUSWORD_2_STATE: List[Tuple[int, int, State]] = [
     (0b1001111, 0b0001111, State.FAULT_REACTION_ACTIVE),
     (0b1001111, 0b0001000, State.FAULT),
 ]
-"""Statusword bit masks for state loopkup.
+"""Statusword bit masks for state lookup.
 
 :meta hide-value:
 """

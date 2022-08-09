@@ -45,7 +45,6 @@ class DummyNode(CiA402Node):
         self._stateSwitching = None
         self.logger = logging.getLogger('dummy')
 
-
     def read_callback(self, who):
         if who is self._statusword:
             self.tick()
@@ -73,7 +72,7 @@ class DummyNode(CiA402Node):
                 self._stateSwitching = None
 
     def __getattr__(self, name):
-        if name in ('sdo', 'pdo'):
+        if name in ('sdo', 'pdo', 'tpdo', 'rpdo'):
             return self
 
     def __getitem__(self, item):

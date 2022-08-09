@@ -265,7 +265,7 @@ class CiA402Homing(HomingBase):
         self.homingMethod = default_homing_method(**kwargs)
 
         self.logger = get_logger(f'CiA402Homing(nodeId: {node.id})')
-        self.statusword = node.tpdo[STATUSWORD]
+        self.statusword = node.sdo[STATUSWORD]
         self.controlword = node.sdo[CONTROLWORD]
         self.endTime = -1
 

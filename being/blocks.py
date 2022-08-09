@@ -1,7 +1,7 @@
 """Collection of miscellaneous blocks."""
+import collections
 import math
 import sys
-import time
 from typing import ForwardRef, Sequence
 
 from being.backends import AudioBackend
@@ -11,8 +11,6 @@ from being.configuration import CONFIG
 from being.constants import TAU
 from being.math import linear_mapping
 from being.resources import register_resource
-from being.sensors import Sensor
-
 
 # Look before you leap
 INTERVAL = CONFIG['General']['INTERVAL']
@@ -173,3 +171,25 @@ class Pendulum(Block):
     def update(self):
         phase = TAU * self.frequency * self.clock.now()
         self.output.value = ranged_sine_pulse(phase, self.lower, self.upper)
+
+
+class MessagePipe(Block):
+
+    """Pipes an arbitrary number of message inputs to a single output."""
+
+    def __init__(self, ndim: int = 2, **kwargs):
+        """
+        Args:
+            ndim (optional): Number of message inputs.
+        """
+        super().__init__(**kwargs)
+        self.add_message_output()
+
+        for _ in range(ndim):
+            self.add_message_input()
+
+    def update(self):
+        for input in self.inputs:
+            evts = list(input.receive())
+            if evts:
+                self.output.send(evts)

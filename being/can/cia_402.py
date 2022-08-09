@@ -84,6 +84,7 @@ class CiA402Node(RemoteNode):
 
         # FIXME: use unique COB-IDs which depend on the nodeID from the objectDictionary
         # (pdo.read() loads values from the nodes which by default are all same and conflict if n(nodes) > 1)
+        # current solution: use scripts/set_epos_cob_ids.py
 
         self.setup_txpdo(1, STATUSWORD)
         self.setup_txpdo(2, POSITION_ACTUAL_VALUE, VELOCITY_ACTUAL_VALUE)
