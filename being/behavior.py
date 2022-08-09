@@ -193,23 +193,6 @@ class Behavior(Block, PubSub):
         if self.filepath:
             write_file(self.filepath, dumps(self._params, indent=4))
 
-    def associate(self, motionPlayer: MotionPlayer):
-        """Associate behavior engine with motion player block (connect
-        bi-directional).
-
-        Args:
-            motionPlayer: To couple with behavior.
-
-        Warning:
-            Deprecated! Behavior runs now in "open loop" and keeps track how
-            long motions run for.
-        """
-        msg = (
-            'Behavior.associate(motionPlayer) is deprecated. Just connect'
-            ' motion player normally behavior.mcOut.connect(motionPlayer).'
-        )
-        warnings.warn(msg, DeprecationWarning, stacklevel=2)
-
     def reset(self):
         """Reset behavior states and attributes. Jump back to STATE_I."""
         self.state = State.STATE_I

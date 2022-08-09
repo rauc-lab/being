@@ -307,31 +307,6 @@ class CiA402Node(RemoteNode):
 
         self.sdo[MODES_OF_OPERATION].raw = op
 
-    @contextlib.contextmanager
-    def restore_states_and_operation_mode(self, how='sdo', timeout: float = 2.0):
-        """Restore NMT state, CiA 402 state and operation mode. Implemented as
-        context manager.
-
-        Args:
-            how (optional): Communication channel. ``'sdo'`` (default) or ``'pdo'``.
-            timeout (optional): Timeout duration.
-
-        Example:
-            >>> with node.restore_states_and_operation_mode():
-            ...     # Do something fancy with the states
-            ...     pass
-
-        Warning:
-            Deprecated. Led to more problems than it solved...
-        """
-        oldOp = self.get_operation_mode()
-        oldState = self.get_state(how)
-
-        yield self
-
-        self.set_operation_mode(oldOp)
-        self.change_state(oldState, how=how, timeout=timeout)
-
     def reset_fault(self):
         """Perform fault reset to SWITCH_ON_DISABLED."""
         self.logger.warning('Resetting fault')
