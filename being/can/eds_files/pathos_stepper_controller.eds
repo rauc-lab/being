@@ -44,6 +44,7 @@ SupportedObjects=30
 30=0x60FF
 
 [1400]
+ParameterName=Receive PDO 1 Communication Parameter
 ObjectType=0x9
 SubNumber=1
 
@@ -57,6 +58,7 @@ HighLimit=255
 DefaultValue=0xFF
 
 [1401]
+ParameterName=Receive PDO 2 Communication Parameter
 ObjectType=0x9
 SubNumber=1
 
@@ -70,6 +72,7 @@ HighLimit=255
 DefaultValue=0xFF
 
 [1402]
+ParameterName=Receive PDO 3 Communication Parameter
 ObjectType=0x9
 SubNumber=1
 
@@ -110,6 +113,7 @@ HighLimit=4294967295
 DefaultValue=0xC80C0024
 
 [1800]
+ParameterName=Transmit PDO 1 Communication Parameter
 ObjectType=0x9
 SubNumber=1
 
@@ -149,6 +153,7 @@ LowLimit=0
 HighLimit=4294967295
 
 [3002]
+ParameterName=Drive Settings
 ObjectType=0x9
 SubNumber=7
 
@@ -233,6 +238,7 @@ HighLimit=3
 DefaultValue=0x0
 
 [3003]
+ParameterName=PWM Settings
 ObjectType=0x9
 SubNumber=2
 
@@ -253,6 +259,7 @@ LowLimit=0
 HighLimit=4294967295
 
 [3004]
+ParameterName=Chop Settings
 ObjectType=0x9
 SubNumber=3
 
@@ -311,6 +318,7 @@ HighLimit=4294967295
 DefaultValue=0x64
 
 [609B]
+ParameterName=Homing Settings
 ObjectType=0x9
 SubNumber=2
 
@@ -376,6 +384,7 @@ HighLimit=30000
 DefaultValue=0x64
 
 [3000]
+ParameterName=GCONF register
 ObjectType=0x9
 SubNumber=2
 

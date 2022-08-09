@@ -131,3 +131,8 @@ def load_object_dictionary(network: Network, nodeId: int) -> ObjectDictionary:
             return import_eds(filelike, nodeId)
 
     raise RuntimeError(f'Unknown CANopen node {nodeId}. Could not load object dictionary!')
+
+
+def load_object_dictionary_from_eds(fileName, nodeId):
+    data = pkgutil.get_data(__name__, fileName)
+    return import_eds(io.StringIO(data.decode()), nodeId)

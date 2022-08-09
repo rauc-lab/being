@@ -203,6 +203,11 @@ MOTORS = {
         gear=Fraction(69, 13),
         defaultSettings=MAXON_DC_22_DEFAULT_SETTINGS,
     ),
+    'ST-PM35-15-11C': Motor(
+        'Pathos',
+        'Stepper',
+        units=DeviceUnits(position=7.5 * TAU / 360),
+    ),
 }
 
 
@@ -227,7 +232,7 @@ def get_motor(name: str) -> Motor:
         name: Motor name. Can be lowercase and spaces get deleted for easy lookup.
 
     Returns:
-        Motor informations.
+        Motor information.
 
     Raises:
         KeyError: If motor could not be found.

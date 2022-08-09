@@ -31,7 +31,7 @@ from being.motors.definitions import (
     PositionProfile,
     VelocityProfile,
 )
-from being.motors.homing import CiA402Homing, CrudeHoming, default_homing_method
+from being.motors.homing import CiA402Homing, CrudeHoming, StepperHoming, default_homing_method
 from being.motors.motors import Motor
 from being.motors.vendor import (
     FAULHABER_EMERGENCY_DESCRIPTIONS,
@@ -116,7 +116,7 @@ class Controller(MotorInterface):
 
     EMERGENCY_DESCRIPTIONS: List[tuple] = []
     """List of (code (int), mask (int), description (str)) tuples with the error
-    informations.
+    information.
 
     :meta hide-value:
     """
@@ -303,7 +303,11 @@ class Controller(MotorInterface):
 
     def error_history_messages(self):
         """Iterate over current error messages in error history register."""
-        errorHistory = self.node.sdo[0x1003]
+        try:
+            errorHistory = self.node.sdo[0x1003]
+        except KeyError as e:
+            self.logger.warning(f'error history not available: {e}')
+            return
         numErrors = errorHistory[0].raw
         for nr in range(numErrors):
             number = errorHistory[nr + 1].raw
@@ -569,8 +573,8 @@ class Epos4(Controller):
 
     def publish_errors(self):
         for emcy in self.node.emcy.active:
-            rpodTimeout = 0x8250
-            if emcy.code == rpodTimeout:
+            rpdoTimeout = 0x8250
+            if emcy.code == rpdoTimeout:
                 self.rpdoTimeoutOccurred = True
 
             if emcy.code == 0x8120:
@@ -593,3 +597,18 @@ class Epos4(Controller):
             if self.lastState == State.FAULT and self.rpdoTimeoutOccurred:
                 self.enable()
                 self.rpdoTimeoutOccurred = False
+
+
+class PathosStepper(Controller):
+    SUPPORTED_HOMING_METHODS = [-4, -3, 17, 18, 35]
+
+    def configure_node(self):
+        self.apply_motor_direction(self.direction)
+        self.node.apply_settings(self.settings)
+
+    def apply_motor_direction(self, direction: float):
+        pass
+
+    def init_homing(self, **homingKwargs):
+        method = default_homing_method(**homingKwargs)
+        self.homing = StepperHoming(self.node, homingMethod=method)

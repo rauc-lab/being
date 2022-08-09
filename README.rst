@@ -169,6 +169,7 @@ Authors
 
 * Alexander Theler (`RAUC <https://asl.ethz.ch/research/rauc.html>`__, `GitHub <https://github.com/atheler>`__)
 * Silvan Januth (`Wyss Zurich <https://www.wysszurich.uzh.ch/technology-platforms/robotics-technologies?tx_ogwyssteams_teamlist%5Baction%5D=show&tx_ogwyssteams_teamlist%5Bcontroller%5D=Page&tx_ogwyssteams_teamlist%5Bteamid%5D=14&cHash=fd397786f38a735838b306d7e9655ca9#c117>`__)
+* Ilia Sergachev
 
 
 Original Idea & User Interface
@@ -181,7 +182,6 @@ Acknowledgments
 ---------------
 
 * Prof. Einar Nielson
-* Ilia Sergachev
 * Dr. Philipp Reist
 * Prof. Roland Siegwart
 
