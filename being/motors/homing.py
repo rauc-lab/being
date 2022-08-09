@@ -444,7 +444,7 @@ class StepperHoming(CiA402Homing):
         hom_speed_SI = 2.0
         hom_acc_SI = 10.0
         hom_el_angle_INT = 0
-        hom_travel_angle_SI = math.pi
+        hom_travel_angle_SI = 2 * math.pi
         si_home_offset = 0
         node.sdo[HOMING_SPEEDS].write(node.vel_si2dev * hom_speed_SI)
         node.sdo[HOMING_ACCELERATION].write(node.acc_si2dev * hom_acc_SI)
@@ -472,8 +472,8 @@ class StepperHoming(CiA402Homing):
 
         # set current limit to running limit
         # FIXME: motor-dependent
-        irun_A = 0.2  # A
-        ihold_A = 0.1  # A
+        irun_A = 0.4  # A
+        ihold_A = 0.2  # A
         self.node.set_currents(irun_A, ihold_A)
 
         self.state = final
