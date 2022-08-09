@@ -35,7 +35,7 @@ with manage_resources():
         profiled=True,
         length=TAU,
         direction=FORWARD,
-        homingMethod=None,
+        homingMethod=-3,
         settings={'vmax': 10000,
                   'acc': 10000,
                   'dec': 10000,

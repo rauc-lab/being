@@ -31,7 +31,7 @@ from being.motors.definitions import (
     PositionProfile,
     VelocityProfile,
 )
-from being.motors.homing import CiA402Homing, CrudeHoming, default_homing_method
+from being.motors.homing import CiA402Homing, CrudeHoming, StepperHoming, default_homing_method
 from being.motors.motors import Motor
 from being.motors.vendor import (
     FAULHABER_EMERGENCY_DESCRIPTIONS,
@@ -610,7 +610,5 @@ class PathosStepper(Controller):
         pass
 
     def init_homing(self, **homingKwargs):
-        # method = default_homing_method(**homingKwargs)
-        # self.homing = CrudeHoming(self.node, minWidth, homingMethod=method, currentLimit=currentLimit)
-        from being.motors.homing import DummyHoming
-        self.homing = DummyHoming()
+        method = default_homing_method(**homingKwargs)
+        self.homing = StepperHoming(self.node, homingMethod=method)
