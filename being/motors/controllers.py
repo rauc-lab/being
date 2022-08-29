@@ -602,6 +602,21 @@ class Epos4(Controller):
 class PathosStepper(Controller):
     SUPPORTED_HOMING_METHODS = [-4, -3, 17, 18, 35]
 
+    def __init__(self,
+            *args,
+            homingMethod: Optional[int] = None,
+            homingDirection: float = FORWARD,
+            operationMode: OperationMode = OperationMode.PROFILE_POSITION,
+            **kwargs,
+        ):
+        super().__init__(
+            *args,
+            homingMethod=homingMethod,
+            homingDirection=homingDirection,
+            operationMode=operationMode,
+            **kwargs,
+        )
+
     def configure_node(self):
         self.apply_motor_direction(self.direction)
         self.node.apply_settings(self.settings)
@@ -611,4 +626,6 @@ class PathosStepper(Controller):
 
     def init_homing(self, **homingKwargs):
         method = default_homing_method(**homingKwargs)
+        if method not in self.SUPPORTED_HOMING_METHODS:
+            raise ValueError(f'Homing method {method} not supported for controller {self}')
         self.homing = StepperHoming(self.node, homingMethod=method)

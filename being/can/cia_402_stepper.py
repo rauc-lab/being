@@ -55,6 +55,10 @@ class StepperCiA402Node(CiA402Node):
         # use only __init__() of BaseNode
         super(RemoteNode, self).__init__(nodeId, objectDictionary)
 
+        # TODO: move these defaults to some configuration storage
+        self._irun = 0.4
+        self._ihold = 0.2
+
         self.logger = get_logger(str(self))
 
         self.sdo_channels = []
@@ -86,24 +90,6 @@ class StepperCiA402Node(CiA402Node):
         tx.subscribe()
         self.tpdo.map.maps[1] = tx
 
-        # FIXME: motor-dependent
-        ihold_delay = 1
-        mres = 7
-        polarity = 0
-        tpower_down = 20
-
-        self.sdo['Drive Settings']['i_hold_delay'].write(ihold_delay)
-        self.sdo['Chop Settings']['chop_conf_mres'].write(mres)
-        self.sdo['polarity'].write(polarity)
-        self.sdo['Drive Settings']['t_power_down'].write(tpower_down)
-
-        self.rad_per_full_step_ = 0.130899693899574718269
-
-        self.pos_si2dev = (2.0 ** (8.0 - mres)) / self.rad_per_full_step_
-        # vel and acc conversion factors are identical
-        self.vel_si2dev = self.pos_si2dev
-        self.acc_si2dev = self.pos_si2dev
-
     def get_operation_mode(self) -> OperationMode:
         """Get current operation mode."""
         return OperationMode(self.sdo[MODES_OF_OPERATION].raw)
@@ -131,14 +117,14 @@ class StepperCiA402Node(CiA402Node):
 
     def set_target_position(self, pos):
         """Set target position in device units."""
-        # FIXME
-        self.rpdo[TARGET_POSITION].raw = pos * self.pos_si2dev
+        # FIXME: more efficient communication?
+        self.rpdo[TARGET_POSITION].raw = pos
         self.rpdo[CONTROLWORD].write(Command.ENABLE_OPERATION | CW.NEW_SET_POINT)
         self.sdo[CONTROLWORD].write(Command.ENABLE_OPERATION)
 
     def get_actual_position(self):
         """Get actual position in device units."""
-        return self.sdo[POSITION_ACTUAL_VALUE].raw / self.pos_si2dev
+        return self.sdo[POSITION_ACTUAL_VALUE].raw
 
     def manufacturer_device_name(self):
         """Get manufacturer device name."""
@@ -175,6 +161,9 @@ class StepperCiA402Node(CiA402Node):
         if irun < 0.2:
             irun = 0.2
 
+        self._irun = irun
+        self._ihold = ihold
+
         # first calculate the CS for vsense = 0:
         vsense = 0
         csrun = int(round((irun / self._max_current * 32.0))) - 1
@@ -201,3 +190,6 @@ class StepperCiA402Node(CiA402Node):
         self.sdo['Chop Settings']['chop_conf_vsense'].write(vsense)
         self.sdo['Drive Settings']['i_run'].write(csrun)
         self.sdo['Drive Settings']['i_hold'].write(cshold)
+
+    def get_currents(self):
+        return self._irun, self._ihold

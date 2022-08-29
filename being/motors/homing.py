@@ -7,7 +7,6 @@ import abc
 import enum
 import random
 import time
-import math
 from typing import Generator, Callable, Optional
 
 from canopen.variable import Variable
@@ -27,8 +26,6 @@ from being.can.cia_402 import (
     State as CiA402State,
     UNDEFINED,
     determine_homing_method,
-    HOMING_SPEEDS,
-    HOMING_ACCELERATION,
     HOMING_METHOD,
 )
 from being.constants import INF
@@ -438,21 +435,9 @@ class StepperHoming(CiA402Homing):
         node = self.node
         self.start_timeout_clock()
         node.enable()
+        currents = node.get_currents()
         node.set_currents(self.currentLimit, self.currentLimit)
-
-        # FIXME
-        hom_speed_SI = 2.0
-        hom_acc_SI = 10.0
-        hom_el_angle_INT = 0
-        hom_travel_angle_SI = 2 * math.pi
-        si_home_offset = 0
-        node.sdo[HOMING_SPEEDS].write(node.vel_si2dev * hom_speed_SI)
-        node.sdo[HOMING_ACCELERATION].write(node.acc_si2dev * hom_acc_SI)
-        node.sdo['Homing Settings']['homing_steps'].write(node.pos_si2dev * hom_travel_angle_SI)
-        node.sdo['Homing Settings']['homing_electrical_angle'].write(hom_el_angle_INT)
-        node.sdo['homing_offset'].write(node.pos_si2dev * si_home_offset)
         node.sdo[HOMING_METHOD].write(self.homingMethod)
-
         self.set_operation_mode(OperationMode.HOMING)
         self.logger.info('Starting homing reference run')
 
@@ -469,11 +454,6 @@ class StepperHoming(CiA402Homing):
             final = HomingState.HOMED
 
         self.set_operation_mode(OperationMode.PROFILE_POSITION)
-
-        # set current limit to running limit
-        # FIXME: motor-dependent
-        irun_A = 0.4  # A
-        ihold_A = 0.2  # A
-        self.node.set_currents(irun_A, ihold_A)
+        node.set_currents(*currents)
 
         self.state = final

@@ -23,19 +23,21 @@ with manage_resources():
     register_resource(network, duplicates=False)
 
     nodeId = 16
+    od = load_object_dictionary_from_eds(
+        'eds_files/pathos_stepper_controller.eds',
+        nodeId
+    )
     mot0 = RotaryMotor(
         nodeId=nodeId,
         node=StepperCiA402Node(nodeId=nodeId,
                                network=network,
-                               objectDictionary=load_object_dictionary_from_eds(
-                                                'eds_files/pathos_stepper_controller.eds',
-                                                nodeId),
+                               objectDictionary=od,
                                ),
         motor='ST-PM35-15-11C',
         profiled=True,
         length=TAU,
         direction=FORWARD,
-        homingMethod=-3,
+        # homingMethod=-3,
         settings={'vmax': 10000,
                   'acc': 10000,
                   'dec': 10000,

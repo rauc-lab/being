@@ -14,6 +14,10 @@ from being.motors.vendor import (
     MaxonMotorType,
     MaxonSensorsConfiguration,
 )
+from being.can.cia_402 import (
+    HOMING_ACCELERATION,
+    HOMING_SPEEDS
+)
 
 
 INTERVAL = CONFIG['General']['INTERVAL']
@@ -144,6 +148,18 @@ MAXON_DC_22_DEFAULT_SETTINGS = collections.OrderedDict([
     ('Store parameters', 0),
 ])
 
+ST_PM35_15_11C_DEFAULT_SETTINGS = collections.OrderedDict([
+    ('Drive Settings/i_hold_delay', 1),
+    ('Drive Settings/t_power_down', 20),
+    ('Chop Settings/chop_conf_mres', 7),
+    ('polarity', 0),
+    ('Homing Settings/homing_electrical_angle', 0),
+    ('homing_speed', 30),
+    ('homing_acc', 150),
+    ('Homing Settings/homing_steps', 96),  # fixme: depends on microstep (mres) setting
+    ('homing_offset', 0),
+])
+
 
 MOTORS = {
     'LM1247': Motor(
@@ -206,7 +222,8 @@ MOTORS = {
     'ST-PM35-15-11C': Motor(
         'Pathos',
         'Stepper',
-        units=DeviceUnits(position=7.5 * TAU / 360),
+        units=DeviceUnits(position=7.5 * TAU / 360),  # fixme: depends on microstep (mres) setting
+        defaultSettings=ST_PM35_15_11C_DEFAULT_SETTINGS,
     ),
 }
 
